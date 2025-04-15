@@ -39,13 +39,13 @@ const NavItem = ({ href, label, icon, ...props }: NavItemProps) => {
 export function Header() {
   return (
     <header className="border-b">
-      <div className="container mx-auto flex h-16 items-center justify-between">
+      <div className="container  px-4 mx-auto flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
           <ImageIcon className="h-5 w-5" />
           <span className="font-bold">Media Manager</span>
         </div>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-2">
           <NavItem
             href="/"
             label="Home"

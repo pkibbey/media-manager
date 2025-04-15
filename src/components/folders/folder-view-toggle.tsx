@@ -1,8 +1,10 @@
 'use client';
 
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { CubeIcon, StackIcon } from '@radix-ui/react-icons';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 interface FolderViewToggleProps {
   includeSubfolders: boolean;
@@ -13,49 +15,58 @@ export default function FolderViewToggle({
   includeSubfolders,
   baseUrl,
 }: FolderViewToggleProps) {
-  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const handleToggleChange = (value: string) => {
-    if (value === 'includeSubfolders' || value === 'currentFolderOnly') {
-      const shouldIncludeSubfolders = value === 'includeSubfolders';
+  // Preserve page number when toggling view
+  const page = searchParams.get('page');
 
-      // Only navigate if the value has changed
-      if (shouldIncludeSubfolders !== includeSubfolders) {
-        router.push(`${baseUrl}&includeSubfolders=${shouldIncludeSubfolders}`);
-      }
-    }
+  // Create URLs that preserve existing parameters
+  const getFolderUrl = () => {
+    const params = new URLSearchParams();
+    const path = searchParams.get('path');
+    if (path) params.set('path', path);
+    if (page) params.set('page', page);
+    // Don't include includeSubfolders parameter for folder view
+    return `/folders?${params.toString()}`;
+  };
+
+  const getRecursiveUrl = () => {
+    const params = new URLSearchParams();
+    const path = searchParams.get('path');
+    if (path) params.set('path', path);
+    if (page) params.set('page', page);
+    params.set('includeSubfolders', 'true');
+    return `/folders?${params.toString()}`;
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground mr-1">Show:</span>
-      <ToggleGroup
-        type="single"
-        defaultValue={
-          includeSubfolders ? 'includeSubfolders' : 'currentFolderOnly'
-        }
-        onValueChange={handleToggleChange}
-        aria-label="Folder view options"
-      >
-        <ToggleGroupItem
-          value="currentFolderOnly"
-          aria-label="Current folder only"
-          className="flex items-center gap-1 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-          title="Show items in current folder only"
+    <div className="flex border rounded-md overflow-hidden">
+      <Link href={getFolderUrl()} className="flex-1">
+        <Button
+          variant="ghost"
+          className={cn(
+            'flex items-center gap-1 rounded-none w-full',
+            !includeSubfolders && 'bg-secondary',
+          )}
         >
           <CubeIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">Current folder only</span>
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="includeSubfolders"
-          aria-label="Include subfolders"
-          className="flex items-center gap-1 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-          title="Include items from all subfolders"
+          <span className="sr-only sm:not-sr-only sm:inline-flex">Folder</span>
+        </Button>
+      </Link>
+      <Link href={getRecursiveUrl()} className="flex-1">
+        <Button
+          variant="ghost"
+          className={cn(
+            'flex items-center gap-1 rounded-none w-full',
+            includeSubfolders && 'bg-secondary',
+          )}
         >
           <StackIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">Include subfolders</span>
-        </ToggleGroupItem>
-      </ToggleGroup>
+          <span className="sr-only sm:not-sr-only sm:inline-flex">
+            Recursive
+          </span>
+        </Button>
+      </Link>
     </div>
   );
 }

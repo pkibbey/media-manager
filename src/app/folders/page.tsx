@@ -1,8 +1,8 @@
+import FolderPagination from '@/components/folders/folder-pagination';
 import FolderTree from '@/components/folders/folder-tree';
 import FolderViewToggle from '@/components/folders/folder-view-toggle';
 import MediaList from '@/components/folders/media-list';
-import { Pagination } from '@/components/ui/pagination';
-import { ChevronRightIcon, CubeIcon } from '@radix-ui/react-icons';
+import { BackpackIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
@@ -67,11 +67,10 @@ export default async function FoldersPage({
           href={`/folders${includeSubfolders ? '?includeSubfolders=true' : ''}`}
           className="flex items-center hover:text-primary"
         >
-          <CubeIcon className="mr-1" />
+          <BackpackIcon className="mr-1" />
           Root
         </Link>
         {breadcrumbs.map((crumb, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
           <div key={i} className="flex items-center">
             <ChevronRightIcon className="mx-2" />
             <Link
@@ -128,10 +127,10 @@ export default async function FoldersPage({
             {/* Pagination controls */}
             {pagination && pagination.pageCount > 1 && (
               <div className="mt-8 flex justify-center">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={pagination.pageCount}
-                  baseUrl={`${basePath}&includeSubfolders=${includeSubfolders}&page=`}
+                <FolderPagination
+                  page={pagination.page}
+                  pageCount={pagination.pageCount}
+                  basePath={`${basePath}${includeSubfolders ? '&includeSubfolders=true' : ''}`}
                 />
               </div>
             )}

@@ -20,7 +20,11 @@
       },
       "suspicious": {
         "noExplicitAny": "off",
-        "noArrayIndexKey": "warn"
+        "noArrayIndexKey": "warn",
+        "noGlobalIsNan": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
       }
     }
   },

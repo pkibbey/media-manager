@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="en" className={cn('dark', GeistSans.className)}>
       <body className="min-h-screen bg-background flex flex-col">
         <Header />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 px-4">{children}</main>
       </body>
     </html>
   );

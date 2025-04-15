@@ -7,6 +7,7 @@ import {
   CubeIcon,
 } from '@radix-ui/react-icons';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
 export type FolderNode = {
@@ -50,6 +51,8 @@ function FolderTreeItem({ folder, level, selectedPath }: FolderTreeItemProps) {
     // Auto-expand if the folder is in the path of the selected item
     return selectedPath.startsWith(folder.path);
   });
+  const searchParams = useSearchParams();
+  const includeSubfolders = searchParams.get('includeSubfolders') === 'true';
 
   const isSelected = selectedPath === folder.path;
   const hasChildren = folder.children.length > 0;
@@ -59,10 +62,20 @@ function FolderTreeItem({ folder, level, selectedPath }: FolderTreeItemProps) {
     setIsExpanded(!isExpanded);
   };
 
+  // Build URL with preserved parameters
+  const getHref = () => {
+    const params = new URLSearchParams();
+    params.set('path', folder.path);
+    if (includeSubfolders) {
+      params.set('includeSubfolders', 'true');
+    }
+    return `/folders?${params.toString()}`;
+  };
+
   return (
     <div className="space-y-1">
       <Link
-        href={`/folders?path=${encodeURIComponent(folder.path)}`}
+        href={getHref()}
         className={cn(
           'flex items-center gap-1 py-1.5 px-1 rounded-md text-sm transition-colors hover:bg-secondary',
           isSelected

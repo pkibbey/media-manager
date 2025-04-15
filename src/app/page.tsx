@@ -1,4 +1,4 @@
-import { CubeIcon, GearIcon, GridIcon } from '@radix-ui/react-icons';
+import { BackpackIcon, GearIcon, GridIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
 
 interface NavigationCardProps {
@@ -44,7 +44,7 @@ export default function Home() {
             href="/folders"
             title="Folder View"
             description="Browse your media organized by folder structure."
-            icon={<CubeIcon className="h-6 w-6" />}
+            icon={<BackpackIcon className="h-6 w-6" />}
           />
           <NavigationCard
             href="/browse"
