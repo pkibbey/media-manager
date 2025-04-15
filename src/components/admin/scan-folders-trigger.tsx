@@ -1,0 +1,213 @@
+'use client';
+
+import { type ScanProgress, scanFolders } from '@/app/api/actions/scan-folders';
+import { ReloadIcon } from '@radix-ui/react-icons';
+import { useEffect, useRef, useState } from 'react';
+
+export default function ScanFoldersTrigger() {
+  const [isScanning, setIsScanning] = useState(false);
+  const [progress, setProgress] = useState<ScanProgress | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup function to abort scanning when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const startScan = async () => {
+    setIsScanning(true);
+    setProgress(null);
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const stream = await scanFolders();
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+
+      let done = false;
+      let buffer = '';
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+
+        if (value) {
+          buffer += decoder.decode(value, { stream: true });
+
+          // Process complete SSE messages
+          const messages = buffer.split('\n\n');
+          buffer = messages.pop() || ''; // Keep the last incomplete message
+
+          for (const message of messages) {
+            if (message.startsWith('data: ')) {
+              const data = message.slice(6);
+              try {
+                const progressUpdate: ScanProgress = JSON.parse(data);
+                setProgress(progressUpdate);
+
+                // If scan is complete or there's an error, we're done
+                if (
+                  progressUpdate.status === 'completed' ||
+                  progressUpdate.status === 'error'
+                ) {
+                  setIsScanning(false);
+                }
+              } catch (e) {
+                console.error('Error parsing SSE message:', e);
+              }
+            }
+          }
+        }
+      }
+
+      // Process any remaining buffer
+      if (buffer?.startsWith('data: ')) {
+        try {
+          const data = buffer.slice(6);
+          const progressUpdate: ScanProgress = JSON.parse(data);
+          setProgress(progressUpdate);
+
+          if (
+            progressUpdate.status === 'completed' ||
+            progressUpdate.status === 'error'
+          ) {
+            setIsScanning(false);
+          }
+        } catch (e) {
+          console.error('Error parsing SSE message:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error during scan:', error);
+      setProgress({
+        status: 'error',
+        message: 'Error connecting to scan service',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      setIsScanning(false);
+    }
+  };
+
+  const cancelScan = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsScanning(false);
+    setProgress((prev) =>
+      prev ? { ...prev, status: 'error', message: 'Scan cancelled' } : null,
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="text-lg font-medium">Scan Folders</h3>
+          <p className="text-sm text-muted-foreground">
+            Scans all configured folders for media files and adds them to the
+            database.
+          </p>
+        </div>
+        <button
+          onClick={isScanning ? cancelScan : startScan}
+          disabled={isScanning && !abortControllerRef.current}
+          className={`px-4 py-2 rounded-md flex items-center gap-2 ${
+            isScanning
+              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          }`}
+        >
+          {isScanning && <ReloadIcon className="h-4 w-4 animate-spin" />}
+          {isScanning ? 'Cancel Scan' : 'Start Scan'}
+        </button>
+      </div>
+
+      {/* Progress area */}
+      {progress && (
+        <div
+          className={`border rounded-md p-4 ${
+            progress.status === 'error' ? 'bg-destructive/10' : 'bg-muted'
+          }`}
+        >
+          <div className="flex justify-between items-start mb-2">
+            <h4
+              className={`font-medium ${
+                progress.status === 'error' ? 'text-destructive' : ''
+              }`}
+            >
+              {progress.status === 'started' && 'Starting scan...'}
+              {progress.status === 'scanning' && 'Scanning folders...'}
+              {progress.status === 'completed' && 'Scan complete'}
+              {progress.status === 'error' && 'Scan error'}
+            </h4>
+            <span className="text-xs text-muted-foreground">
+              {progress.status === 'scanning' &&
+                progress.filesDiscovered &&
+                progress.filesProcessed &&
+                `${progress.filesProcessed}/${progress.filesDiscovered} files`}
+            </span>
+          </div>
+
+          <div className="text-sm mb-2">{progress.message}</div>
+
+          {/* Progress bar */}
+          {progress.status === 'scanning' &&
+            progress.filesDiscovered !== undefined &&
+            progress.filesProcessed !== undefined && (
+              <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-primary h-full"
+                  style={{
+                    width: `${
+                      (progress.filesProcessed /
+                        Math.max(progress.filesDiscovered, 1)) *
+                      100
+                    }%`,
+                  }}
+                />
+              </div>
+            )}
+
+          {/* Additional statistics */}
+          {progress.newFilesAdded !== undefined &&
+            progress.newFilesAdded > 0 && (
+              <div className="text-xs text-muted-foreground mt-2">
+                Added {progress.newFilesAdded} new files to the database
+              </div>
+            )}
+
+          {/* New file types discovered */}
+          {progress.newFileTypes && progress.newFileTypes.length > 0 && (
+            <div className="mt-2">
+              <div className="text-xs text-muted-foreground">
+                Discovered {progress.newFileTypes.length} new file types:
+              </div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {progress.newFileTypes.map((type) => (
+                  <span
+                    key={type}
+                    className="text-xs px-2 py-1 bg-secondary rounded-md"
+                  >
+                    .{type}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Error details */}
+          {progress.error && (
+            <div className="text-xs text-destructive mt-2">
+              {progress.error}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

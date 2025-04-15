@@ -26,7 +26,7 @@ const NavItem = ({ href, label, icon, ...props }: NavItemProps) => {
       href={href}
       className={cn(
         'flex items-center gap-2 px-3 py-2 rounded-md transition-colors',
-        isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'
+        isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary',
       )}
       {...props}
     >
