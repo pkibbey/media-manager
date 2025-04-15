@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 // Add additional fields to the progress type to track skipped files
 interface EnhancedScanProgress extends ScanProgress {
   skippedFiles?: number;
+  ignoredFiles?: number; // Track files skipped due to ignored extensions
 }
 
 export default function ScanFoldersTrigger() {
@@ -53,8 +54,11 @@ export default function ScanFoldersTrigger() {
               try {
                 const progressUpdate: ScanProgress = JSON.parse(data);
 
-                // Calculate skipped files from the message if available
+                // Extract skipped and ignored files counts from the message
                 const skippedFiles = extractSkippedFilesCount(
+                  progressUpdate.message || '',
+                );
+                const ignoredFiles = extractIgnoredFilesCount(
                   progressUpdate.message || '',
                 );
 
@@ -62,6 +66,8 @@ export default function ScanFoldersTrigger() {
                   ...progressUpdate,
                   skippedFiles:
                     skippedFiles !== null ? skippedFiles : undefined,
+                  ignoredFiles:
+                    ignoredFiles !== null ? ignoredFiles : undefined,
                 });
 
                 // If scan is complete or there's an error, we're done
@@ -85,14 +91,18 @@ export default function ScanFoldersTrigger() {
           const data = buffer.slice(6);
           const progressUpdate: ScanProgress = JSON.parse(data);
 
-          // Calculate skipped files from the message if available
+          // Extract skipped and ignored files counts from the message
           const skippedFiles = extractSkippedFilesCount(
+            progressUpdate.message || '',
+          );
+          const ignoredFiles = extractIgnoredFilesCount(
             progressUpdate.message || '',
           );
 
           setProgress({
             ...progressUpdate,
             skippedFiles: skippedFiles !== null ? skippedFiles : undefined,
+            ignoredFiles: ignoredFiles !== null ? ignoredFiles : undefined,
           });
 
           if (
@@ -116,10 +126,15 @@ export default function ScanFoldersTrigger() {
     }
   };
 
-  // Extract skipped files count from the message
+  // Extract skipped and ignored files count from the message
   const extractSkippedFilesCount = (message: string): number | null => {
-    const match = message.match(/\((\d+) unchanged files skipped\)/);
-    return match ? Number.parseInt(match[1], 10) : null;
+    const unchangedMatch = message.match(/(\d+) unchanged files skipped/);
+    return unchangedMatch ? Number.parseInt(unchangedMatch[1], 10) : null;
+  };
+
+  const extractIgnoredFilesCount = (message: string): number | null => {
+    const ignoredMatch = message.match(/(\d+) ignored files skipped/);
+    return ignoredMatch ? Number.parseInt(ignoredMatch[1], 10) : null;
   };
 
   const cancelScan = () => {
@@ -206,7 +221,8 @@ export default function ScanFoldersTrigger() {
           {/* Additional statistics in a grid layout for better organization */}
           {(progress.filesProcessed !== undefined ||
             progress.newFilesAdded !== undefined ||
-            progress.skippedFiles !== undefined) && (
+            progress.skippedFiles !== undefined ||
+            progress.ignoredFiles !== undefined) && (
             <div className="grid grid-cols-3 gap-2 mt-3 text-sm border-t border-border/30 pt-2">
               {progress.filesProcessed !== undefined && (
                 <div>
@@ -228,6 +244,13 @@ export default function ScanFoldersTrigger() {
                 <div>
                   <div className="text-xs text-muted-foreground">Skipped</div>
                   <div className="font-medium">{progress.skippedFiles}</div>
+                </div>
+              )}
+
+              {progress.ignoredFiles !== undefined && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Ignored</div>
+                  <div className="font-medium">{progress.ignoredFiles}</div>
                 </div>
               )}
             </div>

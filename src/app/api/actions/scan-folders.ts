@@ -177,12 +177,27 @@ export async function scanFolders() {
         message: `Starting scan of ${folders.length} folders`,
       });
 
-      // Get all known file types
+      // Get all known file types, including their ignore status
       const { data: fileTypes } = await supabase.from('file_types').select('*');
 
       const knownExtensions = new Set(
         fileTypes?.map((ft) => ft.extension.toLowerCase()) || [],
       );
+
+      // Create a set of ignored file extensions for faster lookup
+      const ignoredExtensions = new Set(
+        fileTypes
+          ?.filter((ft) => ft.ignore)
+          .map((ft) => ft.extension.toLowerCase()) || [],
+      );
+
+      if (ignoredExtensions.size > 0) {
+        await sendProgress(writer, {
+          status: 'scanning',
+          message: `Will skip ${ignoredExtensions.size} ignored file types: ${Array.from(ignoredExtensions).join(', ')}`,
+        });
+      }
+
       const newFileTypes = new Set<string>();
 
       // Load existing files with their paths and modified dates for more effective duplicate checking
@@ -210,6 +225,7 @@ export async function scanFolders() {
       let totalFilesDiscovered = 0;
       let totalFilesProcessed = 0;
       let totalFilesSkipped = 0;
+      let totalIgnoredFiles = 0;
       let newFilesAdded = 0;
 
       // Process each folder
@@ -239,6 +255,31 @@ export async function scanFolders() {
 
           for (const file of batch) {
             try {
+              // Check the file extension first
+              const extension = path
+                .extname(file.path)
+                .toLowerCase()
+                .substring(1);
+
+              // Skip files with ignored extensions
+              if (ignoredExtensions.has(extension)) {
+                totalFilesProcessed++;
+                totalIgnoredFiles++;
+
+                // Only send updates periodically to avoid flooding the stream
+                if (totalFilesProcessed % 100 === 0) {
+                  await sendProgress(writer, {
+                    status: 'scanning',
+                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped)`,
+                    filesDiscovered: totalFilesDiscovered,
+                    filesProcessed: totalFilesProcessed,
+                    newFilesAdded,
+                    newFileTypes: Array.from(newFileTypes),
+                  });
+                }
+                continue;
+              }
+
               // Get file stats
               const stats = await fs.stat(file.path);
               const fileModifiedTime = stats.mtime.getTime();
@@ -258,7 +299,7 @@ export async function scanFolders() {
                 if (totalFilesProcessed % 100 === 0) {
                   await sendProgress(writer, {
                     status: 'scanning',
-                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped)`,
+                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped)`,
                     filesDiscovered: totalFilesDiscovered,
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
@@ -267,11 +308,6 @@ export async function scanFolders() {
                 }
                 continue;
               }
-
-              const extension = path
-                .extname(file.path)
-                .toLowerCase()
-                .substring(1);
 
               // Track new file types
               if (
@@ -305,7 +341,7 @@ export async function scanFolders() {
               ) {
                 await sendProgress(writer, {
                   status: 'scanning',
-                  message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped)`,
+                  message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped)`,
                   filesDiscovered: totalFilesDiscovered,
                   filesProcessed: totalFilesProcessed,
                   newFilesAdded,
@@ -374,7 +410,7 @@ export async function scanFolders() {
       // Send final progress update
       await sendProgress(writer, {
         status: 'completed',
-        message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, added ${newFilesAdded} new/updated files.`,
+        message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, skipped ${totalIgnoredFiles} ignored file types, added ${newFilesAdded} new/updated files.`,
         filesDiscovered: totalFilesDiscovered,
         filesProcessed: totalFilesProcessed,
         newFilesAdded,
