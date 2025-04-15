@@ -10,8 +10,15 @@
       "a11y": {
         "useButtonType": "off"
       },
+      "complexity": {
+        "noForEach": "off"
+      },
+      "correctness": {
+        "noUnusedImports": "error"
+      },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "warn"
       }
     }
   },

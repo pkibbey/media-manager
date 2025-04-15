@@ -63,7 +63,8 @@ export async function addScanFolder(
       return { success: false, error: error.message };
     }
 
-    revalidatePath('/admin');
+    // Only revalidate path after all operations are complete
+    await revalidatePath('/admin');
     return { success: true, data };
   } catch (error: any) {
     console.error('Error adding scan folder:', error);
@@ -88,7 +89,8 @@ export async function removeScanFolder(folderId: number) {
       return { success: false, error: error.message };
     }
 
-    revalidatePath('/admin');
+    // Only revalidate path after operation is complete
+    await revalidatePath('/admin');
     return { success: true };
   } catch (error: any) {
     console.error('Error removing scan folder:', error);
@@ -314,10 +316,14 @@ export async function scanFolders() {
         newFileTypes: Array.from(newFileTypes),
       });
 
-      // Update UI
-      revalidatePath('/admin');
-      revalidatePath('/browse');
-      revalidatePath('/folders');
+      // Update UI after all operations are complete
+      try {
+        await revalidatePath('/admin');
+        await revalidatePath('/browse');
+        await revalidatePath('/folders');
+      } catch (error) {
+        console.error('Error revalidating paths:', error);
+      }
 
       // Close the stream
       await writer.close();

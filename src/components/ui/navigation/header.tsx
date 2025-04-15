@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import {
-  BoxIcon,
+  CubeIcon,
   GearIcon,
   GridIcon,
   HomeIcon,
@@ -39,7 +39,7 @@ const NavItem = ({ href, label, icon, ...props }: NavItemProps) => {
 export function Header() {
   return (
     <header className="border-b">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container mx-auto flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
           <ImageIcon className="h-5 w-5" />
           <span className="font-bold">Media Manager</span>
@@ -54,7 +54,7 @@ export function Header() {
           <NavItem
             href="/folders"
             label="Folders"
-            icon={<BoxIcon className="h-4 w-4" />}
+            icon={<CubeIcon className="h-4 w-4" />}
           />
           <NavItem
             href="/browse"
