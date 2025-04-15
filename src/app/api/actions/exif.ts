@@ -6,7 +6,6 @@ import { extractDateFromFilename } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 
 export async function processMediaExif(mediaId: string, filePath: string) {
-  console.log('processMediaExif: ', mediaId);
   try {
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient();
@@ -196,8 +195,6 @@ export async function processAllUnprocessedItems(count: number) {
     const ignoredExtensions =
       fileTypes?.map((ft) => ft.extension.toLowerCase()) || [];
 
-    console.log('ignoredExtensions: ', ignoredExtensions);
-
     const { data: mediaFiles, error } = await supabase
       .from('media_items')
       .select('id, file_path, extension')
@@ -209,8 +206,6 @@ export async function processAllUnprocessedItems(count: number) {
         `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
       )
       .limit(count); // Process in batches to avoid timeouts
-
-    console.log('mediaFiles size: ', mediaFiles?.length);
 
     if (error) {
       return {
@@ -376,6 +371,143 @@ export async function updateMediaDatesFromFilenames(
       error: error.message,
       processed: 0,
       updated: 0,
+    };
+  }
+}
+
+/**
+ * Process EXIF data for a single media item by ID
+ * This function is used by the batch processing implementation
+ */
+export async function processExifData(mediaId: number) {
+  try {
+    // Create authenticated Supabase client
+    const supabase = createServerSupabaseClient();
+
+    // First get the media item to access its file path
+    const { data: mediaItem, error: fetchError } = await supabase
+      .from('media_items')
+      .select('file_path')
+      .eq('id', mediaId)
+      .single();
+
+    if (fetchError || !mediaItem) {
+      console.error('Error fetching media item:', fetchError);
+      return {
+        success: false,
+        message: fetchError?.message || 'Media item not found',
+      };
+    }
+
+    const filePath = mediaItem.file_path;
+
+    // Check if file exists
+    await fs.access(filePath);
+
+    // Extract EXIF data from the file
+    const exifData = await extractExifData(filePath);
+
+    // Even if we don't get EXIF data, mark the file as processed
+    if (!exifData) {
+      // Update the media record to mark as processed but without EXIF
+      await supabase
+        .from('media_items')
+        .update({
+          processed: true,
+          has_exif: false,
+        })
+        .eq('id', mediaId);
+
+      return {
+        success: false,
+        message:
+          'No EXIF data could be extracted, but item marked as processed',
+      };
+    }
+
+    // Prepare metadata for storage - clean up and normalize the data
+    const metadata = {
+      camera: {
+        make: exifData.Make,
+        model: exifData.Model,
+        software: exifData.Software,
+      },
+      datetime: {
+        created: exifData.CreateDate || exifData.DateTimeOriginal,
+        modified: exifData.ModifyDate,
+      },
+      settings: {
+        iso: exifData.ISO,
+        shutterSpeed: exifData.ShutterSpeedValue,
+        aperture: exifData.ApertureValue,
+        focalLength: exifData.FocalLength,
+        focalLengthIn35mm: exifData.FocalLengthIn35mmFormat,
+      },
+      lens: {
+        make: exifData.LensMake,
+        model: exifData.LensModel,
+        info: exifData.LensInfo,
+      },
+      image: {
+        width: exifData.ImageWidth,
+        height: exifData.ImageHeight,
+        orientation: exifData.Orientation,
+      },
+      location:
+        exifData.latitude && exifData.longitude
+          ? {
+              latitude: exifData.latitude,
+              longitude: exifData.longitude,
+              altitude: exifData.GPSAltitude,
+            }
+          : null,
+      copyright: exifData.Copyright,
+      artist: exifData.Artist,
+    };
+
+    // Update the media record in the database
+    const { error } = await supabase
+      .from('media_items')
+      .update({
+        exif_data: metadata,
+        has_exif: true,
+        processed: true,
+        media_date: metadata.datetime.created,
+        width: metadata.image.width,
+        height: metadata.image.height,
+        latitude: exifData.latitude,
+        longitude: exifData.longitude,
+      })
+      .eq('id', mediaId);
+
+    if (error) {
+      console.error('Error updating media with EXIF data:', error);
+      return { success: false, message: error.message };
+    }
+
+    return {
+      success: true,
+      message: 'EXIF data extracted and stored successfully',
+      metadata,
+    };
+  } catch (error) {
+    console.error('Error processing EXIF data:', error);
+
+    // Even on error, mark the item as processed to avoid retrying problematic files
+    try {
+      const supabase = createServerSupabaseClient();
+      await supabase
+        .from('media_items')
+        .update({ processed: true })
+        .eq('id', mediaId);
+    } catch (updateError) {
+      console.error('Error updating processed state:', updateError);
+    }
+
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : 'Unknown error occurred',
     };
   }
 }

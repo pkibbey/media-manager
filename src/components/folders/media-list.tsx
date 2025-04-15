@@ -1,14 +1,17 @@
 'use client';
 
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
+import { useRangeSelection } from '@/hooks/use-range-selection';
 import { bytesToSize } from '@/lib/utils';
 import {
+  CheckIcon,
   FileIcon,
   MixerHorizontalIcon,
   VideoIcon,
 } from '@radix-ui/react-icons';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import BatchActionBar from '../media/batch-action-bar';
 import MediaDetail from '../media/media-detail';
 
 interface MediaListProps {
@@ -18,7 +21,70 @@ interface MediaListProps {
 export default function MediaList({ items }: MediaListProps) {
   const [selectedMediaItem, setSelectedMediaItem] = useState<any | null>(null);
   const [columnCount, setColumnCount] = useState(4); // Default column count
+  const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  // Track shift key state to prevent text selection
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+
+  // For keyboard navigation
+  const { focusedIndex, isNavigating } = useKeyboardNavigation(
+    items.length,
+    columnCount,
+    (index) => {
+      // Always toggle selection (selection mode is always on)
+      toggleSelection(items[index].id);
+    },
+  );
+
+  // --- useRangeSelection hook integration ---
+  const {
+    selectedItems,
+    toggleSelection,
+    selectRange,
+    clearSelection,
+    selectAll,
+    handleItemClick,
+    handleItemMouseDown,
+    handleItemMouseUp,
+    handleItemMouseLeave,
+    lastSelectedIndex,
+  } = useRangeSelection({
+    items,
+    idExtractor: (item) => item.id,
+  });
+
+  // Track shift key to prevent text selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift' && !isShiftPressed) {
+        setIsShiftPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setIsShiftPressed(false);
+      }
+    };
+
+    // Handle page visibility change (in case shift is released while page is not visible)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && isShiftPressed) {
+        setIsShiftPressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isShiftPressed]);
 
   // Detect grid column count for keyboard navigation
   useEffect(() => {
@@ -51,15 +117,26 @@ export default function MediaList({ items }: MediaListProps) {
     };
   }, []);
 
-  // Set up keyboard navigation
-  const { focusedIndex, isNavigating } = useKeyboardNavigation(
-    items.length,
-    columnCount,
-    (index) => {
-      // Handle item selection
-      setSelectedMediaItem(items[index]);
-    },
-  );
+  // Handle keyboard shortcuts for selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      (window as any).__lastKeyEvent = e;
+      // Ctrl+A or Cmd+A to select all
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && items.length > 0) {
+        e.preventDefault();
+        selectAll();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [items, selectAll]);
+
+  // Get array of selected items
+  const selectedItemsArray = Array.from(selectedItems)
+    .map((id) => items.find((item) => item.id === id))
+    .filter(Boolean);
 
   if (!items.length) {
     return (
@@ -76,27 +153,53 @@ export default function MediaList({ items }: MediaListProps) {
   return (
     <>
       <div
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+        className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 transition-all duration-300 
+          ${isDetailPanelOpen ? 'md:mr-[33%] lg:mr-[25%] xl:mr-[33%]' : ''}
+          ${isShiftPressed ? 'select-none' : ''}`}
         ref={gridRef}
         role="grid"
         aria-label="Media items grid"
+        onContextMenu={(e) => e.preventDefault()}
       >
         {items.map((item, index) => (
           <MediaCard
             key={item.id}
             item={item}
             index={index}
-            onClick={() => setSelectedMediaItem(item)}
+            onClick={(e) => {
+              // If not handled by selection, open detail panel
+              const result = handleItemClick(item, index, e);
+              if (result === null) {
+                setSelectedMediaItem(item);
+                setIsDetailPanelOpen(true);
+              }
+            }}
+            onMouseDown={(e) => handleItemMouseDown(item, index, e)}
+            onMouseUp={handleItemMouseUp}
+            onMouseLeave={handleItemMouseLeave}
             isFocused={isNavigating && focusedIndex === index}
+            isSelected={selectedItems.has(item.id)}
+            onToggleSelect={(e) => toggleSelection(item.id, e)}
+            selectionMode={true}
+            isPressing={false} // Optionally wire up isPressing if needed
           />
         ))}
       </div>
 
+      {/* Media Detail Side Panel */}
       {selectedMediaItem && (
         <MediaDetail
           item={selectedMediaItem}
-          isOpen={Boolean(selectedMediaItem)}
-          onClose={() => setSelectedMediaItem(null)}
+          isOpen={isDetailPanelOpen}
+          onClose={() => setIsDetailPanelOpen(false)}
+        />
+      )}
+
+      {/* Batch action bar */}
+      {selectedItems.size > 0 && (
+        <BatchActionBar
+          selectedItems={selectedItemsArray}
+          onClearSelection={clearSelection}
         />
       )}
     </>
@@ -106,11 +209,30 @@ export default function MediaList({ items }: MediaListProps) {
 interface MediaCardProps {
   item: any;
   index: number;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onMouseUp: () => void;
+  onMouseLeave: () => void;
   isFocused: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (e: React.MouseEvent) => void;
+  selectionMode?: boolean;
+  isPressing: boolean;
 }
 
-function MediaCard({ item, index, onClick, isFocused }: MediaCardProps) {
+function MediaCard({
+  item,
+  index,
+  onClick,
+  onMouseDown,
+  onMouseUp,
+  onMouseLeave,
+  isFocused,
+  isSelected = false,
+  onToggleSelect,
+  selectionMode = false,
+  isPressing,
+}: MediaCardProps) {
   const isImage = item.type === 'image';
   const isVideo = item.type === 'video';
   const fileExtension = item.file_name.split('.').pop()?.toLowerCase();
@@ -121,27 +243,75 @@ function MediaCard({ item, index, onClick, isFocused }: MediaCardProps) {
   // Get folder name for display in subfolder mode
   const folderName = item.folder_path.split('/').filter(Boolean).pop();
 
+  // Handle toggle click separately to prevent event conflicts
+  const handleToggleClick = (e: React.MouseEvent) => {
+    if (onToggleSelect) {
+      e.preventDefault();
+      e.stopPropagation(); // Important: prevent the click from bubbling up
+      onToggleSelect(e);
+    }
+  };
+
   return (
     <div
       className={`group relative bg-muted rounded-md overflow-hidden cursor-pointer transition-all
         ${
           isFocused
             ? 'ring-2 ring-primary shadow-md scale-[1.02] z-10'
-            : 'hover:ring-2 hover:ring-primary/50'
+            : isSelected
+              ? 'ring-2 ring-primary bg-primary/10'
+              : 'hover:ring-2 hover:ring-primary/50'
         }`}
       onClick={onClick}
+      onMouseDown={onMouseDown}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault(); // Prevent page scroll on space
-          onClick();
+          // If shift is pressed with Enter/Space, handle as selection
+          if (e.shiftKey) {
+            if (onToggleSelect) {
+              onToggleSelect(e as any);
+            }
+          } else {
+            // Otherwise, handle as a click
+            onClick(e as any);
+          }
         }
       }}
       tabIndex={0}
       role="button"
-      aria-label={`View ${item.file_name}`}
+      aria-label={`${selectionMode ? 'Select' : 'View'} ${item.file_name}`}
       data-index={index}
-      aria-selected={isFocused}
+      aria-selected={isFocused || isSelected}
     >
+      {/* Selection checkbox */}
+      {(selectionMode || isSelected) && (
+        <div
+          className="absolute top-2 left-2 z-10 bg-background rounded-full p-0.5 shadow cursor-pointer"
+          onClick={handleToggleClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              if (onToggleSelect) {
+                onToggleSelect(e as any);
+              }
+            }
+          }}
+          role="checkbox"
+          aria-checked={isSelected}
+          tabIndex={selectionMode ? 0 : -1}
+        >
+          <div
+            className={`w-5 h-5 rounded-full flex items-center justify-center
+            ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted/80 border'}`}
+          >
+            {isSelected && <CheckIcon className="h-3 w-3" />}
+          </div>
+        </div>
+      )}
+
       <div className="aspect-square relative">
         {isImage ? (
           <div className="w-full h-full relative">
@@ -149,7 +319,7 @@ function MediaCard({ item, index, onClick, isFocused }: MediaCardProps) {
               src={`/api/media?id=${item.id}&thumbnail=true`}
               alt={item.file_name}
               fill
-              className="object-cover"
+              className={`object-cover ${isSelected ? 'opacity-90' : ''}`}
             />
           </div>
         ) : isVideo ? (
@@ -187,7 +357,7 @@ function MediaCard({ item, index, onClick, isFocused }: MediaCardProps) {
         </div>
 
         {/* Folder indicator - only shown if folderName exists */}
-        {folderName && (
+        {folderName && !selectionMode && (
           <div className="absolute top-2 left-2 bg-black/50 text-white text-xs rounded px-1 py-0.5 max-w-[80%] truncate">
             {folderName}
           </div>
