@@ -23,6 +23,13 @@ export default function FoldersPage() {
   const [loading, setLoading] = useState(true);
   const [currentFolder, setCurrentFolder] = useState('/');
   const [includeSubfolders, setIncludeSubfolders] = useState(false);
+  const [folderStats, setFolderStats] = useState<{
+    currentFolderCount: number;
+    subfolderCount: number;
+  }>({
+    currentFolderCount: 0,
+    subfolderCount: 0,
+  });
 
   const router = useRouter();
   const pathname = usePathname();
@@ -58,6 +65,16 @@ export default function FoldersPage() {
     const loadMediaItems = async () => {
       setLoading(true);
       try {
+        // First get count for current folder only
+        const currentFolderResult = await getMediaItemsByFolder(
+          folder,
+          1,
+          1,
+          false,
+        );
+        const currentFolderCount = currentFolderResult.pagination?.total || 0;
+
+        // Then get items based on the requested view mode
         const { success, data, pagination, error } =
           await getMediaItemsByFolder(folder, page, 50, subfolders);
 
@@ -71,6 +88,15 @@ export default function FoldersPage() {
               total: data.length,
             },
           );
+
+          // Calculate folder statistics
+          const totalCount = pagination?.total || data.length;
+          const subfolderCount = totalCount - currentFolderCount;
+
+          setFolderStats({
+            currentFolderCount,
+            subfolderCount: subfolderCount > 0 ? subfolderCount : 0,
+          });
         } else {
           console.error('Error loading media items:', error);
           setMediaItems([]);
@@ -155,6 +181,34 @@ export default function FoldersPage() {
               onChange={handleSubfolderToggle}
             />
           </div>
+
+          {/* Folder stats bar */}
+          {!loading && folderStats.subfolderCount > 0 && (
+            <div
+              className={`text-sm rounded-lg p-3 mb-4 
+              ${
+                includeSubfolders
+                  ? 'bg-primary/10 border border-primary/20'
+                  : 'bg-muted/50 border border-border'
+              }`}
+            >
+              <div className="flex justify-between">
+                <span>
+                  <strong>{folderStats.currentFolderCount}</strong> items in
+                  current folder
+                </span>
+                <span>
+                  <strong>{folderStats.subfolderCount}</strong> items in
+                  subfolders
+                </span>
+                <span className="font-medium">
+                  {includeSubfolders
+                    ? `Showing all ${pagination.total} items`
+                    : `Showing ${folderStats.currentFolderCount} items from this folder only`}
+                </span>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="py-12 text-center">Loading media items...</div>

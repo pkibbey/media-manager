@@ -24,6 +24,8 @@ export function useKeyboardNavigation(
         'End',
         'Enter',
         ' ', // Space
+        'PageUp',
+        'PageDown',
       ];
 
       if (!navigationKeys.includes(event.key)) {
@@ -42,6 +44,31 @@ export function useKeyboardNavigation(
       if ((event.key === 'Enter' || event.key === ' ') && focusedIndex !== -1) {
         event.preventDefault();
         onSelect?.(focusedIndex);
+        return;
+      }
+
+      // Handle page navigation (move by "page" of items - a full grid of rows)
+      if (event.key === 'PageUp' || event.key === 'PageDown') {
+        event.preventDefault();
+
+        // Calculate how many rows should be in a "page"
+        const rowsPerPage = Math.floor(window.innerHeight / 200); // Approximate height of a grid item with spacing
+        const itemsPerPage = rowsPerPage * columnsCount;
+
+        if (event.key === 'PageUp') {
+          setFocusedIndex((prev) => Math.max(0, prev - itemsPerPage));
+        } else {
+          setFocusedIndex((prev) =>
+            Math.min(itemsLength - 1, prev + itemsPerPage),
+          );
+        }
+
+        // Ensure the new index is visible
+        setTimeout(() => {
+          scrollItemIntoView(focusedIndex);
+        }, 0);
+
+        setIsNavigating(true);
         return;
       }
 

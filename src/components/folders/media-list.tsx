@@ -118,14 +118,21 @@ function MediaCard({ item, index, onClick, isFocused }: MediaCardProps) {
   // Show a visual indicator for processed items
   const isProcessed = item.processed;
 
+  // Get folder name for display in subfolder mode
+  const folderName = item.folder_path.split('/').filter(Boolean).pop();
+
   return (
     <div
-      className={`group relative bg-muted rounded-md overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 ${
-        isFocused ? 'ring-2 ring-primary' : ''
-      }`}
+      className={`group relative bg-muted rounded-md overflow-hidden cursor-pointer transition-all
+        ${
+          isFocused
+            ? 'ring-2 ring-primary shadow-md scale-[1.02] z-10'
+            : 'hover:ring-2 hover:ring-primary/50'
+        }`}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault(); // Prevent page scroll on space
           onClick();
         }
       }}
@@ -133,6 +140,7 @@ function MediaCard({ item, index, onClick, isFocused }: MediaCardProps) {
       role="button"
       aria-label={`View ${item.file_name}`}
       data-index={index}
+      aria-selected={isFocused}
     >
       <div className="aspect-square relative">
         {isImage ? (
@@ -177,6 +185,13 @@ function MediaCard({ item, index, onClick, isFocused }: MediaCardProps) {
             />
           )}
         </div>
+
+        {/* Folder indicator - only shown if folderName exists */}
+        {folderName && (
+          <div className="absolute top-2 left-2 bg-black/50 text-white text-xs rounded px-1 py-0.5 max-w-[80%] truncate">
+            {folderName}
+          </div>
+        )}
       </div>
 
       <div className="p-2 text-xs">
