@@ -155,19 +155,18 @@ export default function MediaFilters({
       formValues.hasLocation = hasLocation as MediaFilters['hasLocation'];
     }
 
-    // Check if advanced filters are used
-    if (
-      processed !== 'all' ||
-      organized !== 'all' ||
-      camera ||
-      hasLocation !== 'all' ||
-      formValues.dateFrom ||
-      formValues.dateTo ||
-      formValues.minSize !== 0 ||
-      formValues.maxSize !== maxFileSize
-    ) {
-      setIsAdvancedOpen(true);
-    }
+    // Check if advanced filters are used (compare to defaults)
+    const isAdvanced =
+      (processed && processed !== 'all') ||
+      (organized && organized !== 'all') ||
+      (camera && camera !== '') ||
+      (hasLocation && hasLocation !== 'all') ||
+      !!formValues.dateFrom ||
+      !!formValues.dateTo ||
+      (typeof formValues.minSize === 'number' && formValues.minSize > 0) ||
+      (typeof formValues.maxSize === 'number' &&
+        formValues.maxSize < maxFileSize);
+    setIsAdvancedOpen(isAdvanced);
 
     // Reset form with values from URL
     form.reset({
