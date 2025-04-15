@@ -1,5 +1,6 @@
 'use client';
 
+import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import { bytesToSize } from '@/lib/utils';
 import {
   FileIcon,
@@ -7,7 +8,7 @@ import {
   VideoIcon,
 } from '@radix-ui/react-icons';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MediaDetail from '../media/media-detail';
 
 interface MediaListProps {
@@ -16,6 +17,49 @@ interface MediaListProps {
 
 export default function MediaList({ items }: MediaListProps) {
   const [selectedMediaItem, setSelectedMediaItem] = useState<any | null>(null);
+  const [columnCount, setColumnCount] = useState(4); // Default column count
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Detect grid column count for keyboard navigation
+  useEffect(() => {
+    const updateColumnCount = () => {
+      if (!gridRef.current) return;
+
+      // Get computed style to determine grid columns
+      const computedStyle = window.getComputedStyle(gridRef.current);
+      const gridColumns = computedStyle.getPropertyValue(
+        'grid-template-columns',
+      );
+      const columnsCount = gridColumns.split(' ').length;
+
+      setColumnCount(columnsCount || 4); // Default to 4 if we can't determine
+    };
+
+    // Initial detection
+    updateColumnCount();
+
+    // Re-detect on resize
+    const resizeObserver = new ResizeObserver(updateColumnCount);
+    if (gridRef.current) {
+      resizeObserver.observe(gridRef.current);
+    }
+
+    return () => {
+      if (gridRef.current) {
+        resizeObserver.unobserve(gridRef.current);
+      }
+    };
+  }, []);
+
+  // Set up keyboard navigation
+  const { focusedIndex, isNavigating } = useKeyboardNavigation(
+    items.length,
+    columnCount,
+    (index) => {
+      // Handle item selection
+      setSelectedMediaItem(items[index]);
+    },
+  );
 
   if (!items.length) {
     return (
@@ -31,12 +75,19 @@ export default function MediaList({ items }: MediaListProps) {
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {items.map((item) => (
+      <div
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+        ref={gridRef}
+        role="grid"
+        aria-label="Media items grid"
+      >
+        {items.map((item, index) => (
           <MediaCard
             key={item.id}
             item={item}
+            index={index}
             onClick={() => setSelectedMediaItem(item)}
+            isFocused={isNavigating && focusedIndex === index}
           />
         ))}
       </div>
@@ -54,10 +105,12 @@ export default function MediaList({ items }: MediaListProps) {
 
 interface MediaCardProps {
   item: any;
+  index: number;
   onClick: () => void;
+  isFocused: boolean;
 }
 
-function MediaCard({ item, onClick }: MediaCardProps) {
+function MediaCard({ item, index, onClick, isFocused }: MediaCardProps) {
   const isImage = item.type === 'image';
   const isVideo = item.type === 'video';
   const fileExtension = item.file_name.split('.').pop()?.toLowerCase();
@@ -67,15 +120,19 @@ function MediaCard({ item, onClick }: MediaCardProps) {
 
   return (
     <div
-      className="group relative bg-muted rounded-md overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50"
+      className={`group relative bg-muted rounded-md overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 ${
+        isFocused ? 'ring-2 ring-primary' : ''
+      }`}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           onClick();
         }
       }}
-      tabIndex={0} // Make it focusable
-      role="button" // Indicate it's a button
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${item.file_name}`}
+      data-index={index}
     >
       <div className="aspect-square relative">
         {isImage ? (

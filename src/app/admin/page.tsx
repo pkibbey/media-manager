@@ -4,6 +4,7 @@ import FileTypeManager from '@/components/admin/file-type-manager';
 import FolderList from '@/components/admin/folder-list';
 import MediaStats from '@/components/admin/media-stats';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
+import TimestampCorrector from '@/components/admin/timestamp-corrector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Suspense } from 'react';
 import { getFileTypes } from '../api/actions/file-types';
@@ -54,10 +55,13 @@ export default async function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="processing" className="space-y-4">
+        <TabsContent value="processing" className="space-y-6">
           <div className="grid md:grid-cols-2 gap-4">
             <ScanFoldersTrigger />
             <ExifProcessor />
+          </div>
+          <div className="border-t pt-6">
+            <TimestampCorrector />
           </div>
         </TabsContent>
 

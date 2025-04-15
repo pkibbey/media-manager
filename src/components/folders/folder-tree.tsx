@@ -6,7 +6,6 @@ import {
   ChevronRightIcon,
   CubeIcon,
 } from '@radix-ui/react-icons';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
@@ -18,22 +17,25 @@ export type FolderNode = {
 };
 
 interface FolderTreeProps {
-  structure: FolderNode[];
-  selectedPath: string;
+  folders: FolderNode[];
+  currentFolder: string;
+  onSelect: (path: string) => void;
 }
 
 export default function FolderTree({
-  structure,
-  selectedPath,
+  folders,
+  currentFolder,
+  onSelect,
 }: FolderTreeProps) {
   return (
     <div className="space-y-1">
-      {structure.map((folder) => (
+      {folders.map((folder) => (
         <FolderTreeItem
           key={folder.path}
           folder={folder}
           level={0}
-          selectedPath={selectedPath}
+          selectedPath={currentFolder}
+          onSelect={onSelect}
         />
       ))}
     </div>
@@ -44,9 +46,15 @@ interface FolderTreeItemProps {
   folder: FolderNode;
   level: number;
   selectedPath: string;
+  onSelect: (path: string) => void;
 }
 
-function FolderTreeItem({ folder, level, selectedPath }: FolderTreeItemProps) {
+function FolderTreeItem({
+  folder,
+  level,
+  selectedPath,
+  onSelect,
+}: FolderTreeItemProps) {
   const [isExpanded, setIsExpanded] = useState(() => {
     // Auto-expand if the folder is in the path of the selected item
     return selectedPath.startsWith(folder.path);
@@ -59,25 +67,27 @@ function FolderTreeItem({ folder, level, selectedPath }: FolderTreeItemProps) {
 
   const handleToggle = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsExpanded(!isExpanded);
   };
 
-  // Build URL with preserved parameters
-  const getHref = () => {
-    const params = new URLSearchParams();
-    params.set('path', folder.path);
-    if (includeSubfolders) {
-      params.set('includeSubfolders', 'true');
-    }
-    return `/folders?${params.toString()}`;
+  const handleSelect = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onSelect(folder.path);
   };
 
   return (
     <div className="space-y-1">
-      <Link
-        href={getHref()}
+      <div
+        onClick={handleSelect}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            onSelect(folder.path);
+          }
+        }}
         className={cn(
-          'flex items-center gap-1 py-1.5 px-1 rounded-md text-sm transition-colors hover:bg-secondary',
+          'flex items-center gap-1 py-1.5 px-1 rounded-md text-sm transition-colors hover:bg-secondary cursor-pointer',
           isSelected
             ? 'bg-primary text-primary-foreground hover:bg-primary'
             : '',
@@ -117,7 +127,7 @@ function FolderTreeItem({ folder, level, selectedPath }: FolderTreeItemProps) {
             {folder.mediaCount}
           </span>
         )}
-      </Link>
+      </div>
 
       {isExpanded && hasChildren && (
         <div className="space-y-1">
@@ -127,6 +137,7 @@ function FolderTreeItem({ folder, level, selectedPath }: FolderTreeItemProps) {
               folder={childFolder}
               level={level + 1}
               selectedPath={selectedPath}
+              onSelect={onSelect}
             />
           ))}
         </div>

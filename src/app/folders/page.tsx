@@ -1,150 +1,177 @@
-import FolderPagination from '@/components/folders/folder-pagination';
-import FolderTree from '@/components/folders/folder-tree';
-import FolderViewToggle from '@/components/folders/folder-view-toggle';
-import MediaList from '@/components/folders/media-list';
-import { BackpackIcon, ChevronRightIcon } from '@radix-ui/react-icons';
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
+'use client';
+
 import {
   getFolderStructure,
   getMediaItemsByFolder,
-} from '../api/actions/folders';
+} from '@/app/api/actions/folders';
+import FolderPagination from '@/components/folders/folder-pagination';
+import FolderTree, { type FolderNode } from '@/components/folders/folder-tree';
+import FolderViewToggle from '@/components/folders/folder-view-toggle';
+import MediaList from '@/components/folders/media-list';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 
-export default async function FoldersPage({
-  searchParams,
-}: {
-  searchParams: { path?: string; page?: string; includeSubfolders?: string };
-}) {
-  const selectedPath = searchParams.path || '/';
-  const currentPage = Number.parseInt(searchParams.page || '1', 10);
-  const includeSubfolders = searchParams.includeSubfolders === 'true';
+export default function FoldersPage() {
+  const [folderStructure, setFolderStructure] = useState<FolderNode[]>([]);
+  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [pagination, setPagination] = useState<any>({
+    page: 1,
+    pageSize: 50,
+    pageCount: 1,
+    total: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [currentFolder, setCurrentFolder] = useState('/');
+  const [includeSubfolders, setIncludeSubfolders] = useState(false);
 
-  // Get folder structure for the sidebar
-  const {
-    success: folderSuccess,
-    data: folderStructure,
-    error: folderError,
-  } = await getFolderStructure();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  // Get media items for the selected folder
-  const {
-    success: mediaSuccess,
-    data: mediaItems,
-    pagination,
-    error: mediaError,
-  } = await getMediaItemsByFolder(
-    selectedPath,
-    currentPage,
-    50,
-    includeSubfolders,
+  // Initial data loading
+  useEffect(() => {
+    const loadFolderStructure = async () => {
+      try {
+        const { success, data, error } = await getFolderStructure();
+        if (success && data) {
+          setFolderStructure(data);
+        } else {
+          console.error('Error loading folder structure:', error);
+        }
+      } catch (error) {
+        console.error('Error fetching folder structure:', error);
+      }
+    };
+
+    loadFolderStructure();
+  }, []);
+
+  // Effect for URL parameters
+  useEffect(() => {
+    const folder = searchParams.get('folder') || '/';
+    const page = Number.parseInt(searchParams.get('page') || '1', 10);
+    const subfolders = searchParams.get('subfolders') === 'true';
+
+    setCurrentFolder(folder);
+    setIncludeSubfolders(subfolders);
+
+    const loadMediaItems = async () => {
+      setLoading(true);
+      try {
+        const { success, data, pagination, error } =
+          await getMediaItemsByFolder(folder, page, 50, subfolders);
+
+        if (success && data) {
+          setMediaItems(data);
+          setPagination(
+            pagination || {
+              page,
+              pageSize: 50,
+              pageCount: 1,
+              total: data.length,
+            },
+          );
+        } else {
+          console.error('Error loading media items:', error);
+          setMediaItems([]);
+        }
+      } catch (error) {
+        console.error('Error fetching media items:', error);
+        setMediaItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMediaItems();
+  }, [searchParams]);
+
+  // Handle folder change
+  const handleFolderSelect = useCallback(
+    (folderPath: string) => {
+      const params = new URLSearchParams();
+      params.set('folder', folderPath);
+      params.set('page', '1');
+      if (includeSubfolders) {
+        params.set('subfolders', 'true');
+      }
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [router, pathname, includeSubfolders],
   );
 
-  // Get the path parts for the breadcrumb
-  const pathParts = selectedPath.split('/').filter(Boolean);
-  const breadcrumbs = pathParts.map((part, index) => {
-    const path = `/${pathParts.slice(0, index + 1).join('/')}`;
-    return { name: part, path };
-  });
+  // Handle page change
+  const handlePageChange = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams(searchParams);
+      params.set('page', page.toString());
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [router, pathname, searchParams],
+  );
 
-  // Handle not found or errors
-  if (!folderSuccess || !mediaSuccess) {
-    // For simplicity, we're just showing a not found page
-    // In a real app, you might want to show specific error messages
-    return notFound();
-  }
-
-  // Build the base URL for pagination and toggle links
-  const basePath = `/folders?path=${encodeURIComponent(selectedPath)}`;
+  // Handle subfolder toggle
+  const handleSubfolderToggle = useCallback(
+    (include: boolean) => {
+      const params = new URLSearchParams(searchParams);
+      if (include) {
+        params.set('subfolders', 'true');
+      } else {
+        params.delete('subfolders');
+      }
+      params.set('page', '1'); // Reset to first page on toggle
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [router, pathname, searchParams],
+  );
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Browse by Folder</h1>
-
-      {/* Breadcrumb navigation */}
-      <nav className="flex mb-6 text-sm items-center">
-        <Link
-          href={`/folders${includeSubfolders ? '?includeSubfolders=true' : ''}`}
-          className="flex items-center hover:text-primary"
-        >
-          <BackpackIcon className="mr-1" />
-          Root
-        </Link>
-        {breadcrumbs.map((crumb, i) => (
-          <div key={i} className="flex items-center">
-            <ChevronRightIcon className="mx-2" />
-            <Link
-              href={`/folders?path=${encodeURIComponent(crumb.path)}${includeSubfolders ? '&includeSubfolders=true' : ''}`}
-              className="hover:text-primary"
-            >
-              {crumb.name}
-            </Link>
-          </div>
-        ))}
-      </nav>
-
-      <div className="grid md:grid-cols-4 gap-8">
-        {/* Folder tree sidebar */}
-        <div className="border rounded-md p-4 bg-card">
-          <h2 className="text-lg font-semibold mb-4">Folders</h2>
-          <Suspense fallback={<div>Loading folders...</div>}>
-            {folderStructure && (
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Left sidebar - folder tree */}
+        <div className="w-full lg:w-72 shrink-0">
+          <div className="sticky top-20">
+            <h2 className="text-xl font-bold mb-4">Folders</h2>
+            <Suspense fallback={<div>Loading folders...</div>}>
               <FolderTree
-                structure={folderStructure}
-                selectedPath={selectedPath}
+                folders={folderStructure}
+                currentFolder={currentFolder}
+                onSelect={handleFolderSelect}
               />
-            )}
-          </Suspense>
+            </Suspense>
+          </div>
         </div>
 
-        {/* Media items grid */}
-        <div className="md:col-span-3">
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
           <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-lg font-semibold">
-                {selectedPath === '/'
-                  ? 'Root Directory'
-                  : pathParts[pathParts.length - 1]}
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                {pagination?.total} items{' '}
-                {includeSubfolders
-                  ? 'in this folder and subfolders'
-                  : 'in this folder'}
-              </p>
-            </div>
-
-            {/* Add the folder view toggle */}
+            <h2 className="text-xl font-bold truncate">
+              {currentFolder === '/'
+                ? 'All Files'
+                : currentFolder.split('/').pop()}
+            </h2>
             <FolderViewToggle
               includeSubfolders={includeSubfolders}
-              baseUrl={basePath}
+              onChange={handleSubfolderToggle}
             />
           </div>
 
-          <Suspense fallback={<div>Loading media...</div>}>
-            <MediaList items={mediaItems || []} />
-
-            {/* Pagination controls */}
-            {pagination && pagination.pageCount > 1 && (
-              <div className="mt-8 flex justify-center">
-                <FolderPagination
-                  page={pagination.page}
-                  pageCount={pagination.pageCount}
-                  basePath={`${basePath}${includeSubfolders ? '&includeSubfolders=true' : ''}`}
-                />
-              </div>
-            )}
-
-            {mediaItems && mediaItems.length === 0 && (
-              <div className="text-center p-8 border rounded-md bg-muted">
-                No media items in{' '}
-                {includeSubfolders
-                  ? 'this folder or its subfolders'
-                  : 'this folder'}
-                .
-              </div>
-            )}
-          </Suspense>
+          {loading ? (
+            <div className="py-12 text-center">Loading media items...</div>
+          ) : (
+            <>
+              <MediaList items={mediaItems} />
+              {pagination.pageCount > 1 && (
+                <div className="mt-6">
+                  <FolderPagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.pageCount}
+                    onPageChange={handlePageChange}
+                  />
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

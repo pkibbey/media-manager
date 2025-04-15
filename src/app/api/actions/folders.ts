@@ -92,7 +92,7 @@ export async function getFolderStructure() {
     return { success: true, data: rootNode };
   } catch (error: any) {
     console.error('Error getting folder structure:', error);
-    return { success: false, error: error.message };
+    return { data: [], success: false, error: error.message };
   }
 }
 
@@ -148,7 +148,7 @@ export async function getMediaItemsByFolder(
     return { success: true, data, pagination };
   } catch (error: any) {
     console.error('Error getting media items by folder:', error);
-    return { success: false, error: error.message };
+    return { data: [], success: false, error: error.message };
   }
 }
 

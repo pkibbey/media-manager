@@ -10,24 +10,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format bytes to a human-readable string
- */
-export function formatBytes(bytes: number, decimals = 2) {
-  if (bytes === 0) return '0 Bytes';
-
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return `${Number.parseFloat(
-    // biome-ignore lint/style/useExponentiationOperator: <explanation>
-    (bytes / Math.pow(k, i)).toFixed(dm),
-  )} ${sizes[i]}`;
-}
-
-/**
  * Format a date string to a human-readable format
  */
 export function formatDate(dateString: string, formatString = 'PP') {
@@ -207,4 +189,114 @@ export function bytesToSize(bytes: number): string {
     // biome-ignore lint/style/useExponentiationOperator: <explanation>
     (bytes / Math.pow(1024, i)).toFixed(2)
   } ${sizes[i]}`;
+}
+
+/**
+ * Format bytes to human readable size
+ */
+export function formatBytes(bytes: number): string {
+  return bytesToSize(bytes);
+}
+
+/**
+ * Extract date from filename using common patterns
+ */
+export function extractDateFromFilename(filename: string): Date | null {
+  // Remove file extension
+  const nameWithoutExtension = filename.split('.').slice(0, -1).join('.');
+
+  // Common date patterns in filenames
+  const patterns = [
+    // YYYY-MM-DD, YYYY_MM_DD
+    {
+      regex: /(\d{4})[-_](\d{2})[-_](\d{2})/,
+      format: (match: RegExpMatchArray) =>
+        new Date(`${match[1]}-${match[2]}-${match[3]}`),
+    },
+    // YYYYMMDD
+    {
+      regex: /\D(\d{8})\D/,
+      format: (match: RegExpMatchArray) => {
+        const dateStr = match[1];
+        return new Date(
+          `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`,
+        );
+      },
+    },
+    // YYYY-MM-DD-HH-MM-SS, YYYY_MM_DD_HH_MM_SS
+    {
+      regex: /(\d{4})[-_](\d{2})[-_](\d{2})[-_](\d{2})[-_](\d{2})[-_](\d{2})/,
+      format: (match: RegExpMatchArray) =>
+        new Date(
+          `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}`,
+        ),
+    },
+    // YYYYMMDD_HHMMSS
+    {
+      regex: /(\d{8})[-_](\d{6})/,
+      format: (match: RegExpMatchArray) => {
+        const dateStr = match[1];
+        const timeStr = match[2];
+        return new Date(
+          `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}T` +
+            `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}:${timeStr.substring(4, 6)}`,
+        );
+      },
+    },
+    // IMG_YYYYMMDD_HHMMSS
+    {
+      regex: /IMG[-_](\d{8})[-_](\d{6})/i,
+      format: (match: RegExpMatchArray) => {
+        const dateStr = match[1];
+        const timeStr = match[2];
+        return new Date(
+          `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}T` +
+            `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}:${timeStr.substring(4, 6)}`,
+        );
+      },
+    },
+    // VID_YYYYMMDD_HHMMSS
+    {
+      regex: /VID[-_](\d{8})[-_](\d{6})/i,
+      format: (match: RegExpMatchArray) => {
+        const dateStr = match[1];
+        const timeStr = match[2];
+        return new Date(
+          `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}T` +
+            `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}:${timeStr.substring(4, 6)}`,
+        );
+      },
+    },
+    // DSC_YYYYMMDD_HHMMSS
+    {
+      regex: /DSC[-_](\d{8})[-_](\d{6})/i,
+      format: (match: RegExpMatchArray) => {
+        const dateStr = match[1];
+        const timeStr = match[2];
+        return new Date(
+          `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}T` +
+            `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}:${timeStr.substring(4, 6)}`,
+        );
+      },
+    },
+  ];
+
+  // Try each pattern
+  for (const pattern of patterns) {
+    const match = nameWithoutExtension.match(pattern.regex);
+    if (match) {
+      try {
+        const date = pattern.format(match);
+        // Check if date is valid and not in the future
+        if (!isNaN(date.getTime()) && date <= new Date()) {
+          return date;
+        }
+      } catch (error) {
+        console.error('Error parsing date from filename:', error);
+      }
+    }
+  }
+
+  // If no patterns matched, return null
+  return null;
 }
