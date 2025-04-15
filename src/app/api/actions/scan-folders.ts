@@ -171,15 +171,11 @@ export async function scanFolders() {
         return;
       }
 
-      // Get all existing file paths in the database
-      const { data: existingFiles } = await supabase
-        .from('media_items')
-        .select('file_path');
-
-      // Create a Set of existing files for faster lookup
-      const existingFilesSet = new Set(
-        existingFiles?.map((f) => f.file_path) || [],
-      );
+      // Send initial progress update
+      await sendProgress(writer, {
+        status: 'started',
+        message: `Starting scan of ${folders.length} folders`,
+      });
 
       // Get all known file types
       const { data: fileTypes } = await supabase.from('file_types').select('*');
@@ -189,15 +185,32 @@ export async function scanFolders() {
       );
       const newFileTypes = new Set<string>();
 
+      // Load existing files with their paths and modified dates for more effective duplicate checking
+      await sendProgress(writer, {
+        status: 'scanning',
+        message: 'Loading existing file information...',
+      });
+
+      const { data: existingFiles } = await supabase
+        .from('media_items')
+        .select('file_path, modified_date, size_bytes');
+
+      // Create a Map of existing files with path as key and modification timestamp + size as value
+      // This allows us to skip unchanged files but still process files that have been modified
+      const existingFilesMap = new Map(
+        existingFiles?.map((f) => [
+          f.file_path,
+          {
+            modifiedDate: new Date(f.modified_date).getTime(),
+            size: f.size_bytes,
+          },
+        ]) || [],
+      );
+
       let totalFilesDiscovered = 0;
       let totalFilesProcessed = 0;
+      let totalFilesSkipped = 0;
       let newFilesAdded = 0;
-
-      // Send initial progress update
-      await sendProgress(writer, {
-        status: 'started',
-        message: `Starting scan of ${folders.length} folders`,
-      });
 
       // Process each folder
       for (const folder of folders) {
@@ -219,73 +232,115 @@ export async function scanFolders() {
         });
 
         // Process files in batches to avoid memory issues
-        const batchSize = 100;
+        const batchSize = 200; // Increased batch size for better performance
         for (let i = 0; i < files.length; i += batchSize) {
           const batch = files.slice(i, i + batchSize);
           const newMediaItems = [];
 
           for (const file of batch) {
-            // Skip files that are already in the database
-            if (existingFilesSet.has(file.path)) {
-              totalFilesProcessed++;
-              continue;
-            }
+            try {
+              // Get file stats
+              const stats = await fs.stat(file.path);
+              const fileModifiedTime = stats.mtime.getTime();
+              const fileSize = stats.size;
+              const existingFile = existingFilesMap.get(file.path);
 
-            const extension = path
-              .extname(file.path)
-              .toLowerCase()
-              .substring(1);
+              // Skip files that are already in the database AND haven't changed
+              if (
+                existingFile &&
+                existingFile.modifiedDate === fileModifiedTime &&
+                existingFile.size === fileSize
+              ) {
+                totalFilesProcessed++;
+                totalFilesSkipped++;
 
-            // Track new file types
-            if (
-              !knownExtensions.has(extension) &&
-              !newFileTypes.has(extension)
-            ) {
-              newFileTypes.add(extension);
-            }
+                // Only send updates periodically to avoid flooding the stream
+                if (totalFilesProcessed % 100 === 0) {
+                  await sendProgress(writer, {
+                    status: 'scanning',
+                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped)`,
+                    filesDiscovered: totalFilesDiscovered,
+                    filesProcessed: totalFilesProcessed,
+                    newFilesAdded,
+                    newFileTypes: Array.from(newFileTypes),
+                  });
+                }
+                continue;
+              }
 
-            // Create a media item record
-            const stats = await fs.stat(file.path);
+              const extension = path
+                .extname(file.path)
+                .toLowerCase()
+                .substring(1);
 
-            newMediaItems.push({
-              file_path: file.path,
-              file_name: path.basename(file.path),
-              extension: extension,
-              folder_path: path.dirname(file.path),
-              size_bytes: stats.size,
-              modified_date: stats.mtime.toISOString(),
-              created_date: stats.birthtime.toISOString(),
-              processed: false,
-              organized: false,
-            });
+              // Track new file types
+              if (
+                !knownExtensions.has(extension) &&
+                !newFileTypes.has(extension)
+              ) {
+                newFileTypes.add(extension);
+              }
 
-            totalFilesProcessed++;
-            newFilesAdded++;
-
-            // Send periodic updates
-            if (
-              totalFilesProcessed % 50 === 0 ||
-              totalFilesProcessed === totalFilesDiscovered
-            ) {
-              await sendProgress(writer, {
-                status: 'scanning',
-                message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files`,
-                filesDiscovered: totalFilesDiscovered,
-                filesProcessed: totalFilesProcessed,
-                newFilesAdded,
-                newFileTypes: Array.from(newFileTypes),
+              // Create a media item record
+              newMediaItems.push({
+                file_path: file.path,
+                file_name: path.basename(file.path),
+                extension: extension,
+                folder_path: path.dirname(file.path),
+                size_bytes: fileSize,
+                modified_date: stats.mtime.toISOString(),
+                created_date: stats.birthtime.toISOString(),
+                processed: false,
+                organized: false,
+                type: guessFileCategory(extension),
               });
+
+              totalFilesProcessed++;
+              newFilesAdded++;
+
+              // Send periodic updates, less frequently for better performance
+              if (
+                totalFilesProcessed % 100 === 0 ||
+                totalFilesProcessed === totalFilesDiscovered
+              ) {
+                await sendProgress(writer, {
+                  status: 'scanning',
+                  message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped)`,
+                  filesDiscovered: totalFilesDiscovered,
+                  filesProcessed: totalFilesProcessed,
+                  newFilesAdded,
+                  newFileTypes: Array.from(newFileTypes),
+                });
+              }
+            } catch (fileError) {
+              console.error(`Error processing file ${file.path}:`, fileError);
+              // Continue with the next file in case of error
+              totalFilesProcessed++;
             }
           }
 
           // Insert new media items in batches
           if (newMediaItems.length > 0) {
-            const { error: insertError } = await supabase
-              .from('media_items')
-              .insert(newMediaItems);
+            try {
+              const { error: insertError } = await supabase
+                .from('media_items')
+                .upsert(newMediaItems, {
+                  onConflict: 'file_path',
+                  ignoreDuplicates: false,
+                });
 
-            if (insertError) {
-              console.error('Error inserting media items:', insertError);
+              if (insertError) {
+                console.error('Error inserting media items:', insertError);
+                await sendProgress(writer, {
+                  status: 'error',
+                  message: `Error inserting batch of media items: ${insertError.message}`,
+                  filesDiscovered: totalFilesDiscovered,
+                  filesProcessed: totalFilesProcessed,
+                  newFilesAdded,
+                });
+              }
+            } catch (batchError) {
+              console.error('Error processing batch:', batchError);
             }
           }
         }
@@ -298,19 +353,28 @@ export async function scanFolders() {
       }
 
       // Add any new file types to the database
-      for (const extension of newFileTypes) {
-        await supabase.from('file_types').insert({
-          extension,
-          category: guessFileCategory(extension),
-          can_display_natively: canDisplayNatively(extension),
-          needs_conversion: !canDisplayNatively(extension),
+      if (newFileTypes.size > 0) {
+        await sendProgress(writer, {
+          status: 'scanning',
+          message: `Adding ${newFileTypes.size} new file types to database...`,
+          newFileTypes: Array.from(newFileTypes),
         });
+
+        for (const extension of newFileTypes) {
+          await supabase.from('file_types').insert({
+            extension,
+            category: guessFileCategory(extension),
+            can_display_natively: canDisplayNatively(extension),
+            needs_conversion: !canDisplayNatively(extension),
+            ignore: false,
+          });
+        }
       }
 
       // Send final progress update
       await sendProgress(writer, {
         status: 'completed',
-        message: `Scan completed. Added ${newFilesAdded} new files.`,
+        message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, added ${newFilesAdded} new/updated files.`,
         filesDiscovered: totalFilesDiscovered,
         filesProcessed: totalFilesProcessed,
         newFilesAdded,

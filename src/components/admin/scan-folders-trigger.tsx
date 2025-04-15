@@ -4,9 +4,14 @@ import { type ScanProgress, scanFolders } from '@/app/api/actions/scan-folders';
 import { ReloadIcon } from '@radix-ui/react-icons';
 import { useEffect, useRef, useState } from 'react';
 
+// Add additional fields to the progress type to track skipped files
+interface EnhancedScanProgress extends ScanProgress {
+  skippedFiles?: number;
+}
+
 export default function ScanFoldersTrigger() {
   const [isScanning, setIsScanning] = useState(false);
-  const [progress, setProgress] = useState<ScanProgress | null>(null);
+  const [progress, setProgress] = useState<EnhancedScanProgress | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cleanup function to abort scanning when component unmounts
@@ -47,7 +52,17 @@ export default function ScanFoldersTrigger() {
               const data = message.slice(6);
               try {
                 const progressUpdate: ScanProgress = JSON.parse(data);
-                setProgress(progressUpdate);
+
+                // Calculate skipped files from the message if available
+                const skippedFiles = extractSkippedFilesCount(
+                  progressUpdate.message || '',
+                );
+
+                setProgress({
+                  ...progressUpdate,
+                  skippedFiles:
+                    skippedFiles !== null ? skippedFiles : undefined,
+                });
 
                 // If scan is complete or there's an error, we're done
                 if (
@@ -69,7 +84,16 @@ export default function ScanFoldersTrigger() {
         try {
           const data = buffer.slice(6);
           const progressUpdate: ScanProgress = JSON.parse(data);
-          setProgress(progressUpdate);
+
+          // Calculate skipped files from the message if available
+          const skippedFiles = extractSkippedFilesCount(
+            progressUpdate.message || '',
+          );
+
+          setProgress({
+            ...progressUpdate,
+            skippedFiles: skippedFiles !== null ? skippedFiles : undefined,
+          });
 
           if (
             progressUpdate.status === 'completed' ||
@@ -92,6 +116,12 @@ export default function ScanFoldersTrigger() {
     }
   };
 
+  // Extract skipped files count from the message
+  const extractSkippedFilesCount = (message: string): number | null => {
+    const match = message.match(/\((\d+) unchanged files skipped\)/);
+    return match ? Number.parseInt(match[1], 10) : null;
+  };
+
   const cancelScan = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -110,7 +140,7 @@ export default function ScanFoldersTrigger() {
           <h3 className="text-lg font-medium">Scan Folders</h3>
           <p className="text-sm text-muted-foreground">
             Scans all configured folders for media files and adds them to the
-            database.
+            database. Unchanged files will be skipped to improve performance.
           </p>
         </div>
         <button
@@ -161,7 +191,7 @@ export default function ScanFoldersTrigger() {
             progress.filesProcessed !== undefined && (
               <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-primary h-full"
+                  className="bg-primary h-full transition-all duration-300"
                   style={{
                     width: `${
                       (progress.filesProcessed /
@@ -173,17 +203,39 @@ export default function ScanFoldersTrigger() {
               </div>
             )}
 
-          {/* Additional statistics */}
-          {progress.newFilesAdded !== undefined &&
-            progress.newFilesAdded > 0 && (
-              <div className="text-xs text-muted-foreground mt-2">
-                Added {progress.newFilesAdded} new files to the database
-              </div>
-            )}
+          {/* Additional statistics in a grid layout for better organization */}
+          {(progress.filesProcessed !== undefined ||
+            progress.newFilesAdded !== undefined ||
+            progress.skippedFiles !== undefined) && (
+            <div className="grid grid-cols-3 gap-2 mt-3 text-sm border-t border-border/30 pt-2">
+              {progress.filesProcessed !== undefined && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Processed</div>
+                  <div className="font-medium">{progress.filesProcessed}</div>
+                </div>
+              )}
+
+              {progress.newFilesAdded !== undefined && (
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    New/Updated
+                  </div>
+                  <div className="font-medium">{progress.newFilesAdded}</div>
+                </div>
+              )}
+
+              {progress.skippedFiles !== undefined && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Skipped</div>
+                  <div className="font-medium">{progress.skippedFiles}</div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* New file types discovered */}
           {progress.newFileTypes && progress.newFileTypes.length > 0 && (
-            <div className="mt-2">
+            <div className="mt-3 border-t border-border/30 pt-2">
               <div className="text-xs text-muted-foreground">
                 Discovered {progress.newFileTypes.length} new file types:
               </div>
