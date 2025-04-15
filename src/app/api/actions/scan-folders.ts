@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import { canDisplayNatively } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 
 // Types for scan progress reporting
@@ -301,8 +302,8 @@ export async function scanFolders() {
         await supabase.from('file_types').insert({
           extension,
           category: guessFileCategory(extension),
-          can_display_natively: false,
-          needs_conversion: true,
+          can_display_natively: canDisplayNatively(extension),
+          needs_conversion: !canDisplayNatively(extension),
         });
       }
 

@@ -84,6 +84,7 @@ export function parseDateFromFilename(filename: string): Date | null {
  * Check if a file format can be natively displayed in most browsers
  */
 export function canDisplayNatively(extension: string): boolean {
+  const lowerCaseExtension = extension.toLowerCase();
   const nativeImageFormats = [
     'jpg',
     'jpeg',
@@ -94,11 +95,38 @@ export function canDisplayNatively(extension: string): boolean {
     'avif',
   ];
   const nativeVideoFormats = ['mp4', 'webm', 'ogg'];
+  const nativeAudioFormats = ['mp3', 'wav', 'ogg', 'aac'];
+  const nativeDocumentFormats = ['pdf', 'txt'];
 
   return (
-    nativeImageFormats.includes(extension.toLowerCase()) ||
-    nativeVideoFormats.includes(extension.toLowerCase())
+    nativeImageFormats.includes(lowerCaseExtension) ||
+    nativeVideoFormats.includes(lowerCaseExtension) ||
+    nativeAudioFormats.includes(lowerCaseExtension) ||
+    nativeDocumentFormats.includes(lowerCaseExtension)
   );
+}
+
+/**
+ * Check if a file needs conversion to be displayed on web
+ */
+export function needsConversion(extension: string): boolean {
+  const formatsNeedingConversion = [
+    'heic',
+    'raw',
+    'tiff',
+    'tif',
+    'nef',
+    'cr2',
+    'arw',
+    'orf',
+    'mov',
+    'avi',
+    'wmv',
+    'mkv',
+    'flv',
+  ];
+
+  return formatsNeedingConversion.includes(extension.toLowerCase());
 }
 
 /**
@@ -115,8 +143,13 @@ export function isImage(extension: string): boolean {
     'avif',
     'heic',
     'tiff',
+    'tif',
     'raw',
     'bmp',
+    'nef',
+    'cr2',
+    'arw',
+    'orf',
   ];
   return imageFormats.includes(extension.toLowerCase());
 }
@@ -164,4 +197,14 @@ export function getKeyboardNavigationIndex(
     default:
       return currentIndex;
   }
+}
+
+export function bytesToSize(bytes: number): string {
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  if (bytes === 0) return '0 Bytes';
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${
+    // biome-ignore lint/style/useExponentiationOperator: <explanation>
+    (bytes / Math.pow(1024, i)).toFixed(2)
+  } ${sizes[i]}`;
 }

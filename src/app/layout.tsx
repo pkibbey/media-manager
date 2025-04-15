@@ -2,6 +2,7 @@ import { Header } from '@/components/ui/navigation/header';
 import { GeistSans } from 'geist/font/sans';
 import type { Metadata } from 'next';
 import './globals.css';
+import { Toaster } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-background flex flex-col">
         <Header />
         <main className="flex-1 px-4">{children}</main>
+        <Toaster />
       </body>
     </html>
   );

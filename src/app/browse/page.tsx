@@ -21,6 +21,8 @@ const defaultFilters: FiltersType = {
   sortOrder: 'desc',
   processed: 'all',
   organized: 'all',
+  camera: '',
+  hasLocation: 'no',
 };
 
 export default function BrowsePage() {
