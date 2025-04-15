@@ -31,9 +31,18 @@ export default function MediaList({ items }: MediaListProps) {
   const { focusedIndex, isNavigating } = useKeyboardNavigation(
     items.length,
     columnCount,
+    // Handle Enter key - select item
     (index) => {
-      // Always toggle selection (selection mode is always on)
-      toggleSelection(items[index].id);
+      if (items[index]) {
+        toggleSelection(items[index].id);
+      }
+    },
+    // Handle Space key - preview item
+    (index) => {
+      if (items[index]) {
+        setSelectedMediaItem(items[index]);
+        setIsDetailPanelOpen(true);
+      }
     },
   );
 
@@ -267,17 +276,16 @@ function MediaCard({
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault(); // Prevent page scroll on space
-          // If shift is pressed with Enter/Space, handle as selection
-          if (e.shiftKey) {
-            if (onToggleSelect) {
-              onToggleSelect(e as any);
-            }
-          } else {
-            // Otherwise, handle as a click
-            onClick(e as any);
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          // Enter key always selects the item
+          if (onToggleSelect) {
+            onToggleSelect(e as any);
           }
+        } else if (e.key === ' ') {
+          e.preventDefault(); // Prevent page scroll on space
+          // Space key opens the preview
+          onClick(e as any);
         }
       }}
       tabIndex={0}

@@ -1,10 +1,16 @@
 import { getKeyboardNavigationIndex } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
+interface UseKeyboardNavigationOptions {
+  onSelect?: (index: number) => void;
+  onPreview?: (index: number) => void;
+}
+
 export function useKeyboardNavigation(
   itemsLength: number,
   columnsCount = 4,
   onSelect?: (index: number) => void,
+  onPreview?: (index: number) => void,
 ) {
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
@@ -40,10 +46,17 @@ export function useKeyboardNavigation(
         return;
       }
 
-      // Handle selection keys
-      if ((event.key === 'Enter' || event.key === ' ') && focusedIndex !== -1) {
+      // Handle selection with Enter key
+      if (event.key === 'Enter' && focusedIndex !== -1) {
         event.preventDefault();
         onSelect?.(focusedIndex);
+        return;
+      }
+
+      // Handle preview with Space key
+      if (event.key === ' ' && focusedIndex !== -1) {
+        event.preventDefault();
+        onPreview?.(focusedIndex);
         return;
       }
 
@@ -124,7 +137,14 @@ export function useKeyboardNavigation(
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [focusedIndex, itemsLength, columnsCount, isNavigating, onSelect]);
+  }, [
+    focusedIndex,
+    itemsLength,
+    columnsCount,
+    isNavigating,
+    onSelect,
+    onPreview,
+  ]);
 
   return {
     focusedIndex,
