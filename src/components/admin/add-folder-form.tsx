@@ -24,8 +24,8 @@ export default function AddFolderForm() {
       } else {
         setError(result.error || 'Unknown error occurred');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (error: any) {
+      setError(error.message || 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }

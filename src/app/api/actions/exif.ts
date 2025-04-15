@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { extractExifData } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { extractDateFromFilename } from '@/lib/utils';
+import type { Json } from '@/types/supabase';
 import { revalidatePath } from 'next/cache';
 
 export async function processMediaExif(mediaId: string, filePath: string) {
@@ -21,15 +22,17 @@ export async function processMediaExif(mediaId: string, filePath: string) {
     }
 
     // Prepare metadata for storage - clean up and normalize the data
-    const metadata = {
+    const metadata: Json = {
       camera: {
         make: exifData.Make,
         model: exifData.Model,
         software: exifData.Software,
       },
       datetime: {
-        created: exifData.CreateDate || exifData.DateTimeOriginal,
-        modified: exifData.ModifyDate,
+        created: (
+          exifData.CreateDate || exifData.DateTimeOriginal
+        )?.toISOString(),
+        modified: exifData.ModifyDate?.toISOString(),
       },
       settings: {
         iso: exifData.ISO,
@@ -60,15 +63,13 @@ export async function processMediaExif(mediaId: string, filePath: string) {
       artist: exifData.Artist,
     };
 
-    // Update the media record in the database - Fix: use media_items table instead of media
+    // Update the media record in the database
     const { error } = await supabase
       .from('media_items')
       .update({
-        exif_data: metadata, // Fix: use exif_data column instead of metadata
+        exif_data: metadata,
         has_exif: true,
-        media_date: metadata.datetime.created, // Fix: use media_date instead of capture_date
-        width: metadata.image.width,
-        height: metadata.image.height,
+        media_date: exifData.CreateDate?.toISOString(),
         // Note: location is stored as text in the database, so we'll omit it for now
       })
       .eq('id', mediaId);
@@ -105,7 +106,7 @@ export async function batchProcessExif(folderPath: string) {
 
     // Get all media files that don't have EXIF data yet
     const { data: mediaFiles, error } = await supabase
-      .from('media_items') // Fix: use media_items table instead of media
+      .from('media_items')
       .select('id, file_path')
       .eq('has_exif', false)
       .eq('folder_path', folderPath);
@@ -161,16 +162,36 @@ export async function getExifStats() {
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get counts of media with and without EXIF data
-    const { data, error } = await supabase.rpc('get_exif_stats');
+    // Get count of media with EXIF data
+    const { count: withExif, error: withExifError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('has_exif', true);
 
-    if (error) {
-      return { success: false, message: error.message };
+    // Get count of media without EXIF data
+    const { count: withoutExif, error: withoutExifError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('has_exif', false);
+
+    // Get total count of media items
+    const { count: total, error: totalError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true });
+
+    // Check for errors
+    if (withExifError || withoutExifError || totalError) {
+      const error = withExifError || withoutExifError || totalError;
+      return { success: false, message: error?.message };
     }
 
     return {
       success: true,
-      stats: data || { with_exif: 0, without_exif: 0, total: 0 },
+      stats: {
+        with_exif: withExif || 0,
+        without_exif: withoutExif || 0,
+        total: total || 0,
+      },
     };
   } catch (error) {
     console.error('Error fetching EXIF stats:', error);
@@ -379,7 +400,7 @@ export async function updateMediaDatesFromFilenames(
  * Process EXIF data for a single media item by ID
  * This function is used by the batch processing implementation
  */
-export async function processExifData(mediaId: number) {
+export async function processExifData(mediaId: string) {
   try {
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient();
@@ -426,15 +447,17 @@ export async function processExifData(mediaId: number) {
     }
 
     // Prepare metadata for storage - clean up and normalize the data
-    const metadata = {
+    const metadata: Json = {
       camera: {
         make: exifData.Make,
         model: exifData.Model,
         software: exifData.Software,
       },
       datetime: {
-        created: exifData.CreateDate || exifData.DateTimeOriginal,
-        modified: exifData.ModifyDate,
+        created: (
+          exifData.CreateDate || exifData.DateTimeOriginal
+        )?.toISOString(),
+        modified: exifData.ModifyDate?.toISOString(),
       },
       settings: {
         iso: exifData.ISO,
@@ -472,9 +495,7 @@ export async function processExifData(mediaId: number) {
         exif_data: metadata,
         has_exif: true,
         processed: true,
-        media_date: metadata.datetime.created,
-        width: metadata.image.width,
-        height: metadata.image.height,
+        media_date: exifData.CreateDate?.toISOString(),
         latitude: exifData.latitude,
         longitude: exifData.longitude,
       })

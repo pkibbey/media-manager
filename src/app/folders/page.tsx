@@ -8,12 +8,13 @@ import FolderPagination from '@/components/folders/folder-pagination';
 import FolderTree, { type FolderNode } from '@/components/folders/folder-tree';
 import FolderViewToggle from '@/components/folders/folder-view-toggle';
 import MediaList from '@/components/folders/media-list';
+import type { MediaItem } from '@/types';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
 export default function FoldersPage() {
   const [folderStructure, setFolderStructure] = useState<FolderNode[]>([]);
-  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [pagination, setPagination] = useState<any>({
     page: 1,
     pageSize: 50,

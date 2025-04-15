@@ -27,7 +27,7 @@ export type BatchProgress = {
  * Process EXIF data for multiple media items
  */
 export async function batchProcessExif(
-  itemIds: number[],
+  itemIds: string[],
 ): Promise<BatchOperationResponse> {
   try {
     let processedCount = 0;
@@ -71,7 +71,7 @@ export async function batchProcessExif(
  * Mark multiple media items as organized
  */
 export async function batchMarkOrganized(
-  itemIds: number[],
+  itemIds: string[],
   organized = true,
 ): Promise<BatchOperationResponse> {
   try {
@@ -113,7 +113,7 @@ export async function batchMarkOrganized(
  * Delete multiple media items
  */
 export async function batchDeleteItems(
-  itemIds: number[],
+  itemIds: string[],
 ): Promise<BatchOperationResponse> {
   try {
     const supabase = createServerSupabaseClient();
@@ -153,7 +153,7 @@ export async function batchDeleteItems(
 /**
  * Stream-based batch processing of EXIF data for multiple media items
  */
-export async function streamBatchProcessExif(itemIds: number[]) {
+export async function streamBatchProcessExif(itemIds: string[]) {
   const encoder = new TextEncoder();
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
@@ -165,7 +165,7 @@ export async function streamBatchProcessExif(itemIds: number[]) {
   return stream.readable;
 
   async function processItemsInBackground(
-    ids: number[],
+    ids: string[],
     writer: WritableStreamDefaultWriter,
   ) {
     try {
@@ -220,8 +220,8 @@ export async function streamBatchProcessExif(itemIds: number[]) {
               totalCount: totalItems,
             });
           }
-        } catch (itemError: any) {
-          console.error(`Error processing item ${id}:`, itemError);
+        } catch (error: any) {
+          console.error(`Error processing item ${id}:`, error);
           failedCount++;
         }
       }

@@ -3,6 +3,7 @@ import ExifProcessor from '@/components/admin/exif-processor';
 import FileTypeManager from '@/components/admin/file-type-manager';
 import FolderList from '@/components/admin/folder-list';
 import MediaStats from '@/components/admin/media-stats';
+import ResetMedia from '@/components/admin/reset-media';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 import TimestampCorrector from '@/components/admin/timestamp-corrector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -56,12 +57,17 @@ export default async function AdminPage() {
         </TabsContent>
 
         <TabsContent value="processing" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-4">
             <ScanFoldersTrigger />
+          </div>
+          <div className="border-t pt-6">
             <ExifProcessor />
           </div>
           <div className="border-t pt-6">
             <TimestampCorrector />
+          </div>
+          <div className="border-t pt-6">
+            <ResetMedia />
           </div>
         </TabsContent>
 

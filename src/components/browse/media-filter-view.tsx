@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import type { MediaFilters } from '@/types';
 import {
   CalendarIcon,
   MixerHorizontalIcon,
@@ -33,32 +34,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
-export interface MediaFilters {
-  search: string;
-  type: 'all' | 'image' | 'video' | 'data';
-  dateFrom: Date | null;
-  dateTo: Date | null;
-  minSize: number;
-  maxSize: number;
-  sortBy: 'date' | 'name' | 'size' | 'type';
-  sortOrder: 'asc' | 'desc';
-  processed: 'all' | 'yes' | 'no';
-  organized: 'all' | 'yes' | 'no';
-  camera: string;
-  hasLocation: 'all' | 'yes' | 'no';
-}
-
 interface MediaFiltersProps {
   totalCount?: number;
-  availableExtensions?: string[];
   availableCameras?: string[];
   maxFileSize?: number;
   onFiltersChange: (filters: MediaFilters) => void;
 }
 
-export default function MediaFilters({
+export default function MediaFilterView({
   totalCount = 0,
-  availableExtensions = [],
   availableCameras = [],
   maxFileSize = 100,
   onFiltersChange,

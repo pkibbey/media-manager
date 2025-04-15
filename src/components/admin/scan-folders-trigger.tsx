@@ -150,7 +150,7 @@ export default function ScanFoldersTrigger() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col gap-4 items-start">
         <div>
           <h3 className="text-lg font-medium">Scan Folders</h3>
           <p className="text-sm text-muted-foreground">

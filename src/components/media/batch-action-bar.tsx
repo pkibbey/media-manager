@@ -6,6 +6,7 @@ import {
   batchMarkOrganized,
   streamBatchProcessExif,
 } from '@/app/api/actions/batch';
+import type { MediaItem } from '@/types';
 import {
   CheckIcon,
   Cross2Icon,
@@ -28,7 +29,7 @@ import {
 import { Progress } from '../ui/progress';
 
 interface BatchActionBarProps {
-  selectedItems: any[];
+  selectedItems: MediaItem[];
   onClearSelection: () => void;
 }
 

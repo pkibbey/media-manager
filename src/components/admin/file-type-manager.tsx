@@ -2,10 +2,8 @@
 
 import { updateFileType } from '@/app/api/actions/file-types';
 import { formatDate } from '@/lib/utils';
-import type { Tables } from '@/types/supabase';
+import type { FileType } from '@/types';
 import { useState } from 'react';
-
-type FileType = Tables<'file_types'>;
 
 interface FileTypeManagerProps {
   fileTypes: FileType[];
@@ -243,9 +241,11 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
                         <td className="p-2 text-center">
                           <input
                             type="checkbox"
-                            checked={fileType.can_display_natively}
+                            checked={fileType.can_display_natively || false}
                             onChange={() => handleToggleNativeDisplay(fileType)}
-                            disabled={isUpdating === fileType.id || isIgnored}
+                            disabled={
+                              isUpdating === fileType.id || isIgnored || false
+                            }
                             className="h-4 w-4"
                             aria-label="Can display natively"
                           />
@@ -253,11 +253,13 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
                         <td className="p-2 text-center">
                           <input
                             type="checkbox"
-                            checked={fileType.needs_conversion}
+                            checked={fileType.needs_conversion || false}
                             onChange={() =>
                               handleToggleNeedsConversion(fileType)
                             }
-                            disabled={isUpdating === fileType.id || isIgnored}
+                            disabled={
+                              isUpdating === fileType.id || isIgnored || false
+                            }
                             className="h-4 w-4"
                             aria-label="Needs conversion"
                           />
@@ -265,7 +267,7 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
                         <td className="p-2 text-center">
                           <input
                             type="checkbox"
-                            checked={isIgnored}
+                            checked={isIgnored || false}
                             onChange={() => handleToggleIgnore(fileType)}
                             disabled={isUpdating === fileType.id}
                             className="h-4 w-4"

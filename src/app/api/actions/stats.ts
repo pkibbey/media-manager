@@ -1,21 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
-
-export interface MediaStats {
-  totalMediaItems: number;
-  totalSizeBytes: number;
-  itemsByCategory: {
-    [category: string]: number;
-  };
-  itemsByExtension: {
-    [extension: string]: number;
-  };
-  processedCount: number;
-  unprocessedCount: number;
-  organizedCount: number;
-  unorganizedCount: number;
-}
+import type { MediaStats } from '@/types';
 
 /**
  * Get media statistics
@@ -171,6 +157,59 @@ export async function clearAllMediaItems(): Promise<{
     };
   } catch (error: any) {
     console.error('Error clearing media items:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Reset the processing state of all media items
+ * This will mark all items as unprocessed so they can be re-processed
+ */
+export async function resetAllMediaItems(): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    // Get total count for confirmation message
+    const { count, error: countError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('Error counting media items:', countError);
+      return { success: false, error: countError.message };
+    }
+
+    // Reset all media items by marking them as unprocessed
+    // Use filter TRUE to select all rows instead of .neq('id', '')
+    const { error: updateError } = await supabase
+      .from('media_items')
+      .update({
+        processed: false,
+        has_exif: false,
+        exif_data: null,
+        media_date: null,
+        width: null,
+        height: null,
+        duration_seconds: null,
+        thumbnail_path: null,
+      })
+      .filter('id', 'not.is', null); // Select all non-null IDs (all rows)
+
+    if (updateError) {
+      console.error('Error resetting media items:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    return {
+      success: true,
+      message: `Successfully reset ${count} media items to unprocessed state.`,
+    };
+  } catch (error: any) {
+    console.error('Error resetting media items:', error);
     return { success: false, error: error.message };
   }
 }

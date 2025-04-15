@@ -2,9 +2,6 @@
 
 import type { FolderNode } from '@/components/folders/folder-tree';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { Tables } from '@/types/supabase';
-
-type MediaItem = Tables<'media_items'>;
 
 /**
  * Get the folder structure for browsing

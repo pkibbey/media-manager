@@ -1,16 +1,15 @@
 'use client';
 
 import { browseMedia } from '@/app/api/actions/browse';
-import MediaFilters, {
-  type MediaFilters as FiltersType,
-} from '@/components/browse/media-filters';
+import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/folders/media-list';
 import { Pagination } from '@/components/ui/pagination';
+import type { MediaFilters, MediaItem } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 // Define the default filter values
-const defaultFilters: FiltersType = {
+const defaultFilters: MediaFilters = {
   search: '',
   type: 'all',
   dateFrom: null,
@@ -28,9 +27,9 @@ const defaultFilters: FiltersType = {
 export default function BrowsePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [filters, setFilters] = useState<FiltersType>(defaultFilters);
+  const [filters, setFilters] = useState<MediaFilters>(defaultFilters);
   const [currentPage, setCurrentPage] = useState(1);
-  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -53,14 +52,14 @@ export default function BrowsePage() {
     }
 
     // Parse filters from URL
-    const parsedFilters: Partial<FiltersType> = {};
+    const parsedFilters: Partial<MediaFilters> = {};
 
     if (searchParams.has('search'))
       parsedFilters.search = searchParams.get('search') || '';
 
     const type = searchParams.get('type');
     if (type && ['all', 'image', 'video', 'data'].includes(type)) {
-      parsedFilters.type = type as FiltersType['type'];
+      parsedFilters.type = type as MediaFilters['type'];
     }
 
     if (searchParams.has('dateFrom')) {
@@ -91,22 +90,22 @@ export default function BrowsePage() {
 
     const sortBy = searchParams.get('sortBy');
     if (sortBy && ['date', 'name', 'size', 'type'].includes(sortBy)) {
-      parsedFilters.sortBy = sortBy as FiltersType['sortBy'];
+      parsedFilters.sortBy = sortBy as MediaFilters['sortBy'];
     }
 
     const sortOrder = searchParams.get('sortOrder');
     if (sortOrder && ['asc', 'desc'].includes(sortOrder)) {
-      parsedFilters.sortOrder = sortOrder as FiltersType['sortOrder'];
+      parsedFilters.sortOrder = sortOrder as MediaFilters['sortOrder'];
     }
 
     const processed = searchParams.get('processed');
     if (processed && ['all', 'yes', 'no'].includes(processed)) {
-      parsedFilters.processed = processed as FiltersType['processed'];
+      parsedFilters.processed = processed as MediaFilters['processed'];
     }
 
     const organized = searchParams.get('organized');
     if (organized && ['all', 'yes', 'no'].includes(organized)) {
-      parsedFilters.organized = organized as FiltersType['organized'];
+      parsedFilters.organized = organized as MediaFilters['organized'];
     }
 
     // Update filters with parsed values
@@ -134,8 +133,8 @@ export default function BrowsePage() {
           setError(result.error || 'Failed to load media items');
           setMediaItems([]);
         }
-      } catch (err: any) {
-        setError(err.message || 'An unexpected error occurred');
+      } catch (error: any) {
+        setError(error.message || 'An unexpected error occurred');
         setMediaItems([]);
       } finally {
         setLoading(false);
@@ -146,7 +145,7 @@ export default function BrowsePage() {
   }, [filters, currentPage]);
 
   // Handle filter changes
-  const handleFiltersChange = (newFilters: FiltersType) => {
+  const handleFiltersChange = (newFilters: MediaFilters) => {
     setFilters(newFilters);
     setCurrentPage(1); // Reset to first page when filters change
   };
@@ -166,9 +165,8 @@ export default function BrowsePage() {
       <h1 className="text-3xl font-bold mb-6">Browse Media</h1>
 
       <div className="mb-6">
-        <MediaFilters
+        <MediaFilterView
           totalCount={pagination.total}
-          availableExtensions={availableExtensions}
           maxFileSize={maxFileSize}
           onFiltersChange={handleFiltersChange}
         />

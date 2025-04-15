@@ -3,7 +3,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { canDisplayNatively } from '@/lib/utils';
+import { canDisplayNatively, guessFileCategory } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 
 // Types for scan progress reporting
@@ -469,43 +469,5 @@ export async function scanFolders() {
     }
 
     return files;
-  }
-
-  function guessFileCategory(extension: string): string {
-    const imageExtensions = [
-      'jpg',
-      'jpeg',
-      'png',
-      'gif',
-      'webp',
-      'avif',
-      'heic',
-      'tiff',
-      'raw',
-      'bmp',
-      'svg',
-    ];
-    const videoExtensions = [
-      'mp4',
-      'webm',
-      'mov',
-      'avi',
-      'mkv',
-      'flv',
-      'wmv',
-      'm4v',
-    ];
-    const dataExtensions = ['json', 'xml', 'txt', 'csv'];
-
-    if (imageExtensions.includes(extension.toLowerCase())) {
-      return 'image';
-    }
-    if (videoExtensions.includes(extension.toLowerCase())) {
-      return 'video';
-    }
-    if (dataExtensions.includes(extension.toLowerCase())) {
-      return 'data';
-    }
-    return 'other';
   }
 }

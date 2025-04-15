@@ -3,29 +3,32 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { bytesToSize } from '@/lib/utils';
-import { Cross2Icon, FileIcon } from '@radix-ui/react-icons';
+import type { ExifData } from '@/types';
+import type { MediaItem } from '@/types';
+import { FileIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
 import Image from 'next/image';
-import { useEffect } from 'react';
-import { Button } from '../ui/button';
 import ExifDataDisplay from './exif-data-display';
 
 interface MediaDetailProps {
-  item: any;
-  isOpen: boolean;
-  onClose: () => void;
+  item: MediaItem | null;
 }
 
-export default function MediaDetail({
-  item,
-  isOpen,
-  onClose,
-}: MediaDetailProps) {
+// Helper function to safely type exif_data from Json
+function getExifData(item: MediaItem): ExifData | null {
+  return item.exif_data as ExifData | null;
+}
+
+export default function MediaDetail({ item }: MediaDetailProps) {
   if (!item) return null;
 
-  const isImage = item.type === 'image';
-  const isVideo = item.type === 'video';
-  const fileExtension = item.file_name.split('.').pop()?.toLowerCase();
+  // Use properly typed EXIF data
+  const exifData = getExifData(item);
+
+  // File type detection based on extension
+  const fileExtension = item.extension?.toLowerCase();
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension);
+  const isVideo = ['mp4', 'mov', 'avi', 'webm'].includes(fileExtension);
 
   // Format creation date
   const createdAt = item.created_at
@@ -37,37 +40,17 @@ export default function MediaDetail({
     ? format(new Date(item.media_date), 'PPP')
     : null;
 
-  // Handle escape key to close panel
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-y-0 right-0 w-full md:w-1/3 lg:w-1/4 xl:w-1/3 bg-background border-l shadow-xl overflow-y-auto z-40 animate-in slide-in-from-right">
+    <div className="bg-background border-l shadow-xl">
       <div className="sticky top-0 bg-background z-10 border-b p-4 flex justify-between items-center">
         <div>
           <h2 className="text-lg font-semibold truncate" title={item.file_name}>
             {item.file_name}
           </h2>
           <p className="text-xs text-muted-foreground">
-            Added on {createdAt} • {bytesToSize(item.size || 0)}
+            Added on {createdAt} • {bytesToSize(item.size_bytes || 0)}
           </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <Cross2Icon className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </Button>
       </div>
 
       <div className="p-4 space-y-6">
@@ -127,7 +110,7 @@ export default function MediaDetail({
                   </div>
                   <div>
                     <div className="font-medium">Size</div>
-                    <div>{bytesToSize(item.size || 0)}</div>
+                    <div>{bytesToSize(item.size_bytes || 0)}</div>
                   </div>
                   {mediaTakenDate && (
                     <div>
@@ -144,22 +127,14 @@ export default function MediaDetail({
             </Card>
           </TabsContent>
 
-          {item.processed && (
+          {item.processed && exifData && (
             <TabsContent value="metadata" className="mt-4">
               <ExifDataDisplay
-                metadata={item.metadata}
+                metadata={exifData}
                 mediaDate={item.media_date}
-                camera={item.camera}
-                lens={item.lens}
-                exposureInfo={item.exposure_info}
-                focalLength={item.focal_length}
                 dimensions={{
-                  width: item.width,
-                  height: item.height,
-                }}
-                coordinates={{
-                  latitude: item.latitude,
-                  longitude: item.longitude,
+                  width: item.width || undefined,
+                  height: item.height || undefined,
                 }}
               />
             </TabsContent>

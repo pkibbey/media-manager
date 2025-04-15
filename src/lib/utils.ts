@@ -1,6 +1,8 @@
+import type { Json, MediaItem } from '@/types/supabase';
 import { type ClassValue, clsx } from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import { twMerge } from 'tailwind-merge';
+import type { ExifData } from './exif-utils';
 
 /**
  * Combines class names with clsx and tailwind-merge
@@ -299,4 +301,214 @@ export function extractDateFromFilename(filename: string): Date | null {
 
   // If no patterns matched, return null
   return null;
+}
+
+/**
+ * Generate a Google Maps URL from coordinates
+ */
+export function getGoogleMapsUrl(
+  latitude?: number,
+  longitude?: number,
+): string | null {
+  if (latitude === undefined || longitude === undefined) {
+    return null;
+  }
+
+  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+}
+
+/**
+ * Format GPS coordinates into a readable format
+ * @param latitude
+ * @param longitude
+ * @returns Formatted coordinates string
+ */
+export function formatGpsCoordinates(
+  latitude?: number,
+  longitude?: number,
+): string | null {
+  if (latitude === undefined || longitude === undefined) {
+    return null;
+  }
+
+  const latDir = latitude >= 0 ? 'N' : 'S';
+  const lonDir = longitude >= 0 ? 'E' : 'W';
+
+  const absLat = Math.abs(latitude);
+  const absLon = Math.abs(longitude);
+
+  return `${absLat.toFixed(6)}° ${latDir}, ${absLon.toFixed(6)}° ${lonDir}`;
+}
+
+/**
+ * Formats camera information from EXIF data
+ * @param exifData The EXIF data object
+ * @returns Formatted camera string or undefined if not available
+ */
+export function formatCameraInfo(
+  exifData?: ExifData | null,
+): string | undefined {
+  if (!exifData) return undefined;
+
+  const make = exifData.Make?.trim();
+  const model = exifData.Model?.trim();
+
+  if (make && model) {
+    // Remove redundant manufacturer name from model if present
+    if (model.startsWith(make)) {
+      return model;
+    }
+    return `${make} ${model}`;
+  }
+
+  return model || make;
+}
+
+/**
+ * Formats lens information from EXIF data
+ * @param exifData The EXIF data object
+ * @returns Formatted lens string or undefined if not available
+ */
+export function formatLensInfo(exifData?: ExifData | null): string | undefined {
+  if (!exifData) return undefined;
+
+  const lensModel = exifData.LensModel?.trim();
+  const lensMake = exifData.LensMake?.trim();
+
+  if (lensModel) {
+    if (lensMake && !lensModel.includes(lensMake)) {
+      return `${lensMake} ${lensModel}`;
+    }
+    return lensModel;
+  }
+
+  // If no specific lens model, try LensInfo array
+  const lensInfo = exifData.LensInfo;
+  if (Array.isArray(lensInfo) && lensInfo.length > 0) {
+    return lensInfo.join(' ');
+  }
+
+  return undefined;
+}
+
+/**
+ * Formats exposure settings from EXIF data
+ * @param exifData The EXIF data object
+ * @returns Formatted exposure string or undefined if not available
+ */
+export function formatExposureInfo(
+  exifData?: ExifData | null,
+): string | undefined {
+  if (!exifData) return undefined;
+
+  const parts: string[] = [];
+
+  // Format aperture (f-stop)
+  if (exifData.ApertureValue) {
+    parts.push(`f/${exifData.ApertureValue.toFixed(1)}`);
+  }
+
+  // Format shutter speed
+  if (exifData.ShutterSpeedValue) {
+    // Convert to fraction if needed
+    const shutterSpeed = exifData.ShutterSpeedValue;
+    if (shutterSpeed < 1) {
+      // Calculate denominator for fraction (1/x)
+      const denominator = Math.round(1 / shutterSpeed);
+      parts.push(`1/${denominator}s`);
+    } else {
+      parts.push(`${shutterSpeed.toFixed(1)}s`);
+    }
+  }
+
+  // Format ISO
+  if (exifData.ISO) {
+    parts.push(`ISO ${exifData.ISO}`);
+  }
+
+  return parts.length > 0 ? parts.join(', ') : undefined;
+}
+
+/**
+ * Formats focal length information from EXIF data
+ * @param exifData The EXIF data object
+ * @returns Formatted focal length string or undefined if not available
+ */
+export function formatFocalLength(
+  exifData?: ExifData | null,
+): string | undefined {
+  if (!exifData) return undefined;
+
+  const focalLength = exifData.FocalLength;
+  const focalLengthIn35mm = exifData.FocalLengthIn35mmFormat;
+
+  if (focalLength) {
+    if (focalLengthIn35mm && focalLength !== focalLengthIn35mm) {
+      return `${focalLength.toFixed(0)}mm (${focalLengthIn35mm.toFixed(0)}mm equiv.)`;
+    }
+    return `${focalLength.toFixed(0)}mm`;
+  }
+
+  return undefined;
+}
+
+/**
+ * Helper function to properly type exif_data from database
+ * @param item MediaItem from database
+ * @returns Strongly typed ExifData object or null
+ */
+export function getExifData(item: MediaItem): ExifData | null {
+  return item.exif_data as ExifData | null;
+}
+
+/**
+ * Safely converts ExifData to Json for database storage
+ * @param data ExifData object
+ * @returns Json type for database storage
+ */
+export function exifDataToJson(data: ExifData): Json {
+  return data as unknown as Json;
+}
+
+/**
+ * Guess the file category based on the file extension
+ * @param extension File extension (e.g. "jpg", "mp4")
+ * @returns File category (e.g. "image", "video", "data", "other")
+ */
+export function guessFileCategory(extension: string): string {
+  const imageExtensions = [
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'avif',
+    'heic',
+    'tiff',
+    'raw',
+    'bmp',
+    'svg',
+  ];
+  const videoExtensions = [
+    'mp4',
+    'webm',
+    'mov',
+    'avi',
+    'mkv',
+    'flv',
+    'wmv',
+    'm4v',
+  ];
+  const dataExtensions = ['json', 'xml', 'txt', 'csv'];
+
+  if (imageExtensions.includes(extension.toLowerCase())) {
+    return 'image';
+  }
+  if (videoExtensions.includes(extension.toLowerCase())) {
+    return 'video';
+  }
+  if (dataExtensions.includes(extension.toLowerCase())) {
+    return 'data';
+  }
+  return 'other';
 }

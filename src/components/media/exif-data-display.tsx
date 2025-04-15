@@ -7,46 +7,51 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { formatGpsCoordinates, getGoogleMapsUrl } from '@/lib/exif-utils';
+import { formatGpsCoordinates, getGoogleMapsUrl } from '@/lib/utils';
+import type { ExifData } from '@/types';
 import { ExternalLinkIcon, GlobeIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
 
 interface ExifDataDisplayProps {
-  metadata: any;
+  // Now we can use our strongly typed ExifData interface
+  metadata: ExifData;
   // Direct extracted fields
   mediaDate?: string | null;
-  camera?: string | null;
-  lens?: string | null;
-  exposureInfo?: string | null;
-  focalLength?: string | null;
   dimensions?: { width?: number; height?: number } | null;
-  coordinates?: { latitude?: number; longitude?: number } | null;
 }
 
 export default function ExifDataDisplay({
   metadata,
   mediaDate,
-  camera,
-  lens,
-  exposureInfo,
-  focalLength,
   dimensions,
-  coordinates,
 }: ExifDataDisplayProps) {
   // Format the media date if available
   const formattedDate = mediaDate ? format(new Date(mediaDate), 'PPpp') : null;
 
+  // Extract metadata fields and convert them
+  //  - camera
+  //  - lens
+  //  - exposureInfo
+  //  - focalLength
+  //  - coordinates
+  const camera = metadata.Model;
+  const lens = metadata.LensModel;
+
+  const exposureInfo = metadata.ShutterSpeedValue
+    ? `ƒ${metadata.ApertureValue} ${metadata.FocalLength} ${metadata.ShutterSpeedValue}`
+    : null;
+  const focalLength = metadata.FocalLength
+    ? `${metadata.FocalLength} mm`
+    : null;
+
   // Format the GPS coordinates if available
   const formattedCoordinates =
-    coordinates?.latitude !== undefined && coordinates?.longitude !== undefined
-      ? formatGpsCoordinates(coordinates.latitude, coordinates.longitude)
+    metadata.latitude !== undefined && metadata.longitude !== undefined
+      ? formatGpsCoordinates(metadata.latitude, metadata.longitude)
       : null;
 
   // Get Google Maps URL if coordinates are available
-  const mapsUrl =
-    coordinates?.latitude !== undefined && coordinates?.longitude !== undefined
-      ? getGoogleMapsUrl(coordinates.latitude, coordinates.longitude)
-      : null;
+  const mapsUrl = getGoogleMapsUrl(metadata.latitude, metadata.longitude);
 
   // Format dimensions
   const formattedDimensions =
