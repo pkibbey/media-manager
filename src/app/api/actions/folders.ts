@@ -1,149 +1,104 @@
 'use server';
 
+import type { FolderNode } from '@/components/folders/folder-tree';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { Tables } from '@/types/supabase';
 
-export type FolderStructure = {
-  path: string;
-  name: string;
-  parent: string | null;
-  isRoot: boolean;
-  itemCount: number;
-  subfolders: FolderStructure[];
-};
+type MediaItem = Tables<'media_items'>;
 
-// Get a flat list of all folders that contain media items
-export async function getAllFolders() {
+/**
+ * Get the folder structure for browsing
+ */
+export async function getFolderStructure() {
   try {
     const supabase = createServerSupabaseClient();
 
-    const { data, error } = await supabase
+    // Get all folder paths from the database
+    const { data: mediaItems, error } = await supabase
       .from('media_items')
-      .select('folder_path')
-      .order('folder_path');
+      .select('folder_path, id');
 
     if (error) {
-      console.error('Error fetching folders:', error);
+      console.error('Error fetching folder paths:', error);
       return { success: false, error: error.message };
     }
 
-    // Create a Set to store unique folder paths
-    const uniqueFolderPaths = new Set<string>();
+    // Count media items in each folder
+    const folderCounts = new Map<string, number>();
+    mediaItems?.forEach((item) => {
+      const folderPath = item.folder_path;
+      folderCounts.set(folderPath, (folderCounts.get(folderPath) || 0) + 1);
 
-    // Add each folder path and all parent folders
-    data?.forEach((item) => {
-      let currentPath = item.folder_path;
-      uniqueFolderPaths.add(currentPath);
-
-      // Add all parent folders
-      while (currentPath !== '/' && currentPath !== '') {
-        currentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
-        if (currentPath === '') {
-          // Handle root directory case
-          currentPath = '/';
-        }
-        uniqueFolderPaths.add(currentPath);
+      // Also count for parent folders
+      let parentPath = getParentPath(folderPath);
+      while (parentPath !== '') {
+        folderCounts.set(parentPath, (folderCounts.get(parentPath) || 0) + 1);
+        parentPath = getParentPath(parentPath);
       }
     });
 
-    // Convert Set back to sorted array
-    const folderPaths = Array.from(uniqueFolderPaths).sort();
-
-    return { success: true, data: folderPaths };
-  } catch (error: any) {
-    console.error('Error getting folders:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-// Build a hierarchical folder structure from a flat list of paths
-export async function getFolderStructure() {
-  try {
-    const { success, data: folderPaths, error } = await getAllFolders();
-
-    if (!success || !folderPaths) {
-      return { success: false, error: error || 'Failed to fetch folders' };
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    // Get item counts for each folder
-    const folderCounts: Record<string, number> = {};
-
-    for (const path of folderPaths) {
-      const { count, error } = await supabase
-        .from('media_items')
-        .select('id', { count: 'exact', head: true })
-        .eq('folder_path', path);
-
-      if (error) {
-        console.error(`Error counting items in folder ${path}:`, error);
-        folderCounts[path] = 0;
-      } else {
-        folderCounts[path] = count || 0;
-      }
-    }
-
     // Build the folder structure
-    const root: FolderStructure = {
-      path: '/',
-      name: 'Root',
-      parent: null,
-      isRoot: true,
-      itemCount: folderCounts['/'] || 0,
-      subfolders: [],
-    };
+    const uniqueFolders = new Set<string>();
+    mediaItems?.forEach((item) => uniqueFolders.add(item.folder_path));
 
-    const folderMap: Record<string, FolderStructure> = {
-      '/': root,
-    };
+    const rootNode: FolderNode[] = [
+      {
+        name: 'Root',
+        path: '/',
+        children: [],
+        mediaCount: folderCounts.get('/') || 0,
+      },
+    ];
 
-    // Sort paths to ensure parents are processed before children
-    const sortedPaths = [...folderPaths].sort(
-      (a, b) => a.split('/').length - b.split('/').length || a.localeCompare(b),
-    );
+    // Add each folder path to the tree structure
+    Array.from(uniqueFolders)
+      .sort()
+      .forEach((folderPath) => {
+        if (folderPath === '/') return; // Skip root node, already added
 
-    for (const path of sortedPaths) {
-      if (path === '/') continue; // Skip root as it's already created
+        const parts = folderPath.split('/').filter(Boolean);
+        let currentLevel = rootNode;
+        let currentPath = '/';
 
-      const name = path.split('/').pop() || path;
-      const parentPath = path.substring(0, path.lastIndexOf('/'));
-      const parent = parentPath === '' ? '/' : parentPath;
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          const isLastPart = i === parts.length - 1;
+          currentPath =
+            currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
 
-      const folder: FolderStructure = {
-        path,
-        name,
-        parent,
-        isRoot: false,
-        itemCount: folderCounts[path] || 0,
-        subfolders: [],
-      };
+          // Check if this path already exists in the current level
+          let foundNode = currentLevel.find((n) => n.name === part);
 
-      folderMap[path] = folder;
+          if (!foundNode) {
+            // Add new node if it doesn't exist
+            foundNode = {
+              name: part,
+              path: currentPath,
+              children: [],
+              mediaCount: folderCounts.get(currentPath) || 0,
+            };
+            currentLevel.push(foundNode);
+          }
 
-      // Add to parent's subfolders
-      if (folderMap[parent]) {
-        folderMap[parent].subfolders.push(folder);
-      } else {
-        console.warn(`Parent folder not found for ${path}`);
-      }
-    }
+          if (isLastPart) {
+            foundNode.mediaCount = folderCounts.get(folderPath) || 0;
+          }
 
-    // Sort subfolders by name
-    const sortFolders = (folder: FolderStructure) => {
-      folder.subfolders.sort((a, b) => a.name.localeCompare(b.name));
-      folder.subfolders.forEach(sortFolders);
-    };
+          // Move to the next level
+          currentLevel = foundNode.children;
+        }
+      });
 
-    sortFolders(root);
-
-    return { success: true, data: root };
+    return { success: true, data: rootNode };
   } catch (error: any) {
-    console.error('Error building folder structure:', error);
+    console.error('Error getting folder structure:', error);
     return { success: false, error: error.message };
   }
 }
 
-// Get media items in a specific folder with pagination
+/**
+ * Get media items for a specific folder path
+ */
 export async function getMediaItemsByFolder(
   folderPath: string,
   page = 1,
@@ -152,62 +107,60 @@ export async function getMediaItemsByFolder(
 ) {
   try {
     const supabase = createServerSupabaseClient();
+    const offset = (page - 1) * pageSize;
 
-    // Calculate pagination offsets
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
+    // Use pattern matching for subfolders or exact match
+    const query = supabase.from('media_items').select('*', { count: 'exact' });
 
-    let query = supabase.from('media_items').select('*');
-
-    // Apply folder path filtering
     if (includeSubfolders) {
-      // For subfolders, use a prefix match to include items from all subfolders
-      query = query.ilike('folder_path', `${folderPath}%`);
+      if (folderPath === '/') {
+        // No filtering needed, include all
+      } else {
+        // Include the current folder and all subfolders
+        query.or(
+          `folder_path.eq.${folderPath},folder_path.like.${folderPath}/%`,
+        );
+      }
     } else {
-      // For exact folder match, just use equality
-      query = query.eq('folder_path', folderPath);
+      // Exact match on folder path
+      query.eq('folder_path', folderPath);
     }
 
-    // Get total count for pagination
-    const countQuery = supabase
-      .from('media_items')
-      .select('id', { count: 'exact', head: true });
-
-    // Apply the same folder path filtering to count query
-    if (includeSubfolders) {
-      countQuery.ilike('folder_path', `${folderPath}%`);
-    } else {
-      countQuery.eq('folder_path', folderPath);
-    }
-
-    const { count, error: countError } = await countQuery;
-
-    if (countError) {
-      console.error('Error counting media items:', countError);
-      return { success: false, error: countError.message };
-    }
-
-    // Get media items with pagination
-    const { data, error } = await query.order('file_name').range(from, to);
+    // Add pagination
+    const { data, error, count } = await query
+      .order('media_date', { ascending: false, nullsFirst: false })
+      .order('created_date', { ascending: false, nullsFirst: false })
+      .range(offset, offset + pageSize - 1);
 
     if (error) {
       console.error('Error fetching media items:', error);
       return { success: false, error: error.message };
     }
 
-    return {
-      success: true,
-      data: data || [],
-      pagination: {
-        total: count || 0,
-        page,
-        pageSize,
-        pageCount: Math.ceil((count || 0) / pageSize),
-      },
-      includeSubfolders,
+    // Calculate pagination data
+    const pagination = {
+      page,
+      pageSize,
+      pageCount: Math.ceil((count || 0) / pageSize),
+      total: count || 0,
     };
+
+    return { success: true, data, pagination };
   } catch (error: any) {
-    console.error('Error getting media items:', error);
+    console.error('Error getting media items by folder:', error);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Helper function to get the parent path
+ */
+function getParentPath(path: string): string {
+  if (path === '/' || !path.includes('/')) return '';
+
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length === 1) return '/';
+
+  parts.pop();
+  return `/${parts.join('/')}`;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import type { FolderStructure } from '@/app/api/actions/folders';
+import { cn } from '@/lib/utils';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -8,106 +8,112 @@ import {
 } from '@radix-ui/react-icons';
 import Link from 'next/link';
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+
+export type FolderNode = {
+  name: string;
+  path: string;
+  children: FolderNode[];
+  mediaCount?: number;
+};
 
 interface FolderTreeProps {
-  structure: FolderStructure;
+  structure: FolderNode[];
   selectedPath: string;
-  level?: number;
 }
 
 export default function FolderTree({
   structure,
   selectedPath,
-  level = 0,
 }: FolderTreeProps) {
-  const searchParams = useSearchParams();
-  const includeSubfolders = searchParams.get('includeSubfolders') === 'true';
-  
-  // Keep track of expanded folders
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
-    // By default, expand folders in the path to the selected folder
-    const initialState: Record<string, boolean> = {};
+  return (
+    <div className="space-y-1">
+      {structure.map((folder) => (
+        <FolderTreeItem
+          key={folder.path}
+          folder={folder}
+          level={0}
+          selectedPath={selectedPath}
+        />
+      ))}
+    </div>
+  );
+}
 
-    if (selectedPath !== '/') {
-      const pathParts = selectedPath.split('/').filter(Boolean);
-      let currentPath = '';
+interface FolderTreeItemProps {
+  folder: FolderNode;
+  level: number;
+  selectedPath: string;
+}
 
-      for (const part of pathParts) {
-        currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`;
-        initialState[currentPath] = true;
-      }
-    }
-
-    return initialState;
+function FolderTreeItem({ folder, level, selectedPath }: FolderTreeItemProps) {
+  const [isExpanded, setIsExpanded] = useState(() => {
+    // Auto-expand if the folder is in the path of the selected item
+    return selectedPath.startsWith(folder.path);
   });
 
-  const toggleExpand = (path: string) => {
-    setExpanded((prev) => ({
-      ...prev,
-      [path]: !prev[path],
-    }));
+  const isSelected = selectedPath === folder.path;
+  const hasChildren = folder.children.length > 0;
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsExpanded(!isExpanded);
   };
 
-  const isExpanded = (path: string) => !!expanded[path];
-  const isSelected = structure.path === selectedPath;
-
-  // Don't render empty folders without subfolders or items
-  if (
-    !structure.isRoot &&
-    structure.itemCount === 0 &&
-    structure.subfolders.length === 0
-  ) {
-    return null;
-  }
-
   return (
-    <div className={`${level > 0 ? 'ml-4 border-l pl-2' : ''}`}>
-      <div
-        className={`flex items-center py-1 ${isSelected ? 'text-primary font-medium' : 'hover:text-primary'}`}
+    <div className="space-y-1">
+      <Link
+        href={`/folders?path=${encodeURIComponent(folder.path)}`}
+        className={cn(
+          'flex items-center gap-1 py-1.5 px-1 rounded-md text-sm transition-colors hover:bg-secondary',
+          isSelected
+            ? 'bg-primary text-primary-foreground hover:bg-primary'
+            : '',
+        )}
+        style={{ paddingLeft: `${level * 12 + 4}px` }}
       >
-        {/* Expand/collapse button */}
-        {structure.subfolders.length > 0 ? (
+        {hasChildren ? (
           <button
-            onClick={() => toggleExpand(structure.path)}
-            className="mr-1 p-0.5 rounded-sm hover:bg-muted"
-            aria-label={
-              isExpanded(structure.path) ? 'Collapse folder' : 'Expand folder'
-            }
+            onClick={handleToggle}
+            className={cn(
+              'p-1 rounded-sm hover:bg-muted transition-colors flex items-center justify-center',
+              isSelected ? 'text-primary-foreground hover:bg-primary/90' : '',
+            )}
+            aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
           >
-            {isExpanded(structure.path) ? (
-              <ChevronDownIcon className="h-4 w-4" />
+            {isExpanded ? (
+              <ChevronDownIcon className="h-3 w-3" />
             ) : (
-              <ChevronRightIcon className="h-4 w-4" />
+              <ChevronRightIcon className="h-3 w-3" />
             )}
           </button>
         ) : (
-          <span className="w-5" /> // Spacer for alignment
+          <CubeIcon className="h-3 w-3 ml-4 mr-1" />
         )}
 
-        <Link
-          href={`/folders?path=${encodeURIComponent(structure.path)}${includeSubfolders ? '&includeSubfolders=true' : ''}`}
-          className="flex items-center gap-1 py-1 rounded-sm hover:bg-muted px-1 flex-grow"
-        >
-          <CubeIcon className="h-4 w-4 mr-1" />
-          <span className="truncate">{structure.name}</span>
-          {structure.itemCount > 0 && (
-            <span className="text-muted-foreground text-xs ml-1">
-              ({structure.itemCount})
-            </span>
-          )}
-        </Link>
-      </div>
+        <span className="truncate">{folder.name}</span>
 
-      {/* Render subfolders if expanded */}
-      {isExpanded(structure.path) && structure.subfolders.length > 0 && (
-        <div>
-          {structure.subfolders.map((subfolder) => (
-            <FolderTree
-              key={subfolder.path}
-              structure={subfolder}
-              selectedPath={selectedPath}
+        {folder.mediaCount !== undefined && (
+          <span
+            className={cn(
+              'ml-auto text-xs',
+              isSelected
+                ? 'text-primary-foreground/70'
+                : 'text-muted-foreground',
+            )}
+          >
+            {folder.mediaCount}
+          </span>
+        )}
+      </Link>
+
+      {isExpanded && hasChildren && (
+        <div className="space-y-1">
+          {folder.children.map((childFolder) => (
+            <FolderTreeItem
+              key={childFolder.path}
+              folder={childFolder}
               level={level + 1}
+              selectedPath={selectedPath}
             />
           ))}
         </div>

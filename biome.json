@@ -8,7 +8,9 @@
     "rules": {
       "recommended": true,
       "a11y": {
-        "useButtonType": "off"
+        "useButtonType": "off",
+        "useSemanticElements": "off",
+        "noNoninteractiveTabindex": "off"
       },
       "complexity": {
         "noForEach": "off"

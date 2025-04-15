@@ -63,8 +63,8 @@ export default async function FoldersPage({
 
       {/* Breadcrumb navigation */}
       <nav className="flex mb-6 text-sm items-center">
-        <Link 
-          href={`/folders${includeSubfolders ? '?includeSubfolders=true' : ''}`} 
+        <Link
+          href={`/folders${includeSubfolders ? '?includeSubfolders=true' : ''}`}
           className="flex items-center hover:text-primary"
         >
           <CubeIcon className="mr-1" />
