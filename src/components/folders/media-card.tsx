@@ -23,10 +23,6 @@ export default function MediaCard({ item, index, onClick }: MediaCardProps) {
   // Get folder name for display in subfolder mode
   const folderName = item.folder_path.split('/').filter(Boolean).pop();
 
-  // Use the stored thumbnail if available, otherwise generate on-demand
-  const thumbnailSrc =
-    item.thumbnail_path || `/api/media?id=${item.id}&thumbnail=true`;
-
   return (
     <div
       className="group relative bg-muted rounded-md overflow-hidden cursor-pointer transition-all"
@@ -38,10 +34,10 @@ export default function MediaCard({ item, index, onClick }: MediaCardProps) {
       data-index={index}
     >
       <div className="aspect-square relative">
-        {isImage ? (
+        {isImage && item.thumbnail_path ? (
           <div className="w-full h-full relative">
             <Image
-              src={thumbnailSrc}
+              src={item.thumbnail_path}
               alt={item.file_name}
               fill
               className="object-cover"

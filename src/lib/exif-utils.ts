@@ -20,10 +20,6 @@ export async function extractMetadata(filePath: string): Promise<Exif | null> {
       // Try to extract EXIF data from the buffer
       exifData = exifReader(fileBuffer);
     } catch (error) {
-      console.log(
-        `Primary EXIF extraction failed for ${filePath}, trying alternatives...`,
-      );
-
       // If the direct extraction fails, try to find the EXIF marker
       try {
         // JPEG files typically have EXIF data starting after the APP1 marker (0xFFE1)
@@ -42,7 +38,6 @@ export async function extractMetadata(filePath: string): Promise<Exif | null> {
 
       // Try using Sharp as a fallback for image formats it supports
       try {
-        console.log(`Attempting to extract EXIF with Sharp for ${filePath}`);
         const extension = path.extname(filePath).toLowerCase();
         const supportedExtensions = [
           '.jpg',
@@ -61,20 +56,13 @@ export async function extractMetadata(filePath: string): Promise<Exif | null> {
             try {
               // Parse EXIF buffer from Sharp
               const sharpExif = exifReader(metadata.exif);
-              console.log(
-                `Successfully extracted EXIF with Sharp for ${filePath}`,
-              );
               return sharpExif;
             } catch (exifParseError) {
               console.error('Error parsing EXIF from Sharp:', exifParseError);
             }
           }
 
-          // Even if no EXIF, create a basic metadata object from Sharp data
-          if (metadata) {
-            console.log(`Created basic metadata from Sharp for ${filePath}`);
-            return metadata.exif ? exifReader(metadata.exif) : null;
-          }
+          return null;
         }
       } catch (sharpError) {
         console.error('Sharp extraction failed:', sharpError);

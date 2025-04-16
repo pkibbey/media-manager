@@ -23,8 +23,8 @@ export type ScanOptions = {
   ignoreSmallFiles?: boolean; // Whether to ignore files under 10kb
 };
 
-// Size threshold for small files (10kb)
-const SMALL_FILE_THRESHOLD = 10 * 1024; // 10kb in bytes
+// Size threshold for small files (10Kb)
+const SMALL_FILE_THRESHOLD = 10 * 1024; // 10Kb in bytes
 
 /**
  * Add a new folder to be scanned for media files
@@ -395,18 +395,6 @@ export async function scanFolders(options: ScanOptions = {}) {
           // Insert new media items in batches
           if (newMediaItems.length > 0) {
             try {
-              console.log(
-                `Attempting to insert ${newMediaItems.length} media items`,
-              );
-
-              // Log the first item for debugging
-              if (newMediaItems.length > 0) {
-                console.log(
-                  'Sample item to be inserted:',
-                  JSON.stringify(newMediaItems[0]),
-                );
-              }
-
               const { error: insertError } = await supabase
                 .from('media_items')
                 .upsert(newMediaItems, {
@@ -481,11 +469,6 @@ export async function scanFolders(options: ScanOptions = {}) {
                     newFilesAdded,
                   });
                 }
-              } else {
-                // Log successful insert
-                console.log(
-                  `Successfully inserted ${newMediaItems.length} media items`,
-                );
               }
             } catch (batchError: any) {
               console.error('Error processing batch:', batchError);

@@ -1,10 +1,14 @@
 import { streamProcessUnprocessedItems } from '@/app/api/actions/exif';
 import { type NextRequest, NextResponse } from 'next/server';
 
-export const GET = async (_request: NextRequest) => {
+export const GET = async (request: NextRequest) => {
   try {
+    // Get skipLargeFiles parameter from URL
+    const skipLargeFiles =
+      request.nextUrl.searchParams.get('skipLargeFiles') === 'true';
+
     // Create a streaming response with the EXIF processing stream
-    const stream = await streamProcessUnprocessedItems();
+    const stream = await streamProcessUnprocessedItems({ skipLargeFiles });
 
     return new NextResponse(stream, {
       headers: {

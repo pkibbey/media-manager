@@ -55,13 +55,13 @@ export default function MediaDetail({ item }: MediaDetailProps) {
         <div className="px-4 py-2 space-y-6">
           {/* Media Preview */}
           <div className="flex flex-col items-center justify-center">
-            {isImage ? (
+            {isImage && item.width && item.height ? (
               <div className="relative w-full max-h-[600px] bg-muted rounded-md overflow-hidden">
                 <Image
                   src={`/api/media?id=${item.id}`}
                   alt={item.file_name}
-                  width={item.width || 0}
-                  height={item.height || 0}
+                  width={item.width}
+                  height={item.height}
                   className="object-cover w-full h-full"
                 />
               </div>

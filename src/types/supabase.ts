@@ -77,13 +77,13 @@ export type Database = {
           file_name: string
           file_path: string
           folder_path: string
-          has_exif: boolean | null
+          has_exif: boolean
           height: number | null
           id: string
           media_date: string | null
           modified_date: string
-          organized: boolean | null
-          processed: boolean | null
+          organized: boolean
+          processed: boolean
           size_bytes: number
           thumbnail_path: string | null
           updated_at: string
@@ -98,13 +98,13 @@ export type Database = {
           file_name: string
           file_path: string
           folder_path: string
-          has_exif?: boolean | null
+          has_exif?: boolean
           height?: number | null
           id?: string
           media_date?: string | null
           modified_date: string
-          organized?: boolean | null
-          processed?: boolean | null
+          organized?: boolean
+          processed?: boolean
           size_bytes: number
           thumbnail_path?: string | null
           updated_at?: string
@@ -119,13 +119,13 @@ export type Database = {
           file_name?: string
           file_path?: string
           folder_path?: string
-          has_exif?: boolean | null
+          has_exif?: boolean
           height?: number | null
           id?: string
           media_date?: string | null
           modified_date?: string
-          organized?: boolean | null
-          processed?: boolean | null
+          organized?: boolean
+          processed?: boolean
           size_bytes?: number
           thumbnail_path?: string | null
           updated_at?: string

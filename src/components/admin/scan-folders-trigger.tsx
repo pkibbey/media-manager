@@ -14,7 +14,7 @@ interface EnhancedScanProgress extends ScanProgress {
 export default function ScanFoldersTrigger() {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState<EnhancedScanProgress | null>(null);
-  const [ignoreSmallFiles, setIgnoreSmallFiles] = useState(false);
+  const [ignoreSmallFiles, setIgnoreSmallFiles] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cleanup function to abort scanning when component unmounts
@@ -192,7 +192,7 @@ export default function ScanFoldersTrigger() {
             htmlFor="ignoreSmallFiles"
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
-            Ignore files under 10kb
+            Ignore files (under 10Kb)
           </label>
         </div>
 
