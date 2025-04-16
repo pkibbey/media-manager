@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { MediaStats } from '@/types';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Get media statistics
@@ -190,6 +191,7 @@ export async function resetAllMediaItems(): Promise<{
     }
 
     // Reset all media items by marking them as unprocessed
+    // Use filter TRUE to select all rows instead of .neq('id', '')
     const { error: updateError } = await supabase
       .from('media_items')
       .update({
@@ -208,6 +210,11 @@ export async function resetAllMediaItems(): Promise<{
       console.error('Error resetting media items:', updateError);
       return { success: false, error: updateError.message };
     }
+
+    // Revalidate paths to update UI
+    revalidatePath('/browse');
+    revalidatePath('/folders');
+    revalidatePath('/admin');
 
     return {
       success: true,

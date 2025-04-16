@@ -6,6 +6,18 @@ import { extractDateFromFilename } from '@/lib/utils';
 import type { Json } from '@/types/supabase';
 import { revalidatePath } from 'next/cache';
 
+// Types for EXIF processing progress reporting
+export type ExifProgress = {
+  status: 'started' | 'processing' | 'completed' | 'error';
+  message: string;
+  filesDiscovered?: number;
+  filesProcessed?: number;
+  successCount?: number;
+  failedCount?: number;
+  error?: string;
+  currentFilePath?: string;
+};
+
 /**
  * Helper function to convert GPS coordinates from DMS format to decimal degrees
  */
@@ -153,11 +165,19 @@ export async function getExifStats() {
       .select('*', { count: 'exact', head: true })
       .eq('has_exif', true);
 
-    // Get count of media without EXIF data
-    const { count: withoutExif, error: withoutExifError } = await supabase
+    // Get count of media that was processed but couldn't extract EXIF data
+    const { count: processedNoExif, error: processedNoExifError } =
+      await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('processed', true)
+        .eq('has_exif', false);
+
+    // Get count of media that hasn't been processed yet
+    const { count: unprocessed, error: unprocessedError } = await supabase
       .from('media_items')
       .select('*', { count: 'exact', head: true })
-      .eq('has_exif', false);
+      .eq('processed', false);
 
     // Get total count of media items
     const { count: total, error: totalError } = await supabase
@@ -165,8 +185,14 @@ export async function getExifStats() {
       .select('*', { count: 'exact', head: true });
 
     // Check for errors
-    if (withExifError || withoutExifError || totalError) {
-      const error = withExifError || withoutExifError || totalError;
+    if (
+      withExifError ||
+      processedNoExifError ||
+      unprocessedError ||
+      totalError
+    ) {
+      const error =
+        withExifError || processedNoExifError || unprocessedError || totalError;
       return { success: false, message: error?.message };
     }
 
@@ -174,7 +200,9 @@ export async function getExifStats() {
       success: true,
       stats: {
         with_exif: withExif || 0,
-        without_exif: withoutExif || 0,
+        processed_no_exif: processedNoExif || 0,
+        total_processed: (withExif || 0) + (processedNoExif || 0),
+        unprocessed: unprocessed || 0,
         total: total || 0,
       },
     };
@@ -474,5 +502,224 @@ export async function processExifData(mediaId: string) {
       message:
         error instanceof Error ? error.message : 'Unknown error occurred',
     };
+  }
+}
+
+/**
+ * Process all unprocessed items with streaming updates
+ * This function returns a ReadableStream that emits progress updates
+ */
+export async function streamProcessUnprocessedItems() {
+  const encoder = new TextEncoder();
+
+  // Create a transform stream to send progress updates
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
+
+  // Start processing in the background
+  processUnprocessedItemsInternal(writer);
+
+  // Return the readable stream
+  return stream.readable;
+
+  async function processUnprocessedItemsInternal(
+    writer: WritableStreamDefaultWriter,
+  ) {
+    try {
+      const supabase = createServerSupabaseClient();
+
+      // Send initial progress update
+      await sendProgress(writer, {
+        status: 'started',
+        message: 'Starting EXIF processing',
+      });
+
+      // Get all media files that don't have EXIF data yet and are not ignored file types
+      const { data: fileTypes } = await supabase
+        .from('file_types')
+        .select('extension')
+        .eq('ignore', true);
+
+      const ignoredExtensions =
+        fileTypes?.map((ft) => ft.extension.toLowerCase()) || [];
+
+      // Get the total count of unprocessed items for progress reporting
+      const { count: totalCount, error: countError } = await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('processed', false)
+        .filter(
+          'extension',
+          'not.in',
+          `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+        );
+
+      if (countError) {
+        await sendProgress(writer, {
+          status: 'error',
+          message: `Error counting unprocessed items: ${countError.message}`,
+          error: countError.message,
+        });
+        await writer.close();
+        return;
+      }
+
+      await sendProgress(writer, {
+        status: 'processing',
+        message: `Found ${totalCount} unprocessed items`,
+        filesDiscovered: totalCount || 0,
+        filesProcessed: 0,
+        successCount: 0,
+        failedCount: 0,
+      });
+
+      if (!totalCount || totalCount === 0) {
+        await sendProgress(writer, {
+          status: 'completed',
+          message: 'No files to process',
+          filesDiscovered: 0,
+          filesProcessed: 0,
+          successCount: 0,
+          failedCount: 0,
+        });
+        await writer.close();
+        return;
+      }
+
+      // Process items in batches to avoid loading too many at once
+      const batchSize = 50;
+      let processedCount = 0;
+      let successCount = 0;
+      let failedCount = 0;
+      let offset = 0;
+
+      while (processedCount < totalCount) {
+        // Fetch the next batch
+        const { data: mediaFiles, error } = await supabase
+          .from('media_items')
+          .select('id, file_path, extension, file_name')
+          .eq('processed', false)
+          .filter(
+            'extension',
+            'not.in',
+            `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+          )
+          .range(offset, offset + batchSize - 1)
+          .order('id', { ascending: true });
+
+        if (error) {
+          await sendProgress(writer, {
+            status: 'error',
+            message: `Error fetching batch of media items: ${error.message}`,
+            filesDiscovered: totalCount,
+            filesProcessed: processedCount,
+            successCount: successCount,
+            failedCount: failedCount,
+            error: error.message,
+          });
+          await writer.close();
+          return;
+        }
+
+        if (!mediaFiles || mediaFiles.length === 0) {
+          break; // No more items to process
+        }
+
+        // Process each media file in the batch
+        for (const media of mediaFiles) {
+          try {
+            // Send update before processing each file
+            await sendProgress(writer, {
+              status: 'processing',
+              message: `Processing ${processedCount + 1} of ${totalCount}: ${media.file_name}`,
+              filesDiscovered: totalCount,
+              filesProcessed: processedCount,
+              successCount: successCount,
+              failedCount: failedCount,
+              currentFilePath: media.file_path,
+            });
+
+            const result = await processExifData(media.id);
+
+            // Update counters
+            processedCount++;
+            if (result.success) {
+              successCount++;
+            } else {
+              failedCount++;
+            }
+
+            // Send regular progress updates
+            if (processedCount % 5 === 0 || processedCount === totalCount) {
+              await sendProgress(writer, {
+                status: 'processing',
+                message: `Processed ${processedCount} of ${totalCount} files (${successCount} successful, ${failedCount} failed)`,
+                filesDiscovered: totalCount,
+                filesProcessed: processedCount,
+                successCount: successCount,
+                failedCount: failedCount,
+              });
+            }
+          } catch (error: any) {
+            console.error(`Error processing file ${media.file_path}:`, error);
+
+            processedCount++;
+            failedCount++;
+
+            // Send error update
+            await sendProgress(writer, {
+              status: 'processing',
+              message: `Error processing file: ${error.message}`,
+              filesDiscovered: totalCount,
+              filesProcessed: processedCount,
+              successCount: successCount,
+              failedCount: failedCount,
+              error: error.message,
+              currentFilePath: media.file_path,
+            });
+          }
+        }
+
+        // Update offset for the next batch
+        offset += mediaFiles.length;
+      }
+
+      // Revalidate paths to update UI
+      try {
+        revalidatePath('/browse');
+        revalidatePath('/folders');
+        revalidatePath('/admin');
+      } catch (error) {
+        console.error('Error revalidating paths:', error);
+      }
+
+      // Send final progress update
+      await sendProgress(writer, {
+        status: 'completed',
+        message: `EXIF processing completed. Processed ${processedCount} files: ${successCount} successful, ${failedCount} failed.`,
+        filesDiscovered: totalCount,
+        filesProcessed: processedCount,
+        successCount: successCount,
+        failedCount: failedCount,
+      });
+
+      // Close the stream
+      await writer.close();
+    } catch (error: any) {
+      console.error('Error during EXIF processing:', error);
+      await sendProgress(writer, {
+        status: 'error',
+        message: 'Error during EXIF processing',
+        error: error.message,
+      });
+      await writer.close();
+    }
+  }
+
+  async function sendProgress(
+    writer: WritableStreamDefaultWriter,
+    progress: ExifProgress,
+  ) {
+    await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
   }
 }

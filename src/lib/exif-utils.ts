@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import exifReader, { type Exif } from 'exif-reader';
+import sharp from 'sharp';
 
 /**
  * Extracts EXIF data from an image file using exif-reader
@@ -19,6 +20,10 @@ export async function extractMetadata(filePath: string): Promise<Exif | null> {
       // Try to extract EXIF data from the buffer
       exifData = exifReader(fileBuffer);
     } catch (error) {
+      console.log(
+        `Primary EXIF extraction failed for ${filePath}, trying alternatives...`,
+      );
+
       // If the direct extraction fails, try to find the EXIF marker
       try {
         // JPEG files typically have EXIF data starting after the APP1 marker (0xFFE1)
@@ -29,12 +34,54 @@ export async function extractMetadata(filePath: string): Promise<Exif | null> {
           // Extract EXIF data block - skip the marker (2 bytes) and length (2 bytes)
           const exifBlock = fileBuffer.slice(markerIndex + 4);
           exifData = exifReader(exifBlock);
-          return exifData;
+          if (exifData) return exifData;
         }
       } catch (innerError) {
-        console.error('Error extracting EXIF data:', innerError);
-        return null;
+        console.error('Error extracting EXIF data via markers:', innerError);
       }
+
+      // Try using Sharp as a fallback for image formats it supports
+      try {
+        console.log(`Attempting to extract EXIF with Sharp for ${filePath}`);
+        const extension = path.extname(filePath).toLowerCase();
+        const supportedExtensions = [
+          '.jpg',
+          '.jpeg',
+          '.png',
+          '.webp',
+          '.tiff',
+          '.gif',
+          '.avif',
+        ];
+
+        if (supportedExtensions.includes(extension)) {
+          const metadata = await sharp(filePath).metadata();
+
+          if (metadata.exif) {
+            try {
+              // Parse EXIF buffer from Sharp
+              const sharpExif = exifReader(metadata.exif);
+              console.log(
+                `Successfully extracted EXIF with Sharp for ${filePath}`,
+              );
+              return sharpExif;
+            } catch (exifParseError) {
+              console.error('Error parsing EXIF from Sharp:', exifParseError);
+            }
+          }
+
+          // Even if no EXIF, create a basic metadata object from Sharp data
+          if (metadata) {
+            console.log(`Created basic metadata from Sharp for ${filePath}`);
+            return metadata.exif ? exifReader(metadata.exif) : null;
+          }
+        }
+      } catch (sharpError) {
+        console.error('Sharp extraction failed:', sharpError);
+      }
+
+      // All attempts failed
+      return null;
     }
 
     if (!exifData) {

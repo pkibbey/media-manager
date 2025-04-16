@@ -5,6 +5,7 @@ import FolderList from '@/components/admin/folder-list';
 import MediaStats from '@/components/admin/media-stats';
 import PersistentTabs from '@/components/admin/persistent-tabs';
 import ResetMedia from '@/components/admin/reset-media';
+import ResetScan from '@/components/admin/reset-scan';
 import ResetThumbnails from '@/components/admin/reset-thumbnails';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
@@ -57,23 +58,24 @@ export default async function AdminPage() {
       label: 'Processing',
       content: (
         <div className="space-y-6">
-          <div className="grid gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <ScanFoldersTrigger />
+            <ResetScan />
           </div>
           <div className="border-t pt-6">
-            <ExifProcessor />
+            <div className="grid md:grid-cols-2 gap-4">
+              <ExifProcessor />
+              <ResetMedia />
+            </div>
           </div>
           <div className="border-t pt-6">
-            <ThumbnailGenerator />
-          </div>
-          <div className="border-t pt-6">
-            <ResetThumbnails />
+            <div className="grid md:grid-cols-2 gap-4">
+              <ThumbnailGenerator />
+              <ResetThumbnails />
+            </div>
           </div>
           <div className="border-t pt-6">
             <TimestampCorrector />
-          </div>
-          <div className="border-t pt-6">
-            <ResetMedia />
           </div>
         </div>
       ),

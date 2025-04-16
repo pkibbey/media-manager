@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache';
 
 // Types for scan progress reporting
 export type ScanProgress = {
-  status: 'started' | 'scanning' | 'completed' | 'error';
+  status: 'started' | 'scanning' | 'completed' | 'refresh' | 'error';
   message: string;
   folderPath?: string;
   filesDiscovered?: number;
@@ -422,9 +422,24 @@ export async function scanFolders() {
 
       // Update UI after all operations are complete
       try {
-        await revalidatePath('/admin');
-        await revalidatePath('/browse');
-        await revalidatePath('/folders');
+        // Use more specific paths for better revalidation
+        revalidatePath('/admin', 'layout');
+        revalidatePath('/browse', 'layout');
+        revalidatePath('/folders', 'layout');
+
+        // Also revalidate the current page to ensure immediate refresh
+        revalidatePath('/admin', 'page');
+        revalidatePath('/browse', 'page');
+        revalidatePath('/folders', 'page');
+
+        // Add a slight delay to ensure revalidation has time to process
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Send a special message to tell the client to refresh the page
+        await sendProgress(writer, {
+          status: 'refresh',
+          message: 'Refreshing page with new data...',
+        });
       } catch (error) {
         console.error('Error revalidating paths:', error);
       }
