@@ -244,8 +244,55 @@ export default function ThumbnailGenerator() {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+      // Define the same set of image extensions as used in generateMissingThumbnails
+      const imageExtensions = [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+        'tiff',
+        'tif',
+        'heic',
+        'avif',
+        'bmp',
+      ];
+
+      // First, fetch ignored file types
+      const ignoredTypesResponse = await fetch(
+        `${supabaseUrl}/rest/v1/file_types?ignore=eq.true&select=extension`,
+        {
+          method: 'GET',
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      let ignoredExtensions: string[] = [];
+      if (ignoredTypesResponse.ok) {
+        const ignoredTypes = await ignoredTypesResponse.json();
+        ignoredExtensions = ignoredTypes.map((type: { extension: string }) =>
+          type.extension.toLowerCase(),
+        );
+      }
+
+      // Create the IN filter for extensions
+      const extensionFilter = imageExtensions
+        .map((ext) => `extension.eq.${ext}`)
+        .join(',');
+
+      // Create the NOT IN filter for ignored extensions
+      const ignoredFilter =
+        ignoredExtensions.length > 0
+          ? `&extension=not.in.(${ignoredExtensions.join(',')})`
+          : '';
+
+      // Query that matches the same criteria as generateMissingThumbnails
       const countResponse = await fetch(
-        `${supabaseUrl}/rest/v1/media_items?thumbnail_path=is.null&select=count`,
+        `${supabaseUrl}/rest/v1/media_items?thumbnail_path=is.null&${extensionFilter}${ignoredFilter}&select=count`,
         {
           method: 'GET',
           headers: {
@@ -299,7 +346,9 @@ export default function ThumbnailGenerator() {
 
         setDetailProgress({
           status: 'generating',
-          message: `Processing batch ${Math.ceil(currentProcessed / batchSize) + 1}...`,
+          message: `Processing batch ${Math.ceil(currentProcessed / batchSize) + 1} of ${Math.ceil(
+            totalToProcess / batchSize,
+          )}`,
         });
 
         const result = await generateMissingThumbnails(batchSize, {

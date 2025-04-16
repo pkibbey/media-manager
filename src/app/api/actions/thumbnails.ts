@@ -1,13 +1,16 @@
 'use server';
 
+import { exec } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { LARGE_FILE_THRESHOLD, isSkippedLargeFile } from '@/lib/utils';
-// Import heic-convert for handling HEIC images
-import heicConvert from 'heic-convert';
+// Remove heic-convert import
 import { revalidatePath } from 'next/cache';
 import sharp from 'sharp';
+
+const execAsync = promisify(exec);
 
 // Define thumbnail sizes
 const THUMBNAIL_SIZE = 300; // Size for standard thumbnails
@@ -22,6 +25,7 @@ export type ThumbnailError = {
 export type ThumbnailOptions = {
   skipLargeFiles?: boolean; // Whether to skip files over the large file threshold
   batchSize?: number; // Number of items to process in each batch
+  debug?: boolean; // Whether to enable debug logging
 };
 
 // Type for thumbnail generation result
@@ -90,6 +94,54 @@ async function ensureThumbnailsBucketExists() {
 }
 
 /**
+ * Convert a HEIC image to JPEG using ImageMagick or native sips (macOS)
+ */
+async function convertHeicToJpeg(
+  inputPath: string,
+  tempOutputPath: string,
+): Promise<Buffer> {
+  try {
+    // First try ImageMagick (requires it to be installed)
+    try {
+      await execAsync(`magick "${inputPath}" "${tempOutputPath}"`);
+      return fs.readFile(tempOutputPath);
+    } catch (magickError) {
+      console.error('[Thumbnail] ImageMagick conversion failed:', magickError);
+
+      // Try with sips if on macOS
+      if (process.platform === 'darwin') {
+        try {
+          await execAsync(
+            `sips -s format jpeg "${inputPath}" --out "${tempOutputPath}"`,
+          );
+          return fs.readFile(tempOutputPath);
+        } catch (sipsError) {
+          console.error('[Thumbnail] sips conversion failed:', sipsError);
+          throw new Error('macOS sips command failed to convert HEIC image');
+        }
+      } else {
+        throw new Error(
+          'ImageMagick failed and sips is only available on macOS',
+        );
+      }
+    }
+  } catch (error) {
+    console.error('[Thumbnail] All HEIC conversion methods failed:', error);
+    throw new Error(
+      `Failed to convert HEIC image: ${error instanceof Error ? error.message : 'Unknown error'}. Please ensure ImageMagick is installed correctly.`,
+    );
+  } finally {
+    // Clean up temporary file if it exists
+    try {
+      await fs.access(tempOutputPath);
+      await fs.unlink(tempOutputPath);
+    } catch (e) {
+      // File doesn't exist, no need to delete
+    }
+  }
+}
+
+/**
  * Generate and upload a thumbnail for a single media item
  */
 export async function generateThumbnail(
@@ -103,17 +155,13 @@ export async function generateThumbnail(
     fileName?: string;
   }
 > {
-  console.log(
-    `[Thumbnail] Starting thumbnail generation for media ID: ${mediaId}`,
-  );
-  console.log('[Thumbnail] Options:', JSON.stringify(options));
+  // Only log the start of thumbnail generation if in debug mode
+  const { skipLargeFiles = false, debug = false } = options;
 
   try {
     const supabase = createServerSupabaseClient();
-    const { skipLargeFiles = false } = options;
 
     // Get the media item details
-    console.log(`[Thumbnail] Fetching media item details for ID: ${mediaId}`);
     const { data: mediaItem, error } = await supabase
       .from('media_items')
       .select('*')
@@ -129,17 +177,9 @@ export async function generateThumbnail(
       };
     }
 
-    console.log(
-      `[Thumbnail] Found media item: ${mediaItem.file_name} (${mediaItem.file_path})`,
-    );
-
     // Check if file exists
     try {
-      console.log(
-        `[Thumbnail] Checking if file exists: ${mediaItem.file_path}`,
-      );
       await fs.access(mediaItem.file_path);
-      console.log(`[Thumbnail] File exists: ${mediaItem.file_path}`);
     } catch (error) {
       console.error(`[Thumbnail] File not found: ${mediaItem.file_path}`);
       return {
@@ -152,16 +192,14 @@ export async function generateThumbnail(
     // Check if file is too large and we should skip it
     if (skipLargeFiles) {
       try {
-        console.log(`[Thumbnail] Checking file size: ${mediaItem.file_path}`);
         const stats = await fs.stat(mediaItem.file_path);
-        console.log(
-          `[Thumbnail] File size: ${stats.size} bytes (${Math.round(stats.size / (1024 * 1024))} MB)`,
-        );
 
         if (isSkippedLargeFile(mediaItem.file_path, stats.size)) {
-          console.log(
-            `[Thumbnail] Skipping large file: ${mediaItem.file_path} (${Math.round(stats.size / (1024 * 1024))} MB > ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))} MB threshold)`,
-          );
+          if (debug) {
+            console.log(
+              `[Thumbnail] Skipping large file: ${mediaItem.file_path} (${Math.round(stats.size / (1024 * 1024))} MB > ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))} MB threshold)`,
+            );
+          }
 
           // Mark as processed but skip thumbnail generation
           await supabase
@@ -192,7 +230,6 @@ export async function generateThumbnail(
       .extname(mediaItem.file_path)
       .substring(1)
       .toLowerCase();
-    console.log(`[Thumbnail] File extension: ${extension}`);
 
     const supportedImageFormats = [
       'jpg',
@@ -208,9 +245,11 @@ export async function generateThumbnail(
     ];
 
     if (!supportedImageFormats.includes(extension)) {
-      console.log(
-        `[Thumbnail] Unsupported file type for thumbnails: ${extension}`,
-      );
+      if (debug) {
+        console.log(
+          `[Thumbnail] Unsupported file type for thumbnails: ${extension}`,
+        );
+      }
       return {
         success: false,
         message: `File type not supported for thumbnails: ${extension}`,
@@ -220,37 +259,27 @@ export async function generateThumbnail(
       };
     }
 
-    // Generate thumbnail
-    console.log(`[Thumbnail] Generating thumbnail for: ${mediaItem.file_path}`);
-
     let thumbnailBuffer: Buffer;
 
     try {
       if (extension === 'heic') {
-        // Special handling for HEIC images using heic-convert
-        console.log(
-          `[Thumbnail] Using heic-convert for HEIC image: ${mediaItem.file_path}`,
-        );
-        const imageBuffer = await fs.readFile(mediaItem.file_path);
-
-        // Convert HEIC to JPEG first using heic-convert
-        // Convert Node.js Buffer to ArrayBuffer to match the expected type
-        const arrayBuffer = imageBuffer.buffer.slice(
-          imageBuffer.byteOffset,
-          imageBuffer.byteOffset + imageBuffer.byteLength,
+        // Special handling for HEIC images using our new multi-method approach
+        console.error(
+          `[Thumbnail] Processing HEIC image: ${mediaItem.file_path}`,
         );
 
-        const jpegBuffer = await heicConvert({
-          buffer: arrayBuffer,
-          format: 'JPEG',
-          quality: 0.8, // 80% quality
-        });
+        // Create a temporary file path for the converted JPEG
+        const tempDir = path.dirname(mediaItem.file_path);
+        const tempFileName = `${path.basename(mediaItem.file_path, '.heic')}_temp.jpg`;
+        const tempOutputPath = path.join(tempDir, tempFileName);
 
-        console.log(
-          `[Thumbnail] Successfully converted HEIC to JPEG (${arrayBuffer.byteLength} bytes)`,
+        // Convert HEIC to JPEG using our robust multi-method converter
+        const jpegBuffer = await convertHeicToJpeg(
+          mediaItem.file_path,
+          tempOutputPath,
         );
 
-        // Then use sharp to create thumbnail from the JPEG buffer
+        // Use sharp to create thumbnail from the JPEG buffer
         thumbnailBuffer = await sharp(jpegBuffer)
           .rotate()
           .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
@@ -258,21 +287,17 @@ export async function generateThumbnail(
           .toBuffer();
       } else {
         // For all other image formats, use Sharp directly
-        console.log(
-          `[Thumbnail] Using Sharp to create ${THUMBNAIL_SIZE}x${THUMBNAIL_SIZE} thumbnail`,
-        );
         thumbnailBuffer = await sharp(mediaItem.file_path)
           .rotate()
           .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
           .webp({ quality: 80 })
           .toBuffer();
       }
-
-      console.log(
-        `[Thumbnail] Successfully generated thumbnail buffer (${thumbnailBuffer.length} bytes)`,
-      );
     } catch (sharpError) {
-      console.error('[Thumbnail] Error generating thumbnail:', sharpError);
+      console.error(
+        `[Thumbnail] Error generating thumbnail for ${mediaItem.file_path}:`,
+        sharpError,
+      );
       return {
         success: false,
         message: `Error generating thumbnail: ${sharpError instanceof Error ? sharpError.message : 'Processing error'}`,
@@ -282,7 +307,6 @@ export async function generateThumbnail(
     }
 
     // Ensure the thumbnails bucket exists
-    console.log('[Thumbnail] Ensuring thumbnails bucket exists');
     const { success: bucketExists, message: bucketMessage } =
       await ensureThumbnailsBucketExists();
     if (!bucketExists) {
@@ -295,13 +319,9 @@ export async function generateThumbnail(
         filePath: mediaItem.file_path,
       };
     }
-    console.log('[Thumbnail] Thumbnails bucket is ready');
 
     // Upload to Supabase Storage
     const fileName = `${mediaId}_thumb.webp`;
-    console.log(
-      `[Thumbnail] Uploading thumbnail to Supabase Storage: thumbnails/${fileName}`,
-    );
 
     try {
       const { error: storageError, data: storageData } = await supabase.storage
@@ -313,7 +333,7 @@ export async function generateThumbnail(
 
       if (storageError) {
         console.error(
-          '[Thumbnail] Error uploading thumbnail to storage:',
+          `[Thumbnail] Error uploading thumbnail to storage for ${mediaItem.file_path}:`,
           storageError,
         );
         return {
@@ -323,13 +343,9 @@ export async function generateThumbnail(
           fileName: mediaItem.file_name,
         };
       }
-
-      console.log(
-        `[Thumbnail] Successfully uploaded thumbnail: ${storageData?.path || fileName}`,
-      );
     } catch (uploadError) {
       console.error(
-        '[Thumbnail] Exception during thumbnail upload:',
+        `[Thumbnail] Exception during thumbnail upload for ${mediaItem.file_path}:`,
         uploadError,
       );
       return {
@@ -341,25 +357,23 @@ export async function generateThumbnail(
     }
 
     // Get the public URL for the uploaded thumbnail
-    console.log('[Thumbnail] Getting public URL for thumbnail');
     const { data: publicUrlData } = supabase.storage
       .from('thumbnails')
       .getPublicUrl(`thumbnails/${fileName}`);
 
     const thumbnailUrl = publicUrlData.publicUrl;
-    console.log(`[Thumbnail] Public URL: ${thumbnailUrl}`);
 
     // Update the media item with the thumbnail path
-    console.log(
-      `[Thumbnail] Updating media item ${mediaId} with thumbnail path`,
-    );
     const { error: updateError } = await supabase
       .from('media_items')
       .update({ thumbnail_path: thumbnailUrl })
       .eq('id', mediaId);
 
     if (updateError) {
-      console.error('[Thumbnail] Error updating media item:', updateError);
+      console.error(
+        `[Thumbnail] Error updating media item ${mediaId}:`,
+        updateError,
+      );
       return {
         success: false,
         message: `Failed to update media item: ${updateError.message}`,
@@ -368,9 +382,13 @@ export async function generateThumbnail(
       };
     }
 
-    console.log(
-      `[Thumbnail] Successfully completed thumbnail generation for ${mediaItem.file_name}`,
-    );
+    // Only log successful completions if in debug mode
+    if (debug) {
+      console.log(
+        `[Thumbnail] Successfully completed thumbnail generation for ${mediaItem.file_name}`,
+      );
+    }
+
     return {
       success: true,
       message: 'Thumbnail generated and stored successfully',
