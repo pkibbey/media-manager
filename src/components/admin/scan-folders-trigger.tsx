@@ -4,16 +4,9 @@ import { type ScanProgress, scanFolders } from '@/app/api/actions/scan-folders';
 import { ReloadIcon } from '@radix-ui/react-icons';
 import { useEffect, useRef, useState } from 'react';
 
-// Add additional fields to the progress type to track skipped files
-interface EnhancedScanProgress extends ScanProgress {
-  skippedFiles?: number;
-  ignoredFiles?: number; // Track files skipped due to ignored extensions
-  smallFilesSkipped?: number; // Track files skipped due to being too small
-}
-
 export default function ScanFoldersTrigger() {
   const [isScanning, setIsScanning] = useState(false);
-  const [progress, setProgress] = useState<EnhancedScanProgress | null>(null);
+  const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [ignoreSmallFiles, setIgnoreSmallFiles] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -57,26 +50,7 @@ export default function ScanFoldersTrigger() {
               try {
                 const progressUpdate: ScanProgress = JSON.parse(data);
 
-                // Extract skipped and ignored files counts from the message
-                const skippedFiles = extractSkippedFilesCount(
-                  progressUpdate.message || '',
-                );
-                const ignoredFiles = extractIgnoredFilesCount(
-                  progressUpdate.message || '',
-                );
-                const smallFilesSkipped = extractSmallFilesCount(
-                  progressUpdate.message || '',
-                );
-
-                setProgress({
-                  ...progressUpdate,
-                  skippedFiles:
-                    skippedFiles !== null ? skippedFiles : undefined,
-                  ignoredFiles:
-                    ignoredFiles !== null ? ignoredFiles : undefined,
-                  smallFilesSkipped:
-                    smallFilesSkipped !== null ? smallFilesSkipped : undefined,
-                });
+                setProgress(progressUpdate);
 
                 // If scan is complete or there's an error, we're done
                 if (
@@ -99,24 +73,7 @@ export default function ScanFoldersTrigger() {
           const data = buffer.slice(6);
           const progressUpdate: ScanProgress = JSON.parse(data);
 
-          // Extract skipped and ignored files counts from the message
-          const skippedFiles = extractSkippedFilesCount(
-            progressUpdate.message || '',
-          );
-          const ignoredFiles = extractIgnoredFilesCount(
-            progressUpdate.message || '',
-          );
-          const smallFilesSkipped = extractSmallFilesCount(
-            progressUpdate.message || '',
-          );
-
-          setProgress({
-            ...progressUpdate,
-            skippedFiles: skippedFiles !== null ? skippedFiles : undefined,
-            ignoredFiles: ignoredFiles !== null ? ignoredFiles : undefined,
-            smallFilesSkipped:
-              smallFilesSkipped !== null ? smallFilesSkipped : undefined,
-          });
+          setProgress(progressUpdate);
 
           if (
             progressUpdate.status === 'completed' ||
@@ -137,23 +94,6 @@ export default function ScanFoldersTrigger() {
       });
       setIsScanning(false);
     }
-  };
-
-  // Extract skipped and ignored files count from the message
-  const extractSkippedFilesCount = (message: string): number | null => {
-    const unchangedMatch = message.match(/(\d+) unchanged files skipped/);
-    return unchangedMatch ? Number.parseInt(unchangedMatch[1], 10) : null;
-  };
-
-  const extractIgnoredFilesCount = (message: string): number | null => {
-    const ignoredMatch = message.match(/(\d+) ignored files skipped/);
-    return ignoredMatch ? Number.parseInt(ignoredMatch[1], 10) : null;
-  };
-
-  // Extract number of small files skipped
-  const extractSmallFilesCount = (message: string): number | null => {
-    const smallFilesMatch = message.match(/(\d+) small files skipped/);
-    return smallFilesMatch ? Number.parseInt(smallFilesMatch[1], 10) : null;
   };
 
   const cancelScan = () => {
@@ -259,8 +199,8 @@ export default function ScanFoldersTrigger() {
           {/* Additional statistics in a grid layout for better organization */}
           {(progress.filesProcessed !== undefined ||
             progress.newFilesAdded !== undefined ||
-            progress.skippedFiles !== undefined ||
-            progress.ignoredFiles !== undefined ||
+            progress.filesSkipped !== undefined ||
+            progress.ignoredFilesSkipped !== undefined ||
             progress.smallFilesSkipped !== undefined) && (
             <div className="grid grid-cols-3 gap-2 mt-3 text-sm border-t border-border/30 pt-2">
               {progress.filesProcessed !== undefined && (
@@ -279,17 +219,19 @@ export default function ScanFoldersTrigger() {
                 </div>
               )}
 
-              {progress.skippedFiles !== undefined && (
+              {progress.filesSkipped !== undefined && (
                 <div>
                   <div className="text-xs text-muted-foreground">Skipped</div>
-                  <div className="font-medium">{progress.skippedFiles}</div>
+                  <div className="font-medium">{progress.filesSkipped}</div>
                 </div>
               )}
 
-              {progress.ignoredFiles !== undefined && (
+              {progress.ignoredFilesSkipped !== undefined && (
                 <div>
                   <div className="text-xs text-muted-foreground">Ignored</div>
-                  <div className="font-medium">{progress.ignoredFiles}</div>
+                  <div className="font-medium">
+                    {progress.ignoredFilesSkipped}
+                  </div>
                 </div>
               )}
 

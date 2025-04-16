@@ -16,6 +16,10 @@ export type ScanProgress = {
   newFilesAdded?: number;
   newFileTypes?: string[];
   error?: string;
+  // Add explicit counters for different types of skipped files
+  filesSkipped?: number; // Files skipped because they're unchanged
+  ignoredFilesSkipped?: number; // Files skipped due to ignored extensions
+  smallFilesSkipped?: number; // Files skipped because they're too small
 };
 
 // Options for the scan operation
@@ -221,14 +225,46 @@ export async function scanFolders(options: ScanOptions = {}) {
         message: 'Loading existing file information...',
       });
 
-      const { data: existingFiles } = await supabase
-        .from('media_items')
-        .select('file_path, modified_date, size_bytes');
+      // Fetch all files in chunks to avoid the default 1000 row limit in Supabase
+      let allExistingFiles: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('media_items')
+          .select('file_path, modified_date, size_bytes')
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) {
+          console.error('Error fetching existing files:', error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          allExistingFiles = [...allExistingFiles, ...data];
+          page++;
+
+          // Update progress to show we're still loading
+          if (page % 5 === 0) {
+            // Every 5 pages (5000 items)
+            await sendProgress(writer, {
+              status: 'scanning',
+              message: `Loading existing file information... (${allExistingFiles.length} items loaded)`,
+            });
+          }
+
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
 
       // Create a Map of existing files with path as key and modification timestamp + size as value
       // This allows us to skip unchanged files but still process files that have been modified
       const existingFilesMap = new Map(
-        existingFiles?.map((f) => [
+        allExistingFiles.map((f) => [
           f.file_path,
           {
             modifiedDate: new Date(f.modified_date).getTime(),
@@ -294,6 +330,9 @@ export async function scanFolders(options: ScanOptions = {}) {
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
                     newFileTypes: Array.from(newFileTypes),
+                    filesSkipped: totalFilesSkipped,
+                    ignoredFilesSkipped: totalIgnoredFiles,
+                    smallFilesSkipped: totalSmallFilesSkipped,
                   });
                 }
                 continue;
@@ -319,6 +358,9 @@ export async function scanFolders(options: ScanOptions = {}) {
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
                     newFileTypes: Array.from(newFileTypes),
+                    filesSkipped: totalFilesSkipped,
+                    ignoredFilesSkipped: totalIgnoredFiles,
+                    smallFilesSkipped: totalSmallFilesSkipped,
                   });
                 }
                 continue;
@@ -342,6 +384,9 @@ export async function scanFolders(options: ScanOptions = {}) {
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
                     newFileTypes: Array.from(newFileTypes),
+                    filesSkipped: totalFilesSkipped,
+                    ignoredFilesSkipped: totalIgnoredFiles,
+                    smallFilesSkipped: totalSmallFilesSkipped,
                   });
                 }
                 continue;
@@ -383,6 +428,9 @@ export async function scanFolders(options: ScanOptions = {}) {
                   filesProcessed: totalFilesProcessed,
                   newFilesAdded,
                   newFileTypes: Array.from(newFileTypes),
+                  filesSkipped: totalFilesSkipped,
+                  ignoredFilesSkipped: totalIgnoredFiles,
+                  smallFilesSkipped: totalSmallFilesSkipped,
                 });
               }
             } catch (fileError) {
@@ -519,6 +567,9 @@ export async function scanFolders(options: ScanOptions = {}) {
         filesProcessed: totalFilesProcessed,
         newFilesAdded,
         newFileTypes: Array.from(newFileTypes),
+        filesSkipped: totalFilesSkipped,
+        ignoredFilesSkipped: totalIgnoredFiles,
+        smallFilesSkipped: totalSmallFilesSkipped,
       });
 
       // Close the stream
