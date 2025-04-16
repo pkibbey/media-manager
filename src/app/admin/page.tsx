@@ -58,18 +58,18 @@ export default async function AdminPage() {
       label: 'Processing',
       content: (
         <div className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-4">
             <ScanFoldersTrigger />
             <ResetScan />
           </div>
           <div className="border-t pt-6">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-4">
               <ExifProcessor />
               <ResetMedia />
             </div>
           </div>
           <div className="border-t pt-6">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-4">
               <ThumbnailGenerator />
               <ResetThumbnails />
             </div>

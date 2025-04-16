@@ -18,6 +18,14 @@ export type ScanProgress = {
   error?: string;
 };
 
+// Options for the scan operation
+export type ScanOptions = {
+  ignoreSmallFiles?: boolean; // Whether to ignore files under 10kb
+};
+
+// Size threshold for small files (10kb)
+const SMALL_FILE_THRESHOLD = 10 * 1024; // 10kb in bytes
+
 /**
  * Add a new folder to be scanned for media files
  */
@@ -126,8 +134,9 @@ export async function getScanFolders() {
 /**
  * Scan folders for media files and insert them into the database
  * This function uses a streaming approach to provide progress updates
+ * @param options Optional scan options like ignoring small files
  */
-export async function scanFolders() {
+export async function scanFolders(options: ScanOptions = {}) {
   const encoder = new TextEncoder();
 
   // Create a transform stream to send progress updates
@@ -135,14 +144,18 @@ export async function scanFolders() {
   const writer = stream.writable.getWriter();
 
   // Start scanning in the background
-  scanFoldersInternal(writer);
+  scanFoldersInternal(writer, options);
 
   // Return the readable stream
   return stream.readable;
 
-  async function scanFoldersInternal(writer: WritableStreamDefaultWriter) {
+  async function scanFoldersInternal(
+    writer: WritableStreamDefaultWriter,
+    options: ScanOptions,
+  ) {
     try {
       const supabase = createServerSupabaseClient();
+      const { ignoreSmallFiles = false } = options;
 
       // Get all folders to scan
       const { data: folders, error: foldersError } = await supabase
@@ -174,7 +187,9 @@ export async function scanFolders() {
       // Send initial progress update
       await sendProgress(writer, {
         status: 'started',
-        message: `Starting scan of ${folders.length} folders`,
+        message: `Starting scan of ${folders.length} folders${
+          ignoreSmallFiles ? ' (ignoring files under 10kb)' : ''
+        }`,
       });
 
       // Get all known file types, including their ignore status
@@ -226,6 +241,7 @@ export async function scanFolders() {
       let totalFilesProcessed = 0;
       let totalFilesSkipped = 0;
       let totalIgnoredFiles = 0;
+      let totalSmallFilesSkipped = 0; // Track small files that are skipped
       let newFilesAdded = 0;
 
       // Process each folder
@@ -273,7 +289,7 @@ export async function scanFolders() {
                 if (totalFilesProcessed % 100 === 0) {
                   await sendProgress(writer, {
                     status: 'scanning',
-                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped)`,
+                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped, ${totalSmallFilesSkipped} small files skipped)`,
                     filesDiscovered: totalFilesDiscovered,
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
@@ -289,6 +305,25 @@ export async function scanFolders() {
               const fileSize = stats.size;
               const existingFile = existingFilesMap.get(file.path);
 
+              // Skip files under 10kb if the ignoreSmallFiles option is enabled
+              if (ignoreSmallFiles && fileSize < SMALL_FILE_THRESHOLD) {
+                totalFilesProcessed++;
+                totalSmallFilesSkipped++;
+
+                // Only send updates periodically to avoid flooding the stream
+                if (totalFilesProcessed % 100 === 0) {
+                  await sendProgress(writer, {
+                    status: 'scanning',
+                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped, ${totalSmallFilesSkipped} small files skipped)`,
+                    filesDiscovered: totalFilesDiscovered,
+                    filesProcessed: totalFilesProcessed,
+                    newFilesAdded,
+                    newFileTypes: Array.from(newFileTypes),
+                  });
+                }
+                continue;
+              }
+
               // Skip files that are already in the database AND haven't changed
               if (
                 existingFile &&
@@ -302,7 +337,7 @@ export async function scanFolders() {
                 if (totalFilesProcessed % 100 === 0) {
                   await sendProgress(writer, {
                     status: 'scanning',
-                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped)`,
+                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped, ${totalSmallFilesSkipped} small files skipped)`,
                     filesDiscovered: totalFilesDiscovered,
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
@@ -331,7 +366,6 @@ export async function scanFolders() {
                 created_date: stats.birthtime.toISOString(),
                 processed: false,
                 organized: false,
-                type: guessFileCategory(extension),
               });
 
               totalFilesProcessed++;
@@ -344,7 +378,7 @@ export async function scanFolders() {
               ) {
                 await sendProgress(writer, {
                   status: 'scanning',
-                  message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped)`,
+                  message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped, ${totalSmallFilesSkipped} small files skipped)`,
                   filesDiscovered: totalFilesDiscovered,
                   filesProcessed: totalFilesProcessed,
                   newFilesAdded,
@@ -361,6 +395,18 @@ export async function scanFolders() {
           // Insert new media items in batches
           if (newMediaItems.length > 0) {
             try {
+              console.log(
+                `Attempting to insert ${newMediaItems.length} media items`,
+              );
+
+              // Log the first item for debugging
+              if (newMediaItems.length > 0) {
+                console.log(
+                  'Sample item to be inserted:',
+                  JSON.stringify(newMediaItems[0]),
+                );
+              }
+
               const { error: insertError } = await supabase
                 .from('media_items')
                 .upsert(newMediaItems, {
@@ -370,16 +416,88 @@ export async function scanFolders() {
 
               if (insertError) {
                 console.error('Error inserting media items:', insertError);
+
+                // Send detailed error message to help debugging
                 await sendProgress(writer, {
                   status: 'error',
-                  message: `Error inserting batch of media items: ${insertError.message}`,
+                  message: `Error inserting batch of media items: ${insertError.message}. 
+                  Code: ${insertError.code}, Details: ${insertError.details || 'No details'}`,
                   filesDiscovered: totalFilesDiscovered,
                   filesProcessed: totalFilesProcessed,
                   newFilesAdded,
                 });
+
+                // If it's a validation error, try to insert one by one to find problematic records
+                if (
+                  insertError.code === '23502' ||
+                  insertError.code === '23505' ||
+                  insertError.code === '23514' ||
+                  insertError.message.includes('violates')
+                ) {
+                  await sendProgress(writer, {
+                    status: 'scanning',
+                    message:
+                      'Trying to insert items individually due to validation error...',
+                    filesDiscovered: totalFilesDiscovered,
+                    filesProcessed: totalFilesProcessed,
+                  });
+
+                  // Try to insert items one by one to find the problematic ones
+                  let successCount = 0;
+                  for (const item of newMediaItems) {
+                    try {
+                      const { error: singleError } = await supabase
+                        .from('media_items')
+                        .upsert([item], {
+                          onConflict: 'file_path',
+                          ignoreDuplicates: false,
+                        });
+
+                      if (!singleError) {
+                        successCount++;
+                      } else {
+                        console.error(
+                          `Failed to insert item ${item.file_path}: ${singleError.message}`,
+                        );
+                      }
+                    } catch (e) {
+                      console.error(
+                        `Exception inserting item ${item.file_path}:`,
+                        e,
+                      );
+                    }
+                  }
+
+                  // Update the newFilesAdded count to reflect actual insertions
+                  const previouslyAdded = newFilesAdded;
+                  newFilesAdded =
+                    newFilesAdded - (newMediaItems.length - successCount);
+
+                  await sendProgress(writer, {
+                    status: 'scanning',
+                    message: `Individual insert: ${successCount} of ${newMediaItems.length} succeeded. Adjusted count from ${previouslyAdded} to ${newFilesAdded}.`,
+                    filesDiscovered: totalFilesDiscovered,
+                    filesProcessed: totalFilesProcessed,
+                    newFilesAdded,
+                  });
+                }
+              } else {
+                // Log successful insert
+                console.log(
+                  `Successfully inserted ${newMediaItems.length} media items`,
+                );
               }
-            } catch (batchError) {
+            } catch (batchError: any) {
               console.error('Error processing batch:', batchError);
+
+              // Send error information to client
+              await sendProgress(writer, {
+                status: 'error',
+                message: `Exception during batch insert: ${batchError.message || 'Unknown error'}`,
+                filesDiscovered: totalFilesDiscovered,
+                filesProcessed: totalFilesProcessed,
+                newFilesAdded,
+              });
             }
           }
         }
@@ -413,36 +531,12 @@ export async function scanFolders() {
       // Send final progress update
       await sendProgress(writer, {
         status: 'completed',
-        message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, skipped ${totalIgnoredFiles} ignored file types, added ${newFilesAdded} new/updated files.`,
+        message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, skipped ${totalIgnoredFiles} ignored file types, skipped ${totalSmallFilesSkipped} small files, added ${newFilesAdded} new/updated files.`,
         filesDiscovered: totalFilesDiscovered,
         filesProcessed: totalFilesProcessed,
         newFilesAdded,
         newFileTypes: Array.from(newFileTypes),
       });
-
-      // Update UI after all operations are complete
-      try {
-        // Use more specific paths for better revalidation
-        revalidatePath('/admin', 'layout');
-        revalidatePath('/browse', 'layout');
-        revalidatePath('/folders', 'layout');
-
-        // Also revalidate the current page to ensure immediate refresh
-        revalidatePath('/admin', 'page');
-        revalidatePath('/browse', 'page');
-        revalidatePath('/folders', 'page');
-
-        // Add a slight delay to ensure revalidation has time to process
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // Send a special message to tell the client to refresh the page
-        await sendProgress(writer, {
-          status: 'refresh',
-          message: 'Refreshing page with new data...',
-        });
-      } catch (error) {
-        console.error('Error revalidating paths:', error);
-      }
 
       // Close the stream
       await writer.close();

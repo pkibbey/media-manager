@@ -8,11 +8,13 @@ import { useEffect, useRef, useState } from 'react';
 interface EnhancedScanProgress extends ScanProgress {
   skippedFiles?: number;
   ignoredFiles?: number; // Track files skipped due to ignored extensions
+  smallFilesSkipped?: number; // Track files skipped due to being too small
 }
 
 export default function ScanFoldersTrigger() {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState<EnhancedScanProgress | null>(null);
+  const [ignoreSmallFiles, setIgnoreSmallFiles] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cleanup function to abort scanning when component unmounts
@@ -30,7 +32,8 @@ export default function ScanFoldersTrigger() {
     abortControllerRef.current = new AbortController();
 
     try {
-      const stream = await scanFolders();
+      // Pass the ignoreSmallFiles option to the server action
+      const stream = await scanFolders({ ignoreSmallFiles });
       const reader = stream.getReader();
       const decoder = new TextDecoder();
 
@@ -61,6 +64,9 @@ export default function ScanFoldersTrigger() {
                 const ignoredFiles = extractIgnoredFilesCount(
                   progressUpdate.message || '',
                 );
+                const smallFilesSkipped = extractSmallFilesCount(
+                  progressUpdate.message || '',
+                );
 
                 setProgress({
                   ...progressUpdate,
@@ -68,6 +74,8 @@ export default function ScanFoldersTrigger() {
                     skippedFiles !== null ? skippedFiles : undefined,
                   ignoredFiles:
                     ignoredFiles !== null ? ignoredFiles : undefined,
+                  smallFilesSkipped:
+                    smallFilesSkipped !== null ? smallFilesSkipped : undefined,
                 });
 
                 // If scan is complete or there's an error, we're done
@@ -98,11 +106,16 @@ export default function ScanFoldersTrigger() {
           const ignoredFiles = extractIgnoredFilesCount(
             progressUpdate.message || '',
           );
+          const smallFilesSkipped = extractSmallFilesCount(
+            progressUpdate.message || '',
+          );
 
           setProgress({
             ...progressUpdate,
             skippedFiles: skippedFiles !== null ? skippedFiles : undefined,
             ignoredFiles: ignoredFiles !== null ? ignoredFiles : undefined,
+            smallFilesSkipped:
+              smallFilesSkipped !== null ? smallFilesSkipped : undefined,
           });
 
           if (
@@ -137,6 +150,12 @@ export default function ScanFoldersTrigger() {
     return ignoredMatch ? Number.parseInt(ignoredMatch[1], 10) : null;
   };
 
+  // Extract number of small files skipped
+  const extractSmallFilesCount = (message: string): number | null => {
+    const smallFilesMatch = message.match(/(\d+) small files skipped/);
+    return smallFilesMatch ? Number.parseInt(smallFilesMatch[1], 10) : null;
+  };
+
   const cancelScan = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -158,6 +177,25 @@ export default function ScanFoldersTrigger() {
             database. Unchanged files will be skipped to improve performance.
           </p>
         </div>
+
+        {/* Checkbox for ignoring small files */}
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="ignoreSmallFiles"
+            checked={ignoreSmallFiles}
+            onChange={(e) => setIgnoreSmallFiles(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            disabled={isScanning}
+          />
+          <label
+            htmlFor="ignoreSmallFiles"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            Ignore files under 10kb
+          </label>
+        </div>
+
         <button
           onClick={isScanning ? cancelScan : startScan}
           disabled={isScanning && !abortControllerRef.current}
@@ -222,7 +260,8 @@ export default function ScanFoldersTrigger() {
           {(progress.filesProcessed !== undefined ||
             progress.newFilesAdded !== undefined ||
             progress.skippedFiles !== undefined ||
-            progress.ignoredFiles !== undefined) && (
+            progress.ignoredFiles !== undefined ||
+            progress.smallFilesSkipped !== undefined) && (
             <div className="grid grid-cols-3 gap-2 mt-3 text-sm border-t border-border/30 pt-2">
               {progress.filesProcessed !== undefined && (
                 <div>
@@ -251,6 +290,17 @@ export default function ScanFoldersTrigger() {
                 <div>
                   <div className="text-xs text-muted-foreground">Ignored</div>
                   <div className="font-medium">{progress.ignoredFiles}</div>
+                </div>
+              )}
+
+              {progress.smallFilesSkipped !== undefined && (
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Small Files
+                  </div>
+                  <div className="font-medium">
+                    {progress.smallFilesSkipped}
+                  </div>
                 </div>
               )}
             </div>

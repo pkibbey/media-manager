@@ -192,99 +192,108 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
         )}
       </div>
 
-      {categories.map((category) => (
-        <div key={category} className="space-y-2">
-          <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-            {category}
-          </h4>
-          <div className="border rounded-md overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-muted">
-                <tr className="text-left text-xs">
-                  <th className="p-2">Extension</th>
-                  <th className="p-2">MIME Type</th>
-                  <th className="p-2 text-center">Native Display</th>
-                  <th className="p-2 text-center">Needs Conversion</th>
-                  <th className="p-2 text-center">Ignore</th>
-                  <th className="p-2">Discovered</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {groupedTypes[category]
-                  .sort((a, b) => a.extension.localeCompare(b.extension))
-                  .map((fileType) => {
-                    const isIgnored =
-                      updatedTypes[fileType.id]?.ignore || fileType.ignore;
-                    return (
-                      <tr
-                        key={fileType.id}
-                        className={
-                          isIgnored
-                            ? 'bg-muted/50 text-muted-foreground hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                            : 'hover:bg-accent/50'
-                        }
-                      >
-                        <td className="p-2">
-                          <code
-                            className={`px-1 py-0.5 rounded text-xs ${
-                              isIgnored
-                                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
-                                : 'bg-secondary'
-                            }`}
-                          >
-                            .{fileType.extension}
-                          </code>
-                        </td>
-                        <td className="p-2 text-xs">
-                          {fileType.mime_type || 'unknown'}
-                        </td>
-                        <td className="p-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={fileType.can_display_natively || false}
-                            onChange={() => handleToggleNativeDisplay(fileType)}
-                            disabled={
-                              isUpdating === fileType.id || isIgnored || false
-                            }
-                            className="h-4 w-4"
-                            aria-label="Can display natively"
-                          />
-                        </td>
-                        <td className="p-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={fileType.needs_conversion || false}
-                            onChange={() =>
-                              handleToggleNeedsConversion(fileType)
-                            }
-                            disabled={
-                              isUpdating === fileType.id || isIgnored || false
-                            }
-                            className="h-4 w-4"
-                            aria-label="Needs conversion"
-                          />
-                        </td>
-                        <td className="p-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={isIgnored || false}
-                            onChange={() => handleToggleIgnore(fileType)}
-                            disabled={isUpdating === fileType.id}
-                            className="h-4 w-4"
-                            aria-label="Ignore file type"
-                          />
-                        </td>
-                        <td className="p-2 text-xs">
-                          {formatDate(fileType.created_at, 'PP')}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
+      {categories
+        // Sort categories with "other" being last
+        .sort((a, b) => {
+          if (a.toLowerCase() === 'other') return 1;
+          if (b.toLowerCase() === 'other') return -1;
+          return a.localeCompare(b);
+        })
+        .map((category) => (
+          <div key={category} className="space-y-2">
+            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+              {category}
+            </h4>
+            <div className="border rounded-md overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-muted">
+                  <tr className="text-left text-xs">
+                    <th className="p-2">Extension</th>
+                    <th className="p-2">MIME Type</th>
+                    <th className="p-2 text-center">Native Display</th>
+                    <th className="p-2 text-center">Needs Conversion</th>
+                    <th className="p-2 text-center">Ignore</th>
+                    <th className="p-2">Discovered</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {groupedTypes[category]
+                    .sort((a, b) => a.extension.localeCompare(b.extension))
+                    .map((fileType) => {
+                      const isIgnored =
+                        updatedTypes[fileType.id]?.ignore || fileType.ignore;
+                      return (
+                        <tr
+                          key={fileType.id}
+                          className={
+                            isIgnored
+                              ? 'bg-muted/50 text-muted-foreground hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                              : 'hover:bg-accent/50'
+                          }
+                        >
+                          <td className="p-2">
+                            <code
+                              className={`px-1 py-0.5 rounded text-xs ${
+                                isIgnored
+                                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
+                                  : 'bg-secondary'
+                              }`}
+                            >
+                              .{fileType.extension}
+                            </code>
+                          </td>
+                          <td className="p-2 text-xs">
+                            {fileType.mime_type || 'unknown'}
+                          </td>
+                          <td className="p-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={fileType.can_display_natively || false}
+                              onChange={() =>
+                                handleToggleNativeDisplay(fileType)
+                              }
+                              disabled={
+                                isUpdating === fileType.id || isIgnored || false
+                              }
+                              className="h-4 w-4"
+                              aria-label="Can display natively"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={fileType.needs_conversion || false}
+                              onChange={() =>
+                                handleToggleNeedsConversion(fileType)
+                              }
+                              disabled={
+                                isUpdating === fileType.id || isIgnored || false
+                              }
+                              className="h-4 w-4"
+                              aria-label="Needs conversion"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isIgnored || false}
+                              onChange={() => handleToggleIgnore(fileType)}
+                              disabled={isUpdating === fileType.id}
+                              className="h-4 w-4"
+                              aria-label="Ignore file type"
+                            />
+                          </td>
+                          <td className="p-2 text-xs">
+                            {formatDate(fileType.created_at, 'PP')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
     </div>
   );
 }
