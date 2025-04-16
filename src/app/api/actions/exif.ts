@@ -2,7 +2,7 @@
 import fs from 'node:fs/promises';
 import { extractMetadata } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { LARGE_FILE_THRESHOLD, extractDateFromFilename } from '@/lib/utils';
+import { extractDateFromFilename, isSkippedLargeFile } from '@/lib/utils';
 import type { Json } from '@/types/supabase';
 import { revalidatePath } from 'next/cache';
 
@@ -843,7 +843,7 @@ export async function streamProcessUnprocessedItems(
               if (skipLargeFiles) {
                 try {
                   const stats = await fs.stat(media.file_path);
-                  if (stats.size > LARGE_FILE_THRESHOLD) {
+                  if (isSkippedLargeFile(media.file_path, stats.size)) {
                     // Mark large file as processed but skip EXIF extraction
                     await supabase
                       .from('media_items')

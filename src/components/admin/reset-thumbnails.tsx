@@ -1,19 +1,25 @@
 'use client';
 
 import { resetAllThumbnails } from '@/app/api/actions/thumbnails';
-import { Button } from '@/components/ui/button';
+import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '../ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { useState } from 'react';
-import { toast } from 'sonner';
+} from '../ui/dialog';
 
 export default function ResetThumbnails() {
   const [isLoading, setIsLoading] = useState(false);
@@ -40,20 +46,35 @@ export default function ResetThumbnails() {
   };
 
   return (
-    <div className="border bg-neutral-900 rounded-md p-6 space-y-4">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="font-medium">Reset Thumbnails</h2>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        This will delete all thumbnail images from storage and clear the
-        thumbnail path for all media items. You can generate them again using
-        the thumbnail generator.
-      </p>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Reset Thumbnails</CardTitle>
+          <CardDescription>
+            This will delete all thumbnail images from storage and clear the
+            thumbnail path for all media items. You can generate them again
+            using the thumbnail generator.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="destructive"
+            onClick={() => setDialogOpen(true)}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <RotateCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
+                Resetting...
+              </>
+            ) : (
+              'Reset All Thumbnails'
+            )}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="destructive">Reset All Thumbnails</Button>
-        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reset All Thumbnails</DialogTitle>
@@ -63,22 +84,24 @@ export default function ResetThumbnails() {
               thumbnails again afterward. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:justify-end">
-            <DialogClose asChild>
-              <Button variant="secondary" disabled={isLoading}>
-                Cancel
-              </Button>
-            </DialogClose>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
             <Button
               variant="destructive"
               onClick={handleReset}
               disabled={isLoading}
             >
-              {isLoading ? 'Resetting...' : 'Reset Thumbnails'}
+              {isLoading ? 'Resetting...' : 'Yes, Reset All Thumbnails'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

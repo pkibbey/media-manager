@@ -526,4 +526,11 @@ export function guessFileCategory(extension: string): string {
   return 'other';
 }
 
-export const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 50MB in bytes
+export const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB in bytes
+
+export function isSkippedLargeFile(
+  filePath: string,
+  fileSize: number,
+): boolean {
+  return filePath === 'skipped:large_file' || fileSize > LARGE_FILE_THRESHOLD;
+}

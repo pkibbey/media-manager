@@ -33,7 +33,7 @@ export default function AddFolderForm() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Add a new folder to scan</h3>
+      <h3 className="text-lg font-medium">Add Folders to scan</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="folderPath" className="block text-sm font-medium">

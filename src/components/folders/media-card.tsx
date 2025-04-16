@@ -1,6 +1,10 @@
 'use client';
 
-import { bytesToSize, guessFileCategory } from '@/lib/utils';
+import {
+  bytesToSize,
+  guessFileCategory,
+  isSkippedLargeFile,
+} from '@/lib/utils';
 import type { MediaItem } from '@/types';
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
@@ -34,7 +38,9 @@ export default function MediaCard({ item, index, onClick }: MediaCardProps) {
       data-index={index}
     >
       <div className="aspect-square relative">
-        {isImage && item.thumbnail_path ? (
+        {isImage &&
+        item.thumbnail_path &&
+        !isSkippedLargeFile(item.file_path, item.size_bytes) ? (
           <div className="w-full h-full relative">
             <Image
               src={item.thumbnail_path}

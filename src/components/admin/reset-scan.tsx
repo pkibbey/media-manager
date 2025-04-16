@@ -1,18 +1,24 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
+import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '../ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { useState } from 'react';
-import { toast } from 'sonner';
+} from '../ui/dialog';
 
 export default function ResetScan() {
   const [isLoading, setIsLoading] = useState(false);
@@ -52,20 +58,35 @@ export default function ResetScan() {
   };
 
   return (
-    <div className="bg-neutral-900 border rounded-md p-4 space-y-4">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">Reset Media Database</h2>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        This will delete all media items and file types from the database. Scan
-        folders configuration will be preserved. You'll need to scan your
-        folders again to rebuild the database.
-      </p>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Reset Media Database</CardTitle>
+          <CardDescription>
+            This will delete all media items and file types from the database.
+            Scan folders configuration will be preserved. You'll need to scan
+            your folders again to rebuild the database.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="destructive"
+            onClick={() => setDialogOpen(true)}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <RotateCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
+                Resetting...
+              </>
+            ) : (
+              'Reset Media Database'
+            )}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="destructive">Reset Media Database</Button>
-        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reset Media Database</DialogTitle>
@@ -76,22 +97,24 @@ export default function ResetScan() {
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:justify-end">
-            <DialogClose asChild>
-              <Button variant="secondary" disabled={isLoading}>
-                Cancel
-              </Button>
-            </DialogClose>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
             <Button
               variant="destructive"
               onClick={handleReset}
               disabled={isLoading}
             >
-              {isLoading ? 'Resetting...' : 'Reset Database'}
+              {isLoading ? 'Resetting...' : 'Yes, Reset Database'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -38,11 +38,11 @@ export default async function AdminPage() {
       label: 'Folders',
       content: (
         <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
             <ScanFoldersTrigger />
             <ResetScan />
           </div>
-          <div className="border-t pt-6 grid md:grid-cols-2 gap-6">
+          <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[1fr_2fr] items-start gap-6">
             <AddFolderForm />
             <Suspense fallback={<div>Loading folders...</div>}>
               {foldersSuccess ? (
@@ -62,11 +62,11 @@ export default async function AdminPage() {
       label: 'Processing',
       content: (
         <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
             <ExifProcessor />
             <ResetMedia />
           </div>
-          <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-6">
+          <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
             <ThumbnailGenerator />
             <ResetThumbnails />
           </div>

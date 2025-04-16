@@ -52,6 +52,15 @@ export default function ThumbnailGenerator() {
   const [abortController, setAbortController] =
     useState<AbortController | null>(null);
 
+  // Add thumbnail stats state
+  const [thumbnailStats, setThumbnailStats] = useState<{
+    totalCompatibleFiles: number;
+    filesWithThumbnails: number;
+    filesSkipped: number;
+    filesPending: number;
+    skippedLargeFiles: number;
+  } | null>(null);
+
   // Cleanup function for the abort controller
   useEffect(() => {
     return () => {
@@ -68,8 +77,55 @@ export default function ThumbnailGenerator() {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+      // Define the same set of image extensions as used in generateMissingThumbnails
+      const imageExtensions = [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+        'tiff',
+        'tif',
+        'heic',
+        'avif',
+        'bmp',
+      ];
+
+      // First, fetch ignored file types
+      const ignoredTypesResponse = await fetch(
+        `${supabaseUrl}/rest/v1/file_types?ignore=eq.true&select=extension`,
+        {
+          method: 'GET',
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      let ignoredExtensions: string[] = [];
+      if (ignoredTypesResponse.ok) {
+        const ignoredTypes = await ignoredTypesResponse.json();
+        ignoredExtensions = ignoredTypes.map((type: { extension: string }) =>
+          type.extension.toLowerCase(),
+        );
+      }
+
+      // Create the IN filter for extensions
+      const extensionFilter = imageExtensions
+        .map((ext) => `extension.eq.${ext}`)
+        .join(',');
+
+      // Create the NOT IN filter for ignored extensions
+      const ignoredFilter =
+        ignoredExtensions.length > 0
+          ? `&extension=not.in.(${ignoredExtensions.join(',')})`
+          : '';
+
+      // Query that matches the same criteria as generateMissingThumbnails
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/media_items?thumbnail_path=is.null&select=count`,
+        `${supabaseUrl}/rest/v1/media_items?thumbnail_path=is.null&${extensionFilter}${ignoredFilter}&select=count`,
         {
           method: 'GET',
           headers: {
@@ -95,10 +151,35 @@ export default function ThumbnailGenerator() {
     }
   }, []);
 
+  // Function to fetch thumbnail statistics
+  const fetchThumbnailStats = useCallback(async () => {
+    try {
+      const response = await fetch('/api/stats/thumbnails');
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.stats) {
+          setThumbnailStats(data.stats);
+        } else {
+          console.error('Error fetching thumbnail stats:', data.error);
+        }
+      } else {
+        console.error('Failed to fetch thumbnail stats');
+      }
+    } catch (error) {
+      console.error('Error fetching thumbnail stats:', error);
+    }
+  }, []);
+
   // Fetch remaining count when component mounts
   useEffect(() => {
     fetchRemainingCount();
   }, [fetchRemainingCount]);
+
+  // Fetch thumbnail stats when component mounts
+  useEffect(() => {
+    fetchThumbnailStats();
+  }, [fetchThumbnailStats]);
 
   // Re-fetch count after generation completes
   useEffect(() => {
@@ -106,6 +187,13 @@ export default function ThumbnailGenerator() {
       fetchRemainingCount();
     }
   }, [isGenerating, fetchRemainingCount]);
+
+  // Re-fetch stats after generation completes
+  useEffect(() => {
+    if (!isGenerating) {
+      fetchThumbnailStats();
+    }
+  }, [isGenerating, fetchThumbnailStats]);
 
   // Function to categorize errors into common types for better grouping
   const categorizeError = (errorMessage: string): string => {
@@ -370,79 +458,89 @@ export default function ThumbnailGenerator() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-start">
-        <h3 className="text-lg font-medium">Thumbnail Generator</h3>
-        {isLoading ? (
-          <div className="text-sm text-muted-foreground">Loading...</div>
-        ) : (
-          remainingThumbnails !== null && (
-            <div className="text-sm text-muted-foreground">
-              <span
-                className={
-                  remainingThumbnails > 0
-                    ? 'font-medium text-amber-600 dark:text-amber-500'
-                    : 'text-green-600 dark:text-green-500'
-                }
-              >
-                {remainingThumbnails > 0
-                  ? `${remainingThumbnails} items need thumbnails`
-                  : 'All items have thumbnails'}
-              </span>
-            </div>
-          )
-        )}
+    <div className="overflow-hidden space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-medium">Thumbnail Generator</h2>
+        <div className="text-sm text-muted-foreground">
+          {isLoading || !thumbnailStats ? (
+            <span>Loading...</span>
+          ) : (
+            <span>
+              {thumbnailStats.filesWithThumbnails + thumbnailStats.filesSkipped}{' '}
+              / {thumbnailStats.totalCompatibleFiles} files processed
+            </span>
+          )}
+        </div>
       </div>
-      <div className="text-sm text-muted-foreground">
-        Generate thumbnails for image files and store them in Supabase Storage.
-        This helps improve performance by pre-generating thumbnails instead of
-        creating them on-demand. Only processes images (.jpg, .png, .webp, .gif,
-        etc.).
-      </div>
-      <div className="flex flex-col justify-between items-start gap-4">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="skipLargeFiles"
-            checked={skipLargeFiles}
-            onCheckedChange={(checked) => setSkipLargeFiles(checked as boolean)}
-          />
-          <Label htmlFor="skipLargeFiles" className="text-sm">
+
+      {/* Progress bar for overall thumbnail generation */}
+      {thumbnailStats && (
+        <Progress
+          value={
+            thumbnailStats.filesPending === 0
+              ? 100
+              : Math.round(
+                  (thumbnailStats.filesWithThumbnails /
+                    thumbnailStats.totalCompatibleFiles) *
+                    100,
+                )
+          }
+          className="h-2"
+        />
+      )}
+
+      {/* Thumbnail statistics summary */}
+      {thumbnailStats && (
+        <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
+          <div className="flex justify-between">
+            <span>
+              {thumbnailStats.filesWithThumbnails} files with thumbnails
+            </span>
+            <span>{thumbnailStats.skippedLargeFiles} large files skipped</span>
+          </div>
+          <div className="flex justify-between">
+            <span>
+              {thumbnailStats.filesPending} files waiting to be processed
+            </span>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="cursor-help border-b border-dotted border-gray-400">
-                    {`Skip large files (over ${LARGE_FILE_THRESHOLD / 1024 / 1024}MB)`}
+                    {thumbnailStats.totalCompatibleFiles} total
+                    thumbnail-compatible files
                   </span>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p>
-                    Large files can take a long time to process and may cause
-                    timeouts. Checking this will improve processing speed.
+                    Compatible image formats: JPG, JPEG, PNG, WebP, GIF, TIFF,
+                    HEIC, AVIF, BMP. Excluded are files with extensions marked
+                    as "ignored" in file settings.
                   </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </Label>
+          </div>
         </div>
-        <Button onClick={handleGenerateThumbnails} disabled={isGenerating}>
-          {isGenerating ? 'Generating...' : 'Generate Thumbnails'}
-        </Button>
-        {isGenerating && (
-          <Button onClick={handleCancel} variant="destructive">
-            Cancel
-          </Button>
-        )}
-      </div>
+      )}
 
+      {/* Description */}
+      <p className="text-sm text-muted-foreground">
+        Generate thumbnails for image files and store them in Supabase Storage.
+        This helps improve performance by pre-generating thumbnails instead of
+        creating them on-demand. Only processes images (.jpg, .png, .webp, .gif,
+        etc.).
+      </p>
+
+      {/* Current processing status */}
       {isGenerating && (
-        <div className="space-y-2">
+        <div className="mt-4 space-y-2">
           <div className="flex justify-between text-sm gap-4">
             <span className="truncate">{detailProgress?.message}</span>
             <span className="shrink-0">
               {processed} / {total} files
             </span>
           </div>
-          <Progress value={progress} />
+          <Progress value={progress} className="h-2" />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Success: {successCount}</span>
             <span>Failed: {failedCount}</span>
@@ -450,7 +548,7 @@ export default function ThumbnailGenerator() {
           </div>
           {largeFilesSkipped > 0 && (
             <div className="text-xs text-muted-foreground">
-              Skipped {largeFilesSkipped} large files (over 50MB)
+              {`Skipped ${largeFilesSkipped} large files (over ${Math.round(LARGE_FILE_THRESHOLD / 1024 / 1024)}MB)`}
             </div>
           )}
           {detailProgress?.currentFilePath && (
@@ -466,11 +564,62 @@ export default function ThumbnailGenerator() {
         </div>
       )}
 
+      {/* Error message */}
       {hasError && (
         <div className="text-sm text-destructive mt-2">
           Some errors occurred during processing. See details below.
         </div>
       )}
+
+      {/* Skip large files checkbox */}
+      <div className="flex items-center space-x-2 mt-2">
+        <Checkbox
+          id="skipLargeFiles"
+          checked={skipLargeFiles}
+          onCheckedChange={(checked) => setSkipLargeFiles(checked as boolean)}
+        />
+        <Label htmlFor="skipLargeFiles" className="text-sm">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help border-b border-dotted border-gray-400">
+                  {`Skip large files (over ${Math.round(LARGE_FILE_THRESHOLD / 1024 / 1024)}MB)`}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>
+                  Large files can take a long time to process and may cause
+                  timeouts. Checking this will improve processing speed.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </Label>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <Button
+          onClick={handleGenerateThumbnails}
+          disabled={
+            isGenerating ||
+            (thumbnailStats && thumbnailStats.filesPending === 0) ||
+            false
+          }
+        >
+          {thumbnailStats && thumbnailStats.filesPending === 0 && !isGenerating
+            ? 'All Thumbnails Generated'
+            : isGenerating
+              ? 'Generating...'
+              : 'Generate Thumbnails'}
+        </Button>
+
+        {isGenerating && (
+          <Button onClick={handleCancel} variant="destructive">
+            Cancel
+          </Button>
+        )}
+      </div>
 
       {/* Display error summary when there are failed items */}
       {failedCount > 0 && Object.keys(errorSummary).length > 0 && (
@@ -494,7 +643,10 @@ export default function ThumbnailGenerator() {
                     <div className="mt-1 text-muted-foreground">
                       <div className="text-xs mb-1">Examples:</div>
                       {details.examples.map((example, i) => (
-                        <div key={i} className="truncate pl-2 text-[10px]">
+                        <div
+                          key={`${errorType}-example-${i}-${example.substring(0, 10)}`}
+                          className="truncate pl-2 text-[10px]"
+                        >
                           {example}
                         </div>
                       ))}
