@@ -82,8 +82,6 @@ async function ensureThumbnailsBucketExists() {
           message: `Failed to create thumbnails bucket: ${createError.message}`,
         };
       }
-
-      console.log('Created thumbnails bucket successfully');
     }
 
     return { success: true };
@@ -196,9 +194,6 @@ export async function generateThumbnail(
 
         if (isSkippedLargeFile(mediaItem.file_path, stats.size)) {
           if (debug) {
-            console.log(
-              `[Thumbnail] Skipping large file: ${mediaItem.file_path} (${Math.round(stats.size / (1024 * 1024))} MB > ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))} MB threshold)`,
-            );
           }
 
           // Mark as processed but skip thumbnail generation
@@ -245,11 +240,6 @@ export async function generateThumbnail(
     ];
 
     if (!supportedImageFormats.includes(extension)) {
-      if (debug) {
-        console.log(
-          `[Thumbnail] Unsupported file type for thumbnails: ${extension}`,
-        );
-      }
       return {
         success: false,
         message: `File type not supported for thumbnails: ${extension}`,
@@ -380,13 +370,6 @@ export async function generateThumbnail(
         filePath: mediaItem.file_path,
         fileName: mediaItem.file_name,
       };
-    }
-
-    // Only log successful completions if in debug mode
-    if (debug) {
-      console.log(
-        `[Thumbnail] Successfully completed thumbnail generation for ${mediaItem.file_name}`,
-      );
     }
 
     return {
@@ -902,6 +885,98 @@ export async function getThumbnailStats() {
     return {
       success: false,
       error: error.message,
+    };
+  }
+}
+
+/**
+ * Regenerate thumbnails for items that should have thumbnails but don't
+ * This looks for items with a null thumbnail_path field
+ */
+export async function regenerateMissingThumbnails(): Promise<ThumbnailResult> {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    // Get image extensions
+    const imageExtensions = [
+      'jpg',
+      'jpeg',
+      'png',
+      'webp',
+      'gif',
+      'tiff',
+      'tif',
+      'heic',
+      'avif',
+      'bmp',
+    ];
+
+    // Get ignored file types
+    const { data: ignoredTypes } = await supabase
+      .from('file_types')
+      .select('extension')
+      .eq('ignore', true);
+
+    const ignoredExtensions =
+      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+
+    // Find items that should have thumbnails but don't
+    let query = supabase
+      .from('media_items')
+      .select('id')
+      .in('extension', imageExtensions)
+      .is('thumbnail_path', null);
+
+    // Exclude ignored file types
+    if (ignoredExtensions.length > 0) {
+      query = query.not(
+        'extension',
+        'in',
+        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+      );
+    }
+
+    const { data: mediaItems, error } = await query;
+    console.log('mediaItems: ', mediaItems);
+
+    if (error) {
+      console.error(
+        '[Thumbnail] Error finding items missing thumbnails:',
+        error,
+      );
+      return {
+        success: false,
+        message: `Error finding items missing thumbnails: ${error.message}`,
+        processed: 0,
+      };
+    }
+
+    if (!mediaItems || mediaItems.length === 0) {
+      return {
+        success: true,
+        message: 'No media items missing thumbnails found',
+        processed: 0,
+      };
+    }
+
+    const mediaIds = mediaItems.map((item) => item.id);
+
+    // Process these items with the existing batch function
+    const result = await batchGenerateThumbnails(mediaIds, {
+      batchSize: 50,
+      skipLargeFiles: true,
+    });
+
+    return {
+      ...result,
+      message: `Regenerated ${result.successCount || 0} thumbnails for items that were missing them`,
+    };
+  } catch (error: any) {
+    console.error('[Thumbnail] Error regenerating missing thumbnails:', error);
+    return {
+      success: false,
+      message: `Error regenerating missing thumbnails: ${error.message}`,
+      processed: 0,
     };
   }
 }

@@ -1,6 +1,9 @@
 'use client';
 
-import { resetAllThumbnails } from '@/app/api/actions/thumbnails';
+import {
+  regenerateMissingThumbnails,
+  resetAllThumbnails,
+} from '@/app/api/actions/thumbnails';
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -23,6 +26,7 @@ import {
 
 export default function ResetThumbnails() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleReset = async () => {
@@ -45,6 +49,26 @@ export default function ResetThumbnails() {
     }
   };
 
+  const handleRegenerateMissing = async () => {
+    try {
+      setIsRegenerating(true);
+      const result = await regenerateMissingThumbnails();
+
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(
+          result.message || 'Failed to regenerate missing thumbnails',
+        );
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred while regenerating thumbnails');
+      console.error('Error regenerating thumbnails:', error);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   return (
     <>
       <Card>
@@ -56,21 +80,46 @@ export default function ResetThumbnails() {
             using the thumbnail generator.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button
-            variant="destructive"
-            onClick={() => setDialogOpen(true)}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <RotateCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
-                Resetting...
-              </>
-            ) : (
-              'Reset All Thumbnails'
-            )}
-          </Button>
+        <CardContent className="space-y-4">
+          <div>
+            <Button
+              variant="destructive"
+              onClick={() => setDialogOpen(true)}
+              disabled={isLoading || isRegenerating}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <RotateCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                'Reset All Thumbnails'
+              )}
+            </Button>
+          </div>
+
+          <div className="pt-2 border-t">
+            <h4 className="text-sm font-medium mb-2">Fix Missing Thumbnails</h4>
+            <p className="text-sm text-muted-foreground mb-2">
+              Regenerate thumbnails for media items that are missing thumbnails.
+            </p>
+            <Button
+              variant="outline"
+              onClick={handleRegenerateMissing}
+              disabled={isLoading || isRegenerating}
+              className="w-full"
+            >
+              {isRegenerating ? (
+                <>
+                  <RotateCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
+                  Regenerating...
+                </>
+              ) : (
+                'Regenerate Missing Thumbnails'
+              )}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

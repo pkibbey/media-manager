@@ -50,8 +50,6 @@ export async function getMediaStats(): Promise<{
     const pages = Math.ceil((totalCount || 0) / pageSize);
 
     for (let page = 0; page < pages; page++) {
-      console.log(`Fetching media stats page ${page + 1} of ${pages}`);
-
       const { data: pageItems, error: pageError } = await supabase
         .from('media_items')
         .select('*')

@@ -68,7 +68,7 @@ export default function ExifProcessor() {
 
   const fetchStats = async () => {
     const { success, stats: exifStats } = await getExifStats();
-    console.log('exifStats: ', exifStats);
+
     if (success && exifStats) {
       setStats(exifStats as EnhancedExifStats);
     }

@@ -755,7 +755,6 @@ export async function streamProcessUnprocessedItems(
       for (let page = 0; page * pageSize < (totalCount || 0); page++) {
         // Check for abort signal
         if (abortToken && (await isAborted(abortToken))) {
-          console.log(`Processing aborted: ${abortToken}`);
           await sendProgress(writer, {
             status: 'error',
             message: 'Processing cancelled by user',
@@ -813,7 +812,6 @@ export async function streamProcessUnprocessedItems(
         for (let i = 0; i < itemsToProcess.length; i += batchSize) {
           // Check for abort signal
           if (abortToken && (await isAborted(abortToken))) {
-            console.log(`Processing aborted: ${abortToken}`);
             await sendProgress(writer, {
               status: 'error',
               message: 'Processing cancelled by user',
@@ -830,7 +828,6 @@ export async function streamProcessUnprocessedItems(
             try {
               // Check for abort signal - checking frequently for responsive cancellation
               if (abortToken && (await isAborted(abortToken))) {
-                console.log(`Processing aborted during batch: ${abortToken}`);
                 await sendProgress(writer, {
                   status: 'error',
                   message: 'Processing cancelled by user',
@@ -911,7 +908,6 @@ export async function streamProcessUnprocessedItems(
               ) {
                 // Check for abort signal
                 if (abortToken && (await isAborted(abortToken))) {
-                  console.log(`Processing aborted after file: ${abortToken}`);
                   await sendProgress(writer, {
                     status: 'error',
                     message: 'Processing cancelled by user',
@@ -954,7 +950,6 @@ export async function streamProcessUnprocessedItems(
 
       // Final check for abort signal before completing
       if (abortToken && (await isAborted(abortToken))) {
-        console.log(`Processing aborted before completion: ${abortToken}`);
         await sendProgress(writer, {
           status: 'error',
           message: 'Processing cancelled by user',

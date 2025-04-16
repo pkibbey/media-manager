@@ -8,9 +8,6 @@ export const abortTokens = new Set<string>();
  */
 export async function addAbortToken(token: string): Promise<void> {
   abortTokens.add(token);
-  console.log(
-    `Added abort token: ${token}. Current abort tokens: ${Array.from(abortTokens).join(', ')}`,
-  );
 }
 
 /**
