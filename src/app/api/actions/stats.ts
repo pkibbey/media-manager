@@ -24,22 +24,10 @@ export async function getMediaStats(): Promise<{
     const ignoredExtensions =
       ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
 
-    // Get all media items statistics
-    const { data: allItems, error: countError } = await supabase
-      .from('media_items')
-      .select('*');
-
-    if (countError) {
-      console.error('Error fetching media items:', countError);
-      return { success: false, error: countError.message };
-    }
-
-    // Calculate total size
+    // Initialize counters and data structures
     let totalSizeBytes = 0;
     const itemsByCategory: Record<string, number> = {};
     const itemsByExtension: Record<string, number> = {};
-
-    // Count for non-ignored files
     let totalNonIgnoredCount = 0;
     let processedCount = 0;
     let unprocessedCount = 0;
@@ -47,65 +35,109 @@ export async function getMediaStats(): Promise<{
     let unorganizedCount = 0;
     let ignoredCount = 0;
 
-    allItems?.forEach((item) => {
-      // Add to total size
-      totalSizeBytes += item.size_bytes || 0;
+    // First, get the total count to know how many pages we need to fetch
+    const { count: totalCount, error: countError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true });
 
-      // Extension stats
-      const ext = item.extension.toLowerCase();
-      itemsByExtension[ext] = (itemsByExtension[ext] || 0) + 1;
+    if (countError) {
+      console.error('Error counting media items:', countError);
+      return { success: false, error: countError.message };
+    }
 
-      // Category stats
-      const typeMapping: Record<string, string[]> = {
-        image: [
-          'jpg',
-          'jpeg',
-          'png',
-          'gif',
-          'webp',
-          'avif',
-          'heic',
-          'tiff',
-          'raw',
-          'bmp',
-          'svg',
-        ],
-        video: ['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'mkv', 'flv', 'm4v'],
-        data: ['json', 'xml', 'txt', 'csv', 'xmp'],
-      };
+    // Fetch items in batches of 1000 (Supabase limit)
+    const pageSize = 1000;
+    const pages = Math.ceil((totalCount || 0) / pageSize);
 
-      let category = 'other';
-      Object.entries(typeMapping).forEach(([cat, extensions]) => {
-        if (extensions.includes(ext)) {
-          category = cat;
+    for (let page = 0; page < pages; page++) {
+      console.log(`Fetching media stats page ${page + 1} of ${pages}`);
+
+      const { data: pageItems, error: pageError } = await supabase
+        .from('media_items')
+        .select('*')
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (pageError) {
+        console.error(
+          `Error fetching media items page ${page + 1}:`,
+          pageError,
+        );
+        return { success: false, error: pageError.message };
+      }
+
+      if (!pageItems || pageItems.length === 0) continue;
+
+      // Process each item in this page
+      pageItems.forEach((item) => {
+        // Add to total size
+        totalSizeBytes += item.size_bytes || 0;
+
+        // Extension stats
+        const ext = item.extension.toLowerCase();
+        itemsByExtension[ext] = (itemsByExtension[ext] || 0) + 1;
+
+        // Category stats
+        const typeMapping: Record<string, string[]> = {
+          image: [
+            'jpg',
+            'jpeg',
+            'png',
+            'gif',
+            'webp',
+            'avif',
+            'heic',
+            'tiff',
+            'raw',
+            'bmp',
+            'svg',
+          ],
+          video: [
+            'mp4',
+            'webm',
+            'ogg',
+            'mov',
+            'avi',
+            'wmv',
+            'mkv',
+            'flv',
+            'm4v',
+          ],
+          data: ['json', 'xml', 'txt', 'csv', 'xmp'],
+        };
+
+        let category = 'other';
+        Object.entries(typeMapping).forEach(([cat, extensions]) => {
+          if (extensions.includes(ext)) {
+            category = cat;
+          }
+        });
+
+        itemsByCategory[category] = (itemsByCategory[category] || 0) + 1;
+
+        // Check if this is an ignored file type
+        const isIgnored = ignoredExtensions.includes(ext);
+
+        if (isIgnored) {
+          ignoredCount++;
+        } else {
+          // Only count non-ignored files for progress tracking
+          totalNonIgnoredCount++;
+
+          // Process and organization stats
+          if (item.processed) {
+            processedCount++;
+          } else {
+            unprocessedCount++;
+          }
+
+          if (item.organized) {
+            organizedCount++;
+          } else {
+            unorganizedCount++;
+          }
         }
       });
-
-      itemsByCategory[category] = (itemsByCategory[category] || 0) + 1;
-
-      // Check if this is an ignored file type
-      const isIgnored = ignoredExtensions.includes(ext);
-
-      if (isIgnored) {
-        ignoredCount++;
-      } else {
-        // Only count non-ignored files for progress tracking
-        totalNonIgnoredCount++;
-
-        // Process and organization stats
-        if (item.processed) {
-          processedCount++;
-        } else {
-          unprocessedCount++;
-        }
-
-        if (item.organized) {
-          organizedCount++;
-        } else {
-          unorganizedCount++;
-        }
-      }
-    });
+    }
 
     const mediaStats: MediaStats = {
       totalMediaItems: totalNonIgnoredCount,

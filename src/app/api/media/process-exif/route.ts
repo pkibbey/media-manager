@@ -7,8 +7,14 @@ export const GET = async (request: NextRequest) => {
     const skipLargeFiles =
       request.nextUrl.searchParams.get('skipLargeFiles') === 'true';
 
+    // Get abort token from URL
+    const abortToken = request.nextUrl.searchParams.get('abortToken');
+
     // Create a streaming response with the EXIF processing stream
-    const stream = await streamProcessUnprocessedItems({ skipLargeFiles });
+    const stream = await streamProcessUnprocessedItems({
+      skipLargeFiles,
+      abortToken: abortToken || undefined,
+    });
 
     return new NextResponse(stream, {
       headers: {

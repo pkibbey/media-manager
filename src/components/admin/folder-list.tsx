@@ -42,7 +42,7 @@ export default function FolderList({ folders }: FolderListProps) {
             className="p-3 border rounded-md bg-card flex justify-between items-center"
           >
             <div className="space-y-1">
-              <p className="font-medium break-all">{folder.path}</p>
+              <p className="text-sm font-medium break-all">{folder.path}</p>
               <div className="flex gap-2 text-xs text-muted-foreground">
                 <span>
                   {folder.include_subfolders

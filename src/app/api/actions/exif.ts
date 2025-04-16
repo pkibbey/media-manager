@@ -2,7 +2,7 @@
 import fs from 'node:fs/promises';
 import { extractMetadata } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { extractDateFromFilename } from '@/lib/utils';
+import { LARGE_FILE_THRESHOLD, extractDateFromFilename } from '@/lib/utils';
 import type { Json } from '@/types/supabase';
 import { revalidatePath } from 'next/cache';
 
@@ -28,10 +28,8 @@ export type ExifProgress = {
 // Options for EXIF processing
 export type ExifProcessingOptions = {
   skipLargeFiles?: boolean; // Whether to skip files over the large file threshold
+  abortToken?: string; // Token to check for abort operations
 };
-
-// Size threshold for large files (100MB)
-const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB in bytes
 
 /**
  * Helper function to convert GPS coordinates from DMS format to decimal degrees
@@ -676,14 +674,17 @@ export async function streamProcessUnprocessedItems(
   options: ExifProcessingOptions = {},
 ) {
   const encoder = new TextEncoder();
-  const { skipLargeFiles = false } = options;
+  const { skipLargeFiles = false, abortToken } = options;
+
+  // Import isAborted function from the shared abort tokens module
+  const { isAborted } = await import('@/lib/abort-tokens');
 
   // Create a transform stream to send progress updates
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
   // Start processing in the background
-  processUnprocessedItemsInternal(writer, skipLargeFiles);
+  processUnprocessedItemsInternal(writer, skipLargeFiles, abortToken);
 
   // Return the readable stream
   return stream.readable;
@@ -691,6 +692,7 @@ export async function streamProcessUnprocessedItems(
   async function processUnprocessedItemsInternal(
     writer: WritableStreamDefaultWriter,
     skipLargeFiles: boolean,
+    abortToken?: string,
   ) {
     try {
       const supabase = createServerSupabaseClient();
@@ -751,6 +753,17 @@ export async function streamProcessUnprocessedItems(
 
       // Process in pages
       for (let page = 0; page * pageSize < (totalCount || 0); page++) {
+        // Check for abort signal
+        if (abortToken && (await isAborted(abortToken))) {
+          console.log(`Processing aborted: ${abortToken}`);
+          await sendProgress(writer, {
+            status: 'error',
+            message: 'Processing cancelled by user',
+          });
+          await writer.close();
+          return;
+        }
+
         // Get a chunk of unprocessed items
         const { data: unprocessedItems, error: unprocessedError } =
           await supabase
@@ -798,12 +811,34 @@ export async function streamProcessUnprocessedItems(
         // Process each media file in this batch
         const batchSize = 50;
         for (let i = 0; i < itemsToProcess.length; i += batchSize) {
+          // Check for abort signal
+          if (abortToken && (await isAborted(abortToken))) {
+            console.log(`Processing aborted: ${abortToken}`);
+            await sendProgress(writer, {
+              status: 'error',
+              message: 'Processing cancelled by user',
+            });
+            await writer.close();
+            return;
+          }
+
           // Get the current batch
           const batch = itemsToProcess.slice(i, i + batchSize);
 
           // Process each media file in the batch
           for (const media of batch) {
             try {
+              // Check for abort signal - checking frequently for responsive cancellation
+              if (abortToken && (await isAborted(abortToken))) {
+                console.log(`Processing aborted during batch: ${abortToken}`);
+                await sendProgress(writer, {
+                  status: 'error',
+                  message: 'Processing cancelled by user',
+                });
+                await writer.close();
+                return;
+              }
+
               // Check if we should skip this file due to size
               if (skipLargeFiles) {
                 try {
@@ -874,6 +909,17 @@ export async function streamProcessUnprocessedItems(
                 processedCount % 5 === 0 ||
                 processedCount === exifCompatibleCount
               ) {
+                // Check for abort signal
+                if (abortToken && (await isAborted(abortToken))) {
+                  console.log(`Processing aborted after file: ${abortToken}`);
+                  await sendProgress(writer, {
+                    status: 'error',
+                    message: 'Processing cancelled by user',
+                  });
+                  await writer.close();
+                  return;
+                }
+
                 await sendProgress(writer, {
                   status: 'processing',
                   message: `Processed ${processedCount} of ${exifCompatibleCount} files (${successCount} successful, ${failedCount} failed)`,
@@ -904,6 +950,17 @@ export async function streamProcessUnprocessedItems(
             }
           }
         }
+      }
+
+      // Final check for abort signal before completing
+      if (abortToken && (await isAborted(abortToken))) {
+        console.log(`Processing aborted before completion: ${abortToken}`);
+        await sendProgress(writer, {
+          status: 'error',
+          message: 'Processing cancelled by user',
+        });
+        await writer.close();
+        return;
       }
 
       // Revalidate paths to update UI

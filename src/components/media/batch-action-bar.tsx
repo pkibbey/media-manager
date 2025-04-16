@@ -16,7 +16,8 @@ import {
   ReloadIcon,
   TrashIcon,
 } from '@radix-ui/react-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import {
   Dialog,
@@ -41,6 +42,12 @@ export default function BatchActionBar({
   const [currentAction, setCurrentAction] = useState<string | null>(null);
   const [progress, setProgress] = useState<BatchProgress | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Add abort controller state
+  const [abortController, setAbortController] =
+    useState<AbortController | null>(null);
+  const [reader, setReader] = useState<ReadableStreamDefaultReader | null>(
+    null,
+  );
 
   // Calculate how many items are already processed vs unprocessed
   const processedCount = selectedItems.filter((item) => item.processed).length;
@@ -49,6 +56,51 @@ export default function BatchActionBar({
   // Calculate how many items are already marked as organized
   const organizedCount = selectedItems.filter((item) => item.organized).length;
   const unorganizedCount = selectedItems.length - organizedCount;
+
+  // Clean up resources when component unmounts
+  useEffect(() => {
+    return () => {
+      if (reader) {
+        reader.cancel('Component unmounted');
+      }
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, [reader, abortController]);
+
+  // Handle cancelling the current operation
+  const handleCancel = async () => {
+    if (isProcessing && abortController) {
+      toast.info(`Cancelling ${currentAction} operation...`);
+
+      // Abort the controller to signal cancellation
+      abortController.abort();
+
+      // Release the reader if it exists
+      if (reader) {
+        try {
+          await reader.cancel('Operation cancelled by user');
+        } catch (error) {
+          console.error('Error cancelling reader:', error);
+        }
+        setReader(null);
+      }
+
+      // Update UI
+      setProgress({
+        status: 'error',
+        message: 'Operation cancelled by user',
+      });
+
+      // Reset state after a delay
+      setTimeout(() => {
+        setIsProcessing(false);
+        setCurrentAction(null);
+        setAbortController(null);
+      }, 1500);
+    }
+  };
 
   // Handle processing EXIF data for selected items
   const handleProcessExif = async () => {
@@ -63,20 +115,31 @@ export default function BatchActionBar({
       totalCount: selectedItems.length,
     });
 
+    // Create a new abort controller for this operation
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       // Get the IDs of the selected items
       const itemIds = selectedItems.map((item) => item.id);
 
       // Start streaming process for EXIF data
       const stream = await streamBatchProcessExif(itemIds);
-      const reader = stream.getReader();
+      const streamReader = stream.getReader();
+      setReader(streamReader);
       const decoder = new TextDecoder();
 
       let done = false;
       let buffer = '';
 
       while (!done) {
-        const { value, done: readerDone } = await reader.read();
+        // Check if we've been cancelled
+        if (controller.signal.aborted) {
+          streamReader.cancel('Operation cancelled by user');
+          break;
+        }
+
+        const { value, done: readerDone } = await streamReader.read();
         done = readerDone;
 
         if (value) {
@@ -98,6 +161,8 @@ export default function BatchActionBar({
                   setTimeout(() => {
                     setIsProcessing(false);
                     setCurrentAction(null);
+                    setAbortController(null);
+                    setReader(null);
                     // Wait a moment before clearing selection to allow the user to see the completion message
                     setTimeout(onClearSelection, 1500);
                   }, 1000);
@@ -109,6 +174,11 @@ export default function BatchActionBar({
           }
         }
       }
+
+      // If we're done and not aborted, release resources
+      if (!controller.signal.aborted) {
+        setReader(null);
+      }
     } catch (error) {
       console.error('Error processing EXIF data:', error);
       setProgress({
@@ -119,6 +189,8 @@ export default function BatchActionBar({
       setTimeout(() => {
         setIsProcessing(false);
         setCurrentAction(null);
+        setAbortController(null);
+        setReader(null);
       }, 3000);
     }
   };
@@ -136,9 +208,27 @@ export default function BatchActionBar({
       totalCount: selectedItems.length,
     });
 
+    // Create a new abort controller for this operation
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       const itemIds = selectedItems.map((item) => item.id);
       const result = await batchMarkOrganized(itemIds, organized);
+
+      // Check if we were cancelled during the operation
+      if (controller.signal.aborted) {
+        setProgress({
+          status: 'error',
+          message: 'Operation cancelled by user',
+        });
+        setTimeout(() => {
+          setIsProcessing(false);
+          setCurrentAction(null);
+          setAbortController(null);
+        }, 1500);
+        return;
+      }
 
       if (result.success) {
         setProgress({
@@ -152,6 +242,7 @@ export default function BatchActionBar({
         setTimeout(() => {
           setIsProcessing(false);
           setCurrentAction(null);
+          setAbortController(null);
           onClearSelection();
         }, 1500);
       } else {
@@ -163,6 +254,7 @@ export default function BatchActionBar({
         setTimeout(() => {
           setIsProcessing(false);
           setCurrentAction(null);
+          setAbortController(null);
         }, 3000);
       }
     } catch (error) {
@@ -175,6 +267,7 @@ export default function BatchActionBar({
       setTimeout(() => {
         setIsProcessing(false);
         setCurrentAction(null);
+        setAbortController(null);
       }, 3000);
     }
   };
@@ -194,9 +287,27 @@ export default function BatchActionBar({
       totalCount: selectedItems.length,
     });
 
+    // Create a new abort controller for this operation
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       const itemIds = selectedItems.map((item) => item.id);
       const result = await batchDeleteItems(itemIds);
+
+      // Check if we were cancelled during the operation
+      if (controller.signal.aborted) {
+        setProgress({
+          status: 'error',
+          message: 'Operation cancelled by user',
+        });
+        setTimeout(() => {
+          setIsProcessing(false);
+          setCurrentAction(null);
+          setAbortController(null);
+        }, 1500);
+        return;
+      }
 
       if (result.success) {
         setProgress({
@@ -210,6 +321,7 @@ export default function BatchActionBar({
         setTimeout(() => {
           setIsProcessing(false);
           setCurrentAction(null);
+          setAbortController(null);
           onClearSelection();
         }, 1500);
       } else {
@@ -221,6 +333,7 @@ export default function BatchActionBar({
         setTimeout(() => {
           setIsProcessing(false);
           setCurrentAction(null);
+          setAbortController(null);
         }, 3000);
       }
     } catch (error) {
@@ -233,6 +346,7 @@ export default function BatchActionBar({
       setTimeout(() => {
         setIsProcessing(false);
         setCurrentAction(null);
+        setAbortController(null);
       }, 3000);
     }
   };
@@ -372,12 +486,23 @@ export default function BatchActionBar({
                 )}
                 <span className="sr-only sm:not-sr-only">Delete</span>
               </Button>
+
+              {/* Cancel Button */}
+              {isProcessing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={handleCancel}
+                >
+                  <Cross2Icon className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only">Cancel</span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Confirm Delete Dialog */}
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
           <DialogHeader>

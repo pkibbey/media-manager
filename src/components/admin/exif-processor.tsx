@@ -45,6 +45,9 @@ export default function ExifProcessor() {
   const [processingEventSource, setProcessingEventSource] =
     useState<EventSource | null>(null);
   const [errorSummary, setErrorSummary] = useState<ErrorSummary>({});
+  // Add abortController state
+  const [abortController, setAbortController] =
+    useState<AbortController | null>(null);
 
   // Load stats on component mount
   useEffect(() => {
@@ -57,8 +60,11 @@ export default function ExifProcessor() {
       if (processingEventSource) {
         processingEventSource.close();
       }
+      if (abortController) {
+        abortController.abort();
+      }
     };
-  }, [processingEventSource]);
+  }, [processingEventSource, abortController]);
 
   const fetchStats = async () => {
     const { success, stats: exifStats } = await getExifStats();
@@ -82,15 +88,49 @@ export default function ExifProcessor() {
         failedCount: 0,
       });
 
+      // Create a new AbortController for this operation
+      const controller = new AbortController();
+      setAbortController(controller);
+
       // Start a Server-Sent Events connection with the skipLargeFiles option
       const params = new URLSearchParams();
       if (skipLargeFiles) {
         params.append('skipLargeFiles', 'true');
       }
+      // Add the abort signal to the URL as a token
+      const abortToken = Math.random().toString(36).substring(2, 15);
+      params.append('abortToken', abortToken);
+
       const url = `/api/media/process-exif${params.toString() ? `?${params.toString()}` : ''}`;
 
       const eventSource = new EventSource(url);
       setProcessingEventSource(eventSource);
+
+      // Add a listener for abort events
+      controller.signal.addEventListener('abort', () => {
+        // Close the event source
+        if (eventSource) {
+          eventSource.close();
+          setProcessingEventSource(null);
+        }
+
+        // Send the abort signal to the server
+        fetch(`/api/media/process-exif/abort?token=${abortToken}`, {
+          method: 'POST',
+        }).catch((err) => console.error('Error sending abort signal:', err));
+
+        // Update UI state
+        setIsStreaming(false);
+        setProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'error',
+                message: 'Processing cancelled by user',
+              }
+            : null,
+        );
+      });
 
       eventSource.onmessage = (event) => {
         try {
@@ -130,12 +170,14 @@ export default function ExifProcessor() {
             eventSource.close();
             setProcessingEventSource(null);
             setIsStreaming(false);
+            setAbortController(null);
             toast.success('EXIF processing completed successfully');
             fetchStats(); // Refresh stats after completion
           } else if (data.status === 'error') {
             eventSource.close();
             setProcessingEventSource(null);
             setIsStreaming(false);
+            setAbortController(null);
             setHasError(true);
             toast.error(`Error processing EXIF data: ${data.error}`);
           }
@@ -148,14 +190,24 @@ export default function ExifProcessor() {
         eventSource.close();
         setProcessingEventSource(null);
         setIsStreaming(false);
+        setAbortController(null);
         setHasError(true);
         toast.error('Connection error while processing EXIF data');
       };
     } catch (error) {
       setIsStreaming(false);
+      setAbortController(null);
       setHasError(true);
       toast.error('Failed to start EXIF processing');
       console.error('Error starting EXIF processing:', error);
+    }
+  };
+
+  // Add handler to cancel processing
+  const handleCancel = () => {
+    if (abortController) {
+      toast.info('Cancelling EXIF processing...');
+      abortController.abort();
     }
   };
 
@@ -192,7 +244,7 @@ export default function ExifProcessor() {
 
   return (
     <div className="overflow-hidden space-y-4">
-      <div className="flex justify-between items-start mb-2">
+      <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">EXIF Processor</h2>
         <div className="text-sm text-muted-foreground">
           {stats.total_processed} / {stats.total} files processed
@@ -241,28 +293,28 @@ export default function ExifProcessor() {
         )}
       </p>
 
-      {isStreaming && progress && (
+      {isStreaming && (
         <div className="mt-4 space-y-2">
           <div className="flex justify-between text-sm gap-4">
-            <span className="truncate">{progress.message}</span>
+            <span className="truncate">{progress?.message}</span>
             <span className="shrink-0">
-              {progress.filesProcessed || 0} / {progress.filesDiscovered || 0}{' '}
+              {progress?.filesProcessed || 0} / {progress?.filesDiscovered || 0}{' '}
               files
             </span>
           </div>
           <Progress value={streamingProgressPercentage} className="h-2" />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Success: {progress.successCount || 0}</span>
-            <span>Failed: {progress.failedCount || 0}</span>
+            <span>Success: {progress?.successCount || 0}</span>
+            <span>Failed: {progress?.failedCount || 0}</span>
           </div>
-          {progress.largeFilesSkipped && progress.largeFilesSkipped > 0 && (
+          {progress?.largeFilesSkipped && progress?.largeFilesSkipped > 0 && (
             <div className="text-xs text-muted-foreground">
-              Skipped {progress.largeFilesSkipped} large files (over 100MB)
+              Skipped {progress?.largeFilesSkipped} large files (over 100MB)
             </div>
           )}
-          {progress.currentFilePath && (
+          {progress?.currentFilePath && (
             <div className="text-xs text-muted-foreground truncate">
-              Current file: {progress.currentFilePath}
+              Current file: {progress?.currentFilePath}
             </div>
           )}
         </div>
@@ -310,6 +362,13 @@ export default function ExifProcessor() {
             ? 'Processing...'
             : 'Process EXIF Data'}
       </Button>
+
+      {/* Add a button to cancel processing */}
+      {isStreaming && (
+        <Button onClick={handleCancel} variant="destructive">
+          Cancel Processing
+        </Button>
+      )}
 
       {/* Display error summary when there are failed items */}
       {((progress?.failedCount && progress.failedCount > 0) ||

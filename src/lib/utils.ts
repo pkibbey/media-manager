@@ -525,3 +525,5 @@ export function guessFileCategory(extension: string): string {
   }
   return 'other';
 }
+
+export const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 50MB in bytes

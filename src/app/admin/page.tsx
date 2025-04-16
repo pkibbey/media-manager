@@ -37,8 +37,12 @@ export default async function AdminPage() {
       value: 'folders',
       label: 'Folders',
       content: (
-        <div className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-6">
+            <ScanFoldersTrigger />
+            <ResetScan />
+          </div>
+          <div className="border-t pt-6 grid md:grid-cols-2 gap-6">
             <AddFolderForm />
             <Suspense fallback={<div>Loading folders...</div>}>
               {foldersSuccess ? (
@@ -58,21 +62,13 @@ export default async function AdminPage() {
       label: 'Processing',
       content: (
         <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-4">
-            <ScanFoldersTrigger />
-            <ResetScan />
+          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-6">
+            <ExifProcessor />
+            <ResetMedia />
           </div>
-          <div className="border-t pt-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-4">
-              <ExifProcessor />
-              <ResetMedia />
-            </div>
-          </div>
-          <div className="border-t pt-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-4">
-              <ThumbnailGenerator />
-              <ResetThumbnails />
-            </div>
+          <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-6">
+            <ThumbnailGenerator />
+            <ResetThumbnails />
           </div>
           <div className="border-t pt-6">
             <TimestampCorrector />
@@ -84,7 +80,7 @@ export default async function AdminPage() {
       value: 'file-types',
       label: 'File Types',
       content: (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <Suspense fallback={<div>Loading file types...</div>}>
             {fileTypesSuccess ? (
               <FileTypeManager fileTypes={fileTypes || []} />
@@ -101,7 +97,7 @@ export default async function AdminPage() {
       value: 'stats',
       label: 'Stats',
       content: (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <Suspense fallback={<div>Loading statistics...</div>}>
             {statsSuccess && mediaStats ? (
               <MediaStats stats={mediaStats} />
@@ -123,7 +119,7 @@ export default async function AdminPage() {
       <PersistentTabs
         defaultValue="folders"
         tabOptions={tabOptions}
-        className="space-y-4"
+        className="space-y-4 gap-6"
       />
     </div>
   );
