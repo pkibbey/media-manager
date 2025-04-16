@@ -106,8 +106,26 @@ export async function getMediaItemsByFolder(
     const supabase = createServerSupabaseClient();
     const offset = (page - 1) * pageSize;
 
+    // Get ignored file extensions first
+    const { data: ignoredTypes } = await supabase
+      .from('file_types')
+      .select('extension')
+      .eq('ignore', true);
+
+    const ignoredExtensions =
+      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+
     // Use pattern matching for subfolders or exact match
     const query = supabase.from('media_items').select('*', { count: 'exact' });
+
+    // Exclude ignored file types
+    if (ignoredExtensions.length > 0) {
+      query.not(
+        'extension',
+        'in',
+        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+      );
+    }
 
     if (includeSubfolders) {
       if (folderPath === '/') {

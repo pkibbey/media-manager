@@ -3,10 +3,12 @@ import ExifProcessor from '@/components/admin/exif-processor';
 import FileTypeManager from '@/components/admin/file-type-manager';
 import FolderList from '@/components/admin/folder-list';
 import MediaStats from '@/components/admin/media-stats';
+import PersistentTabs from '@/components/admin/persistent-tabs';
 import ResetMedia from '@/components/admin/reset-media';
+import ResetThumbnails from '@/components/admin/reset-thumbnails';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
+import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
 import TimestampCorrector from '@/components/admin/timestamp-corrector';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Suspense } from 'react';
 import { getFileTypes } from '../api/actions/file-types';
 import { getScanFolders } from '../api/actions/scan-folders';
@@ -29,19 +31,12 @@ export default async function AdminPage() {
     error: statsError,
   } = await getMediaStats();
 
-  return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-
-      <Tabs defaultValue="folders" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="folders">Folders</TabsTrigger>
-          <TabsTrigger value="processing">Processing</TabsTrigger>
-          <TabsTrigger value="file-types">File Types</TabsTrigger>
-          <TabsTrigger value="stats">Stats</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="folders" className="space-y-4">
+  const tabOptions = [
+    {
+      value: 'folders',
+      label: 'Folders',
+      content: (
+        <div className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <AddFolderForm />
             <Suspense fallback={<div>Loading folders...</div>}>
@@ -54,9 +49,14 @@ export default async function AdminPage() {
               )}
             </Suspense>
           </div>
-        </TabsContent>
-
-        <TabsContent value="processing" className="space-y-6">
+        </div>
+      ),
+    },
+    {
+      value: 'processing',
+      label: 'Processing',
+      content: (
+        <div className="space-y-6">
           <div className="grid gap-4">
             <ScanFoldersTrigger />
           </div>
@@ -64,14 +64,25 @@ export default async function AdminPage() {
             <ExifProcessor />
           </div>
           <div className="border-t pt-6">
+            <ThumbnailGenerator />
+          </div>
+          <div className="border-t pt-6">
+            <ResetThumbnails />
+          </div>
+          <div className="border-t pt-6">
             <TimestampCorrector />
           </div>
           <div className="border-t pt-6">
             <ResetMedia />
           </div>
-        </TabsContent>
-
-        <TabsContent value="file-types" className="space-y-4">
+        </div>
+      ),
+    },
+    {
+      value: 'file-types',
+      label: 'File Types',
+      content: (
+        <div className="space-y-4">
           <Suspense fallback={<div>Loading file types...</div>}>
             {fileTypesSuccess ? (
               <FileTypeManager fileTypes={fileTypes || []} />
@@ -81,9 +92,14 @@ export default async function AdminPage() {
               </div>
             )}
           </Suspense>
-        </TabsContent>
-
-        <TabsContent value="stats" className="space-y-4">
+        </div>
+      ),
+    },
+    {
+      value: 'stats',
+      label: 'Stats',
+      content: (
+        <div className="space-y-4">
           <Suspense fallback={<div>Loading statistics...</div>}>
             {statsSuccess && mediaStats ? (
               <MediaStats stats={mediaStats} />
@@ -93,8 +109,20 @@ export default async function AdminPage() {
               </div>
             )}
           </Suspense>
-        </TabsContent>
-      </Tabs>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+
+      <PersistentTabs
+        defaultValue="folders"
+        tabOptions={tabOptions}
+        className="space-y-4"
+      />
     </div>
   );
 }

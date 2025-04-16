@@ -237,7 +237,10 @@ export async function scanFolders() {
         });
 
         // Get all files in the folder
-        const files = await getAllFiles(folder.path, folder.include_subfolders);
+        const files = await getAllFiles(
+          folder.path,
+          folder.include_subfolders || false,
+        );
         totalFilesDiscovered += files.length;
 
         await sendProgress(writer, {

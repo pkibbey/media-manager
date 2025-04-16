@@ -1,8 +1,9 @@
-import type { Json, MediaItem } from '@/types/supabase';
+import type { MediaItem } from '@/types';
+import type { Json } from '@/types/supabase';
 import { type ClassValue, clsx } from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
+import type { Exif } from 'exif-reader';
 import { twMerge } from 'tailwind-merge';
-import type { ExifData } from './exif-utils';
 
 /**
  * Combines class names with clsx and tailwind-merge
@@ -345,13 +346,11 @@ export function formatGpsCoordinates(
  * @param exifData The EXIF data object
  * @returns Formatted camera string or undefined if not available
  */
-export function formatCameraInfo(
-  exifData?: ExifData | null,
-): string | undefined {
-  if (!exifData) return undefined;
+export function formatCameraInfo(exifData?: Exif | null): string | undefined {
+  if (!exifData || !exifData.Image) return undefined;
 
-  const make = exifData.Make?.trim();
-  const model = exifData.Model?.trim();
+  const make = exifData.Image.Make?.toString().trim();
+  const model = exifData.Image.Model?.toString().trim();
 
   if (make && model) {
     // Remove redundant manufacturer name from model if present
@@ -369,11 +368,12 @@ export function formatCameraInfo(
  * @param exifData The EXIF data object
  * @returns Formatted lens string or undefined if not available
  */
-export function formatLensInfo(exifData?: ExifData | null): string | undefined {
+export function formatLensInfo(exifData?: Exif | null): string | undefined {
   if (!exifData) return undefined;
 
-  const lensModel = exifData.LensModel?.trim();
-  const lensMake = exifData.LensMake?.trim();
+  // Lens information is typically stored in Photo section
+  const lensModel = exifData.Photo?.LensModel?.toString().trim();
+  const lensMake = exifData.Photo?.LensMake?.toString().trim();
 
   if (lensModel) {
     if (lensMake && !lensModel.includes(lensMake)) {
@@ -383,9 +383,9 @@ export function formatLensInfo(exifData?: ExifData | null): string | undefined {
   }
 
   // If no specific lens model, try LensInfo array
-  const lensInfo = exifData.LensInfo;
+  const lensInfo = exifData.Photo?.LensSpecification;
   if (Array.isArray(lensInfo) && lensInfo.length > 0) {
-    return lensInfo.join(' ');
+    return `${lensInfo[0]}-${lensInfo[1]}mm f/${lensInfo[2]}-${lensInfo[3]}`;
   }
 
   return undefined;
@@ -396,34 +396,49 @@ export function formatLensInfo(exifData?: ExifData | null): string | undefined {
  * @param exifData The EXIF data object
  * @returns Formatted exposure string or undefined if not available
  */
-export function formatExposureInfo(
-  exifData?: ExifData | null,
-): string | undefined {
+export function formatExposureInfo(exifData?: Exif | null): string | undefined {
   if (!exifData) return undefined;
 
   const parts: string[] = [];
 
   // Format aperture (f-stop)
-  if (exifData.ApertureValue) {
-    parts.push(`f/${exifData.ApertureValue.toFixed(1)}`);
+  if (exifData.Photo?.ApertureValue) {
+    parts.push(`ƒ/${exifData.Photo.ApertureValue.toFixed(1)}`);
+  } else if (exifData.Photo?.FNumber) {
+    parts.push(`ƒ/${exifData.Photo.FNumber.toFixed(1)}`);
   }
 
   // Format shutter speed
-  if (exifData.ShutterSpeedValue) {
-    // Convert to fraction if needed
-    const shutterSpeed = exifData.ShutterSpeedValue;
-    if (shutterSpeed < 1) {
+  if (exifData.Photo?.ShutterSpeedValue) {
+    const shutterSpeed = exifData.Photo.ShutterSpeedValue;
+    // ShutterSpeedValue is often stored as APEX value (log2-based)
+    // Convert from APEX to seconds: 2^(-ShutterSpeedValue)
+    // biome-ignore lint/style/useExponentiationOperator: <explanation>
+    const seconds = Math.pow(2, -shutterSpeed);
+
+    if (seconds < 1) {
       // Calculate denominator for fraction (1/x)
-      const denominator = Math.round(1 / shutterSpeed);
+      const denominator = Math.round(1 / seconds);
       parts.push(`1/${denominator}s`);
     } else {
-      parts.push(`${shutterSpeed.toFixed(1)}s`);
+      parts.push(`${seconds.toFixed(1)}s`);
+    }
+  } else if (exifData.Photo?.ExposureTime) {
+    const exposureTime = exifData.Photo.ExposureTime;
+    if (exposureTime < 1) {
+      const denominator = Math.round(1 / exposureTime);
+      parts.push(`1/${denominator}s`);
+    } else {
+      parts.push(`${exposureTime.toFixed(1)}s`);
     }
   }
 
   // Format ISO
-  if (exifData.ISO) {
-    parts.push(`ISO ${exifData.ISO}`);
+  if (exifData.Photo?.ISOSpeedRatings) {
+    const iso = Array.isArray(exifData.Photo.ISOSpeedRatings)
+      ? exifData.Photo.ISOSpeedRatings[0]
+      : exifData.Photo.ISOSpeedRatings;
+    parts.push(`ISO ${iso}`);
   }
 
   return parts.length > 0 ? parts.join(', ') : undefined;
@@ -434,13 +449,11 @@ export function formatExposureInfo(
  * @param exifData The EXIF data object
  * @returns Formatted focal length string or undefined if not available
  */
-export function formatFocalLength(
-  exifData?: ExifData | null,
-): string | undefined {
-  if (!exifData) return undefined;
+export function formatFocalLength(exifData?: Exif | null): string | undefined {
+  if (!exifData || !exifData.Photo) return undefined;
 
-  const focalLength = exifData.FocalLength;
-  const focalLengthIn35mm = exifData.FocalLengthIn35mmFormat;
+  const focalLength = exifData.Photo.FocalLength;
+  const focalLengthIn35mm = exifData.Photo.FocalLengthIn35mmFilm;
 
   if (focalLength) {
     if (focalLengthIn35mm && focalLength !== focalLengthIn35mm) {
@@ -455,18 +468,18 @@ export function formatFocalLength(
 /**
  * Helper function to properly type exif_data from database
  * @param item MediaItem from database
- * @returns Strongly typed ExifData object or null
+ * @returns Strongly typed Exif object or null
  */
-export function getExifData(item: MediaItem): ExifData | null {
-  return item.exif_data as ExifData | null;
+export function getExifData(item: MediaItem): Exif | null {
+  return item.exif_data as Exif | null;
 }
 
 /**
- * Safely converts ExifData to Json for database storage
- * @param data ExifData object
+ * Safely converts Exif to Json for database storage
+ * @param data Exif object
  * @returns Json type for database storage
  */
-export function exifDataToJson(data: ExifData): Json {
+export function exifDataToJson(data: Exif): Json {
   return data as unknown as Json;
 }
 

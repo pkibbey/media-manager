@@ -40,8 +40,6 @@ export default function TimestampCorrector() {
           updated: result.updated,
           percent,
         });
-
-        console.log(result.message || 'Timestamps updated successfully');
       } else {
         console.error(result.error || 'Failed to update timestamps');
       }

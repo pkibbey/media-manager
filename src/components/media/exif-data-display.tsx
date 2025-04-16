@@ -7,51 +7,100 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { formatGpsCoordinates, getGoogleMapsUrl } from '@/lib/utils';
-import type { ExifData } from '@/types';
+import {
+  formatExposureInfo,
+  formatFocalLength,
+  formatGpsCoordinates,
+  getGoogleMapsUrl,
+} from '@/lib/utils';
 import { ExternalLinkIcon, GlobeIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
+import type { Exif } from 'exif-reader';
 
 interface ExifDataDisplayProps {
-  // Now we can use our strongly typed ExifData interface
-  metadata: ExifData;
-  // Direct extracted fields
+  exifData: Exif;
   mediaDate?: string | null;
   dimensions?: { width?: number; height?: number } | null;
 }
 
+/**
+ * Helper function to convert GPS coordinates from DMS format to decimal degrees
+ */
+function calculateGpsDecimal(
+  coordinates: number[] | undefined,
+  ref: string | undefined,
+): number | undefined {
+  if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) {
+    return undefined;
+  }
+
+  // Calculate decimal degrees from degrees, minutes, seconds
+  let decimal = coordinates[0] + coordinates[1] / 60 + coordinates[2] / 3600;
+
+  // Apply negative value for South or West references
+  if (ref === 'S' || ref === 'W') {
+    decimal = -decimal;
+  }
+
+  return decimal;
+}
+
 export default function ExifDataDisplay({
-  metadata,
+  exifData,
   mediaDate,
   dimensions,
 }: ExifDataDisplayProps) {
   // Format the media date if available
   const formattedDate = mediaDate ? format(new Date(mediaDate), 'PPpp') : null;
 
-  // Extract metadata fields and convert them
-  //  - camera
-  //  - lens
-  //  - exposureInfo
-  //  - focalLength
-  //  - coordinates
-  const camera = metadata.Model;
-  const lens = metadata.LensModel;
+  // Extract exifData fields using proper Exif type nested properties
+  const cameraModel = exifData.Image?.Model
+    ? exifData.Image?.Make
+      ? `${exifData.Image.Make.toString().trim()} ${exifData.Image.Model.toString().trim()}`
+      : exifData.Image.Model.toString().trim()
+    : exifData.Image?.Make?.toString().trim();
 
-  const exposureInfo = metadata.ShutterSpeedValue
-    ? `ƒ${metadata.ApertureValue} ${metadata.FocalLength} ${metadata.ShutterSpeedValue}`
-    : null;
-  const focalLength = metadata.FocalLength
-    ? `${metadata.FocalLength} mm`
-    : null;
+  const lens =
+    exifData.Photo?.LensModel?.toString().trim() ||
+    (exifData.Photo?.LensSpecification
+      ? `${exifData.Photo.LensSpecification[0]}-${exifData.Photo.LensSpecification[1]}mm f/${exifData.Photo.LensSpecification[2]}-${exifData.Photo.LensSpecification[3]}`
+      : null);
+
+  // Use formatExposureInfo utility function instead of manual formatting
+  const exposureInfo = formatExposureInfo(exifData);
+
+  // Use formatFocalLength utility function instead of manual formatting
+  const focalLength = formatFocalLength(exifData);
 
   // Format the GPS coordinates if available
   const formattedCoordinates =
-    metadata.latitude !== undefined && metadata.longitude !== undefined
-      ? formatGpsCoordinates(metadata.latitude, metadata.longitude)
+    exifData.GPSInfo?.GPSLatitude && exifData.GPSInfo?.GPSLongitude
+      ? formatGpsCoordinates(
+          calculateGpsDecimal(
+            exifData.GPSInfo.GPSLatitude,
+            exifData.GPSInfo.GPSLatitudeRef,
+          ),
+          calculateGpsDecimal(
+            exifData.GPSInfo.GPSLongitude,
+            exifData.GPSInfo.GPSLongitudeRef,
+          ),
+        )
       : null;
 
   // Get Google Maps URL if coordinates are available
-  const mapsUrl = getGoogleMapsUrl(metadata.latitude, metadata.longitude);
+  const mapsUrl =
+    exifData.GPSInfo?.GPSLatitude && exifData.GPSInfo?.GPSLongitude
+      ? getGoogleMapsUrl(
+          calculateGpsDecimal(
+            exifData.GPSInfo.GPSLatitude,
+            exifData.GPSInfo.GPSLatitudeRef,
+          ),
+          calculateGpsDecimal(
+            exifData.GPSInfo.GPSLongitude,
+            exifData.GPSInfo.GPSLongitudeRef,
+          ),
+        )
+      : null;
 
   // Format dimensions
   const formattedDimensions =
@@ -62,7 +111,7 @@ export default function ExifDataDisplay({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Image Metadata</CardTitle>
+        <CardTitle>Image Exif Data</CardTitle>
         <CardDescription>
           Technical information extracted from the image file
         </CardDescription>
@@ -87,10 +136,10 @@ export default function ExifDataDisplay({
           )}
 
           {/* Camera */}
-          {camera && (
+          {cameraModel && (
             <div>
               <div className="font-medium">Camera</div>
-              <div>{camera}</div>
+              <div>{cameraModel}</div>
             </div>
           )}
 
@@ -140,16 +189,16 @@ export default function ExifDataDisplay({
             </div>
           )}
 
-          {/* Additional Metadata - Only if important fields aren't directly provided */}
-          {metadata && Object.keys(metadata).length > 0 && (
+          {/* Additional Exif Data - Only if important fields aren't directly provided */}
+          {exifData && Object.keys(exifData).length > 0 && (
             <div className="col-span-full mt-4 pt-4 border-t">
               <details className="text-xs">
                 <summary className="font-medium cursor-pointer">
-                  Additional Metadata
+                  Additional Exif Data
                 </summary>
                 <div className="mt-2 bg-muted/50 p-3 rounded-md overflow-x-auto">
                   <pre className="whitespace-pre-wrap break-words">
-                    {JSON.stringify(metadata, null, 2)}
+                    {JSON.stringify(exifData, null, 2)}
                   </pre>
                 </div>
               </details>

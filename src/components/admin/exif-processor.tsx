@@ -13,30 +13,54 @@ export default function ExifProcessor() {
     total: 0,
     percent: 0,
   });
+  const [statusMessage, setStatusMessage] = useState('');
 
   const handleProcessBatch = async (batchSize: number) => {
     if (isProcessing) return;
 
     setIsProcessing(true);
     setProgress({ processed: 0, total: 0, percent: 0 });
+    setStatusMessage(`Starting to process ${batchSize} items...`);
 
     try {
+      // First, set an estimate of the total to give immediate feedback
+      setProgress({ processed: 0, total: batchSize, percent: 0 });
+
       const result = await processAllUnprocessedItems(batchSize);
 
       if (result.success) {
+        // Make sure we're using the correct values from the result
+        const processedCount = result.processed;
+        const totalCount = result.total;
+
+        // Calculate percentage correctly
+        const percentComplete = totalCount
+          ? Math.round((processedCount / totalCount) * 100)
+          : 100;
+
         setProgress({
-          processed: result.processed || 0,
-          total: result.total || 0,
-          percent: result.total
-            ? Math.round(((result.processed || 0) / result.total) * 100)
-            : 100,
+          processed: processedCount,
+          total: totalCount,
+          percent: percentComplete,
         });
 
-        console.log(result.message || 'Processing complete');
+        setStatusMessage(
+          result.message ||
+            `Processed ${processedCount} of ${totalCount} items.`,
+        );
+
+        // Log for debugging
+        console.log('Processing complete:', {
+          processed: processedCount,
+          total: totalCount,
+          percent: percentComplete,
+        });
       } else {
+        setStatusMessage(result.message || 'Processing failed');
         console.error(result.message || 'Processing failed');
       }
     } catch (error) {
+      setStatusMessage('Error processing batch');
       console.error('Error processing batch:', error);
     } finally {
       setIsProcessing(false);
@@ -49,7 +73,7 @@ export default function ExifProcessor() {
         <div>
           <h3 className="text-lg font-medium">EXIF Data Processing</h3>
           <p className="text-sm text-muted-foreground">
-            Extract metadata from images and videos to enhance organization
+            Extract exifData from images and videos to enhance organization
             capabilities.
           </p>
         </div>
@@ -62,14 +86,16 @@ export default function ExifProcessor() {
             details, date taken, and GPS coordinates.
           </p>
 
-          {isProcessing && (
-            <div className="space-y-2">
-              <Progress value={progress.percent} className="h-2" />
-              <p className="text-xs text-center text-muted-foreground">
-                Processed {progress.processed} of {progress.total} items
-              </p>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Progress value={progress.percent} className="h-2" />
+            <p className="text-xs text-center text-muted-foreground">
+              {isProcessing
+                ? `Processing... ${progress.processed} of ${progress.total} items`
+                : progress.processed > 0
+                  ? statusMessage
+                  : 'No items processed yet'}
+            </p>
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button

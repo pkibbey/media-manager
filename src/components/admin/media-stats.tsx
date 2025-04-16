@@ -23,6 +23,7 @@ interface MediaStats {
   unprocessedCount: number;
   organizedCount: number;
   unorganizedCount: number;
+  ignoredCount: number; // Count of files with ignored file types
 }
 
 interface MediaStatsProps {
@@ -30,7 +31,7 @@ interface MediaStatsProps {
 }
 
 export default function MediaStats({ stats }: MediaStatsProps) {
-  // Calculate percentages for progress bars
+  // Calculate percentages for progress bars - using only non-ignored files
   const processedPercentage =
     stats.totalMediaItems > 0
       ? (stats.processedCount / stats.totalMediaItems) * 100
@@ -47,6 +48,9 @@ export default function MediaStats({ stats }: MediaStatsProps) {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
   };
+
+  // Calculate total count including ignored files (for UI display)
+  const totalWithIgnored = stats.totalMediaItems + stats.ignoredCount;
 
   // Function to get appropriate icon for a category
   const getCategoryIcon = (category: string) => {
@@ -73,6 +77,9 @@ export default function MediaStats({ stats }: MediaStatsProps) {
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Total Media</div>
           <div className="text-2xl font-bold">{stats.totalMediaItems}</div>
+          <div className="text-xs text-muted-foreground">
+            {totalWithIgnored} including ignored files
+          </div>
         </div>
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Total Size</div>

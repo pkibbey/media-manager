@@ -2,34 +2,52 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { ExifData } from '@/types';
-import exifr from 'exifr';
+import exifReader, { type Exif } from 'exif-reader';
 
 /**
- * Extracts EXIF data from an image file
+ * Extracts EXIF data from an image file using exif-reader
  * @param filePath Path to the image file
  * @returns Promise resolving to EXIF data or null if extraction fails
  */
-export async function extractExifData(
-  filePath: string,
-): Promise<ExifData | null> {
+export async function extractMetadata(filePath: string): Promise<Exif | null> {
   try {
-    // Use exifr to parse the file
-    const data = await exifr.parse(filePath, {
-      // Customize which tags to extract
-      gps: true, // Include GPS data
-      tiff: true, // Include TIFF data
-      exif: true, // Include EXIF data
-      iptc: true, // Include IPTC data
-      xmp: true, // Include XMP data
-      icc: false, // Exclude ICC data (color profiles) to reduce size
-      jfif: false, // Exclude JFIF data to reduce size
-      mergeOutput: true, // Merge all data into a single object
-    });
+    // Read the file as a buffer
+    const fileBuffer = await fs.readFile(filePath);
+    let exifData = null;
 
-    return data || null;
+    try {
+      // Try to extract EXIF data from the buffer
+      exifData = exifReader(fileBuffer);
+    } catch (error) {
+      // If the direct extraction fails, try to find the EXIF marker
+      try {
+        // JPEG files typically have EXIF data starting after the APP1 marker (0xFFE1)
+        const app1Marker = Buffer.from([0xff, 0xe1]);
+        const markerIndex = fileBuffer.indexOf(app1Marker);
+
+        if (markerIndex !== -1) {
+          // Extract EXIF data block - skip the marker (2 bytes) and length (2 bytes)
+          const exifBlock = fileBuffer.slice(markerIndex + 4);
+          exifData = exifReader(exifBlock);
+          return exifData;
+        }
+      } catch (innerError) {
+        console.error('Error extracting EXIF data:', innerError);
+        return null;
+      }
+    }
+
+    if (!exifData) {
+      return null;
+    }
+
+    // Add file format information to the EXIF data for consistency
+    const format = path.extname(filePath).substring(1).toLowerCase();
+
+    // Convert exifReader format to match what our application expects
+    return exifData;
   } catch (error) {
-    console.error('Error extracting EXIF data:', error);
+    console.error('Error reading file or extracting EXIF data:', error);
     return null;
   }
 }
@@ -42,21 +60,28 @@ export async function extractExifData(
  */
 export async function extractDateFromMediaFile(
   filePath: string,
-  exifData?: ExifData | null,
+  exifData?: Exif | null,
 ): Promise<Date | null> {
-  let newExifData: ExifData | null = null;
+  let newMetadata: Exif | null = null;
 
   // 1. Try to get EXIF data if not provided
   if (!exifData) {
-    newExifData = await extractExifData(filePath);
+    newMetadata = await extractMetadata(filePath);
+  } else {
+    newMetadata = exifData;
   }
 
   // 2. Try to get date from EXIF data
-  if (newExifData) {
-    // Priority order for date fields
-    if (newExifData.DateTimeOriginal) return newExifData.DateTimeOriginal;
-    if (newExifData.CreateDate) return newExifData.CreateDate;
-    if (newExifData.ModifyDate) return newExifData.ModifyDate;
+  if (newMetadata) {
+    // Priority order for date fields - check nested Photo structure first
+    if (newMetadata.Photo?.DateTimeOriginal) {
+      return newMetadata.Photo.DateTimeOriginal;
+    }
+
+    // Then check Image section for DateTime
+    if (newMetadata.Image?.DateTime) {
+      return newMetadata.Image.DateTime;
+    }
   }
 
   // 3. Try to extract date from filename using common patterns

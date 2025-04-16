@@ -23,6 +23,10 @@ export default function MediaCard({ item, index, onClick }: MediaCardProps) {
   // Get folder name for display in subfolder mode
   const folderName = item.folder_path.split('/').filter(Boolean).pop();
 
+  // Use the stored thumbnail if available, otherwise generate on-demand
+  const thumbnailSrc =
+    item.thumbnail_path || `/api/media?id=${item.id}&thumbnail=true`;
+
   return (
     <div
       className="group relative bg-muted rounded-md overflow-hidden cursor-pointer transition-all"
@@ -37,7 +41,7 @@ export default function MediaCard({ item, index, onClick }: MediaCardProps) {
         {isImage ? (
           <div className="w-full h-full relative">
             <Image
-              src={`/api/media?id=${item.id}&thumbnail=true`}
+              src={thumbnailSrc}
               alt={item.file_name}
               fill
               className="object-cover"
@@ -61,12 +65,20 @@ export default function MediaCard({ item, index, onClick }: MediaCardProps) {
           </div>
         )}
 
-        {/* Metadata indicators */}
+        {/* Thumbnail indicator */}
+        {item.thumbnail_path && (
+          <div
+            className="absolute bottom-2 left-2 h-2 w-2 rounded-full bg-purple-500"
+            title="Using pre-generated thumbnail"
+          />
+        )}
+
+        {/* ExifData indicators */}
         <div className="absolute top-2 right-2 flex gap-1">
           {isProcessed && (
             <div
               className="h-2 w-2 rounded-full bg-green-500"
-              title="Metadata processed"
+              title="ExifData processed"
             />
           )}
           {item.exif_data && (

@@ -15,8 +15,26 @@ export async function browseMedia(
     const supabase = createServerSupabaseClient();
     const offset = (page - 1) * pageSize;
 
+    // Get ignored file extensions first
+    const { data: ignoredTypes } = await supabase
+      .from('file_types')
+      .select('extension')
+      .eq('ignore', true);
+
+    const ignoredExtensions =
+      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+
     // Build query with filters
     let query = supabase.from('media_items').select('*', { count: 'exact' });
+
+    // Exclude ignored file types
+    if (ignoredExtensions.length > 0) {
+      query = query.not(
+        'extension',
+        'in',
+        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+      );
+    }
 
     // Apply filters
     if (filters.search) {
@@ -164,9 +182,28 @@ export async function getExtensionCounts() {
   try {
     const supabase = createServerSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('media_items')
-      .select('extension');
+    // Get ignored file extensions first
+    const { data: ignoredTypes } = await supabase
+      .from('file_types')
+      .select('extension')
+      .eq('ignore', true);
+
+    const ignoredExtensions =
+      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+
+    // Get all media items, excluding ignored extensions
+    let query = supabase.from('media_items').select('extension');
+
+    // Exclude ignored file types
+    if (ignoredExtensions.length > 0) {
+      query = query.not(
+        'extension',
+        'in',
+        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+      );
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching extensions:', error);

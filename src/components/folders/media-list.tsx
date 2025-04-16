@@ -28,7 +28,7 @@ export default function MediaList({ items }: MediaListProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] lg:grid-cols-[1fr_700px] gap-4">
       <div
         className={
           'select-none grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 transition-all duration-300'

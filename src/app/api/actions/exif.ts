@@ -1,10 +1,32 @@
 'use server';
 import fs from 'node:fs/promises';
-import { extractExifData } from '@/lib/exif-utils';
+import { extractMetadata } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { extractDateFromFilename } from '@/lib/utils';
 import type { Json } from '@/types/supabase';
 import { revalidatePath } from 'next/cache';
+
+/**
+ * Helper function to convert GPS coordinates from DMS format to decimal degrees
+ */
+function calculateGpsDecimal(
+  coordinates: number[] | undefined,
+  ref: string | undefined,
+): number | undefined {
+  if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) {
+    return undefined;
+  }
+
+  // Calculate decimal degrees from degrees, minutes, seconds
+  let decimal = coordinates[0] + coordinates[1] / 60 + coordinates[2] / 3600;
+
+  // Apply negative value for South or West references
+  if (ref === 'S' || ref === 'W') {
+    decimal = -decimal;
+  }
+
+  return decimal;
+}
 
 export async function processMediaExif(mediaId: string, filePath: string) {
   try {
@@ -15,62 +37,25 @@ export async function processMediaExif(mediaId: string, filePath: string) {
     await fs.access(filePath);
 
     // Extract EXIF data from the file
-    const exifData = await extractExifData(filePath);
+    const exifData = await extractMetadata(filePath);
 
     if (!exifData) {
       return { success: false, message: 'No EXIF data could be extracted' };
     }
 
-    // Prepare metadata for storage - clean up and normalize the data
-    const metadata: Json = {
-      camera: {
-        make: exifData.Make,
-        model: exifData.Model,
-        software: exifData.Software,
-      },
-      datetime: {
-        created: (
-          exifData.CreateDate || exifData.DateTimeOriginal
-        )?.toISOString(),
-        modified: exifData.ModifyDate?.toISOString(),
-      },
-      settings: {
-        iso: exifData.ISO,
-        shutterSpeed: exifData.ShutterSpeedValue,
-        aperture: exifData.ApertureValue,
-        focalLength: exifData.FocalLength,
-        focalLengthIn35mm: exifData.FocalLengthIn35mmFormat,
-      },
-      lens: {
-        make: exifData.LensMake,
-        model: exifData.LensModel,
-        info: exifData.LensInfo,
-      },
-      image: {
-        width: exifData.ImageWidth,
-        height: exifData.ImageHeight,
-        orientation: exifData.Orientation,
-      },
-      location:
-        exifData.latitude && exifData.longitude
-          ? {
-              latitude: exifData.latitude,
-              longitude: exifData.longitude,
-              altitude: exifData.GPSAltitude,
-            }
-          : null,
-      copyright: exifData.Copyright,
-      artist: exifData.Artist,
-    };
-
     // Update the media record in the database
     const { error } = await supabase
       .from('media_items')
       .update({
-        exif_data: metadata,
+        exif_data: exifData as Json,
         has_exif: true,
-        media_date: exifData.CreateDate?.toISOString(),
-        // Note: location is stored as text in the database, so we'll omit it for now
+        // Use correct date property from Photo section
+        media_date:
+          exifData.Photo?.DateTimeOriginal?.toISOString() ||
+          exifData.Image?.DateTime?.toISOString(),
+        // Get dimensions from the Image section
+        width: exifData.Photo?.PixelXDimension,
+        height: exifData.Photo?.PixelYDimension,
       })
       .eq('id', mediaId);
 
@@ -87,7 +72,7 @@ export async function processMediaExif(mediaId: string, filePath: string) {
     return {
       success: true,
       message: 'EXIF data extracted and stored successfully',
-      metadata,
+      exifData,
     };
   } catch (error) {
     console.error('Error processing EXIF data:', error);
@@ -426,7 +411,7 @@ export async function processExifData(mediaId: string) {
     await fs.access(filePath);
 
     // Extract EXIF data from the file
-    const exifData = await extractExifData(filePath);
+    const exifData = await extractMetadata(filePath);
 
     // Even if we don't get EXIF data, mark the file as processed
     if (!exifData) {
@@ -446,58 +431,17 @@ export async function processExifData(mediaId: string) {
       };
     }
 
-    // Prepare metadata for storage - clean up and normalize the data
-    const metadata: Json = {
-      camera: {
-        make: exifData.Make,
-        model: exifData.Model,
-        software: exifData.Software,
-      },
-      datetime: {
-        created: (
-          exifData.CreateDate || exifData.DateTimeOriginal
-        )?.toISOString(),
-        modified: exifData.ModifyDate?.toISOString(),
-      },
-      settings: {
-        iso: exifData.ISO,
-        shutterSpeed: exifData.ShutterSpeedValue,
-        aperture: exifData.ApertureValue,
-        focalLength: exifData.FocalLength,
-        focalLengthIn35mm: exifData.FocalLengthIn35mmFormat,
-      },
-      lens: {
-        make: exifData.LensMake,
-        model: exifData.LensModel,
-        info: exifData.LensInfo,
-      },
-      image: {
-        width: exifData.ImageWidth,
-        height: exifData.ImageHeight,
-        orientation: exifData.Orientation,
-      },
-      location:
-        exifData.latitude && exifData.longitude
-          ? {
-              latitude: exifData.latitude,
-              longitude: exifData.longitude,
-              altitude: exifData.GPSAltitude,
-            }
-          : null,
-      copyright: exifData.Copyright,
-      artist: exifData.Artist,
-    };
-
     // Update the media record in the database
     const { error } = await supabase
       .from('media_items')
       .update({
-        exif_data: metadata,
+        exif_data: exifData as Json,
         has_exif: true,
         processed: true,
-        media_date: exifData.CreateDate?.toISOString(),
-        latitude: exifData.latitude,
-        longitude: exifData.longitude,
+        // Use correct date property from Photo section
+        media_date:
+          exifData.Photo?.DateTimeOriginal?.toISOString() ||
+          exifData.Image?.DateTime?.toISOString(),
       })
       .eq('id', mediaId);
 
@@ -509,7 +453,7 @@ export async function processExifData(mediaId: string) {
     return {
       success: true,
       message: 'EXIF data extracted and stored successfully',
-      metadata,
+      exifData,
     };
   } catch (error) {
     console.error('Error processing EXIF data:', error);

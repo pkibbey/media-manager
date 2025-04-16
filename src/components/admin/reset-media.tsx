@@ -79,7 +79,7 @@ export function ResetMedia() {
             <DialogTitle>Reset All Media Items?</DialogTitle>
             <DialogDescription>
               This action will mark all media items as unprocessed. You'll need
-              to run the metadata processing again to extract EXIF data. This
+              to run the exifData processing again to extract EXIF data. This
               action cannot be undone.
             </DialogDescription>
           </DialogHeader>

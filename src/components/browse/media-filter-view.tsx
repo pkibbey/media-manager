@@ -459,10 +459,10 @@ export default function MediaFilterView({
                 name="processed"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Metadata Status</FormLabel>
+                    <FormLabel>ExifData Status</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Metadata status" />
+                        <SelectValue placeholder="ExifData status" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All files</SelectItem>

@@ -14,102 +14,108 @@ export async function getMediaStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get total count of media items
-    const { count: totalCount, error: countError } = await supabase
+    // Get ignored file extensions first
+    const { data: ignoredTypes } = await supabase
+      .from('file_types')
+      .select('extension')
+      .eq('ignore', true);
+
+    const ignoredExtensions =
+      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+
+    // Get all media items statistics
+    const { data: allItems, error: countError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact', head: true });
+      .select('*');
 
     if (countError) {
-      console.error('Error counting media items:', countError);
+      console.error('Error fetching media items:', countError);
       return { success: false, error: countError.message };
     }
 
-    // Get sum of all file sizes
-    const { data: sizeData, error: sizeError } = await supabase
-      .from('media_items')
-      .select('size_bytes')
-      .returns<{ size_bytes: number }[]>();
-
-    if (sizeError) {
-      console.error('Error getting file sizes:', sizeError);
-      return { success: false, error: sizeError.message };
-    }
-
-    const totalSizeBytes = sizeData.reduce(
-      (acc, item) => acc + item.size_bytes,
-      0,
-    );
-
-    // Get item counts by category
-    const { data: fileTypeData, error: fileTypeError } = await supabase
-      .from('file_types')
-      .select('extension, category');
-
-    if (fileTypeError) {
-      console.error('Error getting file types:', fileTypeError);
-      return { success: false, error: fileTypeError.message };
-    }
-
-    const extensionToCategory = fileTypeData.reduce(
-      (acc, item) => {
-        acc[item.extension] = item.category;
-        return acc;
-      },
-      {} as Record<string, string>,
-    );
-
-    // Get the count of items by extension
-    const { data: extensionData, error: extensionError } = await supabase
-      .from('media_items')
-      .select('extension');
-
-    if (extensionError) {
-      console.error('Error getting media extensions:', extensionError);
-      return { success: false, error: extensionError.message };
-    }
-
-    // Count items by extension
-    const itemsByExtension: Record<string, number> = {};
-    extensionData.forEach((item) => {
-      const extension = item.extension;
-      itemsByExtension[extension] = (itemsByExtension[extension] || 0) + 1;
-    });
-
-    // Count items by category using the mapping
+    // Calculate total size
+    let totalSizeBytes = 0;
     const itemsByCategory: Record<string, number> = {};
-    extensionData.forEach((item) => {
-      const extension = item.extension;
-      const category = extensionToCategory[extension] || 'Other';
+    const itemsByExtension: Record<string, number> = {};
+
+    // Count for non-ignored files
+    let totalNonIgnoredCount = 0;
+    let processedCount = 0;
+    let unprocessedCount = 0;
+    let organizedCount = 0;
+    let unorganizedCount = 0;
+    let ignoredCount = 0;
+
+    allItems?.forEach((item) => {
+      // Add to total size
+      totalSizeBytes += item.size_bytes || 0;
+
+      // Extension stats
+      const ext = item.extension.toLowerCase();
+      itemsByExtension[ext] = (itemsByExtension[ext] || 0) + 1;
+
+      // Category stats
+      const typeMapping: Record<string, string[]> = {
+        image: [
+          'jpg',
+          'jpeg',
+          'png',
+          'gif',
+          'webp',
+          'avif',
+          'heic',
+          'tiff',
+          'raw',
+          'bmp',
+          'svg',
+        ],
+        video: ['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'mkv', 'flv', 'm4v'],
+        data: ['json', 'xml', 'txt', 'csv', 'xmp'],
+      };
+
+      let category = 'other';
+      Object.entries(typeMapping).forEach(([cat, extensions]) => {
+        if (extensions.includes(ext)) {
+          category = cat;
+        }
+      });
+
       itemsByCategory[category] = (itemsByCategory[category] || 0) + 1;
+
+      // Check if this is an ignored file type
+      const isIgnored = ignoredExtensions.includes(ext);
+
+      if (isIgnored) {
+        ignoredCount++;
+      } else {
+        // Only count non-ignored files for progress tracking
+        totalNonIgnoredCount++;
+
+        // Process and organization stats
+        if (item.processed) {
+          processedCount++;
+        } else {
+          unprocessedCount++;
+        }
+
+        if (item.organized) {
+          organizedCount++;
+        } else {
+          unorganizedCount++;
+        }
+      }
     });
-
-    // Get counts for processed and organized items
-    const { data: processedData, error: processedError } = await supabase
-      .from('media_items')
-      .select('processed, organized')
-      .returns<{ processed: boolean; organized: boolean }[]>();
-
-    if (processedError) {
-      console.error('Error getting processed status:', processedError);
-      return { success: false, error: processedError.message };
-    }
-
-    const processedCount = processedData.filter(
-      (item) => item.processed,
-    ).length;
-    const organizedCount = processedData.filter(
-      (item) => item.organized,
-    ).length;
 
     const mediaStats: MediaStats = {
-      totalMediaItems: totalCount || 0,
+      totalMediaItems: totalNonIgnoredCount,
       totalSizeBytes,
       itemsByCategory,
       itemsByExtension,
       processedCount,
-      unprocessedCount: (totalCount || 0) - processedCount,
+      unprocessedCount,
       organizedCount,
-      unorganizedCount: (totalCount || 0) - organizedCount,
+      unorganizedCount,
+      ignoredCount,
     };
 
     return { success: true, data: mediaStats };
@@ -144,7 +150,7 @@ export async function clearAllMediaItems(): Promise<{
     const { error: deleteError } = await supabase
       .from('media_items')
       .delete()
-      .neq('id', ''); // Always true condition to delete all
+      .filter('id', 'not.is', null); // Select all non-null IDs (all rows)
 
     if (deleteError) {
       console.error('Error deleting media items:', deleteError);
@@ -184,7 +190,6 @@ export async function resetAllMediaItems(): Promise<{
     }
 
     // Reset all media items by marking them as unprocessed
-    // Use filter TRUE to select all rows instead of .neq('id', '')
     const { error: updateError } = await supabase
       .from('media_items')
       .update({

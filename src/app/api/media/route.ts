@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { needsConversion } from '@/lib/utils';
+import { guessFileCategory, needsConversion } from '@/lib/utils';
 import ffmpeg from 'fluent-ffmpeg';
 import { lookup } from 'mime-types';
 import { type NextRequest, NextResponse } from 'next/server';
@@ -64,10 +64,10 @@ export async function GET(request: NextRequest) {
       .extname(mediaItem.file_path)
       .substring(1)
       .toLowerCase();
-    const requiresConversion =
-      mediaItem.needs_conversion || needsConversion(fileExtension);
-    const isImage = mediaItem.type === 'image';
-    const isVideo = mediaItem.type === 'video';
+    const requiresConversion = needsConversion(fileExtension);
+    const type = guessFileCategory(fileExtension);
+    const isImage = type === 'image';
+    const isVideo = type === 'video';
 
     // Handle thumbnails (always convert to webp for efficiency)
     if (thumbnail) {
