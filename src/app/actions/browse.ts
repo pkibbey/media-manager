@@ -15,25 +15,48 @@ export async function browseMedia(
     const supabase = createServerSupabaseClient();
     const offset = (page - 1) * pageSize;
 
-    // Get ignored file extensions first
-    const { data: ignoredTypes } = await supabase
+    // Get all file type information in a single query (for ignored types and categories)
+    const { data: fileTypes, error: fileTypesError } = await supabase
       .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
+      .select('extension, category, ignore');
 
-    const ignoredExtensions =
-      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+    if (fileTypesError) {
+      console.error('Error fetching file types:', fileTypesError);
+      return { success: false, error: fileTypesError.message };
+    }
+
+    // Process file types to get ignore list and categorize extensions
+    const ignoredExtensions: string[] = [];
+    const categorizedExtensions: Record<string, string[]> = {};
+
+    fileTypes?.forEach((fileType) => {
+      const ext = fileType.extension.toLowerCase();
+
+      // Track ignored extensions
+      if (fileType.ignore) {
+        ignoredExtensions.push(ext);
+      }
+
+      // Group extensions by category
+      const category = fileType.category;
+      if (!categorizedExtensions[category]) {
+        categorizedExtensions[category] = [];
+      }
+      categorizedExtensions[category].push(ext);
+    });
+
+    // Build ignore filter condition
+    const ignoreFilter =
+      ignoredExtensions.length > 0
+        ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+        : null;
 
     // Build query with filters
     let query = supabase.from('media_items').select('*', { count: 'exact' });
 
     // Exclude ignored file types
-    if (ignoredExtensions.length > 0) {
-      query = query.not(
-        'extension',
-        'in',
-        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
-      );
+    if (ignoreFilter) {
+      query = query.not('extension', 'in', ignoreFilter);
     }
 
     // Apply filters
@@ -42,25 +65,8 @@ export async function browseMedia(
     }
 
     if (filters.type !== 'all') {
-      const typeMapping: Record<string, string[]> = {
-        image: [
-          'jpg',
-          'jpeg',
-          'png',
-          'gif',
-          'webp',
-          'avif',
-          'heic',
-          'tiff',
-          'raw',
-          'bmp',
-          'svg',
-        ],
-        video: ['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'mkv', 'flv', 'm4v'],
-        data: ['json', 'xml', 'txt', 'csv', 'xmp'],
-      };
-
-      const extensions = typeMapping[filters.type];
+      // Use our database-derived category mapping instead of hardcoded values
+      const extensions = categorizedExtensions[filters.type];
       if (extensions && extensions.length > 0) {
         query = query.in('extension', extensions);
       }
@@ -137,30 +143,25 @@ export async function browseMedia(
       total: count || 0,
     };
 
-    // Get max file size for the slider (convert to MB)
+    // Get max file size using aggregation (convert to MB)
     let maxFileSize = 100; // Default 100MB
     const { data: sizeData, error: sizeError } = await supabase
       .from('media_items')
-      .select('size_bytes')
-      .order('size_bytes', { ascending: false })
-      .limit(1);
+      .select('size_bytes.max()')
+      .single();
 
-    if (!sizeError && sizeData && sizeData.length > 0) {
+    if (!sizeError && sizeData && sizeData.max) {
       // Convert to MB and round up to nearest 10
-      maxFileSize = Math.ceil(sizeData[0].size_bytes / (1024 * 1024) / 10) * 10;
+      maxFileSize = Math.ceil(sizeData.max / (1024 * 1024) / 10) * 10;
       if (maxFileSize < 100) maxFileSize = 100; // Minimum of 100MB
     }
 
-    // Get all available extensions
-    const { data: extensionData, error: extensionError } = await supabase
-      .from('file_types')
-      .select('extension')
-      .order('extension');
-
+    // Get all available extensions from the file_types table (we already fetched this)
     const availableExtensions =
-      !extensionError && extensionData
-        ? extensionData.map((item) => item.extension)
-        : [];
+      fileTypes
+        ?.filter((type) => !type.ignore) // Filter out ignored types
+        .map((type) => type.extension)
+        .sort() || [];
 
     return {
       success: true,
@@ -182,25 +183,34 @@ export async function getExtensionCounts() {
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get ignored file extensions first
-    const { data: ignoredTypes } = await supabase
+    // Get all file type information in a single query
+    const { data: fileTypes, error: fileTypesError } = await supabase
       .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
+      .select('extension, category, ignore');
 
+    if (fileTypesError) {
+      console.error('Error fetching file types:', fileTypesError);
+      return { success: false, error: fileTypesError.message };
+    }
+
+    // Extract ignored extensions
     const ignoredExtensions =
-      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+      fileTypes
+        ?.filter((type) => type.ignore)
+        .map((type) => type.extension.toLowerCase()) || [];
 
-    // Get all media items, excluding ignored extensions
-    let query = supabase.from('media_items').select('extension');
+    // Build ignore filter
+    const ignoreFilter =
+      ignoredExtensions.length > 0
+        ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+        : null;
+
+    // Use Postgres's grouping and aggregation instead of fetching all items
+    let query = supabase.from('media_items').select('extension, count()');
 
     // Exclude ignored file types
-    if (ignoredExtensions.length > 0) {
-      query = query.not(
-        'extension',
-        'in',
-        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
-      );
+    if (ignoreFilter) {
+      query = query.not('extension', 'in', ignoreFilter);
     }
 
     const { data, error } = await query;
@@ -210,17 +220,21 @@ export async function getExtensionCounts() {
       return { success: false, error: error.message };
     }
 
-    // Count occurrences of each extension
-    const extensionCounts: Record<string, number> = {};
-    data.forEach((item) => {
-      const ext = item.extension.toLowerCase();
-      extensionCounts[ext] = (extensionCounts[ext] || 0) + 1;
+    // Create a map of extension -> category for enriching the response
+    const extensionToCategory: Record<string, string> = {};
+    fileTypes?.forEach((type) => {
+      extensionToCategory[type.extension.toLowerCase()] = type.category;
     });
 
-    // Sort extensions by count (descending)
-    const sortedExtensions = Object.entries(extensionCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([extension, count]) => ({ extension, count }));
+    // Transform to expected format and ensure lowercase extensions for consistency
+    const sortedExtensions = data
+      .map((item) => ({
+        extension: item.extension.toLowerCase(),
+        count: item.count,
+        // Add category information from our database mapping
+        category: extensionToCategory[item.extension.toLowerCase()] || 'other',
+      }))
+      .sort((a, b) => b.count - a.count);
 
     return { success: true, data: sortedExtensions };
   } catch (error: any) {

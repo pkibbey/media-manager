@@ -15,125 +15,154 @@ export async function getMediaStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get ignored file extensions first
-    const { data: ignoredTypes } = await supabase
+    // Fetch all file type information in a single query to get both ignored types and categories
+    const { data: fileTypes, error: fileTypesError } = await supabase
       .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
+      .select('extension, category, ignore');
 
-    const ignoredExtensions =
-      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
-
-    // Initialize counters and data structures
-    let totalSizeBytes = 0;
-    const itemsByCategory: Record<string, number> = {};
-    const itemsByExtension: Record<string, number> = {};
-    let totalNonIgnoredCount = 0;
-    let processedCount = 0;
-    let unprocessedCount = 0;
-    let organizedCount = 0;
-    let unorganizedCount = 0;
-    let ignoredCount = 0;
-
-    // First, get the total count to know how many pages we need to fetch
-    const { count: totalCount, error: countError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      console.error('Error counting media items:', countError);
-      return { success: false, error: countError.message };
+    if (fileTypesError) {
+      console.error('Error fetching file types:', fileTypesError);
+      return { success: false, error: fileTypesError.message };
     }
 
-    // Fetch items in batches of 1000 (Supabase limit)
-    const pageSize = 1000;
-    const pages = Math.ceil((totalCount || 0) / pageSize);
+    // Build maps of file type information
+    const ignoredExtensions: string[] = [];
+    const extensionToCategory: Record<string, string> = {};
 
-    for (let page = 0; page < pages; page++) {
-      const { data: pageItems, error: pageError } = await supabase
-        .from('media_items')
-        .select('*')
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+    fileTypes?.forEach((fileType) => {
+      const ext = fileType.extension.toLowerCase();
 
-      if (pageError) {
-        console.error(
-          `Error fetching media items page ${page + 1}:`,
-          pageError,
-        );
-        return { success: false, error: pageError.message };
+      // Track ignored extensions
+      if (fileType.ignore) {
+        ignoredExtensions.push(ext);
       }
 
-      if (!pageItems || pageItems.length === 0) continue;
+      // Map extension to its category
+      extensionToCategory[ext] = fileType.category;
+    });
 
-      // Process each item in this page
-      pageItems.forEach((item) => {
-        // Add to total size
-        totalSizeBytes += item.size_bytes || 0;
+    // Build the ignore filter expression for SQL queries
+    const ignoreFilter =
+      ignoredExtensions.length > 0
+        ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+        : null;
 
-        // Extension stats
+    // Initialize data structures
+    const itemsByCategory: Record<string, number> = {};
+    const itemsByExtension: Record<string, number> = {};
+
+    // Get total size using the correct Supabase aggregation syntax
+    const { data: sizeData, error: sizeError } = await supabase
+      .from('media_items')
+      .select('size_bytes.sum()')
+      .single();
+
+    if (sizeError) {
+      console.error('Error getting total size:', sizeError);
+      return { success: false, error: sizeError.message };
+    }
+
+    const totalSizeBytes = sizeData?.sum || 0;
+
+    // Count non-ignored items using correct syntax
+    let totalNonIgnoredCount = 0;
+    let nonIgnoredQuery = supabase
+      .from('media_items')
+      .select('id.count()', { head: true });
+
+    if (ignoreFilter) {
+      nonIgnoredQuery = nonIgnoredQuery.not('extension', 'in', ignoreFilter);
+    }
+
+    const { data: nonIgnoredData, error: nonIgnoredError } =
+      await nonIgnoredQuery.single();
+
+    if (nonIgnoredError) {
+      console.error('Error counting non-ignored items:', nonIgnoredError);
+      return { success: false, error: nonIgnoredError.message };
+    }
+
+    totalNonIgnoredCount = nonIgnoredData?.count || 0;
+
+    // Count processed items (excluding ignored items)
+    let processedQuery = supabase
+      .from('media_items')
+      .select('id.count()', { head: true })
+      .eq('processed', true);
+
+    if (ignoreFilter) {
+      processedQuery = processedQuery.not('extension', 'in', ignoreFilter);
+    }
+
+    const { data: processedData, error: processedError } =
+      await processedQuery.single();
+
+    if (processedError) {
+      console.error('Error counting processed items:', processedError);
+      return { success: false, error: processedError.message };
+    }
+
+    const processedCount = processedData?.count || 0;
+
+    // Count organized items (excluding ignored items)
+    let organizedQuery = supabase
+      .from('media_items')
+      .select('id.count()', { head: true })
+      .eq('organized', true);
+
+    if (ignoreFilter) {
+      organizedQuery = organizedQuery.not('extension', 'in', ignoreFilter);
+    }
+
+    const { data: organizedData, error: organizedError } =
+      await organizedQuery.single();
+
+    if (organizedError) {
+      console.error('Error counting organized items:', organizedError);
+      return { success: false, error: organizedError.message };
+    }
+
+    const organizedCount = organizedData?.count || 0;
+
+    // Count ignored items
+    let ignoredCount = 0;
+    if (ignoreFilter) {
+      const ignoredQuery = supabase
+        .from('media_items')
+        .select('id.count()', { head: true })
+        .filter('extension', 'in', ignoreFilter);
+
+      const { data: ignoredData, error: ignoredError } =
+        await ignoredQuery.single();
+
+      if (ignoredError) {
+        console.error('Error counting ignored items:', ignoredError);
+        return { success: false, error: ignoredError.message };
+      }
+
+      ignoredCount = ignoredData?.count || 0;
+    }
+
+    // Get counts by extension
+    const { data: extensionCounts, error: extensionError } = await supabase
+      .from('media_items')
+      .select('extension, count()');
+
+    if (extensionError) {
+      console.error('Error getting extension counts:', extensionError);
+      return { success: false, error: extensionError.message };
+    }
+
+    // Process extension counts and build category counts simultaneously
+    if (extensionCounts) {
+      extensionCounts.forEach((item) => {
         const ext = item.extension.toLowerCase();
-        itemsByExtension[ext] = (itemsByExtension[ext] || 0) + 1;
+        itemsByExtension[ext] = item.count;
 
-        // Category stats
-        const typeMapping: Record<string, string[]> = {
-          image: [
-            'jpg',
-            'jpeg',
-            'png',
-            'gif',
-            'webp',
-            'avif',
-            'heic',
-            'tiff',
-            'raw',
-            'bmp',
-            'svg',
-          ],
-          video: [
-            'mp4',
-            'webm',
-            'ogg',
-            'mov',
-            'avi',
-            'wmv',
-            'mkv',
-            'flv',
-            'm4v',
-          ],
-          data: ['json', 'xml', 'txt', 'csv', 'xmp'],
-        };
-
-        let category = 'other';
-        Object.entries(typeMapping).forEach(([cat, extensions]) => {
-          if (extensions.includes(ext)) {
-            category = cat;
-          }
-        });
-
-        itemsByCategory[category] = (itemsByCategory[category] || 0) + 1;
-
-        // Check if this is an ignored file type
-        const isIgnored = ignoredExtensions.includes(ext);
-
-        if (isIgnored) {
-          ignoredCount++;
-        } else {
-          // Only count non-ignored files for progress tracking
-          totalNonIgnoredCount++;
-
-          // Process and organization stats
-          if (item.processed) {
-            processedCount++;
-          } else {
-            unprocessedCount++;
-          }
-
-          if (item.organized) {
-            organizedCount++;
-          } else {
-            unorganizedCount++;
-          }
-        }
+        // Map to category using our database-derived mapping
+        const category = extensionToCategory[ext] || 'other';
+        itemsByCategory[category] =
+          (itemsByCategory[category] || 0) + item.count;
       });
     }
 
@@ -143,9 +172,9 @@ export async function getMediaStats(): Promise<{
       itemsByCategory,
       itemsByExtension,
       processedCount,
-      unprocessedCount,
+      unprocessedCount: totalNonIgnoredCount - processedCount,
       organizedCount,
-      unorganizedCount,
+      unorganizedCount: totalNonIgnoredCount - organizedCount,
       ignoredCount,
     };
 

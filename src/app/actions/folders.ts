@@ -10,42 +10,35 @@ export async function getFolderStructure() {
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get all folder paths from the database
-    const { data: mediaItems, error } = await supabase
+    // Get distinct folder paths and their direct item counts from the database
+    const { data: folderCounts, error: folderCountsError } = await supabase
       .from('media_items')
-      .select('folder_path, id');
+      .select('folder_path, count()');
 
-    if (error) {
-      console.error('Error fetching folder paths:', error);
-      return { success: false, error: error.message };
+    if (folderCountsError) {
+      console.error(
+        'Error fetching folder paths and counts:',
+        folderCountsError,
+      );
+      return { success: false, error: folderCountsError.message };
     }
 
-    // Count media items in each folder
-    const folderCounts = new Map<string, number>();
-    mediaItems?.forEach((item) => {
-      const folderPath = item.folder_path;
-      folderCounts.set(folderPath, (folderCounts.get(folderPath) || 0) + 1);
-
-      // Also count for parent folders
-      let parentPath = getParentPath(folderPath);
-      while (parentPath !== '') {
-        folderCounts.set(parentPath, (folderCounts.get(parentPath) || 0) + 1);
-        parentPath = getParentPath(parentPath);
-      }
-    });
-
-    // Build the folder structure
     const uniqueFolders = new Set<string>();
-    mediaItems?.forEach((item) => uniqueFolders.add(item.folder_path));
+    const folderTotalCounts = new Map<string, number>();
+    const rootNode: FolderNode[] = [];
+    const rootPath = '/';
+    uniqueFolders.add(rootPath); // Add root path
+    folderTotalCounts.set(rootPath, 0); // Initialize root count
+    folderCounts?.forEach((item) => {
+      const folderPath = item.folder_path || '';
+      const count = item.count || 0;
 
-    const rootNode: FolderNode[] = [
-      {
-        name: 'Root',
-        path: '/',
-        children: [],
-        mediaCount: folderCounts.get('/') || 0,
-      },
-    ];
+      // Add the folder path to the set
+      uniqueFolders.add(folderPath);
+
+      // Update the total count for this folder path
+      folderTotalCounts.set(folderPath, count);
+    });
 
     // Add each folder path to the tree structure
     Array.from(uniqueFolders)
@@ -72,13 +65,13 @@ export async function getFolderStructure() {
               name: part,
               path: currentPath,
               children: [],
-              mediaCount: folderCounts.get(currentPath) || 0,
+              mediaCount: folderTotalCounts.get(currentPath) || 0,
             };
             currentLevel.push(foundNode);
           }
 
           if (isLastPart) {
-            foundNode.mediaCount = folderCounts.get(folderPath) || 0;
+            foundNode.mediaCount = folderTotalCounts.get(folderPath) || 0;
           }
 
           // Move to the next level
@@ -115,52 +108,73 @@ export async function getMediaItemsByFolder(
     const ignoredExtensions =
       ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
 
-    // Use pattern matching for subfolders or exact match
-    const query = supabase.from('media_items').select('*', { count: 'exact' });
+    // Build ignore filter condition
+    const ignoreFilter =
+      ignoredExtensions.length > 0
+        ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+        : null;
 
-    // Exclude ignored file types
-    if (ignoredExtensions.length > 0) {
-      query.not(
-        'extension',
-        'in',
-        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+    // Current folder count query
+    const currentFolderCountQuery = supabase
+      .from('media_items')
+      .select('id.count()')
+      .eq('folder_path', folderPath);
+
+    // Apply ignore filter if we have ignored extensions
+    if (ignoreFilter) {
+      currentFolderCountQuery.not('extension', 'in', ignoreFilter);
+    }
+
+    const { data: currentFolderData, error: currentFolderError } =
+      await currentFolderCountQuery.single();
+
+    if (currentFolderError) {
+      console.error(
+        'Error counting items in current folder:',
+        currentFolderError,
       );
+      return { success: false, error: currentFolderError.message };
     }
 
-    if (includeSubfolders) {
-      if (folderPath === '/') {
-        // No filtering needed, include all
-      } else {
-        // Include the current folder and all subfolders
-        query.or(
-          `folder_path.eq.${folderPath},folder_path.like.${folderPath}/%`,
-        );
+    const currentFolderCount = currentFolderData?.count || 0;
+
+    // Only get subfolder count if requested
+    let subfolderCount = 0;
+    if (includeSubfolders && folderPath !== '/') {
+      const subfolderCountQuery = supabase
+        .from('media_items')
+        .select('id.count()')
+        .like('folder_path', `${folderPath}/%`);
+
+      // Apply ignore filter if we have ignored extensions
+      if (ignoreFilter) {
+        subfolderCountQuery.not('extension', 'in', ignoreFilter);
       }
-    } else {
-      // Exact match on folder path
-      query.eq('folder_path', folderPath);
+
+      const { data: subfolderData, error: subfolderError } =
+        await subfolderCountQuery.single();
+
+      if (subfolderError) {
+        console.error('Error counting items in subfolders:', subfolderError);
+        return { success: false, error: subfolderError.message };
+      }
+
+      subfolderCount = subfolderData?.count || 0;
     }
 
-    // Add pagination
-    const { data, error, count } = await query
-      .order('media_date', { ascending: false, nullsFirst: false })
-      .order('created_date', { ascending: false, nullsFirst: false })
-      .range(offset, offset + pageSize - 1);
-
-    if (error) {
-      console.error('Error fetching media items:', error);
-      return { success: false, error: error.message };
-    }
-
-    // Calculate pagination data
-    const pagination = {
-      page,
-      pageSize,
-      pageCount: Math.ceil((count || 0) / pageSize),
-      total: count || 0,
+    return {
+      success: true,
+      pagination: {
+        page: 1,
+        pageSize: 1,
+        pageCount: 1,
+        total: currentFolderCount + subfolderCount,
+      },
+      stats: {
+        currentFolderCount,
+        subfolderCount,
+      },
     };
-
-    return { success: true, data, pagination };
   } catch (error: any) {
     console.error('Error getting media items by folder:', error);
     return { data: [], success: false, error: error.message };
