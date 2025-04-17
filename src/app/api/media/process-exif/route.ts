@@ -1,4 +1,5 @@
 import { streamProcessUnprocessedItems } from '@/app/api/actions/exif';
+import type { PerformanceMetrics } from '@/types/db-types';
 import { type NextRequest, NextResponse } from 'next/server';
 
 export const GET = async (request: NextRequest) => {
@@ -10,10 +11,28 @@ export const GET = async (request: NextRequest) => {
     // Get abort token from URL
     const abortToken = request.nextUrl.searchParams.get('abortToken');
 
+    // Get extraction method
+    const extractionMethod = (request.nextUrl.searchParams.get('method') ||
+      'default') as PerformanceMetrics['method'];
+
+    // Validate extraction method
+    if (
+      extractionMethod !== 'default' &&
+      extractionMethod !== 'sharp-only' &&
+      extractionMethod !== 'direct-only' &&
+      extractionMethod !== 'marker-only'
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid extraction method' },
+        { status: 400 },
+      );
+    }
+
     // Create a streaming response with the EXIF processing stream
     const stream = await streamProcessUnprocessedItems({
       skipLargeFiles,
       abortToken: abortToken || undefined,
+      extractionMethod,
     });
 
     return new NextResponse(stream, {

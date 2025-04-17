@@ -1,7 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { MediaStats } from '@/types';
+import type { MediaStats } from '@/types/media-types';
 import { revalidatePath } from 'next/cache';
 
 /**

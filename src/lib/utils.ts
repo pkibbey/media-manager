@@ -1,4 +1,4 @@
-import type { MediaItem } from '@/types';
+import type { MediaItem } from '@/types/db-types';
 import type { Json } from '@/types/supabase';
 import { type ClassValue, clsx } from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';

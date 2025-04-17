@@ -1,41 +1,27 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type {
+  BatchOperationResponse,
+  BatchProgress,
+} from '@/types/progress-types';
 import { revalidatePath } from 'next/cache';
 import { processExifData } from './exif';
-
-// Type for batch operation response
-type BatchOperationResponse = {
-  success: boolean;
-  message: string;
-  processedCount?: number;
-  failedCount?: number;
-  error?: string;
-};
-
-// Type for operation progress
-export type BatchProgress = {
-  status: 'processing' | 'completed' | 'error';
-  message: string;
-  processedCount?: number;
-  totalCount?: number;
-  currentItem?: string;
-  error?: string;
-};
 
 /**
  * Process EXIF data for multiple media items
  */
-export async function batchProcessExif(
-  itemIds: string[],
-): Promise<BatchOperationResponse> {
+export async function batchProcessExif({
+  itemIds,
+  method,
+}: { itemIds: string[]; method: string }): Promise<BatchOperationResponse> {
   try {
     let processedCount = 0;
     let failedCount = 0;
 
     for (const id of itemIds) {
       try {
-        const result = await processExifData(id);
+        const result = await processExifData({ mediaId: id, method });
         if (result.success) {
           processedCount++;
         } else {
@@ -153,7 +139,10 @@ export async function batchDeleteItems(
 /**
  * Stream-based batch processing of EXIF data for multiple media items
  */
-export async function streamBatchProcessExif(itemIds: string[]) {
+export async function streamBatchProcessExif({
+  itemIds,
+  method,
+}: { itemIds: string[]; method: string }) {
   const encoder = new TextEncoder();
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
@@ -203,7 +192,7 @@ export async function streamBatchProcessExif(itemIds: string[]) {
           });
 
           // Process the EXIF data
-          const result = await processExifData(id);
+          const result = await processExifData({ mediaId: id, method });
 
           if (result.success) {
             processedCount++;

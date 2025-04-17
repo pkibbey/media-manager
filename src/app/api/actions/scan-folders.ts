@@ -4,28 +4,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { canDisplayNatively, guessFileCategory } from '@/lib/utils';
+import type { ScanOptions, ScanProgress } from '@/types/progress-types';
 import { revalidatePath } from 'next/cache';
-
-// Types for scan progress reporting
-export type ScanProgress = {
-  status: 'started' | 'scanning' | 'completed' | 'refresh' | 'error';
-  message: string;
-  folderPath?: string;
-  filesDiscovered?: number;
-  filesProcessed?: number;
-  newFilesAdded?: number;
-  newFileTypes?: string[];
-  error?: string;
-  // Add explicit counters for different types of skipped files
-  filesSkipped?: number; // Files skipped because they're unchanged
-  ignoredFilesSkipped?: number; // Files skipped due to ignored extensions
-  smallFilesSkipped?: number; // Files skipped because they're too small
-};
-
-// Options for the scan operation
-export type ScanOptions = {
-  ignoreSmallFiles?: boolean; // Whether to ignore files under 10kb
-};
 
 // Size threshold for small files (10Kb)
 const SMALL_FILE_THRESHOLD = 10 * 1024; // 10Kb in bytes

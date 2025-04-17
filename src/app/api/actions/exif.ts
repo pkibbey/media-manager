@@ -1,102 +1,39 @@
 'use server';
+
 import fs from 'node:fs/promises';
-import { extractMetadata } from '@/lib/exif-utils';
+import { isAborted } from '@/lib/abort-tokens';
+import { extractMetadata, isExifSupportedExtension } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { extractDateFromFilename, isSkippedLargeFile } from '@/lib/utils';
+import type { MediaItem, PerformanceMetrics } from '@/types/db-types';
+import type { ExifProcessingOptions, ExifProgress } from '@/types/exif';
 import type { Json } from '@/types/supabase';
 import { revalidatePath } from 'next/cache';
 
-// Types for EXIF processing progress reporting
-export type ExifProgress = {
-  status: 'started' | 'processing' | 'completed' | 'error';
-  message: string;
-  filesDiscovered?: number;
-  filesProcessed?: number;
-  successCount?: number;
-  failedCount?: number;
-  error?: string;
-  currentFilePath?: string;
-  // New property to track error details
-  errorDetails?: Array<{
-    filePath: string;
-    error: string;
-    fileType?: string;
-  }>;
-  largeFilesSkipped?: number; // New property to track large files skipped
-};
-
-// Options for EXIF processing
-export type ExifProcessingOptions = {
-  skipLargeFiles?: boolean; // Whether to skip files over the large file threshold
-  abortToken?: string; // Token to check for abort operations
-};
-
-/**
- * Helper function to convert GPS coordinates from DMS format to decimal degrees
- */
-function calculateGpsDecimal(
-  coordinates: number[] | undefined,
-  ref: string | undefined,
-): number | undefined {
-  if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) {
-    return undefined;
-  }
-
-  // Calculate decimal degrees from degrees, minutes, seconds
-  let decimal = coordinates[0] + coordinates[1] / 60 + coordinates[2] / 3600;
-
-  // Apply negative value for South or West references
-  if (ref === 'S' || ref === 'W') {
-    decimal = -decimal;
-  }
-
-  return decimal;
-}
-
-/**
- * Helper function to check if a file extension is one that typically contains EXIF data
- */
-function isExifSupportedExtension(extension: string): boolean {
-  // Normalize the extension (lowercase, remove leading dot if present)
-  const ext = extension.toLowerCase().replace(/^\./, '');
-
-  // Common image formats that can contain EXIF data
-  const imageFormats = [
-    'jpg',
-    'jpeg',
-    'tiff',
-    'tif',
-    'heic',
-    'heif',
-    'raw',
-    'cr2',
-    'nef',
-    'arw',
-    'dng',
-    'orf',
-    'rw2',
-    // Some image formats have limited EXIF support but might contain some metadata
-    'png',
-    'webp',
-    'bmp',
-  ];
-
-  // Video formats that might contain metadata (usually not full EXIF but related metadata)
-  const videoFormats = ['mp4', 'mov', 'avi', '3gp', 'm4v'];
-
-  return imageFormats.includes(ext) || videoFormats.includes(ext);
-}
-
-export async function processMediaExif(mediaId: string, filePath: string) {
+export async function processMediaExif({
+  media,
+  method,
+}: { media: MediaItem; method: PerformanceMetrics['method'] }) {
   try {
+    if (!media.id || !media.file_path) {
+      return { success: false, message: 'Invalid media item' };
+    }
+
+    if (!method) {
+      return { success: false, message: 'Invalid method' };
+    }
+
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient();
 
     // Check if file exists
-    await fs.access(filePath);
+    await fs.access(media.file_path);
 
     // Extract EXIF data from the file
-    const exifData = await extractMetadata(filePath);
+    const exifData = await extractMetadata({
+      filePath: media.file_path,
+      method,
+    });
 
     if (!exifData) {
       return { success: false, message: 'No EXIF data could be extracted' };
@@ -116,7 +53,7 @@ export async function processMediaExif(mediaId: string, filePath: string) {
         width: exifData.Photo?.PixelXDimension,
         height: exifData.Photo?.PixelYDimension,
       })
-      .eq('id', mediaId);
+      .eq('id', media.id);
 
     if (error) {
       console.error('Error updating media with EXIF data:', error);
@@ -126,7 +63,7 @@ export async function processMediaExif(mediaId: string, filePath: string) {
     // Revalidate relevant paths to update the UI
     revalidatePath('/browse');
     revalidatePath('/folders');
-    revalidatePath(`/media/${mediaId}`);
+    revalidatePath(`/media/${media.id}`);
 
     return {
       success: true,
@@ -143,7 +80,10 @@ export async function processMediaExif(mediaId: string, filePath: string) {
   }
 }
 
-export async function batchProcessExif(folderPath: string) {
+export async function batchProcessExif({
+  folderPath,
+  method,
+}: { folderPath: string; method: PerformanceMetrics['method'] }) {
   try {
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient();
@@ -151,7 +91,7 @@ export async function batchProcessExif(folderPath: string) {
     // Get all media files that don't have EXIF data yet
     const { data: mediaFiles, error } = await supabase
       .from('media_items')
-      .select('id, file_path')
+      .select('*')
       .eq('has_exif', false)
       .eq('folder_path', folderPath);
 
@@ -173,7 +113,7 @@ export async function batchProcessExif(folderPath: string) {
     const total = mediaFiles.length;
 
     for (const media of mediaFiles) {
-      const result = await processMediaExif(media.id, media.file_path);
+      const result = await processMediaExif({ media, method });
       if (result.success) {
         successCount++;
       }
@@ -297,8 +237,8 @@ export async function getExifStats() {
       }
 
       if (items) {
-        unprocessedExifCompatibleCount += items.filter((item) =>
-          isExifSupportedExtension(item.extension),
+        unprocessedExifCompatibleCount += items.filter(
+          async (item) => await isExifSupportedExtension(item.extension),
         ).length;
       }
     }
@@ -336,8 +276,8 @@ export async function getExifStats() {
       }
 
       if (items) {
-        totalExifCompatibleCount += items.filter((item) =>
-          isExifSupportedExtension(item.extension),
+        totalExifCompatibleCount += items.filter(
+          async (item) => await isExifSupportedExtension(item.extension),
         ).length;
       }
     }
@@ -377,7 +317,10 @@ export async function getExifStats() {
   }
 }
 
-export async function processAllUnprocessedItems(count: number) {
+export async function processAllUnprocessedItems({
+  count = 100,
+  method,
+}: { count?: number; method: PerformanceMetrics['method'] }) {
   try {
     const supabase = createServerSupabaseClient();
 
@@ -392,7 +335,7 @@ export async function processAllUnprocessedItems(count: number) {
 
     const { data: mediaFiles, error } = await supabase
       .from('media_items')
-      .select('id, file_path, extension')
+      .select('*')
       .eq('has_exif', false)
       .eq('processed', false)
       .filter(
@@ -426,7 +369,7 @@ export async function processAllUnprocessedItems(count: number) {
 
     for (const media of mediaFiles) {
       try {
-        const result = await processMediaExif(media.id, media.file_path);
+        const result = await processMediaExif({ media, method });
 
         // Even if EXIF processing fails, mark the file as processed
         await supabase
@@ -477,10 +420,10 @@ export async function processAllUnprocessedItems(count: number) {
  * Update media dates based on filename analysis
  * This helps when EXIF data is missing or corrupt but the filename contains date information
  */
-export async function updateMediaDatesFromFilenames(
+export async function updateMediaDatesFromFilenames({
   itemCount = 100,
   updateAll = false,
-): Promise<{
+}: { itemCount?: number; updateAll?: boolean } = {}): Promise<{
   success: boolean;
   message?: string;
   error?: string;
@@ -574,7 +517,10 @@ export async function updateMediaDatesFromFilenames(
  * Process EXIF data for a single media item by ID
  * This function is used by the batch processing implementation
  */
-export async function processExifData(mediaId: string) {
+export async function processExifData({
+  mediaId,
+  method,
+}: { mediaId: string; method: PerformanceMetrics['method'] }) {
   try {
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient();
@@ -600,7 +546,7 @@ export async function processExifData(mediaId: string) {
     await fs.access(filePath);
 
     // Extract EXIF data from the file
-    const exifData = await extractMetadata(filePath);
+    const exifData = await extractMetadata({ filePath, method });
 
     // Even if we don't get EXIF data, mark the file as processed
     if (!exifData) {
@@ -671,36 +617,50 @@ export async function processExifData(mediaId: string) {
  * This function returns a ReadableStream that emits progress updates
  */
 export async function streamProcessUnprocessedItems(
-  options: ExifProcessingOptions = {},
+  options: ExifProcessingOptions,
 ) {
   const encoder = new TextEncoder();
-  const { skipLargeFiles = false, abortToken } = options;
-
-  // Import isAborted function from the shared abort tokens module
-  const { isAborted } = await import('@/lib/abort-tokens');
+  const { skipLargeFiles = false, abortToken, extractionMethod } = options;
 
   // Create a transform stream to send progress updates
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
-  // Start processing in the background
-  processUnprocessedItemsInternal(writer, skipLargeFiles, abortToken);
+  // Start processing in the background - passing options as a single object
+  processUnprocessedItemsInternal({
+    writer,
+    skipLargeFiles,
+    abortToken,
+    extractionMethod,
+  });
 
   // Return the readable stream
   return stream.readable;
 
-  async function processUnprocessedItemsInternal(
-    writer: WritableStreamDefaultWriter,
-    skipLargeFiles: boolean,
-    abortToken?: string,
-  ) {
+  async function processUnprocessedItemsInternal({
+    writer,
+    skipLargeFiles,
+    abortToken,
+    extractionMethod,
+  }: {
+    writer: WritableStreamDefaultWriter;
+    skipLargeFiles: boolean;
+    abortToken?: string;
+    extractionMethod?: PerformanceMetrics['method'];
+  }) {
     try {
       const supabase = createServerSupabaseClient();
 
       // Send initial progress update with options info
+      const methodInfo =
+        extractionMethod && extractionMethod !== 'default'
+          ? ` using ${extractionMethod} extraction method`
+          : '';
+
       await sendProgress(writer, {
         status: 'started',
-        message: `Starting EXIF processing${skipLargeFiles ? ' (skipping files over 100MB)' : ''}`,
+        message: `Starting EXIF processing${methodInfo}${skipLargeFiles ? ' (skipping files over 100MB)' : ''}`,
+        method: extractionMethod,
       });
 
       // Get all media files that don't have EXIF data yet and are not ignored file types
@@ -713,7 +673,7 @@ export async function streamProcessUnprocessedItems(
         fileTypes?.map((ft) => ft.extension.toLowerCase()) || [];
 
       // First, count the total number of unprocessed items
-      const { count: totalCount, error: countError } = await supabase
+      const countQuery = supabase
         .from('media_items')
         .select('*', { count: 'exact', head: true })
         .eq('processed', false)
@@ -723,23 +683,36 @@ export async function streamProcessUnprocessedItems(
           `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
         );
 
+      const { count: totalCount, error: countError } = await countQuery;
+
       if (countError) {
         await sendProgress(writer, {
           status: 'error',
           message: `Error counting unprocessed items: ${countError.message}`,
           error: countError.message,
+          largeFilesSkipped: 0,
+          filesDiscovered: 0,
+          filesProcessed: 0,
+          successCount: 0,
+          failedCount: 0,
+          method: extractionMethod,
         });
         await writer.close();
         return;
       }
 
+      // Calculate how many items we'll actually process
+      const effectiveTotal = totalCount || 0;
+
       await sendProgress(writer, {
         status: 'processing',
         message: `Found ${totalCount} total unprocessed items to check`,
-        filesDiscovered: totalCount || 0,
+        filesDiscovered: effectiveTotal,
+        largeFilesSkipped: 0,
         filesProcessed: 0,
         successCount: 0,
         failedCount: 0,
+        method: extractionMethod,
       });
 
       // Process items in chunks to handle large datasets
@@ -754,14 +727,19 @@ export async function streamProcessUnprocessedItems(
       // Process in pages
       for (let page = 0; page * pageSize < (totalCount || 0); page++) {
         // Check for abort signal
-        if (abortToken && (await isAborted(abortToken))) {
-          await sendProgress(writer, {
-            status: 'error',
-            message: 'Processing cancelled by user',
-          });
-          await writer.close();
-          return;
+        if (abortToken) {
+          const isAbortedResult = await isAborted(abortToken);
+          if (isAbortedResult) {
+            await sendProgress(writer, {
+              status: 'error',
+              message: 'Processing cancelled by user',
+            });
+            await writer.close();
+            return;
+          }
         }
+        // Calculate how many items to fetch for this page
+        const currentPageSize = pageSize;
 
         // Get a chunk of unprocessed items
         const { data: unprocessedItems, error: unprocessedError } =
@@ -774,7 +752,7 @@ export async function streamProcessUnprocessedItems(
               'not.in',
               `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
             )
-            .range(page * pageSize, (page + 1) * pageSize - 1); // Zero-based pagination
+            .range(page * pageSize, page * pageSize + currentPageSize - 1); // Zero-based pagination
 
         if (unprocessedError) {
           await sendProgress(writer, {
@@ -789,8 +767,8 @@ export async function streamProcessUnprocessedItems(
         // Update progress for this page
         await sendProgress(writer, {
           status: 'processing',
-          message: `Processing page ${page + 1} (items ${page * pageSize + 1}-${Math.min((page + 1) * pageSize, totalCount || 0)})`,
-          filesDiscovered: totalCount || 0,
+          message: `Processing page ${page + 1} (items ${page * pageSize + 1}-${Math.min(page * pageSize + currentPageSize, totalCount || 0)})`,
+          filesDiscovered: effectiveTotal,
           filesProcessed: itemsProcessed,
           successCount: successCount,
           failedCount: failedCount,
@@ -800,12 +778,22 @@ export async function streamProcessUnprocessedItems(
           break; // No more items to process
         }
 
-        // Filter for only extensions that can contain EXIF data
+        // Option 1: Use synchronous filter with previously known extensions
+        const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic']; // Define list of supported extensions
         const itemsToProcess = unprocessedItems.filter((item) =>
-          isExifSupportedExtension(item.extension),
+          exifSupportedExtensions.includes(item.extension.toLowerCase()),
         );
 
-        exifCompatibleCount += itemsToProcess.length;
+        // Option 2: Process asynchronously
+        for (const item of unprocessedItems) {
+          if (await isExifSupportedExtension(item.extension)) {
+            itemsToProcess.push(item);
+          }
+        }
+
+        // Update the count of exif compatible items we found
+        const compatibleItemsCount = itemsToProcess.length;
+        exifCompatibleCount += compatibleItemsCount;
 
         // Process each media file in this batch
         const batchSize = 50;
@@ -859,7 +847,7 @@ export async function streamProcessUnprocessedItems(
                     await sendProgress(writer, {
                       status: 'processing',
                       message: `Skipped large file (over 100MB): ${media.file_name}`,
-                      filesDiscovered: totalCount || 0,
+                      filesDiscovered: effectiveTotal,
                       filesProcessed: itemsProcessed,
                       successCount: successCount,
                       failedCount: failedCount,
@@ -882,7 +870,7 @@ export async function streamProcessUnprocessedItems(
               await sendProgress(writer, {
                 status: 'processing',
                 message: `Processing ${processedCount + 1} of ${exifCompatibleCount} EXIF-compatible files: ${media.file_name}`,
-                filesDiscovered: totalCount || 0,
+                filesDiscovered: effectiveTotal,
                 filesProcessed: itemsProcessed,
                 successCount: successCount,
                 failedCount: failedCount,
@@ -890,7 +878,10 @@ export async function streamProcessUnprocessedItems(
                 currentFilePath: media.file_path,
               });
 
-              const result = await processExifData(media.id);
+              const result = await processExifData({
+                mediaId: media.id,
+                method: extractionMethod || 'default',
+              });
 
               // Update counters
               processedCount++;
@@ -919,7 +910,7 @@ export async function streamProcessUnprocessedItems(
                 await sendProgress(writer, {
                   status: 'processing',
                   message: `Processed ${processedCount} of ${exifCompatibleCount} files (${successCount} successful, ${failedCount} failed)`,
-                  filesDiscovered: totalCount || undefined,
+                  filesDiscovered: effectiveTotal,
                   filesProcessed: itemsProcessed,
                   successCount: successCount,
                   failedCount: failedCount,
@@ -936,7 +927,7 @@ export async function streamProcessUnprocessedItems(
               await sendProgress(writer, {
                 status: 'processing',
                 message: `Error processing file: ${error.message}`,
-                filesDiscovered: totalCount || undefined,
+                filesDiscovered: effectiveTotal,
                 filesProcessed: itemsProcessed,
                 successCount: successCount,
                 failedCount: failedCount,
@@ -967,15 +958,23 @@ export async function streamProcessUnprocessedItems(
         console.error('Error revalidating paths:', error);
       }
 
+      // Prepare final message
+      let finalMessage = `EXIF processing completed. Found ${totalCount} total items, processed ${processedCount} EXIF-compatible files: ${successCount} successful, ${failedCount} failed`;
+
+      if (largeFilesSkipped) {
+        finalMessage += `, ${largeFilesSkipped} large files skipped`;
+      }
+
       // Send final progress update
       await sendProgress(writer, {
         status: 'completed',
-        message: `EXIF processing completed. Found ${totalCount} total items, processed ${processedCount} EXIF-compatible files: ${successCount} successful, ${failedCount} failed${largeFilesSkipped ? `, ${largeFilesSkipped} large files skipped` : ''}.`,
-        filesDiscovered: totalCount || 0,
+        message: finalMessage,
+        filesDiscovered: effectiveTotal,
         filesProcessed: itemsProcessed,
         successCount: successCount,
         failedCount: failedCount,
         largeFilesSkipped: largeFilesSkipped,
+        method: extractionMethod,
       });
 
       // Close the stream
@@ -986,6 +985,12 @@ export async function streamProcessUnprocessedItems(
         status: 'error',
         message: 'Error during EXIF processing',
         error: error.message,
+        largeFilesSkipped: 0,
+        filesDiscovered: 0,
+        filesProcessed: 0,
+        successCount: 0,
+        failedCount: 0,
+        method: extractionMethod,
       });
       await writer.close();
     }

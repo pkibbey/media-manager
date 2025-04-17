@@ -1,11 +1,6 @@
-import type { Tables } from './supabase';
-
-export interface MediaItem extends Tables<'media_items'> {}
-
-export interface FileType extends Tables<'file_types'> {}
-
-export interface ScanFolder extends Tables<'scan_folders'> {}
-
+/**
+ * Media filtering options for browsing and searching media items
+ */
 export interface MediaFilters {
   search: string;
   type: 'all' | 'image' | 'video' | 'data';
@@ -21,6 +16,9 @@ export interface MediaFilters {
   hasLocation: 'all' | 'yes' | 'no';
 }
 
+/**
+ * Statistics about media items in the system
+ */
 export interface MediaStats {
   totalMediaItems: number;
   totalSizeBytes: number;

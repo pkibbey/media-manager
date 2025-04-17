@@ -1,16 +1,90 @@
 'use server';
-
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { savePerformanceMetric } from '@/app/api/actions/performance-metrics';
+import type { PerformanceMetrics } from '@/types/db-types';
 import exifReader, { type Exif } from 'exif-reader';
 import sharp from 'sharp';
+/**
+ * Extracts EXIF data using only the Sharp library
+ */
+async function extractMetadataWithSharp(
+  filePath: string,
+): Promise<Exif | null> {
+  try {
+    const extension = path.extname(filePath).toLowerCase();
+    const supportedExtensions = [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.webp',
+      '.tiff',
+      '.gif',
+      '.avif',
+    ];
+
+    if (supportedExtensions.includes(extension)) {
+      const metadata = await sharp(filePath).metadata();
+
+      if (metadata.exif) {
+        try {
+          // Parse EXIF buffer from Sharp
+          return exifReader(metadata.exif);
+        } catch (exifParseError) {
+          console.error('Error parsing EXIF from Sharp:', exifParseError);
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error extracting via Sharp:', error);
+    return null;
+  }
+}
 
 /**
- * Extracts EXIF data from an image file using exif-reader
- * @param filePath Path to the image file
- * @returns Promise resolving to EXIF data or null if extraction fails
+ * Extracts EXIF data using only direct extraction with exifReader
  */
-export async function extractMetadata(filePath: string): Promise<Exif | null> {
+async function extractMetadataDirectOnly(
+  filePath: string,
+): Promise<Exif | null> {
+  try {
+    const fileBuffer = await fs.readFile(filePath);
+    return exifReader(fileBuffer);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Extracts EXIF data using only marker-based extraction
+ */
+async function extractMetadataMarkerOnly(
+  filePath: string,
+): Promise<Exif | null> {
+  try {
+    const fileBuffer = await fs.readFile(filePath);
+    // JPEG files typically have EXIF data starting after the APP1 marker (0xFFE1)
+    const app1Marker = Buffer.from([0xff, 0xe1]);
+    const markerIndex = fileBuffer.indexOf(app1Marker);
+
+    if (markerIndex !== -1) {
+      // Extract EXIF data block - skip the marker (2 bytes) and length (2 bytes)
+      const exifBlock = fileBuffer.slice(markerIndex + 4);
+      return exifReader(exifBlock);
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Original implementation with multiple fallbacks
+ */
+async function extractMetadataWithFallbacks(
+  filePath: string,
+): Promise<Exif | null> {
   try {
     // Read the file as a buffer
     const fileBuffer = await fs.readFile(filePath);
@@ -88,20 +162,94 @@ export async function extractMetadata(filePath: string): Promise<Exif | null> {
 }
 
 /**
+ * Extracts EXIF data from an image file using the specified method
+ * @param filePath Path to the image file
+ * @param method The extraction method to use for A/B testing
+ * @param trackPerformance Whether to track performance metrics
+ * @returns Promise resolving to EXIF data or null if extraction fails
+ */
+export async function extractMetadata({
+  filePath,
+  method,
+  trackPerformance = true,
+}: {
+  filePath: string;
+  method: PerformanceMetrics['method'];
+  trackPerformance?: boolean;
+}): Promise<Exif | null> {
+  // Start performance timing if tracking is enabled
+  const startTime = trackPerformance ? performance.now() : 0;
+  let success = false;
+  let exifData = null;
+  let fileSize = 0;
+
+  try {
+    // Get file size for metrics
+    if (trackPerformance) {
+      const stats = await fs.stat(filePath);
+      fileSize = stats.size;
+    }
+
+    // Choose extraction method based on parameter
+    switch (method) {
+      case 'sharp-only':
+        exifData = await extractMetadataWithSharp(filePath);
+        break;
+      case 'direct-only':
+        exifData = await extractMetadataDirectOnly(filePath);
+        break;
+      case 'marker-only':
+        exifData = await extractMetadataMarkerOnly(filePath);
+        break;
+      default:
+        // Use the original implementation with multiple fallbacks
+        exifData = await extractMetadataWithFallbacks(filePath);
+        break;
+    }
+
+    success = exifData !== null;
+    return exifData;
+  } catch (error) {
+    console.error('Error extracting EXIF data:', error);
+    return null;
+  } finally {
+    // Record performance metrics if tracking is enabled
+    if (trackPerformance) {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      const fileType = path.extname(filePath).substring(1).toLowerCase();
+
+      savePerformanceMetric({
+        method,
+        file_size: fileSize,
+        file_type: fileType,
+        duration,
+        success,
+        timestamp: new Date().toISOString(),
+        // Optional: store anonymized path or just filename for privacy
+        file_path: path.basename(filePath),
+      });
+    }
+  }
+}
+
+/**
  * Extract date information from EXIF data or filename
  * @param filePath Path to the image file
  * @param exifData Optional: Pre-extracted EXIF data
+ * @param method The extraction method to use for A/B testing
  * @returns Best determined date or null
  */
 export async function extractDateFromMediaFile(
   filePath: string,
   exifData?: Exif | null,
+  method: PerformanceMetrics['method'] = 'default',
 ): Promise<Date | null> {
   let newMetadata: Exif | null = null;
 
   // 1. Try to get EXIF data if not provided
   if (!exifData) {
-    newMetadata = await extractMetadata(filePath);
+    newMetadata = await extractMetadata({ filePath, method });
   } else {
     newMetadata = exifData;
   }
@@ -204,4 +352,39 @@ export async function extractDateFromMediaFile(
   } catch (error) {
     return null;
   }
+}
+
+/**
+ * Check if a file extension is supported for EXIF extraction
+ * @param extension The file extension to check (with or without the leading dot)
+ * @returns Promise resolving to true if the extension is supported
+ */
+export async function isExifSupportedExtension(
+  extension: string,
+): Promise<boolean> {
+  // Normalize extension to lowercase without leading dot
+  const normalizedExt = extension.toLowerCase().replace(/^\./, '');
+
+  // List of extensions that typically contain EXIF data
+  const supportedExtensions = [
+    'jpg',
+    'jpeg',
+    'tiff',
+    'tif',
+    'heic',
+    'heif',
+    'cr2',
+    'nef',
+    'arw',
+    'rw2',
+    'orf',
+    'raf',
+    'png',
+    'webp',
+    'dng',
+    'mp4',
+    'mov',
+  ];
+
+  return supportedExtensions.includes(normalizedExt);
 }

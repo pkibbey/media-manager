@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Add token to the set of aborted operations
-  addAbortToken(token);
+  await addAbortToken(token);
 
   return NextResponse.json({ success: true });
 }

@@ -600,16 +600,12 @@ export default function ThumbnailGenerator() {
               {`Skipped ${largeFilesSkipped} large files (over ${Math.round(LARGE_FILE_THRESHOLD / 1024 / 1024)}MB)`}
             </div>
           )}
-          {detailProgress?.currentFilePath && (
-            <div className="text-xs text-muted-foreground truncate mt-1">
-              Current file: {detailProgress.currentFilePath}
-              {detailProgress.fileType && (
-                <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-secondary">
-                  .{detailProgress.fileType}
-                </span>
-              )}
-            </div>
-          )}
+          <div className="text-xs text-muted-foreground truncate mt-1">
+            Current file: {detailProgress?.currentFilePath || '--'}
+            <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-secondary">
+              .{detailProgress?.fileType || '??'}
+            </span>
+          </div>
         </div>
       )}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import type { FolderNode } from '@/types';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -8,13 +9,6 @@ import {
 } from '@radix-ui/react-icons';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-
-export type FolderNode = {
-  name: string;
-  path: string;
-  children: FolderNode[];
-  mediaCount?: number;
-};
 
 interface FolderTreeProps {
   folders: FolderNode[];

@@ -1,7 +1,7 @@
 'use server';
 
-import type { FolderNode } from '@/components/folders/folder-tree';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { FolderNode } from '@/types/folder-types';
 
 /**
  * Get the folder structure for browsing

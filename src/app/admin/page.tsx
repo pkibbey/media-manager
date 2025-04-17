@@ -6,7 +6,6 @@ import MediaStats from '@/components/admin/media-stats';
 import PersistentTabs from '@/components/admin/persistent-tabs';
 import ResetMedia from '@/components/admin/reset-media';
 import ResetScan from '@/components/admin/reset-scan';
-import ResetThumbnails from '@/components/admin/reset-thumbnails';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
 import TimestampCorrector from '@/components/admin/timestamp-corrector';
@@ -66,10 +65,23 @@ export default async function AdminPage() {
             <ExifProcessor />
             <ResetMedia />
           </div>
-          <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
-            <ThumbnailGenerator />
-            <ResetThumbnails />
-          </div>
+        </div>
+      ),
+    },
+    {
+      value: 'thumbnails',
+      label: 'Thumbnails',
+      content: (
+        <div className="space-y-6">
+          <ThumbnailGenerator />
+        </div>
+      ),
+    },
+    {
+      value: 'timestamps',
+      label: 'Timestamps',
+      content: (
+        <div className="space-y-6">
           <div className="border-t pt-6">
             <TimestampCorrector />
           </div>

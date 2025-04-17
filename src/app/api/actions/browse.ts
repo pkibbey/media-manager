@@ -1,7 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { MediaFilters } from '@/types';
+import type { MediaFilters } from '@/types/media-types';
 
 /**
  * Browse media items with filters

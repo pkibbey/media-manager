@@ -6,6 +6,10 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { LARGE_FILE_THRESHOLD, isSkippedLargeFile } from '@/lib/utils';
+import type {
+  ThumbnailOptions,
+  ThumbnailResult,
+} from '@/types/thumbnail-types';
 // Remove heic-convert import
 import { revalidatePath } from 'next/cache';
 import sharp from 'sharp';
@@ -14,33 +18,6 @@ const execAsync = promisify(exec);
 
 // Define thumbnail sizes
 const THUMBNAIL_SIZE = 300; // Size for standard thumbnails
-
-// Type for thumbnail generation errors
-export type ThumbnailError = {
-  path: string;
-  message: string;
-};
-
-// Options for thumbnail generation
-export type ThumbnailOptions = {
-  skipLargeFiles?: boolean; // Whether to skip files over the large file threshold
-  batchSize?: number; // Number of items to process in each batch
-  debug?: boolean; // Whether to enable debug logging
-};
-
-// Type for thumbnail generation result
-export type ThumbnailResult = {
-  success: boolean;
-  message: string;
-  processed?: number;
-  successCount?: number;
-  failedCount?: number;
-  skippedLargeFiles?: number;
-  currentFilePath?: string;
-  filePath?: string; // Add the filePath property
-  fileType?: string;
-  errors?: ThumbnailError[];
-};
 
 /**
  * Ensure that the thumbnails bucket exists, creating it if necessary
