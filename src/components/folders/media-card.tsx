@@ -1,14 +1,8 @@
 'use client';
 
-import {
-  bytesToSize,
-  guessFileCategory,
-  isSkippedLargeFile,
-} from '@/lib/utils';
+import { bytesToSize } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
-
-import { FileIcon, VideoIcon } from 'lucide-react';
-import Image from 'next/image';
+import MediaPreview from './media-preview';
 
 interface MediaCardProps {
   item: MediaItem;
@@ -17,11 +11,6 @@ interface MediaCardProps {
 }
 
 export default function MediaCard({ item, index, onClick }: MediaCardProps) {
-  const type = guessFileCategory(item.extension);
-  const isImage = type === 'image';
-  const isVideo = type === 'video';
-  const fileExtension = item.file_name.split('.').pop()?.toLowerCase();
-
   // Show a visual indicator for processed items
   const isProcessed = item.processed;
 
@@ -39,35 +28,7 @@ export default function MediaCard({ item, index, onClick }: MediaCardProps) {
       data-index={index}
     >
       <div className="aspect-square relative">
-        {isImage &&
-        item.thumbnail_path &&
-        !isSkippedLargeFile(item.file_path, item.size_bytes) ? (
-          <div className="w-full h-full relative">
-            <Image
-              src={item.thumbnail_path}
-              alt={item.file_name}
-              fill
-              className="object-cover"
-            />
-          </div>
-        ) : isVideo ? (
-          <div className="w-full h-full relative bg-black flex items-center justify-center">
-            <VideoIcon className="h-12 w-12 text-white opacity-50 group-hover:opacity-75 transition-opacity" />
-            <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs rounded px-1 py-0.5">
-              VIDEO
-            </div>
-          </div>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="flex flex-col items-center">
-              <FileIcon className="h-10 w-10 text-muted-foreground" />
-              <span className="text-xs font-medium mt-2">
-                {fileExtension ? `.${fileExtension.toUpperCase()}` : 'FILE'}
-              </span>
-            </div>
-          </div>
-        )}
-
+        <MediaPreview item={item} />
         {/* Thumbnail indicator */}
         {item.thumbnail_path && (
           <div

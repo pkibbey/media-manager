@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import type { MediaFilters } from '@/types';
+import type { MediaFilters } from '@/types/media-types';
 import {
   CalendarIcon,
   MixerHorizontalIcon,
@@ -188,7 +188,8 @@ export default function MediaFilterView({
           params.set('processed', values.processed);
         if (values.organized !== 'all')
           params.set('organized', values.organized);
-        if (values.camera) params.set('camera', values.camera);
+        if (values.camera && values.camera !== 'all')
+          params.set('camera', values.camera);
         if (values.hasLocation !== 'all')
           params.set('hasLocation', values.hasLocation);
 
@@ -502,7 +503,10 @@ export default function MediaFilterView({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Camera</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value || 'all'}
+                      onValueChange={field.onChange}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Any Camera" />
                       </SelectTrigger>

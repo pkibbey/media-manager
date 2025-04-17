@@ -23,6 +23,7 @@ import {
 import { formatBytes } from '@/lib/utils';
 import type { PerformanceMetrics } from '@/types/db-types';
 import type { ExifProgress, ExtractionMethod } from '@/types/exif';
+import { InfoCircledIcon } from '@radix-ui/react-icons';
 import { createClient } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -127,7 +128,6 @@ export default function ExifProcessor() {
 
       // Add the extraction method for A/B testing
       params.append('method', extractionMethod);
-      console.log('extractionMethod: ', extractionMethod);
 
       // Add the abort signal to the URL as a token
       const abortToken = Math.random().toString(36).substring(2, 15);
@@ -411,20 +411,52 @@ export default function ExifProcessor() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="cursor-help border-b border-dotted border-gray-400">
-                      {stats.total} total EXIF-compatible files
-                    </span>
+                    <button className="inline-flex items-center underline-offset-4 text-xs hover:underline">
+                      <InfoCircledIcon className="h-3 w-3 mr-1" /> Processing
+                      info
+                    </button>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p>
-                      Files that typically contain EXIF data: JPG, JPEG, TIFF,
-                      HEIC, PNG, RAW, NEF, CR2, ARW, and some video formats like
-                      MP4 and MOV.
-                    </p>
+                  <TooltipContent className="text-xs max-w-[300px]">
+                    EXIF extraction processes files in batches. Large files or
+                    unsupported formats may take longer.
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
+
+            {/* Estimated processing time */}
+            {performanceMetrics.length > 0 && stats.unprocessed > 0 && (
+              <div className="flex justify-between mt-2 pt-2 border-t border-border">
+                <span className="font-medium text-foreground">
+                  Est. Processing Time:
+                </span>
+                <span>
+                  {(() => {
+                    // Calculate average processing time across all metrics
+                    const avgTimePerFile =
+                      performanceMetrics.reduce(
+                        (sum, metric) => sum + metric.duration,
+                        0,
+                      ) / performanceMetrics.length; // in ms
+
+                    // Estimate total time for unprocessed files
+                    const totalEstimatedMs = avgTimePerFile * stats.unprocessed;
+
+                    // Format nicely based on duration
+                    if (totalEstimatedMs < 1000) {
+                      return `${totalEstimatedMs.toFixed(0)} ms`;
+                    }
+                    if (totalEstimatedMs < 60000) {
+                      return `${(totalEstimatedMs / 1000).toFixed(1)} seconds`;
+                    }
+                    if (totalEstimatedMs < 3600000) {
+                      return `${(totalEstimatedMs / 60000).toFixed(1)} minutes`;
+                    }
+                    return `${(totalEstimatedMs / 3600000).toFixed(1)} hours`;
+                  })()}
+                </span>
+              </div>
+            )}
           </div>
 
           <p className="text-sm text-muted-foreground">

@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { guessFileCategory, needsConversion } from '@/lib/utils';
+import { isImage, isVideo, needsConversion } from '@/lib/utils';
 import ffmpeg from 'fluent-ffmpeg';
 import { lookup } from 'mime-types';
 import { type NextRequest, NextResponse } from 'next/server';
@@ -65,9 +65,8 @@ export async function GET(request: NextRequest) {
       .substring(1)
       .toLowerCase();
     const requiresConversion = needsConversion(fileExtension);
-    const type = guessFileCategory(fileExtension);
-    const isImage = type === 'image';
-    const isVideo = type === 'video';
+    const isImageFile = isImage(fileExtension);
+    const isVideoFile = isVideo(fileExtension);
 
     // Handle thumbnails (always convert to webp for efficiency)
     if (thumbnail) {
@@ -86,7 +85,7 @@ export async function GET(request: NextRequest) {
         });
       } catch (error) {
         // Thumbnail doesn't exist in cache, generate it
-        if (isImage) {
+        if (isImageFile) {
           try {
             const thumbnailBuffer = await sharp(mediaItem.file_path)
               .resize(300, 300, { fit: 'cover' })
@@ -109,7 +108,7 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        if (isVideo) {
+        if (isVideoFile) {
           // For videos, we'll use a placeholder thumbnail
           // In a future update, actual video thumbnails could be extracted
           const placeholderThumbnail = await fs
@@ -153,7 +152,7 @@ export async function GET(request: NextRequest) {
     // Handle conversion for files that need it
     const cachedFilePath = path.join(
       CACHE_DIR,
-      `${id}_converted.${isImage ? 'webp' : 'mp4'}`,
+      `${id}_converted.${isImageFile ? 'webp' : 'mp4'}`,
     );
 
     try {
@@ -163,14 +162,14 @@ export async function GET(request: NextRequest) {
 
       return new NextResponse(convertedData, {
         headers: {
-          'Content-Type': isImage ? 'image/webp' : 'video/mp4',
-          'Content-Disposition': `inline; filename="${encodeURIComponent(mediaItem.file_name)}.${isImage ? 'webp' : 'mp4'}"`,
+          'Content-Type': isImageFile ? 'image/webp' : 'video/mp4',
+          'Content-Disposition': `inline; filename="${encodeURIComponent(mediaItem.file_name)}.${isImageFile ? 'webp' : 'mp4'}"`,
           'Cache-Control': 'public, max-age=604800', // Cache for 7 days
         },
       });
     } catch (error) {
       // Converted file doesn't exist in cache, perform conversion
-      if (isImage) {
+      if (isImageFile) {
         try {
           const webpBuffer = await sharp(mediaItem.file_path)
             .webp({ quality: 85 })
@@ -195,7 +194,7 @@ export async function GET(request: NextRequest) {
             { status: 500 },
           );
         }
-      } else if (isVideo) {
+      } else if (isVideoFile) {
         return new Promise((resolve) => {
           // For video conversion, this would be a time-consuming process
           // In a real implementation, you would want to use a queue system

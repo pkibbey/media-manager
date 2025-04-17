@@ -2,7 +2,6 @@ import type { Database } from '@/types/supabase';
 import { createClient } from '@supabase/supabase-js';
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  console.log(process.env);
   throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
 }
 

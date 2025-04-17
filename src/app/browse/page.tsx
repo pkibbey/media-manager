@@ -22,7 +22,7 @@ const defaultFilters: MediaFilters = {
   processed: 'all',
   organized: 'all',
   camera: '',
-  hasLocation: 'no',
+  hasLocation: 'all',
 };
 
 export default function BrowsePage() {
@@ -41,6 +41,7 @@ export default function BrowsePage() {
   });
   const [maxFileSize, setMaxFileSize] = useState(100);
   const [availableExtensions, setAvailableExtensions] = useState<string[]>([]);
+  const [availableCameras, setAvailableCameras] = useState<string[]>([]);
 
   // Parse page from URL on initial load
   useEffect(() => {
@@ -109,12 +110,22 @@ export default function BrowsePage() {
       parsedFilters.organized = organized as MediaFilters['organized'];
     }
 
+    const camera = searchParams.get('camera');
+    if (camera) {
+      parsedFilters.camera = camera;
+    }
+
+    const hasLocation = searchParams.get('hasLocation');
+    if (hasLocation && ['all', 'yes', 'no'].includes(hasLocation)) {
+      parsedFilters.hasLocation = hasLocation as MediaFilters['hasLocation'];
+    }
+
     // Update filters with parsed values
     setFilters({
       ...defaultFilters,
       ...parsedFilters,
     });
-  }, [searchParams.get, searchParams.has]);
+  }, [searchParams]);
 
   // Load media items with current filters and pagination
   useEffect(() => {
@@ -129,7 +140,23 @@ export default function BrowsePage() {
           setMediaItems(result.data);
           setPagination(result.pagination);
           setMaxFileSize(result.maxFileSize);
-          setAvailableExtensions(result.availableExtensions);
+          setAvailableExtensions(result.availableExtensions || []);
+
+          // Extract unique camera models from media items with processed EXIF data
+          if (result.data.length > 0) {
+            const cameras = result.data
+              .filter((item) => item.exif_data?.camera)
+              // biome-ignore lint/complexity/useOptionalChain: <explanation>
+              .map((item) => item.exif_data !== null && item.exif_data.camera)
+              .filter(
+                (camera, index, self) =>
+                  camera && self.indexOf(camera) === index,
+              );
+
+            if (cameras.length > 0) {
+              setAvailableCameras(cameras as string[]);
+            }
+          }
         } else {
           setError(result.error || 'Failed to load media items');
           setMediaItems([]);
@@ -169,6 +196,7 @@ export default function BrowsePage() {
         <MediaFilterView
           totalCount={pagination.total}
           maxFileSize={maxFileSize}
+          availableCameras={availableCameras}
           onFiltersChange={handleFiltersChange}
         />
       </div>

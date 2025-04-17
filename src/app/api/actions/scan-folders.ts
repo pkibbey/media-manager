@@ -529,9 +529,10 @@ export async function scanFolders(options: ScanOptions = {}) {
         });
 
         for (const extension of newFileTypes) {
+          const category = await guessFileCategory(extension);
           await supabase.from('file_types').insert({
             extension,
-            category: guessFileCategory(extension),
+            category,
             can_display_natively: canDisplayNatively(extension),
             needs_conversion: !canDisplayNatively(extension),
             ignore: false,

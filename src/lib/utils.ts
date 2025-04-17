@@ -488,7 +488,36 @@ export function exifDataToJson(data: Exif): Json {
  * @param extension File extension (e.g. "jpg", "mp4")
  * @returns File category (e.g. "image", "video", "data", "other")
  */
-export function guessFileCategory(extension: string): string {
+export async function guessFileCategory(extension: string): Promise<string> {
+  // First check if this file type exists in the database
+  try {
+    const { createServerSupabaseClient } = await import('@/lib/supabase');
+    const supabase = createServerSupabaseClient();
+
+    const { data } = await supabase
+      .from('file_types')
+      .select('category')
+      .eq('extension', extension.toLowerCase())
+      .maybeSingle();
+
+    // If we found a category in the database, use that
+    if (data?.category) {
+      return data.category;
+    }
+  } catch (error) {
+    // If there's any error, fall back to the default logic
+    console.error(`Error checking file type category from database: ${error}`);
+  }
+
+  // Fall back to default logic
+  return guessFileCategoryDefault(extension);
+}
+
+/**
+ * Default function to guess file category based on extension without database lookup
+ * This is used as a fallback when database lookup fails or for client-side usage
+ */
+export function guessFileCategoryDefault(extension: string): string {
   const imageExtensions = [
     'jpg',
     'jpeg',
@@ -524,6 +553,32 @@ export function guessFileCategory(extension: string): string {
     return 'data';
   }
   return 'other';
+}
+
+/**
+ * Client-side function to guess file category by calling the API
+ * @param extension File extension (e.g. "jpg", "mp4")
+ * @returns File category from API or fallback if API fails
+ */
+export async function guessFileCategoryClient(
+  extension: string,
+): Promise<string> {
+  try {
+    const response = await fetch(
+      `/api/file-types/guess-category?extension=${encodeURIComponent(extension)}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Error fetching file category: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.category;
+  } catch (error) {
+    console.error(`Error fetching file category from API: ${error}`);
+    // Fall back to default categorization if API call fails
+    return guessFileCategoryDefault(extension);
+  }
 }
 
 export const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB in bytes

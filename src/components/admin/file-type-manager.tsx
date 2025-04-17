@@ -21,16 +21,27 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
   );
   const [showIgnoredTypesHelp, setShowIgnoredTypesHelp] = useState(false);
 
+  // State for drag and drop functionality
+  const [draggingFileType, setDraggingFileType] = useState<FileType | null>(
+    null,
+  );
+  const [draggingOver, setDraggingOver] = useState<string | null>(null);
+
+  // State for new category creation
+  const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
   // Group file types by category for easier management
   const groupedTypes: GroupedFileTypes = fileTypes.reduce(
     (acc: GroupedFileTypes, fileType) => {
-      const category = fileType.category || 'Other';
+      const type = updatedTypes[fileType.id]
+        ? updatedTypes[fileType.id]
+        : fileType;
+      const category = type.category || 'Other';
       if (!acc[category]) {
         acc[category] = [];
       }
-      acc[category].push(
-        updatedTypes[fileType.id] ? updatedTypes[fileType.id] : fileType,
-      );
+      acc[category].push(type);
       return acc;
     },
     {},
@@ -43,6 +54,62 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
 
   // Sort categories alphabetically
   const categories = Object.keys(groupedTypes).sort();
+
+  // Handle starting drag of a file type
+  const handleDragStart = (fileType: FileType) => {
+    setDraggingFileType(fileType);
+  };
+
+  // Handle dropping a file type into a category
+  const handleDrop = async (category: string) => {
+    if (!draggingFileType || draggingFileType.category === category) {
+      setDraggingFileType(null);
+      setDraggingOver(null);
+      return;
+    }
+
+    setIsUpdating(draggingFileType.id);
+    try {
+      const updatedFileType = {
+        ...draggingFileType,
+        category: category,
+      };
+
+      const result = await updateFileType(draggingFileType.id, {
+        category: category,
+      });
+
+      if (result.success) {
+        setUpdatedTypes({
+          ...updatedTypes,
+          [draggingFileType.id]: updatedFileType,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating file type category:', error);
+    } finally {
+      setIsUpdating(null);
+      setDraggingFileType(null);
+      setDraggingOver(null);
+    }
+  };
+
+  // Handle creating a new category
+  const handleCreateCategory = () => {
+    if (!newCategoryName.trim()) return;
+
+    // Create an empty category that will show up in the UI
+    const newCategory = newCategoryName.trim();
+
+    // Add the empty category to our grouped types
+    if (!groupedTypes[newCategory]) {
+      groupedTypes[newCategory] = [];
+    }
+
+    // Reset form state
+    setShowNewCategoryForm(false);
+    setNewCategoryName('');
+  };
 
   const handleToggleIgnore = async (fileType: FileType) => {
     setIsUpdating(fileType.id);
@@ -141,6 +208,51 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
         </div>
       </div>
 
+      <div className="bg-muted/50 p-4 rounded-md mb-4">
+        <p className="text-sm">
+          <strong>Tip:</strong> Drag and drop file types between categories to
+          organize them. Changes will be saved automatically and reflected when
+          guessing file categories.
+        </p>
+      </div>
+
+      {/* New Category Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowNewCategoryForm(!showNewCategoryForm)}
+          className="text-sm bg-primary text-primary-foreground px-3 py-2 rounded-md hover:bg-primary/90 transition-colors"
+        >
+          {showNewCategoryForm ? 'Cancel' : 'New Category'}
+        </button>
+      </div>
+
+      {/* New Category Form */}
+      {showNewCategoryForm && (
+        <div className="border rounded-md p-4 bg-muted/20 space-y-4">
+          <h4 className="font-medium">Create New Category</h4>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="Category name"
+              className="flex-1 px-3 py-2 border rounded-md text-sm"
+            />
+            <button
+              onClick={handleCreateCategory}
+              disabled={!newCategoryName.trim()}
+              className="bg-primary text-primary-foreground px-3 py-2 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Create
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            After creating a category, drag and drop file types into it to
+            organize your media.
+          </p>
+        </div>
+      )}
+
       {/* Ignored Types Help */}
       <div className="relative">
         <button
@@ -201,9 +313,34 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
           return a.localeCompare(b);
         })
         .map((category) => (
-          <div key={category} className="space-y-2">
-            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+          <div
+            key={category}
+            className="space-y-2"
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (draggingFileType && category !== draggingFileType.category) {
+                setDraggingOver(category);
+              }
+            }}
+            onDragLeave={() => setDraggingOver(null)}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleDrop(category);
+            }}
+          >
+            <h4
+              className={`font-medium text-sm uppercase tracking-wide p-2 rounded-md ${
+                draggingOver === category
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground'
+              }`}
+            >
               {category}
+              {draggingOver === category && (
+                <span className="ml-2 text-xs">
+                  Drop to move file type here
+                </span>
+              )}
             </h4>
             <div className="border rounded-md overflow-hidden">
               <table className="w-full">
@@ -226,11 +363,17 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
                       return (
                         <tr
                           key={fileType.id}
-                          className={
-                            isIgnored
-                              ? 'bg-muted/50 text-muted-foreground hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                              : 'hover:bg-accent/50'
-                          }
+                          className={`
+                            ${
+                              isIgnored
+                                ? 'bg-muted/50 text-muted-foreground hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                                : 'hover:bg-accent/50'
+                            }
+                            ${draggingFileType?.id === fileType.id ? 'opacity-50' : ''}
+                            cursor-move
+                          `}
+                          draggable={!isIgnored}
+                          onDragStart={() => handleDragStart(fileType)}
                         >
                           <td className="p-2">
                             <code

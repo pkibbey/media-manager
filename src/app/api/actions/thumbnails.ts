@@ -914,7 +914,6 @@ export async function regenerateMissingThumbnails(): Promise<ThumbnailResult> {
     }
 
     const { data: mediaItems, error } = await query;
-    console.log('mediaItems: ', mediaItems);
 
     if (error) {
       console.error(
