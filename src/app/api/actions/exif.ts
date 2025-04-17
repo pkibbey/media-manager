@@ -1,7 +1,7 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import { isAborted } from '@/lib/abort-tokens';
+import { addAbortToken, isAborted } from '@/lib/abort-tokens';
 import { extractMetadata, isExifSupportedExtension } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { extractDateFromFilename, isSkippedLargeFile } from '@/lib/utils';
@@ -1001,5 +1001,27 @@ export async function streamProcessUnprocessedItems(
     progress: ExifProgress,
   ) {
     await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
+  }
+}
+
+/**
+ * Abort EXIF processing by token
+ */
+export async function abortExifProcessing(token: string): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  try {
+    await addAbortToken(token);
+    return {
+      success: true,
+      message: 'Processing aborted successfully',
+    };
+  } catch (error: any) {
+    console.error('Error aborting EXIF processing:', error);
+    return {
+      success: false,
+      message: `Error aborting processing: ${error.message || 'Unknown error'}`,
+    };
   }
 }

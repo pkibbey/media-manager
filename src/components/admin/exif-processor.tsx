@@ -1,6 +1,6 @@
 'use client';
 
-import { getExifStats } from '@/app/api/actions/exif';
+import { abortExifProcessing, getExifStats } from '@/app/api/actions/exif';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -125,17 +125,19 @@ export default function ExifProcessor() {
       setProcessingEventSource(eventSource);
 
       // Add a listener for abort events
-      controller.signal.addEventListener('abort', () => {
+      controller.signal.addEventListener('abort', async () => {
         // Close the event source
         if (eventSource) {
           eventSource.close();
           setProcessingEventSource(null);
         }
 
-        // Send the abort signal to the server
-        fetch(`/api/media/process-exif/abort?token=${abortToken}`, {
-          method: 'POST',
-        }).catch((err) => console.error('Error sending abort signal:', err));
+        // Send the abort signal to the server using the direct server action
+        try {
+          await abortExifProcessing(abortToken);
+        } catch (err) {
+          console.error('Error sending abort signal:', err);
+        }
 
         // Update UI state
         setIsStreaming(false);

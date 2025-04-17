@@ -108,3 +108,30 @@ export async function clearIgnoredFileTypes() {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Get all ignored file types
+ */
+export async function getIgnoredFileTypes() {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    const { data, error } = await supabase
+      .from('file_types')
+      .select('extension')
+      .eq('ignore', true);
+
+    if (error) {
+      console.error('Error fetching ignored file types:', error);
+      return { success: false, error: error.message, data: [] };
+    }
+
+    return { 
+      success: true, 
+      data: data?.map(type => type.extension.toLowerCase()) || [] 
+    };
+  } catch (error: any) {
+    console.error('Error getting ignored file types:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+}

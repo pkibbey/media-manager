@@ -956,3 +956,68 @@ export async function regenerateMissingThumbnails(): Promise<ThumbnailResult> {
     };
   }
 }
+
+/**
+ * Count media items that need thumbnails (no thumbnail_path)
+ * Uses the same filtering logic as generateMissingThumbnails
+ */
+export async function countMissingThumbnails(): Promise<{
+  success: boolean;
+  count?: number;
+  error?: string;
+}> {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    // Get ignored file extensions
+    const { data: ignoredTypes } = await supabase
+      .from('file_types')
+      .select('extension')
+      .eq('ignore', true);
+
+    const ignoredExtensions =
+      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+
+    // Define the image file extensions we want to process
+    const imageExtensions = [
+      'jpg',
+      'jpeg',
+      'png',
+      'webp',
+      'gif',
+      'tiff',
+      'tif',
+      'heic',
+      'avif',
+      'bmp',
+    ];
+
+    // Build the query
+    let query = supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true })
+      .is('thumbnail_path', null) // Only include items with null thumbnail_path
+      .in('extension', imageExtensions); // Only include image files
+
+    // Exclude ignored file types if any are configured
+    if (ignoredExtensions.length > 0) {
+      query = query.not(
+        'extension',
+        'in',
+        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+      );
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error('Error counting missing thumbnails:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, count: count || 0 };
+  } catch (error: any) {
+    console.error('Error counting missing thumbnails:', error);
+    return { success: false, error: error.message };
+  }
+}

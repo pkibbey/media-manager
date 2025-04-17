@@ -1,5 +1,6 @@
 'use client';
 
+import { clearAllMediaItems } from '@/app/api/actions/stats';
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -28,25 +29,15 @@ export default function ResetScan() {
     try {
       setIsLoading(true);
 
-      // First, delete all media items
-      const mediaItemsResponse = await fetch('/api/media/reset-scan', {
-        method: 'DELETE',
-      });
-
-      if (!mediaItemsResponse.ok) {
-        const error = await mediaItemsResponse.text();
-        throw new Error(error || 'Failed to reset media database');
-      }
-
-      const result = await mediaItemsResponse.json();
+      // Use the direct server action instead of fetch
+      const result = await clearAllMediaItems();
 
       if (result.success) {
         toast.success(result.message);
+        setDialogOpen(false);
       } else {
-        toast.error(result.message || 'Failed to reset media database');
+        toast.error(result.error || 'Failed to reset media database');
       }
-
-      setDialogOpen(false);
     } catch (error) {
       toast.error(
         'An unexpected error occurred while resetting media database',

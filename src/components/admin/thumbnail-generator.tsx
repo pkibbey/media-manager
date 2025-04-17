@@ -1,6 +1,11 @@
 'use client';
 
-import { generateMissingThumbnails } from '@/app/api/actions/thumbnails';
+import { 
+  countMissingThumbnails, 
+  generateMissingThumbnails, 
+  getThumbnailStats 
+} from '@/app/api/actions/thumbnails';
+import { getIgnoredFileTypes } from '@/app/api/actions/file-types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -74,73 +79,13 @@ export default function ThumbnailGenerator() {
   const fetchRemainingCount = useCallback(async () => {
     try {
       setIsLoading(true);
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-      // Define the same set of image extensions as used in generateMissingThumbnails
-      const imageExtensions = [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'gif',
-        'tiff',
-        'tif',
-        'heic',
-        'avif',
-        'bmp',
-      ];
-
-      // First, fetch ignored file types
-      const ignoredTypesResponse = await fetch(
-        `${supabaseUrl}/rest/v1/file_types?ignore=eq.true&select=extension`,
-        {
-          method: 'GET',
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      let ignoredExtensions: string[] = [];
-      if (ignoredTypesResponse.ok) {
-        const ignoredTypes = await ignoredTypesResponse.json();
-        ignoredExtensions = ignoredTypes.map((type: { extension: string }) =>
-          type.extension.toLowerCase(),
-        );
-      }
-
-      // Create the IN filter for extensions
-      const extensionFilter = imageExtensions
-        .map((ext) => `extension.eq.${ext}`)
-        .join(',');
-
-      // Create the NOT IN filter for ignored extensions
-      const ignoredFilter =
-        ignoredExtensions.length > 0
-          ? `&extension=not.in.(${ignoredExtensions.join(',')})`
-          : '';
-
-      // Query that matches the same criteria as generateMissingThumbnails
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/media_items?thumbnail_path=is.null&${extensionFilter}${ignoredFilter}&select=count`,
-        {
-          method: 'GET',
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setRemainingThumbnails(data[0]?.count || 0);
+      
+      const result = await countMissingThumbnails();
+      
+      if (result.success) {
+        setRemainingThumbnails(result.count || 0);
       } else {
-        console.error('Failed to fetch remaining thumbnails count');
+        console.error('Failed to fetch remaining thumbnails count:', result.error);
         setRemainingThumbnails(null);
       }
     } catch (error) {
@@ -154,17 +99,12 @@ export default function ThumbnailGenerator() {
   // Function to fetch thumbnail statistics
   const fetchThumbnailStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/stats/thumbnails');
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.stats) {
-          setThumbnailStats(data.stats);
-        } else {
-          console.error('Error fetching thumbnail stats:', data.error);
-        }
+      const result = await getThumbnailStats();
+      
+      if (result.success && result.stats) {
+        setThumbnailStats(result.stats);
       } else {
-        console.error('Failed to fetch thumbnail stats');
+        console.error('Error fetching thumbnail stats:', result.error);
       }
     } catch (error) {
       console.error('Error fetching thumbnail stats:', error);
@@ -240,71 +180,13 @@ export default function ThumbnailGenerator() {
       const controller = new AbortController();
       setAbortController(controller);
 
-      // Get a count of items that need thumbnails - only those with null thumbnail_path
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-      // Define the same set of image extensions as used in generateMissingThumbnails
-      const imageExtensions = [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'gif',
-        'tiff',
-        'tif',
-        'heic',
-        'avif',
-        'bmp',
-      ];
-
-      // First, fetch ignored file types
-      const ignoredTypesResponse = await fetch(
-        `${supabaseUrl}/rest/v1/file_types?ignore=eq.true&select=extension`,
-        {
-          method: 'GET',
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      let ignoredExtensions: string[] = [];
-      if (ignoredTypesResponse.ok) {
-        const ignoredTypes = await ignoredTypesResponse.json();
-        ignoredExtensions = ignoredTypes.map((type: { extension: string }) =>
-          type.extension.toLowerCase(),
-        );
+      // Use the direct server action to get the count
+      const countResult = await countMissingThumbnails();
+      if (!countResult.success) {
+        throw new Error(countResult.error || 'Failed to count missing thumbnails');
       }
-
-      // Create the IN filter for extensions
-      const extensionFilter = imageExtensions
-        .map((ext) => `extension.eq.${ext}`)
-        .join(',');
-
-      // Create the NOT IN filter for ignored extensions
-      const ignoredFilter =
-        ignoredExtensions.length > 0
-          ? `&extension=not.in.(${ignoredExtensions.join(',')})`
-          : '';
-
-      // Query that matches the same criteria as generateMissingThumbnails
-      const countResponse = await fetch(
-        `${supabaseUrl}/rest/v1/media_items?thumbnail_path=is.null&${extensionFilter}${ignoredFilter}&select=count`,
-        {
-          method: 'GET',
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      const countData = await countResponse.json();
-      const totalToProcess = countData[0]?.count || 0;
+      
+      const totalToProcess = countResult.count || 0;
       setTotal(totalToProcess);
 
       if (totalToProcess === 0) {
