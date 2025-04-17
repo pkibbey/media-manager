@@ -1,6 +1,6 @@
 'use client';
 
-import { browseMedia } from '@/actions/browse';
+import { browseMedia } from '@/app/actions/browse';
 import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/folders/media-list';
 import { Pagination } from '@/components/ui/pagination';

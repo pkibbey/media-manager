@@ -10,9 +10,9 @@ import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
 import TimestampCorrector from '@/components/admin/timestamp-corrector';
 import { Suspense } from 'react';
-import { getFileTypes } from '../../actions/file-types';
-import { getScanFolders } from '../../actions/scan-folders';
-import { getMediaStats } from '../../actions/stats';
+import { getFileTypes } from '../actions/file-types';
+import { getScanFolders } from '../actions/scan-folders';
+import { getMediaStats } from '../actions/stats';
 
 export default async function AdminPage() {
   const {

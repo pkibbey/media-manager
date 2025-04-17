@@ -1,6 +1,6 @@
 'use client';
 
-import { removeScanFolder } from '@/actions/scan-folders';
+import { removeScanFolder } from '@/app/actions/scan-folders';
 import type { ScanFolder } from '@/types';
 import { TrashIcon } from '@radix-ui/react-icons';
 import { formatDistanceToNow } from 'date-fns';

@@ -1,6 +1,6 @@
 'use client';
 
-import { updateFileType } from '@/actions/file-types';
+import { updateFileType } from '@/app/actions/file-types';
 import { formatDate } from '@/lib/utils';
 import type { FileType } from '@/types/db-types';
 

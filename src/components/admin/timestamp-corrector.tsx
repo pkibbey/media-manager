@@ -1,6 +1,6 @@
 'use client';
 
-import { updateMediaDatesFromFilenames } from '@/actions/exif';
+import { updateMediaDatesFromFilenames } from '@/app/actions/exif';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {

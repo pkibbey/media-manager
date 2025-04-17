@@ -3,7 +3,7 @@
 import {
   regenerateMissingThumbnails,
   resetAllThumbnails,
-} from '@/actions/thumbnails';
+} from '@/app/actions/thumbnails';
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';

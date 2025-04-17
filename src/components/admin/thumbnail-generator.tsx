@@ -4,7 +4,7 @@ import {
   countMissingThumbnails,
   generateMissingThumbnails,
   getThumbnailStats,
-} from '@/actions/thumbnails';
+} from '@/app/actions/thumbnails';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
