@@ -15,4 +15,3 @@ export interface FileType extends Tables<'file_types'> {}
  */
 export interface ScanFolder extends Tables<'scan_folders'> {}
 
-export interface PerformanceMetrics extends Tables<'performance_metrics'> {}

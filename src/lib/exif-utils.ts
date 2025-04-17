@@ -1,10 +1,10 @@
 'use server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { savePerformanceMetric } from '@/app/api/actions/performance-metrics';
-import type { PerformanceMetrics } from '@/types/db-types';
+import type { ExtractionMethod } from '@/types/exif';
 import exifReader, { type Exif } from 'exif-reader';
 import sharp from 'sharp';
+
 /**
  * Extracts EXIF data using only the Sharp library
  */
@@ -165,71 +165,31 @@ async function extractMetadataWithFallbacks(
  * Extracts EXIF data from an image file using the specified method
  * @param filePath Path to the image file
  * @param method The extraction method to use for A/B testing
- * @param trackPerformance Whether to track performance metrics
  * @returns Promise resolving to EXIF data or null if extraction fails
  */
 export async function extractMetadata({
   filePath,
   method,
-  trackPerformance = true,
 }: {
   filePath: string;
-  method: PerformanceMetrics['method'];
-  trackPerformance?: boolean;
+  method: ExtractionMethod;
 }): Promise<Exif | null> {
-  // Start performance timing if tracking is enabled
-  const startTime = trackPerformance ? performance.now() : 0;
-  let success = false;
-  let exifData = null;
-  let fileSize = 0;
-
   try {
-    // Get file size for metrics
-    if (trackPerformance) {
-      const stats = await fs.stat(filePath);
-      fileSize = stats.size;
-    }
-
     // Choose extraction method based on parameter
     switch (method) {
       case 'sharp-only':
-        exifData = await extractMetadataWithSharp(filePath);
-        break;
+        return await extractMetadataWithSharp(filePath);
       case 'direct-only':
-        exifData = await extractMetadataDirectOnly(filePath);
-        break;
+        return await extractMetadataDirectOnly(filePath);
       case 'marker-only':
-        exifData = await extractMetadataMarkerOnly(filePath);
-        break;
+        return await extractMetadataMarkerOnly(filePath);
       default:
         // Use the original implementation with multiple fallbacks
-        exifData = await extractMetadataWithFallbacks(filePath);
-        break;
+        return await extractMetadataWithFallbacks(filePath);
     }
-
-    success = exifData !== null;
-    return exifData;
   } catch (error) {
     console.error('Error extracting EXIF data:', error);
     return null;
-  } finally {
-    // Record performance metrics if tracking is enabled
-    if (trackPerformance) {
-      const endTime = performance.now();
-      const duration = endTime - startTime;
-      const fileType = path.extname(filePath).substring(1).toLowerCase();
-
-      savePerformanceMetric({
-        method,
-        file_size: fileSize,
-        file_type: fileType,
-        duration,
-        success,
-        timestamp: new Date().toISOString(),
-        // Optional: store anonymized path or just filename for privacy
-        file_path: path.basename(filePath),
-      });
-    }
   }
 }
 
@@ -243,7 +203,7 @@ export async function extractMetadata({
 export async function extractDateFromMediaFile(
   filePath: string,
   exifData?: Exif | null,
-  method: PerformanceMetrics['method'] = 'default',
+  method: ExtractionMethod = 'default',
 ): Promise<Date | null> {
   let newMetadata: Exif | null = null;
 

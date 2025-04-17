@@ -5,21 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { bytesToSize, isImage, isVideo } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 import { FileIcon } from '@radix-ui/react-icons';
-import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
 import ExifDataDisplay from './exif-data-display';
 
 interface MediaDetailProps {
   item: MediaItem | null;
 }
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Helper function to safely type exif_data from Json
 function getExifData(item: MediaItem): Exif | null {
@@ -27,51 +20,6 @@ function getExifData(item: MediaItem): Exif | null {
 }
 
 export default function MediaDetail({ item }: MediaDetailProps) {
-  const [processingEstimate, setProcessingEstimate] = useState<number | null>(
-    null,
-  );
-  const [isLoadingEstimate, setIsLoadingEstimate] = useState(false);
-
-  // Fetch performance metrics for estimation when item is unprocessed
-  useEffect(() => {
-    async function fetchProcessingEstimate() {
-      if (!item || item.processed) return;
-
-      setIsLoadingEstimate(true);
-      try {
-        // Fetch performance metrics for similar file types
-        const { data: metrics, error } = await supabase
-          .from('performance_metrics')
-          .select('*')
-          .eq('file_type', item.extension.toLowerCase())
-          .eq('success', true)
-          .order('timestamp', { ascending: false })
-          .limit(20);
-
-        if (error) {
-          console.error('Error fetching performance metrics:', error);
-          return;
-        }
-
-        if (metrics && metrics.length > 0) {
-          // Calculate average processing time in ms
-          const totalDuration = metrics.reduce(
-            (sum, metric) => sum + metric.duration,
-            0,
-          );
-          const avgDuration = totalDuration / metrics.length;
-          setProcessingEstimate(avgDuration);
-        }
-      } catch (error) {
-        console.error('Error calculating processing estimate:', error);
-      } finally {
-        setIsLoadingEstimate(false);
-      }
-    }
-
-    fetchProcessingEstimate();
-  }, [item]);
-
   if (!item) return null;
 
   // Use properly typed EXIF data
@@ -90,13 +38,6 @@ export default function MediaDetail({ item }: MediaDetailProps) {
   // Format the media date if available (from EXIF data)
   const mediaTakenDate = item.media_date
     ? format(new Date(item.media_date), 'PPP')
-    : null;
-
-  // Format processing time estimate for display
-  const formattedEstimate = processingEstimate
-    ? processingEstimate > 1000
-      ? `${(processingEstimate / 1000).toFixed(2)} seconds`
-      : `${processingEstimate.toFixed(0)} ms`
     : null;
 
   return (
@@ -187,11 +128,7 @@ export default function MediaDetail({ item }: MediaDetailProps) {
                           EXIF Processing Status
                         </div>
                         <div className="text-amber-500 dark:text-amber-400">
-                          {isLoadingEstimate
-                            ? 'Calculating estimate...'
-                            : formattedEstimate
-                              ? `Pending (est. time: ${formattedEstimate})`
-                              : 'Pending (no time estimate available)'}
+                          Pending
                         </div>
                       </div>
                     )}

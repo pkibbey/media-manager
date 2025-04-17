@@ -1,15 +1,20 @@
-export type ExtractionMethod =
-  | 'default'
-  | 'sharp-only'
-  | 'direct-only'
-  | 'marker-only';
+/**
+ * Type for EXIF extraction method
+ */
+export type ExtractionMethod = 'default' | 'sharp-only' | 'direct-only' | 'marker-only';
 
+/**
+ * Type for EXIF processing options
+ */
 export type ExifProcessingOptions = {
   skipLargeFiles?: boolean; // Whether to skip files over the large file threshold
   abortToken?: string; // Token to check for abort operations
-  extractionMethod: 'default' | 'sharp-only' | 'direct-only' | 'marker-only'; // A/B testing method
+  extractionMethod?: ExtractionMethod; // A/B testing method
 };
 
+/**
+ * Type for EXIF progress updates
+ */
 export type ExifProgress = {
   status: 'started' | 'processing' | 'completed' | 'error';
   message: string;
@@ -26,5 +31,5 @@ export type ExifProgress = {
     fileType?: string;
   }>;
   largeFilesSkipped?: number; // New property to track large files skipped
-  method?: string; // New property to track the method used
+  method?: ExtractionMethod; // New property to track the method used
 };

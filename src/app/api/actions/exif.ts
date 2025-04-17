@@ -5,15 +5,15 @@ import { isAborted } from '@/lib/abort-tokens';
 import { extractMetadata, isExifSupportedExtension } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { extractDateFromFilename, isSkippedLargeFile } from '@/lib/utils';
-import type { MediaItem, PerformanceMetrics } from '@/types/db-types';
-import type { ExifProcessingOptions, ExifProgress } from '@/types/exif';
+import type { MediaItem } from '@/types/db-types';
+import type { ExifProcessingOptions, ExifProgress, ExtractionMethod } from '@/types/exif';
 import type { Json } from '@/types/supabase';
 import { revalidatePath } from 'next/cache';
 
 export async function processMediaExif({
   media,
   method,
-}: { media: MediaItem; method: PerformanceMetrics['method'] }) {
+}: { media: MediaItem; method: ExtractionMethod }) {
   try {
     if (!media.id || !media.file_path) {
       return { success: false, message: 'Invalid media item' };
@@ -83,7 +83,7 @@ export async function processMediaExif({
 export async function batchProcessExif({
   folderPath,
   method,
-}: { folderPath: string; method: PerformanceMetrics['method'] }) {
+}: { folderPath: string; method: ExtractionMethod }) {
   try {
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient();
@@ -320,7 +320,7 @@ export async function getExifStats() {
 export async function processAllUnprocessedItems({
   count = 100,
   method,
-}: { count?: number; method: PerformanceMetrics['method'] }) {
+}: { count?: number; method: ExtractionMethod }) {
   try {
     const supabase = createServerSupabaseClient();
 
@@ -520,7 +520,7 @@ export async function updateMediaDatesFromFilenames({
 export async function processExifData({
   mediaId,
   method,
-}: { mediaId: string; method: PerformanceMetrics['method'] }) {
+}: { mediaId: string; method: ExtractionMethod }) {
   try {
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient();
@@ -646,7 +646,7 @@ export async function streamProcessUnprocessedItems(
     writer: WritableStreamDefaultWriter;
     skipLargeFiles: boolean;
     abortToken?: string;
-    extractionMethod?: PerformanceMetrics['method'];
+    extractionMethod?: ExtractionMethod;
   }) {
     try {
       const supabase = createServerSupabaseClient();

@@ -1,5 +1,5 @@
 import { streamProcessUnprocessedItems } from '@/app/api/actions/exif';
-import type { PerformanceMetrics } from '@/types/db-types';
+import type { ExtractionMethod } from '@/types/exif';
 import { type NextRequest, NextResponse } from 'next/server';
 
 export const GET = async (request: NextRequest) => {
@@ -13,7 +13,7 @@ export const GET = async (request: NextRequest) => {
 
     // Get extraction method
     const extractionMethod = (request.nextUrl.searchParams.get('method') ||
-      'default') as PerformanceMetrics['method'];
+      'default') as ExtractionMethod;
 
     // Validate extraction method
     if (

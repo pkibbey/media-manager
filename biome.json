@@ -13,7 +13,8 @@
         "noNoninteractiveTabindex": "off"
       },
       "complexity": {
-        "noForEach": "off"
+        "noForEach": "off",
+        "noBannedTypes": "off"
       },
       "correctness": {
         "noUnusedImports": "error"

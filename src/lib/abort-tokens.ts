@@ -1,13 +1,7 @@
 'use server';
 
-import type { PerformanceMetrics } from '@/types/db-types';
-
 // Store active abort tokens
 const abortTokens = new Set<string>();
-
-// Store performance metrics
-const performanceMetrics: PerformanceMetrics[] = [];
-const MAX_METRICS_COUNT = 1000; // Keep the most recent metrics
 
 /**
  * Add a new abort token
