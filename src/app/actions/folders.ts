@@ -112,21 +112,17 @@ export async function getMediaItemsByFolder(
     const ignoreFilter =
       ignoredExtensions.length > 0
         ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-        : null;
+        : '("")';
 
-    // Current folder count query
+    // Get current folder count with direct query
     const currentFolderCountQuery = supabase
       .from('media_items')
-      .select('id.count()')
-      .eq('folder_path', folderPath);
+      .select('id', { count: 'exact', head: true })
+      .eq('folder_path', folderPath)
+      .not('extension', 'in', ignoreFilter);
 
-    // Apply ignore filter if we have ignored extensions
-    if (ignoreFilter) {
-      currentFolderCountQuery.not('extension', 'in', ignoreFilter);
-    }
-
-    const { data: currentFolderData, error: currentFolderError } =
-      await currentFolderCountQuery.single();
+    const { count: currentFolderCount, error: currentFolderError } =
+      await currentFolderCountQuery;
 
     if (currentFolderError) {
       console.error(
@@ -136,42 +132,36 @@ export async function getMediaItemsByFolder(
       return { success: false, error: currentFolderError.message };
     }
 
-    const currentFolderCount = currentFolderData?.count || 0;
-
     // Only get subfolder count if requested
     let subfolderCount = 0;
     if (includeSubfolders && folderPath !== '/') {
       const subfolderCountQuery = supabase
         .from('media_items')
-        .select('id.count()')
-        .like('folder_path', `${folderPath}/%`);
+        .select('id', { count: 'exact', head: true })
+        .like('folder_path', `${folderPath}/%`)
+        .not('extension', 'in', ignoreFilter);
 
-      // Apply ignore filter if we have ignored extensions
-      if (ignoreFilter) {
-        subfolderCountQuery.not('extension', 'in', ignoreFilter);
-      }
-
-      const { data: subfolderData, error: subfolderError } =
-        await subfolderCountQuery.single();
+      const { count: subfoldersCount, error: subfolderError } =
+        await subfolderCountQuery;
 
       if (subfolderError) {
         console.error('Error counting items in subfolders:', subfolderError);
         return { success: false, error: subfolderError.message };
       }
 
-      subfolderCount = subfolderData?.count || 0;
+      subfolderCount = subfoldersCount || 0;
     }
 
     return {
       success: true,
       pagination: {
-        page: 1,
-        pageSize: 1,
-        pageCount: 1,
-        total: currentFolderCount + subfolderCount,
+        page,
+        pageSize,
+        pageCount: Math.ceil((currentFolderCount || 0) / pageSize),
+        total: (currentFolderCount || 0) + subfolderCount,
       },
       stats: {
-        currentFolderCount,
+        currentFolderCount: currentFolderCount || 0,
         subfolderCount,
       },
     };

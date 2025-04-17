@@ -159,154 +159,87 @@ export async function getExifStats() {
     const ignoredExtensions =
       fileTypes?.map((ft) => ft.extension.toLowerCase()) || [];
 
-    // Get the list of EXIF-supported extensions for filtering directly in the database
-    // Define list of supported extensions - must match what isExifSupportedExtension uses
+    // Define list of supported extensions
     const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
 
-    // Prepare the filter expressions
+    // Generate the NOT IN filter expression
     const ignoreFilterExpr =
       ignoredExtensions.length > 0
         ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-        : null;
+        : '("")';
 
-    const exifSupportedFilterExpr = `(${exifSupportedExtensions.map((ext) => `"${ext}"`).join(',')})`;
+    // Generate the IN filter expression for supported extensions
+    const supportedFilterExpr = `(${exifSupportedExtensions.map((ext) => `"${ext}"`).join(',')})`;
 
-    // Get count of media with EXIF data
-    let withExifQuery = supabase
+    // Get items with EXIF data
+    const { count: withExifCount, error: withExifError } = await supabase
       .from('media_items')
       .select('*', { count: 'exact', head: true })
-      .eq('has_exif', true);
+      .eq('has_exif', true)
+      .not('extension', 'in', ignoreFilterExpr);
 
-    // Apply ignore filter if we have ignored extensions
-    if (ignoreFilterExpr) {
-      withExifQuery = withExifQuery.filter(
-        'extension',
-        'not.in',
-        ignoreFilterExpr,
-      );
+    if (withExifError) {
+      console.error('Error with has_exif count:', withExifError);
+      return { success: false, message: withExifError.message };
     }
 
-    const { count: withExif, error: withExifError } = await withExifQuery;
+    // Get items that are processed but don't have EXIF
+    const { count: processedNoExifCount, error: processedNoExifError } =
+      await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('processed', true)
+        .eq('has_exif', false)
+        .not('extension', 'in', ignoreFilterExpr);
 
-    // Get count of media that was processed but couldn't extract EXIF data
-    let processedNoExifQuery = supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('processed', true)
-      .eq('has_exif', false);
-
-    // Apply ignore filter if we have ignored extensions
-    if (ignoreFilterExpr) {
-      processedNoExifQuery = processedNoExifQuery.filter(
-        'extension',
-        'not.in',
-        ignoreFilterExpr,
+    if (processedNoExifError) {
+      console.error(
+        'Error with processed_no_exif count:',
+        processedNoExifError,
       );
+      return { success: false, message: processedNoExifError.message };
     }
 
-    const { count: processedNoExif, error: processedNoExifError } =
-      await processedNoExifQuery;
-
-    // Get count of unprocessed items
-    let unprocessedQuery = supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('processed', false);
-
-    // Apply ignore filter if we have ignored extensions
-    if (ignoreFilterExpr) {
-      unprocessedQuery = unprocessedQuery.filter(
-        'extension',
-        'not.in',
-        ignoreFilterExpr,
-      );
-    }
-
-    const { count: unprocessedCount, error: unprocessedError } =
-      await unprocessedQuery;
-
-    // Count only the unprocessed items with EXIF compatible extensions directly in the database
-    let unprocessedExifCompatibleQuery = supabase
+    // Get unprocessed items that are EXIF compatible
+    const { count: unprocessedCount, error: unprocessedError } = await supabase
       .from('media_items')
       .select('*', { count: 'exact', head: true })
       .eq('processed', false)
-      .filter('extension', 'in', exifSupportedFilterExpr);
+      .in('extension', exifSupportedExtensions)
+      .not('extension', 'in', ignoreFilterExpr);
 
-    // Apply ignore filter if we have ignored extensions
-    if (ignoreFilterExpr) {
-      unprocessedExifCompatibleQuery = unprocessedExifCompatibleQuery.filter(
-        'extension',
-        'not.in',
-        ignoreFilterExpr,
-      );
+    if (unprocessedError) {
+      console.error('Error with unprocessed count:', unprocessedError);
+      return { success: false, message: unprocessedError.message };
     }
 
-    const {
-      count: unprocessedExifCompatibleCount,
-      error: unprocessedExifCompatibleError,
-    } = await unprocessedExifCompatibleQuery;
+    // Get total count of EXIF compatible items
+    const { count: totalCompatibleCount, error: totalCompatibleError } =
+      await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .in('extension', exifSupportedExtensions)
+        .not('extension', 'in', ignoreFilterExpr);
 
-    // Get count of all media items (for calculating total EXIF-capable)
-    let totalItemsQuery = supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true });
-
-    // Apply ignore filter if we have ignored extensions
-    if (ignoreFilterExpr) {
-      totalItemsQuery = totalItemsQuery.filter(
-        'extension',
-        'not.in',
-        ignoreFilterExpr,
-      );
+    if (totalCompatibleError) {
+      console.error('Error with total compatible count:', totalCompatibleError);
+      return { success: false, message: totalCompatibleError.message };
     }
 
-    const { count: totalItems, error: totalItemsError } = await totalItemsQuery;
-
-    // Count items with EXIF-compatible extensions directly in the database
-    let totalExifCompatibleQuery = supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .filter('extension', 'in', exifSupportedFilterExpr);
-
-    // Apply ignore filter if we have ignored extensions
-    if (ignoreFilterExpr) {
-      totalExifCompatibleQuery = totalExifCompatibleQuery.filter(
-        'extension',
-        'not.in',
-        ignoreFilterExpr,
-      );
-    }
-
-    const { count: totalExifCompatibleCount, error: totalExifCompatibleError } =
-      await totalExifCompatibleQuery;
-
-    // Check for errors
-    if (
-      withExifError ||
-      processedNoExifError ||
-      unprocessedError ||
-      totalItemsError ||
-      unprocessedExifCompatibleError ||
-      totalExifCompatibleError
-    ) {
-      const error =
-        withExifError ||
-        processedNoExifError ||
-        unprocessedError ||
-        totalItemsError ||
-        unprocessedExifCompatibleError ||
-        totalExifCompatibleError;
-      return { success: false, message: error?.message };
-    }
+    // Calculate statistics
+    const withExif = withExifCount || 0;
+    const processedNoExif = processedNoExifCount || 0;
+    const unprocessedCount2 = unprocessedCount || 0;
+    const totalExifCompatibleCount = totalCompatibleCount || 0;
 
     return {
       success: true,
       stats: {
-        with_exif: withExif || 0,
-        processed_no_exif: processedNoExif || 0,
-        total_processed: (withExif || 0) + (processedNoExif || 0),
-        unprocessed: unprocessedExifCompatibleCount || 0,
-        total: totalExifCompatibleCount || 0,
+        with_exif: withExif,
+        processed_no_exif: processedNoExif,
+        total_processed: withExif + processedNoExif,
+        unprocessed: unprocessedCount2,
+        total: totalExifCompatibleCount,
       },
     };
   } catch (error) {

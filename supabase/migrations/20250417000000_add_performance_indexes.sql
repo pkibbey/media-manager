@@ -25,4 +25,27 @@ CREATE INDEX IF NOT EXISTS "media_items_media_date_idx" ON "public"."media_items
 CREATE INDEX IF NOT EXISTS "media_items_ext_processed_idx" ON "public"."media_items" ("extension", "processed");
 
 -- This compound index will help thumbnail queries that filter by extension and thumbnail_path
-CREATE INDEX IF NOT EXISTS "media_items_ext_thumbnail_idx" ON "public"."media_items" ("extension", "thumbnail_path"); 
+CREATE INDEX IF NOT EXISTS "media_items_ext_thumbnail_idx" ON "public"."media_items" ("extension", "thumbnail_path");
+
+-- Add performance indexes to media_items table for faster filtering and sorting
+
+-- Index for extension-based filtering (used in many queries)
+CREATE INDEX IF NOT EXISTS idx_media_items_extension ON media_items (extension);
+
+-- Index for folder path searches (used in folder navigation)
+CREATE INDEX IF NOT EXISTS idx_media_items_folder_path ON media_items (folder_path);
+
+-- Combined index for processed state filtering (common in exif processing)
+CREATE INDEX IF NOT EXISTS idx_media_items_processed_has_exif ON media_items (processed, has_exif);
+
+-- Index for media date sorting (common in browse views)
+CREATE INDEX IF NOT EXISTS idx_media_items_media_date ON media_items (media_date);
+
+-- Index for file size filtering (used in size range filters)
+CREATE INDEX IF NOT EXISTS idx_media_items_size_bytes ON media_items (size_bytes);
+
+-- Combined index for common filtering patterns in browse
+CREATE INDEX IF NOT EXISTS idx_media_browse_common ON media_items (processed, organized, extension);
+
+-- Comment explaining the purpose of these indexes
+COMMENT ON INDEX idx_media_browse_common IS 'Supports common filtering patterns in the media browser';
