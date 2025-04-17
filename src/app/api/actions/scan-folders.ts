@@ -148,7 +148,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       if (foldersError || !folders) {
         const error = 'Error fetching scan folders';
-        console.error(error, foldersError);
+        console.error('ScanFolders', error, foldersError);
         await sendProgress(writer, {
           status: 'error',
           message: error,

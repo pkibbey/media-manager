@@ -1,5 +1,6 @@
 'use client';
-import type { MediaItem } from '@/types';
+
+import type { MediaItem } from '@/types/db-types';
 import { MixerHorizontalIcon } from '@radix-ui/react-icons';
 import { useRef, useState } from 'react';
 import MediaDetail from '../media/media-detail';

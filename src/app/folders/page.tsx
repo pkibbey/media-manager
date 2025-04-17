@@ -5,10 +5,12 @@ import {
   getMediaItemsByFolder,
 } from '@/app/api/actions/folders';
 import FolderPagination from '@/components/folders/folder-pagination';
-import FolderTree, { type FolderNode } from '@/components/folders/folder-tree';
+import FolderTree from '@/components/folders/folder-tree';
 import FolderViewToggle from '@/components/folders/folder-view-toggle';
 import MediaList from '@/components/folders/media-list';
-import type { MediaItem } from '@/types';
+import type { MediaItem } from '@/types/db-types';
+import type { FolderNode } from '@/types/folder-types';
+
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 

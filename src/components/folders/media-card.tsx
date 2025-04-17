@@ -5,7 +5,8 @@ import {
   guessFileCategory,
   isSkippedLargeFile,
 } from '@/lib/utils';
-import type { MediaItem } from '@/types';
+import type { MediaItem } from '@/types/db-types';
+
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
 

@@ -4,7 +4,8 @@ import { browseMedia } from '@/app/api/actions/browse';
 import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/folders/media-list';
 import { Pagination } from '@/components/ui/pagination';
-import type { MediaFilters, MediaItem } from '@/types';
+import type { MediaItem } from '@/types/db-types';
+import type { MediaFilters } from '@/types/media-types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 

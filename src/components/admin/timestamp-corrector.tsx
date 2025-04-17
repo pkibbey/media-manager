@@ -27,7 +27,10 @@ export default function TimestampCorrector() {
     setProgress({ processed: 0, updated: 0, percent: 0 });
 
     try {
-      const result = await updateMediaDatesFromFilenames(itemCount, processAll);
+      const result = await updateMediaDatesFromFilenames({
+        itemCount,
+        updateAll: processAll,
+      });
 
       if (result.success) {
         const percent =
@@ -41,7 +44,10 @@ export default function TimestampCorrector() {
           percent,
         });
       } else {
-        console.error(result.error || 'Failed to update timestamps');
+        console.error(
+          'TimestampCorrector',
+          result.error || 'Failed to update timestamps',
+        );
       }
     } catch (error) {
       console.error('Error updating timestamps:', error);

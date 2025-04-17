@@ -2,7 +2,8 @@
 
 import { updateFileType } from '@/app/api/actions/file-types';
 import { formatDate } from '@/lib/utils';
-import type { FileType } from '@/types';
+import type { FileType } from '@/types/db-types';
+
 import { useState } from 'react';
 
 interface FileTypeManagerProps {

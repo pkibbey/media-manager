@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { bytesToSize } from '@/lib/utils';
-import type { MediaItem } from '@/types';
+import type { MediaItem } from '@/types/db-types';
 import { FileIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
 import type { Exif } from 'exif-reader';
