@@ -1,11 +1,10 @@
 'use client';
 
-import { 
-  countMissingThumbnails, 
-  generateMissingThumbnails, 
-  getThumbnailStats 
-} from '@/app/api/actions/thumbnails';
-import { getIgnoredFileTypes } from '@/app/api/actions/file-types';
+import {
+  countMissingThumbnails,
+  generateMissingThumbnails,
+  getThumbnailStats,
+} from '@/actions/thumbnails';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -79,13 +78,16 @@ export default function ThumbnailGenerator() {
   const fetchRemainingCount = useCallback(async () => {
     try {
       setIsLoading(true);
-      
+
       const result = await countMissingThumbnails();
-      
+
       if (result.success) {
         setRemainingThumbnails(result.count || 0);
       } else {
-        console.error('Failed to fetch remaining thumbnails count:', result.error);
+        console.error(
+          'Failed to fetch remaining thumbnails count:',
+          result.error,
+        );
         setRemainingThumbnails(null);
       }
     } catch (error) {
@@ -100,7 +102,7 @@ export default function ThumbnailGenerator() {
   const fetchThumbnailStats = useCallback(async () => {
     try {
       const result = await getThumbnailStats();
-      
+
       if (result.success && result.stats) {
         setThumbnailStats(result.stats);
       } else {
@@ -183,9 +185,11 @@ export default function ThumbnailGenerator() {
       // Use the direct server action to get the count
       const countResult = await countMissingThumbnails();
       if (!countResult.success) {
-        throw new Error(countResult.error || 'Failed to count missing thumbnails');
+        throw new Error(
+          countResult.error || 'Failed to count missing thumbnails',
+        );
       }
-      
+
       const totalToProcess = countResult.count || 0;
       setTotal(totalToProcess);
 

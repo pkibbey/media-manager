@@ -1,6 +1,6 @@
 'use client';
 
-import { browseMedia } from '@/app/api/actions/browse';
+import { browseMedia } from '@/actions/browse';
 import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/folders/media-list';
 import { Pagination } from '@/components/ui/pagination';
@@ -144,18 +144,17 @@ export default function BrowsePage() {
 
           // Extract unique camera models from media items with processed EXIF data
           if (result.data.length > 0) {
-            const cameras = result.data
-              .filter((item) => item.exif_data?.camera)
-              // biome-ignore lint/complexity/useOptionalChain: <explanation>
-              .map((item) => item.exif_data !== null && item.exif_data.camera)
-              .filter(
-                (camera, index, self) =>
-                  camera && self.indexOf(camera) === index,
-              );
+            const uniqueCameras = new Set<string>();
+            result.data.forEach((item) => {
+              // @ts-ignore
+              if (item.exif_data?.Image?.Model) {
+                // @ts-ignore
+                uniqueCameras.add(item.exif_data.Image.Model);
+              }
+            });
 
-            if (cameras.length > 0) {
-              setAvailableCameras(cameras as string[]);
-            }
+            const cameras = Array.from(uniqueCameras);
+            setAvailableCameras(cameras);
           }
         } else {
           setError(result.error || 'Failed to load media items');

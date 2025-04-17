@@ -14,4 +14,3 @@ export interface FileType extends Tables<'file_types'> {}
  * ScanFolder represents a folder that is scanned for media files
  */
 export interface ScanFolder extends Tables<'scan_folders'> {}
-

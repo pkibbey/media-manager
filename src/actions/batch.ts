@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { ExtractionMethod } from '@/types/exif';
 import type {
   BatchOperationResponse,
   BatchProgress,
@@ -14,7 +15,10 @@ import { processExifData } from './exif';
 export async function batchProcessExif({
   itemIds,
   method,
-}: { itemIds: string[]; method: string }): Promise<BatchOperationResponse> {
+}: {
+  itemIds: string[];
+  method: ExtractionMethod;
+}): Promise<BatchOperationResponse> {
   try {
     let processedCount = 0;
     let failedCount = 0;
@@ -142,7 +146,7 @@ export async function batchDeleteItems(
 export async function streamBatchProcessExif({
   itemIds,
   method,
-}: { itemIds: string[]; method: string }) {
+}: { itemIds: string[]; method: ExtractionMethod }) {
   const encoder = new TextEncoder();
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();

@@ -1,6 +1,10 @@
 'use client';
 
-import { abortExifProcessing, getExifStats } from '@/app/api/actions/exif';
+import {
+  abortExifProcessing,
+  getExifStats,
+  streamProcessUnprocessedItems,
+} from '@/actions/exif';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -106,34 +110,24 @@ export default function ExifProcessor() {
       const controller = new AbortController();
       setAbortController(controller);
 
-      // Start a Server-Sent Events connection with the skipLargeFiles option and extraction method
-      const params = new URLSearchParams();
-      if (skipLargeFiles) {
-        params.append('skipLargeFiles', 'true');
-      }
-
-      // Add the extraction method for A/B testing
-      params.append('method', extractionMethod);
-
-      // Add the abort signal to the URL as a token
+      // Generate an abort token
       const abortToken = Math.random().toString(36).substring(2, 15);
-      params.append('abortToken', abortToken);
 
-      const url = `/api/media/process-exif?${params.toString()}`;
+      // Call the server action to get a ReadableStream
+      const stream = await streamProcessUnprocessedItems({
+        skipLargeFiles,
+        abortToken,
+        extractionMethod,
+      });
 
-      const eventSource = new EventSource(url);
-      setProcessingEventSource(eventSource);
+      // Create a new ReadableStream and TextDecoder to handle the response
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
 
       // Add a listener for abort events
       controller.signal.addEventListener('abort', async () => {
-        // Close the event source
-        if (eventSource) {
-          eventSource.close();
-          setProcessingEventSource(null);
-        }
-
-        // Send the abort signal to the server using the direct server action
         try {
+          reader.cancel(); // Cancel the stream reading
           await abortExifProcessing(abortToken);
         } catch (err) {
           console.error('Error sending abort signal:', err);
@@ -152,68 +146,85 @@ export default function ExifProcessor() {
         );
       });
 
-      eventSource.onmessage = (event) => {
+      // Process stream data
+      const processStreamData = async () => {
         try {
-          const data = JSON.parse(event.data) as ExifProgress;
-          setProgress(data);
+          while (true) {
+            const { done, value } = await reader.read();
 
-          // Track error information when available
-          if (data.error) {
-            // Store the error with its file path
-            const errorType = categorizeError(data.error);
-            const filePath = data.currentFilePath || 'Unknown file';
+            if (done) {
+              setIsStreaming(false);
+              setAbortController(null);
+              break;
+            }
 
-            setErrorSummary((prevSummary) => {
-              const newSummary = { ...prevSummary };
-              if (!newSummary[errorType]) {
-                newSummary[errorType] = {
-                  count: 0,
-                  examples: [],
-                };
+            // Process the chunk - it may contain multiple events
+            const text = decoder.decode(value, { stream: true });
+            const lines = text.split('\n\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.substring(6)) as ExifProgress;
+                  setProgress(data);
+
+                  // Track error information when available
+                  if (data.error) {
+                    // Store the error with its file path
+                    const errorType = categorizeError(data.error);
+                    const filePath = data.currentFilePath || 'Unknown file';
+
+                    setErrorSummary((prevSummary) => {
+                      const newSummary = { ...prevSummary };
+                      if (!newSummary[errorType]) {
+                        newSummary[errorType] = {
+                          count: 0,
+                          examples: [],
+                        };
+                      }
+
+                      newSummary[errorType].count += 1;
+
+                      // Keep up to 3 examples of each error type
+                      if (
+                        newSummary[errorType].examples.length < 3 &&
+                        filePath !== 'Unknown file'
+                      ) {
+                        newSummary[errorType].examples.push(filePath);
+                      }
+
+                      return newSummary;
+                    });
+                  }
+
+                  if (data.status === 'completed') {
+                    setIsStreaming(false);
+                    setAbortController(null);
+                    toast.success('EXIF processing completed successfully');
+                    fetchStats(); // Refresh stats after completion
+                  } else if (data.status === 'error') {
+                    setIsStreaming(false);
+                    setAbortController(null);
+                    setHasError(true);
+                    toast.error(`Error processing EXIF data: ${data.error}`);
+                  }
+                } catch (error) {
+                  console.error('Error parsing event data:', error, line);
+                }
               }
-
-              newSummary[errorType].count += 1;
-
-              // Keep up to 3 examples of each error type
-              if (
-                newSummary[errorType].examples.length < 3 &&
-                filePath !== 'Unknown file'
-              ) {
-                newSummary[errorType].examples.push(filePath);
-              }
-
-              return newSummary;
-            });
-          }
-
-          if (data.status === 'completed') {
-            eventSource.close();
-            setProcessingEventSource(null);
-            setIsStreaming(false);
-            setAbortController(null);
-            toast.success('EXIF processing completed successfully');
-            fetchStats(); // Refresh stats after completion
-          } else if (data.status === 'error') {
-            eventSource.close();
-            setProcessingEventSource(null);
-            setIsStreaming(false);
-            setAbortController(null);
-            setHasError(true);
-            toast.error(`Error processing EXIF data: ${data.error}`);
+            }
           }
         } catch (error) {
-          console.error('Error parsing event data:', error, event.data);
+          console.error('Error reading stream:', error);
+          setIsStreaming(false);
+          setAbortController(null);
+          setHasError(true);
+          toast.error('Error processing EXIF data stream');
         }
       };
 
-      eventSource.onerror = () => {
-        eventSource.close();
-        setProcessingEventSource(null);
-        setIsStreaming(false);
-        setAbortController(null);
-        setHasError(true);
-        toast.error('Connection error while processing EXIF data');
-      };
+      // Start processing the stream
+      processStreamData();
     } catch (error) {
       setIsStreaming(false);
       setAbortController(null);

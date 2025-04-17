@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  getFolderStructure,
-  getMediaItemsByFolder,
-} from '@/app/api/actions/folders';
+import { getFolderStructure, getMediaItemsByFolder } from '@/actions/folders';
 import FolderPagination from '@/components/folders/folder-pagination';
 import FolderTree from '@/components/folders/folder-tree';
 import FolderViewToggle from '@/components/folders/folder-view-toggle';

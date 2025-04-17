@@ -1,6 +1,7 @@
 'use client';
 
-import { type ScanProgress, scanFolders } from '@/app/api/actions/scan-folders';
+import { scanFolders } from '@/actions/scan-folders';
+import type { ScanProgress } from '@/types/progress-types';
 import { ReloadIcon } from '@radix-ui/react-icons';
 import { useEffect, useRef, useState } from 'react';
 

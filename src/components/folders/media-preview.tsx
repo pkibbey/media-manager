@@ -1,30 +1,13 @@
-'use client';
-
-import {
-  guessFileCategoryClient,
-  isImage,
-  isSkippedLargeFile,
-  isVideo,
-} from '@/lib/utils';
+import { getFileCategory, isSkippedLargeFile } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
 
-export default function MediaPreview({ item }: { item: MediaItem }) {
-  const [type, setType] = useState<string | null>(null);
-
-  useEffect(() => {
-    const determineFileType = async () => {
-      const type = await guessFileCategoryClient(item.extension);
-      setType(type);
-    };
-    determineFileType();
-  }, [item.extension]);
-
-  const fileExtension = item.file_name.split('.').pop()?.toLowerCase() || '';
-  const isImageFile = isImage(fileExtension);
-  const isVideoFile = isVideo(fileExtension);
+export default async function MediaPreview({ item }: { item: MediaItem }) {
+  const category = await getFileCategory(item.extension);
+  const isImageFile = category === 'image';
+  const isVideoFile = category === 'video';
+  const fileExtension = item.extension?.toLowerCase();
 
   return (
     <>
@@ -51,8 +34,8 @@ export default function MediaPreview({ item }: { item: MediaItem }) {
         <div className="w-full h-full flex items-center justify-center">
           <div className="flex flex-col items-center">
             <FileIcon className="h-10 w-10 text-muted-foreground" />
-            <span className="text-xs font-medium mt-2">
-              {fileExtension ? `.${fileExtension.toUpperCase()}` : 'FILE'}
+            <span className="text-xs font-medium mt-2 uppercase">
+              {fileExtension || 'FILE'}
             </span>
           </div>
         </div>

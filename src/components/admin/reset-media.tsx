@@ -1,6 +1,6 @@
 'use client';
 
-import { resetAllMediaItems } from '@/app/api/actions/stats';
+import { resetAllMediaItems } from '@/actions/stats';
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';

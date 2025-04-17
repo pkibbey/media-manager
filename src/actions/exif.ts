@@ -6,7 +6,11 @@ import { extractMetadata, isExifSupportedExtension } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { extractDateFromFilename, isSkippedLargeFile } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
-import type { ExifProcessingOptions, ExifProgress, ExtractionMethod } from '@/types/exif';
+import type {
+  ExifProcessingOptions,
+  ExifProgress,
+  ExtractionMethod,
+} from '@/types/exif';
 import type { Json } from '@/types/supabase';
 import { revalidatePath } from 'next/cache';
 

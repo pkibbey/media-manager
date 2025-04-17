@@ -1,7 +1,11 @@
 /**
  * Type for EXIF extraction method
  */
-export type ExtractionMethod = 'default' | 'sharp-only' | 'direct-only' | 'marker-only';
+export type ExtractionMethod =
+  | 'default'
+  | 'sharp-only'
+  | 'direct-only'
+  | 'marker-only';
 
 /**
  * Type for EXIF processing options
