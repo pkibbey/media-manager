@@ -152,8 +152,47 @@ export async function getMediaItemsByFolder(
       subfolderCount = subfoldersCount || 0;
     }
 
+    // Now fetch the actual media items based on the folder path
+    let mediaItemsQuery = supabase
+      .from('media_items')
+      .select('*')
+      .not('extension', 'in', ignoreFilter);
+
+    // Apply folder path filtering based on whether to include subfolders
+    if (includeSubfolders && folderPath !== '/') {
+      // For root with subfolders, get everything
+      if (folderPath === '/') {
+        // No additional filter needed - get all items
+      } else {
+        // For non-root paths with subfolders, get current folder and all subfolders
+        mediaItemsQuery = mediaItemsQuery.or(
+          `folder_path.eq.${folderPath},folder_path.like.${folderPath}/%`,
+        );
+      }
+    } else if (folderPath === '/') {
+      // Root folder without subfolders - just get items at the root level
+      mediaItemsQuery = mediaItemsQuery.eq('folder_path', folderPath);
+    } else {
+      // Specific folder without subfolders
+      mediaItemsQuery = mediaItemsQuery.eq('folder_path', folderPath);
+    }
+
+    // Add pagination
+    mediaItemsQuery = mediaItemsQuery
+      .order('media_date', { ascending: false, nullsFirst: false })
+      .range(offset, offset + pageSize - 1);
+
+    // Execute the query
+    const { data: mediaItems, error: mediaItemsError } = await mediaItemsQuery;
+
+    if (mediaItemsError) {
+      console.error('Error fetching media items:', mediaItemsError);
+      return { success: false, error: mediaItemsError.message };
+    }
+
     return {
       success: true,
+      data: mediaItems || [],
       pagination: {
         page,
         pageSize,
