@@ -1,4 +1,5 @@
 'use client';
+import { useMediaSelection } from '@/components/folders/media-list';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { bytesToSize, isImage, isVideo } from '@/lib/utils';
@@ -6,13 +7,9 @@ import type { MediaItem } from '@/types/db-types';
 import { FileIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
 import type { Exif } from 'exif-reader';
-import {} from 'react';
+import { memo } from 'react';
 import MediaPreview from '../folders/media-preview';
 import ExifDataDisplay from './exif-data-display';
-
-interface MediaDetailProps {
-  item: MediaItem | null;
-}
 
 // Helper function to safely type exif_data from Json
 function getExifData(item: MediaItem): Exif | null {
@@ -50,13 +47,16 @@ export function getDimensionsFromExif(exifData: Exif): {
   };
 }
 
-export default function MediaDetail({ item }: MediaDetailProps) {
+// Use memo to prevent unnecessary re-renders
+const MediaDetail = memo(function MediaDetail() {
+  // Get the selected item from context instead of props
+  const { selectedItem: item } = useMediaSelection();
+
   if (!item) return null;
 
   // Use properly typed EXIF data
   const exifData = getExifData(item);
   const exifDimensions = exifData && getDimensionsFromExif(exifData);
-  console.log('exifDimensions: ', exifDimensions);
 
   // File type detection based on extension
   const fileExtension = item.extension?.toLowerCase();
@@ -184,4 +184,6 @@ export default function MediaDetail({ item }: MediaDetailProps) {
       </div>
     </div>
   );
-}
+});
+
+export default MediaDetail;

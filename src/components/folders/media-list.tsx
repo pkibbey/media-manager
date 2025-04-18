@@ -2,9 +2,28 @@
 
 import type { MediaItem } from '@/types/db-types';
 import { MixerHorizontalIcon } from '@radix-ui/react-icons';
-import { useRef, useState } from 'react';
+import { createContext, memo, useContext, useRef, useState } from 'react';
 import MediaDetail from '../media/media-detail';
 import MediaCard from './media-card';
+
+// Create a context for handling selected media item
+interface MediaSelectionContextType {
+  selectedItemId: string | null;
+  selectedItem: MediaItem | null;
+  selectItem: (item: MediaItem) => void;
+}
+
+// Export the context so it can be used by other components
+export const MediaSelectionContext = createContext<MediaSelectionContextType>({
+  selectedItemId: null,
+  selectedItem: null,
+  selectItem: () => {},
+});
+
+// Export a hook for easier context consumption
+export function useMediaSelection() {
+  return useContext(MediaSelectionContext);
+}
 
 interface MediaListProps {
   items: MediaItem[];
@@ -15,6 +34,15 @@ export default function MediaList({ items }: MediaListProps) {
     null,
   );
   const gridRef = useRef<HTMLDivElement>(null);
+
+  // Create context value with both ID and full item
+  const contextValue = {
+    selectedItemId: selectedMediaItem?.id || null,
+    selectedItem: selectedMediaItem,
+    selectItem: (item: MediaItem) => {
+      setSelectedMediaItem(item);
+    },
+  };
 
   if (!items.length) {
     return (
@@ -29,28 +57,48 @@ export default function MediaList({ items }: MediaListProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] lg:grid-cols-[1fr_700px] gap-4">
-      <div
-        className={
-          'grid items-start grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 transition-all duration-300'
-        }
-        ref={gridRef}
-        role="grid"
-        aria-label="Media items grid"
-        onContextMenu={(e) => e.preventDefault()}
-      >
-        {items.map((item, index) => (
-          <MediaCard
-            key={item.id}
-            item={item}
-            index={index}
-            onClick={(_e) => {
-              setSelectedMediaItem(item);
-            }}
-          />
-        ))}
+    <MediaSelectionContext.Provider value={contextValue}>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] lg:grid-cols-[1fr_700px] gap-4">
+        <div
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-max content-start"
+          ref={gridRef}
+          role="grid"
+          aria-label="Media items grid"
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {items.map((item, index) => (
+            <MemoizedMediaCard key={item.id} item={item} index={index} />
+          ))}
+        </div>
+        <MediaDetail />
       </div>
-      <MediaDetail item={selectedMediaItem} />
-    </div>
+    </MediaSelectionContext.Provider>
   );
 }
+
+// Memoized version of MediaCard that only re-renders when necessary
+const MemoizedMediaCard = memo(
+  function MemoizedMediaCard({
+    item,
+    index,
+  }: {
+    item: MediaItem;
+    index: number;
+  }) {
+    const { selectItem } = useMediaSelection();
+
+    return (
+      <MediaCard
+        item={item}
+        index={index}
+        onClick={(_e) => {
+          selectItem(item);
+        }}
+      />
+    );
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if the item ID changes
+    return prevProps.item.id === nextProps.item.id;
+  },
+);
