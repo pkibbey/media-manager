@@ -1,6 +1,5 @@
 - Figue out ways to process files that failed to process
 - Make the advanced filters more useful
-- Select images using range selection in the browse view, from the last image you cliked on to to the next one (when you are holding shift and there is a selected image)
 - Offload the processing work to a different thread, so that if a user navigates away and then back, the process is still running
 - Add a toggle to change the image display into zoom mode, which renders the image height the same aspect ratio if it were rotated 90 degrees - this persists when a different image is selected
 - process each image for keyword analysis

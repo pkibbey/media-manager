@@ -20,7 +20,12 @@ interface MediaSelectionContextType {
   selectedItem: MediaItem | null;
   selectedItemIds: Set<string>;
   selectedItems: MediaItem[];
-  selectItem: (item: MediaItem, multiSelect?: boolean) => void;
+  selectItem: (
+    item: MediaItem,
+    multiSelect?: boolean,
+    rangeSelect?: boolean,
+    index?: number,
+  ) => void;
   clearSelection: () => void;
   selectAll: () => void;
   isSelected: (itemId: string) => boolean;
@@ -53,6 +58,9 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
     null,
   );
   const [selectedMediaItems, setSelectedMediaItems] = useState<MediaItem[]>([]);
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(
+    null,
+  );
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Auto-select the first image when items are loaded and no item is currently selected
@@ -64,6 +72,7 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
     ) {
       setSelectedMediaItem(items[0]);
       setSelectedMediaItems([items[0]]);
+      setLastSelectedIndex(0);
     }
   }, [items, selectedMediaItem, selectedMediaItems]);
 
@@ -76,6 +85,7 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
       // Keep the last selected item as the primary selected item
       if (!selectedMediaItem && items.length > 0) {
         setSelectedMediaItem(items[0]);
+        setLastSelectedIndex(0);
       }
     }
   };
@@ -89,8 +99,39 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
     selectedItem: selectedMediaItem,
     selectedItemIds: selectedIds,
     selectedItems: selectedMediaItems,
-    selectItem: (item: MediaItem, multiSelect = false) => {
-      if (multiSelect) {
+    selectItem: (
+      item: MediaItem,
+      multiSelect = false,
+      rangeSelect = false,
+      index = -1,
+    ) => {
+      if (rangeSelect && lastSelectedIndex !== null && index !== -1) {
+        // For range selection, select all items between lastSelectedIndex and current index
+        const startIndex = Math.min(lastSelectedIndex, index);
+        const endIndex = Math.max(lastSelectedIndex, index);
+
+        // Get items in the range
+        const itemsInRange = items.slice(startIndex, endIndex + 1);
+
+        // Create a new selection that includes existing selections plus the range
+        const newSelection = new Map<string, MediaItem>();
+
+        // Add existing selections
+        selectedMediaItems.forEach((item) => {
+          newSelection.set(item.id, item);
+        });
+
+        // Add range items
+        itemsInRange.forEach((item) => {
+          newSelection.set(item.id, item);
+        });
+
+        // Convert back to array
+        const newSelectionArray = Array.from(newSelection.values());
+
+        setSelectedMediaItems(newSelectionArray);
+        setSelectedMediaItem(item); // Make the clicked item the primary selection
+      } else if (multiSelect) {
         // For multi-selection, toggle the item's selection status
         setSelectedMediaItems((prev) => {
           const isAlreadySelected = prev.some((i) => i.id === item.id);
@@ -109,15 +150,24 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
           setSelectedMediaItem(item);
           return [...prev, item];
         });
+
+        if (index !== -1) {
+          setLastSelectedIndex(index);
+        }
       } else {
         // For single selection, clear previous selection and select only this item
         setSelectedMediaItem(item);
         setSelectedMediaItems([item]);
+
+        if (index !== -1) {
+          setLastSelectedIndex(index);
+        }
       }
     },
     clearSelection: () => {
       setSelectedMediaItem(null);
       setSelectedMediaItems([]);
+      setLastSelectedIndex(null);
     },
     selectAll: () => {
       setSelectedMediaItems([...items]);
@@ -154,14 +204,6 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
                 </span>
               )}
             </div>
-            {selectedMediaItems.length > 0 && (
-              <button
-                onClick={() => contextValue.clearSelection()}
-                className="text-sm text-muted-foreground hover:text-primary"
-              >
-                Clear selection
-              </button>
-            )}
           </div>
           <div
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-max content-start"
@@ -203,9 +245,12 @@ const MemoizedMediaCard = memo(
         index={index}
         isSelected={isSelected(item.id)}
         onClick={(e) => {
-          // Use Ctrl/Cmd + Click for multi-selection
-          const multiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
-          selectItem(item, multiSelect);
+          // Use Shift + Click for range selection
+          const rangeSelect = e.shiftKey;
+          // Use Ctrl/Cmd + Click for toggling individual items
+          const multiSelect = (e.ctrlKey || e.metaKey) && !rangeSelect;
+
+          selectItem(item, multiSelect, rangeSelect, index);
         }}
       />
     );

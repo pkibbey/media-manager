@@ -18,9 +18,6 @@ export default function MediaCard({
   isSelected = false,
   onClick,
 }: MediaCardProps) {
-  // Show a visual indicator for processed items
-  const isProcessed = item.processed;
-
   // Get folder name for display in subfolder mode
   const folderName = item.folder_path.split('/').filter(Boolean).pop();
 
@@ -53,33 +50,9 @@ export default function MediaCard({
           </div>
         )}
 
-        {/* Thumbnail indicator */}
-        {item.thumbnail_path && (
-          <div
-            className="absolute bottom-2 left-2 h-2 w-2 rounded-full bg-purple-500"
-            title="Using pre-generated thumbnail"
-          />
-        )}
-
-        {/* ExifData indicators */}
-        <div className="absolute top-2 right-2 flex gap-1">
-          {isProcessed && (
-            <div
-              className="h-2 w-2 rounded-full bg-green-500"
-              title="ExifData processed"
-            />
-          )}
-          {item.exif_data && (
-            <div
-              className="h-2 w-2 rounded-full bg-blue-500"
-              title="Location data available"
-            />
-          )}
-        </div>
-
         {/* Folder indicator - only shown if folderName exists */}
         {folderName && (
-          <div className="absolute top-2 left-2 bg-black/50 text-white text-xs rounded px-1 py-0.5 max-w-[80%] truncate">
+          <div className="absolute top-2 left-2 bg-black/50 text-white text-xs rounded px-1 py-0.5 max-w-[80%] truncate opacity-70">
             {folderName}
           </div>
         )}
