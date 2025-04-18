@@ -87,14 +87,23 @@ export async function getFolderStructure() {
   }
 }
 
+interface MediaItemsFilter {
+  search?: string;
+  type?: 'all' | 'image' | 'video' | 'data';
+  sortBy?: 'date' | 'name' | 'size' | 'type';
+  sortOrder?: 'asc' | 'desc';
+  hasThumbnail?: 'all' | 'yes' | 'no';
+}
+
 /**
- * Get media items for a specific folder path
+ * Get media items for a specific folder path with optional filtering
  */
 export async function getMediaItemsByFolder(
   folderPath: string,
   page = 1,
   pageSize = PAGE_SIZE,
   includeSubfolders = false,
+  filters: MediaItemsFilter = {},
 ) {
   try {
     const supabase = createServerSupabaseClient();
@@ -115,44 +124,6 @@ export async function getMediaItemsByFolder(
         ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
         : '("")';
 
-    // Get current folder count with direct query
-    const currentFolderCountQuery = supabase
-      .from('media_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('folder_path', folderPath)
-      .not('extension', 'in', ignoreFilter);
-
-    const { count: currentFolderCount, error: currentFolderError } =
-      await currentFolderCountQuery;
-
-    if (currentFolderError) {
-      console.error(
-        'Error counting items in current folder:',
-        currentFolderError,
-      );
-      return { success: false, error: currentFolderError.message };
-    }
-
-    // Only get subfolder count if requested
-    let subfolderCount = 0;
-    if (includeSubfolders && folderPath !== '/') {
-      const subfolderCountQuery = supabase
-        .from('media_items')
-        .select('id', { count: 'exact', head: true })
-        .like('folder_path', `${folderPath}/%`)
-        .not('extension', 'in', ignoreFilter);
-
-      const { count: subfoldersCount, error: subfolderError } =
-        await subfolderCountQuery;
-
-      if (subfolderError) {
-        console.error('Error counting items in subfolders:', subfolderError);
-        return { success: false, error: subfolderError.message };
-      }
-
-      subfolderCount = subfoldersCount || 0;
-    }
-
     // Now fetch the actual media items based on the folder path
     let mediaItemsQuery = supabase
       .from('media_items')
@@ -161,15 +132,10 @@ export async function getMediaItemsByFolder(
 
     // Apply folder path filtering based on whether to include subfolders
     if (includeSubfolders && folderPath !== '/') {
-      // For root with subfolders, get everything
-      if (folderPath === '/') {
-        // No additional filter needed - get all items
-      } else {
-        // For non-root paths with subfolders, get current folder and all subfolders
-        mediaItemsQuery = mediaItemsQuery.or(
-          `folder_path.eq.${folderPath},folder_path.like.${folderPath}/%`,
-        );
-      }
+      // For non-root paths with subfolders, get current folder and all subfolders
+      mediaItemsQuery = mediaItemsQuery.or(
+        `folder_path.eq.${folderPath},folder_path.like.${folderPath}/%`,
+      );
     } else if (folderPath === '/') {
       // Root folder without subfolders - just get items at the root level
       mediaItemsQuery = mediaItemsQuery.eq('folder_path', folderPath);
@@ -178,12 +144,151 @@ export async function getMediaItemsByFolder(
       mediaItemsQuery = mediaItemsQuery.eq('folder_path', folderPath);
     }
 
-    // Add pagination
-    mediaItemsQuery = mediaItemsQuery
-      .order('media_date', { ascending: false, nullsFirst: false })
-      .range(offset, offset + pageSize - 1);
+    // Apply additional filters if provided
+    if (filters.search && filters.search.trim()) {
+      mediaItemsQuery = mediaItemsQuery.ilike(
+        'file_name',
+        `%${filters.search}%`,
+      );
+    }
 
-    // Execute the query
+    if (filters.type && filters.type !== 'all') {
+      if (filters.type === 'image') {
+        mediaItemsQuery = mediaItemsQuery.in('extension', [
+          'jpg',
+          'jpeg',
+          'png',
+          'gif',
+          'webp',
+          'heic',
+          'heif',
+          'raw',
+          'tiff',
+          'tif',
+        ]);
+      } else if (filters.type === 'video') {
+        mediaItemsQuery = mediaItemsQuery.in('extension', [
+          'mp4',
+          'mov',
+          'avi',
+          'mkv',
+          'webm',
+          'wmv',
+          'flv',
+          'm4v',
+        ]);
+      } else if (filters.type === 'data') {
+        mediaItemsQuery = mediaItemsQuery.not(
+          'extension',
+          'in',
+          '("jpg","jpeg","png","gif","webp","heic","heif","raw","tiff","tif","mp4","mov","avi","mkv","webm","wmv","flv","m4v")',
+        );
+      }
+    }
+
+    if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
+      if (filters.hasThumbnail === 'yes') {
+        mediaItemsQuery = mediaItemsQuery
+          .not('thumbnail_path', 'is', null)
+          .not('thumbnail_path', 'like', 'skipped:%');
+      } else {
+        mediaItemsQuery = mediaItemsQuery.or(
+          'thumbnail_path.is.null,thumbnail_path.like.skipped:%',
+        );
+      }
+    }
+
+    // Apply sorting
+    const sortField = filters.sortBy || 'date';
+    const sortDirection = filters.sortOrder || 'desc';
+
+    let orderField = 'media_date';
+    if (sortField === 'name') orderField = 'file_name';
+    else if (sortField === 'size') orderField = 'file_size';
+    else if (sortField === 'type') orderField = 'extension';
+
+    mediaItemsQuery = mediaItemsQuery.order(orderField, {
+      ascending: sortDirection === 'asc',
+      nullsFirst: sortDirection === 'asc',
+    });
+
+    // Clone the query for counting
+    const countQuery = supabase
+      .from('media_items')
+      .select('id', { count: 'exact', head: true })
+      .not('extension', 'in', ignoreFilter);
+
+    // Apply the same filters to the count query
+    if (includeSubfolders && folderPath !== '/') {
+      countQuery.or(
+        `folder_path.eq.${folderPath},folder_path.like.${folderPath}/%`,
+      );
+    } else if (folderPath === '/') {
+      countQuery.eq('folder_path', folderPath);
+    } else {
+      countQuery.eq('folder_path', folderPath);
+    }
+
+    if (filters.search && filters.search.trim()) {
+      countQuery.ilike('file_name', `%${filters.search}%`);
+    }
+
+    if (filters.type && filters.type !== 'all') {
+      if (filters.type === 'image') {
+        countQuery.in('extension', [
+          'jpg',
+          'jpeg',
+          'png',
+          'gif',
+          'webp',
+          'heic',
+          'heif',
+          'raw',
+          'tiff',
+          'tif',
+        ]);
+      } else if (filters.type === 'video') {
+        countQuery.in('extension', [
+          'mp4',
+          'mov',
+          'avi',
+          'mkv',
+          'webm',
+          'wmv',
+          'flv',
+          'm4v',
+        ]);
+      } else if (filters.type === 'data') {
+        countQuery.not(
+          'extension',
+          'in',
+          '("jpg","jpeg","png","gif","webp","heic","heif","raw","tiff","tif","mp4","mov","avi","mkv","webm","wmv","flv","m4v")',
+        );
+      }
+    }
+
+    if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
+      if (filters.hasThumbnail === 'yes') {
+        countQuery
+          .not('thumbnail_path', 'is', null)
+          .not('thumbnail_path', 'like', 'skipped:%');
+      } else {
+        countQuery.or('thumbnail_path.is.null,thumbnail_path.like.skipped:%');
+      }
+    }
+
+    // Execute the count query
+    const { count: filteredCount, error: countError } = await countQuery;
+
+    if (countError) {
+      console.error('Error counting filtered items:', countError);
+      return { success: false, error: countError.message };
+    }
+
+    // Now apply pagination to the main query
+    mediaItemsQuery = mediaItemsQuery.range(offset, offset + pageSize - 1);
+
+    // Execute the main query
     const { data: mediaItems, error: mediaItemsError } = await mediaItemsQuery;
 
     if (mediaItemsError) {
@@ -197,12 +302,8 @@ export async function getMediaItemsByFolder(
       pagination: {
         page,
         pageSize,
-        pageCount: Math.ceil((currentFolderCount || 0) / pageSize),
-        total: (currentFolderCount || 0) + subfolderCount,
-      },
-      stats: {
-        currentFolderCount: currentFolderCount || 0,
-        subfolderCount,
+        pageCount: Math.ceil((filteredCount || 0) / pageSize),
+        total: filteredCount || 0,
       },
     };
   } catch (error: any) {

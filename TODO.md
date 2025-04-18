@@ -9,8 +9,9 @@
 - process each image for face detection
 - process each image for percieved quality
 - process each image for content safety
-- Add filter options to the folder view
 - Find UI performance improvements to prevent re-renders
 - For any components that fetch their own data on load, move any client code into new components, keeping the fetch component being able to be an async server component and fetching data with a simple await
 - Look into time stamp correction logic
 - Make sure that the stats display is displaying the correct values
+- Fix folder counts for all subfolders view in Folder View
+- Media Filters should change onChange, instead of relying on clicking apply

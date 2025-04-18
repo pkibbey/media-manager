@@ -4,6 +4,9 @@ import {
   getFolderStructure,
   getMediaItemsByFolder,
 } from '@/app/actions/folders';
+import FolderFilterBar, {
+  type FolderFilters,
+} from '@/components/folders/folder-filter-bar';
 import FolderPagination from '@/components/folders/folder-pagination';
 import FolderTree from '@/components/folders/folder-tree';
 import FolderViewToggle from '@/components/folders/folder-view-toggle';
@@ -27,12 +30,12 @@ export default function FoldersPage() {
   const [loading, setLoading] = useState(true);
   const [currentFolder, setCurrentFolder] = useState('/');
   const [includeSubfolders, setIncludeSubfolders] = useState(false);
-  const [folderStats, setFolderStats] = useState<{
-    currentFolderCount: number;
-    subfolderCount: number;
-  }>({
-    currentFolderCount: 0,
-    subfolderCount: 0,
+  const [filters, setFilters] = useState<FolderFilters>({
+    search: '',
+    type: 'all',
+    sortBy: 'date',
+    sortOrder: 'desc',
+    hasThumbnail: 'all',
   });
 
   const router = useRouter();
@@ -63,24 +66,40 @@ export default function FoldersPage() {
     const page = Number.parseInt(searchParams.get('page') || '1', 10);
     const subfolders = searchParams.get('subfolders') === 'true';
 
+    // Extract filter values from URL
+    const searchFilter = searchParams.get('search') || '';
+    const typeFilter = (searchParams.get('type') ||
+      'all') as FolderFilters['type'];
+    const sortByFilter = (searchParams.get('sortBy') ||
+      'date') as FolderFilters['sortBy'];
+    const sortOrderFilter = (searchParams.get('sortOrder') ||
+      'desc') as FolderFilters['sortOrder'];
+    const hasThumbnailFilter = (searchParams.get('hasThumbnail') ||
+      'all') as FolderFilters['hasThumbnail'];
+
+    // Update state
     setCurrentFolder(folder);
     setIncludeSubfolders(subfolders);
+    setFilters({
+      search: searchFilter,
+      type: typeFilter,
+      sortBy: sortByFilter,
+      sortOrder: sortOrderFilter,
+      hasThumbnail: hasThumbnailFilter,
+    });
 
     const loadMediaItems = async () => {
       setLoading(true);
       try {
-        // First get count for current folder only
-        const currentFolderResult = await getMediaItemsByFolder(
-          folder,
-          1,
-          1,
-          false,
-        );
-        const currentFolderCount = currentFolderResult.pagination?.total || 0;
-
-        // Then get items based on the requested view mode
+        // Apply filters to the request
         const { success, data, pagination, error } =
-          await getMediaItemsByFolder(folder, page, PAGE_SIZE, subfolders);
+          await getMediaItemsByFolder(folder, page, PAGE_SIZE, subfolders, {
+            search: searchFilter,
+            type: typeFilter,
+            sortBy: sortByFilter,
+            sortOrder: sortOrderFilter,
+            hasThumbnail: hasThumbnailFilter,
+          });
 
         if (success && data) {
           setMediaItems(data);
@@ -92,15 +111,6 @@ export default function FoldersPage() {
               total: data.length,
             },
           );
-
-          // Calculate folder statistics
-          const totalCount = pagination?.total || data.length;
-          const subfolderCount = totalCount - currentFolderCount;
-
-          setFolderStats({
-            currentFolderCount,
-            subfolderCount: subfolderCount > 0 ? subfolderCount : 0,
-          });
         } else {
           console.error('Error loading media items:', error);
           setMediaItems([]);
@@ -125,9 +135,18 @@ export default function FoldersPage() {
       if (includeSubfolders) {
         params.set('subfolders', 'true');
       }
+      // Preserve any active filters
+      if (filters.search) params.set('search', filters.search);
+      if (filters.type !== 'all') params.set('type', filters.type);
+      if (filters.sortBy !== 'date') params.set('sortBy', filters.sortBy);
+      if (filters.sortOrder !== 'desc')
+        params.set('sortOrder', filters.sortOrder);
+      if (filters.hasThumbnail !== 'all')
+        params.set('hasThumbnail', filters.hasThumbnail);
+
       router.push(`${pathname}?${params.toString()}`);
     },
-    [router, pathname, includeSubfolders],
+    [router, pathname, includeSubfolders, filters],
   );
 
   // Handle page change
@@ -154,6 +173,11 @@ export default function FoldersPage() {
     },
     [router, pathname, searchParams],
   );
+
+  // Handle filter changes
+  const handleFiltersChange = useCallback((newFilters: FolderFilters) => {
+    setFilters(newFilters);
+  }, []);
 
   return (
     <div className="container mx-auto py-8">
@@ -188,33 +212,11 @@ export default function FoldersPage() {
             />
           </div>
 
-          {/* Folder stats bar */}
-          {!loading && folderStats.subfolderCount > 0 && (
-            <div
-              className={`text-sm rounded-lg p-3 mb-4 
-              ${
-                includeSubfolders
-                  ? 'bg-primary/10 border border-primary/20'
-                  : 'bg-muted/50 border border-border'
-              }`}
-            >
-              <div className="flex justify-between">
-                <span>
-                  <strong>{folderStats.currentFolderCount}</strong> items in
-                  current folder
-                </span>
-                <span>
-                  <strong>{folderStats.subfolderCount}</strong> items in
-                  subfolders
-                </span>
-                <span className="font-medium">
-                  {includeSubfolders
-                    ? `Showing all ${pagination.total} items`
-                    : `Showing ${folderStats.currentFolderCount} items from this folder only`}
-                </span>
-              </div>
-            </div>
-          )}
+          {/* Filter bar */}
+          <FolderFilterBar
+            totalCount={pagination.total}
+            onFiltersChange={handleFiltersChange}
+          />
 
           {loading ? (
             <div className="py-12 text-center">Loading media items...</div>
