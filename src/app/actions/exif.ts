@@ -245,7 +245,24 @@ export async function processExifData({
     const filePath = mediaItem.file_path;
 
     // Check if file exists
-    await fs.access(filePath);
+    try {
+      await fs.access(filePath);
+    } catch (fileError) {
+      // File doesn't exist - mark as processed but with error
+      await supabase
+        .from('media_items')
+        .update({
+          processed: true,
+          has_exif: false,
+          processed_error: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
+        })
+        .eq('id', mediaId);
+
+      return {
+        success: false,
+        message: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
+      };
+    }
 
     // Extract EXIF data from the file
     const exifData = await extractMetadata({ filePath, method });
@@ -258,6 +275,7 @@ export async function processExifData({
         .update({
           processed: true,
           has_exif: false,
+          processed_error: 'No EXIF data extracted',
         })
         .eq('id', mediaId);
 
@@ -281,6 +299,7 @@ export async function processExifData({
         exif_data: sanitizedExifData as Json,
         has_exif: true,
         processed: true,
+        processed_error: null, // Clear any previous errors
         // Use correct date property from Photo section
         media_date:
           exifData.Photo?.DateTimeOriginal?.toISOString() ||
@@ -290,6 +309,24 @@ export async function processExifData({
 
     if (error) {
       console.error('Error updating media with EXIF data:', error);
+
+      // Still mark as processed even if database update fails
+      try {
+        await supabase
+          .from('media_items')
+          .update({
+            processed: true,
+            has_exif: false,
+            processed_error: `Database error: ${error.message}`,
+          })
+          .eq('id', mediaId);
+      } catch (updateError) {
+        console.error(
+          'Error marking as processed after update failure:',
+          updateError,
+        );
+      }
+
       return { success: false, message: error.message };
     }
 
@@ -306,7 +343,12 @@ export async function processExifData({
       const supabase = createServerSupabaseClient();
       await supabase
         .from('media_items')
-        .update({ processed: true })
+        .update({
+          processed: true,
+          has_exif: false,
+          processed_error:
+            error instanceof Error ? error.message : 'Unknown error',
+        })
         .eq('id', mediaId);
     } catch (updateError) {
       console.error('Error updating processed state:', updateError);

@@ -6,13 +6,17 @@ import type * as React from 'react';
 import { cn } from '@/lib/utils';
 
 function TooltipProvider({
-  delayDuration = 0,
+  delayDuration = 200, // Increase default delay for better UX
+  skipDelayDuration = 300, // Add skip delay
+  disableHoverableContent = false, // Allow hoverable content by default
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
       delayDuration={delayDuration}
+      skipDelayDuration={skipDelayDuration}
+      disableHoverableContent={disableHoverableContent}
       {...props}
     />
   );
@@ -21,11 +25,7 @@ function TooltipProvider({
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return (
-    <TooltipProvider>
-      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
-    </TooltipProvider>
-  );
+  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
 function TooltipTrigger({
@@ -36,7 +36,7 @@ function TooltipTrigger({
 
 function TooltipContent({
   className,
-  sideOffset = 0,
+  sideOffset = 4, // Increase default offset for better visibility
   children,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {

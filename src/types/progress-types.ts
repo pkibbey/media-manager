@@ -22,25 +22,29 @@ export type BatchOperationResponse = {
 };
 
 /**
- * Types for scan progress reporting
+ * Progress updates during scanning
  */
 export type ScanProgress = {
-  status: 'started' | 'scanning' | 'completed' | 'refresh' | 'error';
+  status: 'started' | 'scanning' | 'completed' | 'error';
   message: string;
   folderPath?: string;
   filesDiscovered?: number;
   filesProcessed?: number;
   newFilesAdded?: number;
+  filesSkipped?: number;
+  ignoredFilesSkipped?: number;
+  smallFilesSkipped?: number;
   newFileTypes?: string[];
   error?: string;
-  filesSkipped?: number; // Files skipped because they're unchanged
-  ignoredFilesSkipped?: number; // Files skipped due to ignored extensions
-  smallFilesSkipped?: number; // Files skipped because they're too small
 };
 
 /**
  * Options for the scan operation
  */
 export type ScanOptions = {
-  ignoreSmallFiles?: boolean; // Whether to ignore files under 10kb
+  /**
+   * Whether to ignore files under 10kb
+   * Small files are often configuration files, metadata or thumbnails and not actual media
+   */
+  ignoreSmallFiles?: boolean;
 };
