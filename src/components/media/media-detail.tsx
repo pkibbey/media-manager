@@ -74,9 +74,9 @@ const MediaDetail = memo(function MediaDetail() {
     : null;
 
   return (
-    <div className="bg-background border-l shadow-xl">
-      <div className="sticky top-0 bg-background z-10 border-b flex flex-col">
-        <div className="px-4 py-2">
+    <div className="bg-background md:border-l md:pl-6 shadow-xl md:h-full">
+      <div className="sticky top-0 bg-background z-10 flex flex-col">
+        <div className="py-2">
           <h2 className="text-lg font-semibold truncate" title={item.file_name}>
             {item.file_name}
           </h2>
@@ -85,7 +85,7 @@ const MediaDetail = memo(function MediaDetail() {
             Added on {createdAt} • {bytesToSize(item.size_bytes || 0)}
           </p>
         </div>
-        <div className="px-4 py-2 space-y-6">
+        <div className="py-2 space-y-4">
           {/* Media Preview */}
           <div className="flex flex-col items-center justify-center">
             {isImageFile ? (
@@ -100,7 +100,7 @@ const MediaDetail = memo(function MediaDetail() {
                 )}
               </div>
             ) : isVideoFile ? (
-              <div className="w-full max-h-[400px] bg-muted rounded-md overflow-hidden flex items-center justify-center">
+              <div className="w-full max-h-[400px] lg:max-h-[600px] bg-muted rounded-md overflow-hidden flex items-center justify-center">
                 <video
                   muted
                   src={`/api/media?id=${item.id}`}
@@ -132,9 +132,9 @@ const MediaDetail = memo(function MediaDetail() {
               )}
             </TabsList>
 
-            <TabsContent value="info" className="mt-4">
-              <Card>
-                <CardContent className="pt-4">
+            <TabsContent value="info" className="mt-2">
+              <Card className="py-4">
+                <CardContent className="px-4">
                   <div className="grid grid-cols-1 gap-y-3 text-sm">
                     <div>
                       <div className="font-medium">File Path</div>

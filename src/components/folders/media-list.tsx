@@ -73,7 +73,7 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
 
   return (
     <MediaSelectionContext.Provider value={contextValue}>
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_500px] gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_500px] gap-4 md:gap-6">
         <div className="flex flex-col space-y-6">
           {filterComponent}
           <div

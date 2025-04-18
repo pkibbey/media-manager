@@ -10,9 +10,7 @@
 - process each image for percieved quality
 - process each image for content safety
 - Add filter options to the folder view
-- Add a method to export your data to a JSON object
 - Find UI performance improvements to prevent re-renders
 - For any components that fetch their own data on load, move any client code into new components, keeping the fetch component being able to be an async server component and fetching data with a simple await
 - Look into time stamp correction logic
 - Make sure that the stats display is displaying the correct values
-- Display a random photo on the home page that fades into a different image with a fancy native css animation effectx

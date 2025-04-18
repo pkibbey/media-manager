@@ -1,5 +1,7 @@
+import RandomImageSlideshow from '@/components/media/random-image-slideshow';
 import { BackpackIcon, GearIcon, GridIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
+import { getRandomMedia } from './actions/random-media';
 
 interface NavigationCardProps {
   href: string;
@@ -28,16 +30,17 @@ function NavigationCard({
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  // Fetch random media for slideshow - get 5 random images
+  const { success, data: randomImages } = await getRandomMedia(5);
+
   return (
     <div className="container mx-auto py-12">
-      <div className="mx-auto max-w-5xl space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold">Media Manager</h1>
-          <p className="text-xl text-muted-foreground">
-            Organize and manage your media collection
-          </p>
-        </div>
+      <div className="relative mx-auto max-w-5xl space-y-8">
+        {/* Random image slideshow */}
+        {success && randomImages && randomImages.length > 0 && (
+          <RandomImageSlideshow images={randomImages} interval={6000} />
+        )}
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <NavigationCard
