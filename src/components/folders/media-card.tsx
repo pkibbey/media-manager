@@ -28,7 +28,7 @@ export default function MediaCard({ item, index, onClick }: MediaCardProps) {
       data-index={index}
     >
       <div className="aspect-square relative">
-        <MediaPreview item={item} />
+        <MediaPreview item={item} fill />
         {/* Thumbnail indicator */}
         {item.thumbnail_path && (
           <div

@@ -295,10 +295,6 @@ export async function resetAllMediaItems(): Promise<{
         has_exif: false,
         exif_data: null,
         media_date: null,
-        width: null,
-        height: null,
-        duration_seconds: null,
-        thumbnail_path: null,
       })
       .filter('id', 'not.is', null); // Select all non-null IDs (all rows)
 

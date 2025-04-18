@@ -4,332 +4,323 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
 export type Database = {
   graphql_public: {
     Tables: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Views: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Functions: {
       graphql: {
         Args: {
-          operationName?: string;
-          query?: string;
-          variables?: Json;
-          extensions?: Json;
-        };
-        Returns: Json;
-      };
-    };
+          operationName?: string
+          query?: string
+          variables?: Json
+          extensions?: Json
+        }
+        Returns: Json
+      }
+    }
     Enums: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       file_types: {
         Row: {
-          can_display_natively: boolean | null;
-          category: string;
-          created_at: string;
-          extension: string;
-          id: number;
-          ignore: boolean | null;
-          mime_type: string | null;
-          needs_conversion: boolean | null;
-        };
+          can_display_natively: boolean | null
+          category: string
+          created_at: string
+          extension: string
+          id: number
+          ignore: boolean | null
+          mime_type: string | null
+          needs_conversion: boolean | null
+        }
         Insert: {
-          can_display_natively?: boolean | null;
-          category: string;
-          created_at?: string;
-          extension: string;
-          id?: number;
-          ignore?: boolean | null;
-          mime_type?: string | null;
-          needs_conversion?: boolean | null;
-        };
+          can_display_natively?: boolean | null
+          category: string
+          created_at?: string
+          extension: string
+          id?: number
+          ignore?: boolean | null
+          mime_type?: string | null
+          needs_conversion?: boolean | null
+        }
         Update: {
-          can_display_natively?: boolean | null;
-          category?: string;
-          created_at?: string;
-          extension?: string;
-          id?: number;
-          ignore?: boolean | null;
-          mime_type?: string | null;
-          needs_conversion?: boolean | null;
-        };
-        Relationships: [];
-      };
+          can_display_natively?: boolean | null
+          category?: string
+          created_at?: string
+          extension?: string
+          id?: number
+          ignore?: boolean | null
+          mime_type?: string | null
+          needs_conversion?: boolean | null
+        }
+        Relationships: []
+      }
       media_items: {
         Row: {
-          created_at: string;
-          created_date: string | null;
-          duration_seconds: number | null;
-          exif_data: Json | null;
-          extension: string;
-          file_name: string;
-          file_path: string;
-          folder_path: string;
-          has_exif: boolean;
-          height: number | null;
-          id: string;
-          media_date: string | null;
-          modified_date: string;
-          organized: boolean;
-          processed: boolean;
-          size_bytes: number;
-          thumbnail_path: string | null;
-          updated_at: string;
-          width: number | null;
-        };
+          created_at: string
+          created_date: string | null
+          exif_data: Json | null
+          extension: string
+          file_name: string
+          file_path: string
+          folder_path: string
+          has_exif: boolean
+          id: string
+          media_date: string | null
+          modified_date: string
+          organized: boolean
+          processed: boolean
+          size_bytes: number
+          thumbnail_path: string | null
+          updated_at: string
+        }
         Insert: {
-          created_at?: string;
-          created_date?: string | null;
-          duration_seconds?: number | null;
-          exif_data?: Json | null;
-          extension: string;
-          file_name: string;
-          file_path: string;
-          folder_path: string;
-          has_exif?: boolean;
-          height?: number | null;
-          id?: string;
-          media_date?: string | null;
-          modified_date: string;
-          organized?: boolean;
-          processed?: boolean;
-          size_bytes: number;
-          thumbnail_path?: string | null;
-          updated_at?: string;
-          width?: number | null;
-        };
+          created_at?: string
+          created_date?: string | null
+          exif_data?: Json | null
+          extension: string
+          file_name: string
+          file_path: string
+          folder_path: string
+          has_exif?: boolean
+          id?: string
+          media_date?: string | null
+          modified_date: string
+          organized?: boolean
+          processed?: boolean
+          size_bytes: number
+          thumbnail_path?: string | null
+          updated_at?: string
+        }
         Update: {
-          created_at?: string;
-          created_date?: string | null;
-          duration_seconds?: number | null;
-          exif_data?: Json | null;
-          extension?: string;
-          file_name?: string;
-          file_path?: string;
-          folder_path?: string;
-          has_exif?: boolean;
-          height?: number | null;
-          id?: string;
-          media_date?: string | null;
-          modified_date?: string;
-          organized?: boolean;
-          processed?: boolean;
-          size_bytes?: number;
-          thumbnail_path?: string | null;
-          updated_at?: string;
-          width?: number | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_date?: string | null
+          exif_data?: Json | null
+          extension?: string
+          file_name?: string
+          file_path?: string
+          folder_path?: string
+          has_exif?: boolean
+          id?: string
+          media_date?: string | null
+          modified_date?: string
+          organized?: boolean
+          processed?: boolean
+          size_bytes?: number
+          thumbnail_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scan_folders: {
         Row: {
-          created_at: string;
-          id: number;
-          include_subfolders: boolean | null;
-          last_scanned: string | null;
-          path: string;
-        };
+          created_at: string
+          id: number
+          include_subfolders: boolean | null
+          last_scanned: string | null
+          path: string
+        }
         Insert: {
-          created_at?: string;
-          id?: number;
-          include_subfolders?: boolean | null;
-          last_scanned?: string | null;
-          path: string;
-        };
+          created_at?: string
+          id?: number
+          include_subfolders?: boolean | null
+          last_scanned?: string | null
+          path: string
+        }
         Update: {
-          created_at?: string;
-          id?: number;
-          include_subfolders?: boolean | null;
-          last_scanned?: string | null;
-          path?: string;
-        };
-        Relationships: [];
-      };
-    };
+          created_at?: string
+          id?: number
+          include_subfolders?: boolean | null
+          last_scanned?: string | null
+          path?: string
+        }
+        Relationships: []
+      }
+    }
     Views: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Functions: {
       calculate_average_duration: {
-        Args: Record<PropertyKey, never>;
-        Returns: number;
-      };
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       calculate_average_duration_by_method: {
-        Args: { method_name: string };
-        Returns: number;
-      };
+        Args: { method_name: string }
+        Returns: number
+      }
       calculate_success_rate_by_method: {
-        Args: { method_name: string };
-        Returns: number;
-      };
+        Args: { method_name: string }
+        Returns: number
+      }
       count_folder_media: {
         Args: {
-          target_folder: string;
-          include_subfolders: boolean;
-          ignore_extensions?: string[];
-        };
+          target_folder: string
+          include_subfolders: boolean
+          ignore_extensions?: string[]
+        }
         Returns: {
-          current_folder_count: number;
-          subfolder_count: number;
-        }[];
-      };
+          current_folder_count: number
+          subfolder_count: number
+        }[]
+      }
       get_exif_statistics: {
         Args: {
-          ignore_extensions?: string[];
-          exif_compatible_extensions?: string[];
-        };
+          ignore_extensions?: string[]
+          exif_compatible_extensions?: string[]
+        }
         Returns: {
-          with_exif: number;
-          processed_no_exif: number;
-          unprocessed: number;
-          total_compatible: number;
-        }[];
-      };
+          with_exif: number
+          processed_no_exif: number
+          unprocessed: number
+          total_compatible: number
+        }[]
+      }
       get_extension_statistics: {
-        Args: { ignore_extensions?: string[] };
+        Args: { ignore_extensions?: string[] }
         Returns: {
-          extension: string;
-          count: number;
-          category: string;
-        }[];
-      };
+          extension: string
+          count: number
+          category: string
+        }[]
+      }
       get_media_statistics: {
-        Args: { ignore_extensions?: string[] };
+        Args: { ignore_extensions?: string[] }
         Returns: {
-          total_count: number;
-          total_size_bytes: number;
-          processed_count: number;
-          unprocessed_count: number;
-          organized_count: number;
-          unorganized_count: number;
-        }[];
-      };
-    };
+          total_count: number
+          total_size_bytes: number
+          processed_count: number
+          unprocessed_count: number
+          organized_count: number
+          unorganized_count: number
+        }[]
+      }
+    }
     Enums: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-};
+      [_ in never]: never
+    }
+  }
+}
 
-type DefaultSchema = Database[Extract<keyof Database, 'public'>];
+type DefaultSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof Database
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-        Database[DefaultSchemaTableNameOrOptions['schema']]['Views'])
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-      Database[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
-      Row: infer R;
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] &
-        DefaultSchema['Views'])
-    ? (DefaultSchema['Tables'] &
-        DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R;
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
       }
       ? R
       : never
-    : never;
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof Database
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
-      Insert: infer I;
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I;
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
       }
       ? I
       : never
-    : never;
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof Database
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
-      Update: infer U;
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U;
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
       }
       ? U
       : never
-    : never;
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema['Enums']
+    | keyof DefaultSchema["Enums"]
     | { schema: keyof Database },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof Database
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
+    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
-    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
-    : never;
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema['CompositeTypes']
+    | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof Database
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
-    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
-    : never;
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   graphql_public: {
@@ -338,4 +329,5 @@ export const Constants = {
   public: {
     Enums: {},
   },
-} as const;
+} as const
+

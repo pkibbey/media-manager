@@ -134,6 +134,6 @@ export async function getNativelySupportedFormats() {
     return { success: true, formats };
   } catch (error: any) {
     console.error('Error getting natively supported formats:', error);
-    return { success: false, error: error.message, formats: [] };
+    return { success: false, error: error.message, formats: [] as string[] };
   }
 }

@@ -20,7 +20,6 @@ import type { Exif } from 'exif-reader';
 interface ExifDataDisplayProps {
   exifData: Exif;
   mediaDate?: string | null;
-  dimensions?: { width?: number; height?: number } | null;
 }
 
 /**
@@ -48,7 +47,6 @@ function calculateGpsDecimal(
 export default function ExifDataDisplay({
   exifData,
   mediaDate,
-  dimensions,
 }: ExifDataDisplayProps) {
   // Format the media date if available
   const formattedDate = mediaDate ? format(new Date(mediaDate), 'PPpp') : null;
@@ -104,8 +102,8 @@ export default function ExifDataDisplay({
 
   // Format dimensions
   const formattedDimensions =
-    dimensions?.width && dimensions?.height
-      ? `${dimensions.width} × ${dimensions.height}`
+    exifData.Image?.ImageWidth && exifData.Image?.ImageLength
+      ? `${exifData.Image.ImageWidth} × ${exifData.Image.ImageLength}`
       : null;
 
   return (

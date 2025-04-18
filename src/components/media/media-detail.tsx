@@ -1,5 +1,4 @@
 'use client';
-
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { bytesToSize, isImage, isVideo } from '@/lib/utils';
@@ -7,7 +6,8 @@ import type { MediaItem } from '@/types/db-types';
 import { FileIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
 import type { Exif } from 'exif-reader';
-import Image from 'next/image';
+import {} from 'react';
+import MediaPreview from '../folders/media-preview';
 import ExifDataDisplay from './exif-data-display';
 
 interface MediaDetailProps {
@@ -19,11 +19,44 @@ function getExifData(item: MediaItem): Exif | null {
   return item.exif_data as Exif | null;
 }
 
+export function getDimensionsFromExif(exifData: Exif): {
+  width: number;
+  height: number;
+} {
+  if (exifData === null) {
+    return { width: 0, height: 0 };
+  }
+
+  // Try to get dimensions from Image or Photo tags
+  if (exifData.Image?.ImageWidth && exifData.Image?.ImageHeight) {
+    return {
+      width: exifData.Image?.ImageWidth,
+      height: exifData.Image?.ImageWidth,
+    };
+  }
+
+  // Fallback to Photo tags if Image tags are not available
+  if (exifData.Photo?.PixelXDimension && exifData.Photo?.PixelYDimension) {
+    return {
+      width: exifData.Photo?.PixelXDimension,
+      height: exifData.Photo?.PixelXDimension,
+    };
+  }
+
+  // If no dimensions are found, return default values
+  return {
+    width: 0,
+    height: 0,
+  };
+}
+
 export default function MediaDetail({ item }: MediaDetailProps) {
   if (!item) return null;
 
   // Use properly typed EXIF data
   const exifData = getExifData(item);
+  const exifDimensions = exifData && getDimensionsFromExif(exifData);
+  console.log('exifDimensions: ', exifDimensions);
 
   // File type detection based on extension
   const fileExtension = item.extension?.toLowerCase();
@@ -55,16 +88,16 @@ export default function MediaDetail({ item }: MediaDetailProps) {
         <div className="px-4 py-2 space-y-6">
           {/* Media Preview */}
           <div className="flex flex-col items-center justify-center">
-            {isImageFile && item.width && item.height ? (
-              <div className="relative w-full max-h-[600px] bg-muted rounded-md overflow-hidden">
-                <Image
-                  src={`/api/media?id=${item.id}`}
-                  alt={item.file_name}
-                  width={item.width}
-                  height={item.height}
-                  className="object-cover w-full h-full"
-                  unoptimized
-                />
+            {isImageFile ? (
+              <div className="w-full h-[250px] bg-muted rounded-md overflow-hidden flex items-center justify-center">
+                {exifData && (
+                  <MediaPreview
+                    item={item}
+                    fill={false}
+                    width={exifDimensions?.width}
+                    height={exifDimensions?.height}
+                  />
+                )}
               </div>
             ) : isVideoFile ? (
               <div className="w-full max-h-[400px] bg-muted rounded-md overflow-hidden flex items-center justify-center">
@@ -143,10 +176,6 @@ export default function MediaDetail({ item }: MediaDetailProps) {
                 <ExifDataDisplay
                   exifData={exifData}
                   mediaDate={item.media_date}
-                  dimensions={{
-                    width: item.width || undefined,
-                    height: item.height || undefined,
-                  }}
                 />
               </TabsContent>
             )}
