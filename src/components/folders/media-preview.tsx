@@ -6,12 +6,26 @@ import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
-export default function MediaPreview({ item }: { item: MediaItem }) {
+interface MediaPreviewProps {
+  item: MediaItem;
+  isNativelySupported?: boolean;
+}
+
+export default function MediaPreview({
+  item,
+  isNativelySupported,
+}: MediaPreviewProps) {
   // Use state to handle the async category fetch
   const [category, setCategory] = useState<string>('other');
   const isImageFile = category === 'image';
   const isVideoFile = category === 'video';
   const fileExtension = item.extension?.toLowerCase();
+
+  // Create API route URL for natively supported formats (when no thumbnail)
+  const fileUrl =
+    isNativelySupported && !item.thumbnail_path && item.id
+      ? `/api/media?id=${item.id}`
+      : '';
 
   // Use useEffect to handle the async operation
   useEffect(() => {
@@ -76,16 +90,16 @@ export default function MediaPreview({ item }: { item: MediaItem }) {
   return (
     <>
       {isImageFile &&
-      item.thumbnail_path &&
+      (item.thumbnail_path || (isNativelySupported && fileUrl)) &&
       !isSkippedLargeFile(item.file_path, item.size_bytes) ? (
         <div className="w-full h-full relative">
           <Image
-            src={item.thumbnail_path}
+            src={item.thumbnail_path || fileUrl}
             alt={item.file_name}
             className="object-cover"
             fill
             sizes="(max-width: 768px) 100vw, 300px"
-            unoptimized={false}
+            unoptimized={!!fileUrl} // Don't optimize direct file URLs
             loading="lazy"
             placeholder="empty"
             onError={(e) => {

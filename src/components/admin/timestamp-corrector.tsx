@@ -3,6 +3,7 @@
 import { updateMediaDatesFromFilenames } from '@/app/actions/exif';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { BATCH_SIZE } from '@/lib/consts';
 import {
   CalendarIcon,
   CheckIcon,
@@ -135,7 +136,7 @@ export default function TimestampCorrector() {
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button
-              onClick={() => handleUpdateTimestamps(50)}
+              onClick={() => handleUpdateTimestamps(BATCH_SIZE)}
               disabled={isProcessing}
               variant="outline"
               className="flex-1"
@@ -145,7 +146,7 @@ export default function TimestampCorrector() {
               ) : (
                 <ClockIcon className="mr-2 h-4 w-4" />
               )}
-              Process 50 Files
+              Process {BATCH_SIZE} Files
             </Button>
 
             <Button

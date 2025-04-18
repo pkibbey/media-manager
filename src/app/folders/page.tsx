@@ -8,6 +8,7 @@ import FolderPagination from '@/components/folders/folder-pagination';
 import FolderTree from '@/components/folders/folder-tree';
 import FolderViewToggle from '@/components/folders/folder-view-toggle';
 import MediaList from '@/components/folders/media-list';
+import { PAGE_SIZE } from '@/lib/consts';
 import type { MediaItem } from '@/types/db-types';
 import type { FolderNode } from '@/types/folder-types';
 
@@ -19,7 +20,7 @@ export default function FoldersPage() {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [pagination, setPagination] = useState<any>({
     page: 1,
-    pageSize: 50,
+    pageSize: PAGE_SIZE,
     pageCount: 1,
     total: 0,
   });
@@ -79,14 +80,14 @@ export default function FoldersPage() {
 
         // Then get items based on the requested view mode
         const { success, data, pagination, error } =
-          await getMediaItemsByFolder(folder, page, 50, subfolders);
+          await getMediaItemsByFolder(folder, page, PAGE_SIZE, subfolders);
 
         if (success && data) {
           setMediaItems(data);
           setPagination(
             pagination || {
               page,
-              pageSize: 50,
+              pageSize: PAGE_SIZE,
               pageCount: 1,
               total: data.length,
             },

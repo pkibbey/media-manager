@@ -1,5 +1,6 @@
 'use server';
 
+import { PAGE_SIZE } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { FolderNode } from '@/types/folder-types';
 
@@ -92,7 +93,7 @@ export async function getFolderStructure() {
 export async function getMediaItemsByFolder(
   folderPath: string,
   page = 1,
-  pageSize = 50,
+  pageSize = PAGE_SIZE,
   includeSubfolders = false,
 ) {
   try {

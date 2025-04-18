@@ -1,5 +1,6 @@
 'use server';
 
+import { PAGE_SIZE } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { MediaFilters } from '@/types/media-types';
 
@@ -9,7 +10,7 @@ import type { MediaFilters } from '@/types/media-types';
 export async function browseMedia(
   filters: MediaFilters,
   page = 1,
-  pageSize = 50,
+  pageSize = PAGE_SIZE,
 ) {
   try {
     const supabase = createServerSupabaseClient();

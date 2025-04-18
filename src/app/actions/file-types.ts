@@ -108,3 +108,32 @@ export async function clearIgnoredFileTypes() {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Get all file extensions that can be natively displayed by browsers
+ * These are formats that browsers can render without conversion
+ */
+export async function getNativelySupportedFormats() {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    const { data, error } = await supabase
+      .from('file_types')
+      .select('extension')
+      .eq('can_display_natively', true)
+      .order('extension');
+
+    if (error) {
+      console.error('Error fetching natively supported formats:', error);
+      return { success: false, error: error.message, formats: [] };
+    }
+
+    // Extract just the extension strings from the data
+    const formats = data.map((item) => item.extension.toLowerCase());
+
+    return { success: true, formats };
+  } catch (error: any) {
+    console.error('Error getting natively supported formats:', error);
+    return { success: false, error: error.message, formats: [] };
+  }
+}

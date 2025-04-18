@@ -212,7 +212,7 @@ export async function scanFolders(options: ScanOptions = {}) {
       // Fetch all files in chunks to avoid the default 1000 row limit in Supabase
       let allExistingFiles: any[] = [];
       let page = 0;
-      const pageSize = 1000;
+      const pageSize = 500;
       let hasMore = true;
 
       while (hasMore) {

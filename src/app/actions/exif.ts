@@ -2,6 +2,7 @@
 
 import fs from 'node:fs/promises';
 import { addAbortToken, isAborted } from '@/lib/abort-tokens';
+import { BATCH_SIZE } from '@/lib/consts';
 import { extractMetadata } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { extractDateFromFilename, isSkippedLargeFile } from '@/lib/utils';
@@ -665,7 +666,7 @@ export async function streamProcessUnprocessedItems(
       });
 
       // Process items in chunks to handle large datasets
-      const pageSize = 1000;
+      const pageSize = 500;
       let processedCount = 0;
       let successCount = 0;
       let failedCount = 0;
@@ -734,7 +735,7 @@ export async function streamProcessUnprocessedItems(
         exifCompatibleCount = totalCount || 0; // They're all compatible
 
         // Process each media file in this batch
-        const batchSize = 50;
+        const batchSize = BATCH_SIZE;
         for (let i = 0; i < itemsToProcess.length; i += batchSize) {
           // Check for abort signal
           if (abortToken && (await isAborted(abortToken))) {

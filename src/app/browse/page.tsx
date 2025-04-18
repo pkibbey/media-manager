@@ -4,6 +4,7 @@ import { browseMedia } from '@/app/actions/browse';
 import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/folders/media-list';
 import { Pagination } from '@/components/ui/pagination';
+import { PAGE_SIZE } from '@/lib/consts';
 import type { MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -36,7 +37,7 @@ export default function BrowsePage() {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
-    pageSize: 50,
+    pageSize: PAGE_SIZE,
     pageCount: 1,
     total: 0,
   });
@@ -120,6 +121,11 @@ export default function BrowsePage() {
       parsedFilters.hasLocation = hasLocation as MediaFilters['hasLocation'];
     }
 
+    const hasThumbnail = searchParams.get('hasThumbnail');
+    if (hasThumbnail && ['all', 'yes', 'no'].includes(hasThumbnail)) {
+      parsedFilters.hasThumbnail = hasThumbnail as MediaFilters['hasThumbnail'];
+    }
+
     // Update filters with parsed values
     setFilters({
       ...defaultFilters,
@@ -134,7 +140,7 @@ export default function BrowsePage() {
       setError(null);
 
       try {
-        const result = await browseMedia(filters, currentPage, 50);
+        const result = await browseMedia(filters, currentPage, PAGE_SIZE);
 
         if (result.success && result.data) {
           setMediaItems(result.data);
