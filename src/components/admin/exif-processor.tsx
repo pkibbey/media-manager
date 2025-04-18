@@ -111,7 +111,7 @@ export default function ExifProcessor() {
       setAbortController(controller);
 
       // Generate an abort token
-      const abortToken = Math.random().toString(36).substring(2, 15);
+      const abortToken = `${Date.now()}-${Math.random()}`;
 
       // Call the server action to get a ReadableStream
       const stream = await streamProcessUnprocessedItems({

@@ -1,9 +1,10 @@
 'use client';
 
 import {
+  abortThumbnailGeneration,
   countMissingThumbnails,
-  generateMissingThumbnails,
   getThumbnailStats,
+  streamProcessMissingThumbnails,
 } from '@/app/actions/thumbnails';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,7 +17,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { LARGE_FILE_THRESHOLD } from '@/lib/utils';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 // Type for tracking error frequencies
@@ -64,6 +65,9 @@ export default function ThumbnailGenerator() {
     filesPending: number;
     skippedLargeFiles: number;
   } | null>(null);
+
+  // Add a ref to store the current abort token
+  const currentAbortToken = useRef<string | null>(null);
 
   // Cleanup function for the abort controller
   useEffect(() => {
@@ -182,6 +186,10 @@ export default function ThumbnailGenerator() {
       const controller = new AbortController();
       setAbortController(controller);
 
+      // Generate a unique abort token
+      const abortToken = `${Date.now()}-${Math.random()}`;
+      currentAbortToken.current = abortToken;
+
       // Use the direct server action to get the count
       const countResult = await countMissingThumbnails();
       if (!countResult.success) {
@@ -204,154 +212,125 @@ export default function ThumbnailGenerator() {
         return;
       }
 
-      // Process in batches of 20
-      const batchSize = 20;
-      let currentProcessed = 0;
-      let totalLargeFilesSkipped = 0;
-      let totalSuccessCount = 0;
-      let totalFailedCount = 0;
-
       toast.success(
         `Generating thumbnails for ${totalToProcess} media items${skipLargeFiles ? ' (skipping large files)' : ''}.`,
       );
 
-      setDetailProgress({
-        status: 'generating',
-        message: `Starting batch processing for ${totalToProcess} items...`,
+      // Use the streaming version for real-time progress updates with abort token
+      const stream = await streamProcessMissingThumbnails({
+        skipLargeFiles,
+        abortToken,
       });
 
-      while (currentProcessed < totalToProcess) {
-        // Check if the operation was cancelled
-        if (controller.signal.aborted) {
-          setDetailProgress({
-            status: 'error',
-            message: 'Thumbnail generation cancelled by user',
-          });
-          break;
-        }
-
-        setDetailProgress({
-          status: 'generating',
-          message: `Processing batch ${Math.ceil(currentProcessed / batchSize) + 1} of ${Math.ceil(
-            totalToProcess / batchSize,
-          )}`,
-        });
-
-        const result = await generateMissingThumbnails(batchSize, {
-          skipLargeFiles,
-        });
-
-        if (!result.success) {
-          toast.error(`Error generating thumbnails: ${result.message}`);
-          setHasError(true);
-
-          // Add to error summary
-          if (result.message) {
-            const errorType = categorizeError(result.message);
-
-            setErrorSummary((prev) => {
-              const newSummary = { ...prev };
-              if (!newSummary[errorType]) {
-                newSummary[errorType] = { count: 0, examples: [] };
-              }
-              newSummary[errorType].count += 1;
-              if (newSummary[errorType].examples.length < 3) {
-                newSummary[errorType].examples.push(
-                  result.message || 'Unknown error',
-                );
-              }
-              return newSummary;
-            });
-          }
-
-          setDetailProgress({
-            status: 'error',
-            message: `Error in batch: ${result.message}`,
-            error: result.message,
-          });
-
-          break;
-        }
-
-        // Check if the operation was cancelled after this batch
-        if (controller.signal.aborted) {
-          setDetailProgress({
-            status: 'error',
-            message: 'Thumbnail generation cancelled by user',
-          });
-          break;
-        }
-
-        currentProcessed += result.processed ?? 0;
-        setProcessed(currentProcessed);
-        setProgress(Math.round((currentProcessed / totalToProcess) * 100));
-
-        // Track large files skipped
-        if (result.skippedLargeFiles) {
-          totalLargeFilesSkipped += result.skippedLargeFiles;
-          setLargeFilesSkipped(totalLargeFilesSkipped);
-        }
-
-        // Track success and failures
-        if (result.successCount) {
-          totalSuccessCount += result.successCount;
-          setSuccessCount(totalSuccessCount);
-        }
-
-        if (result.failedCount) {
-          totalFailedCount += result.failedCount;
-          setFailedCount(totalFailedCount);
-        }
-
-        // Track current file being processed
-        if (result.currentFilePath) {
-          setDetailProgress((prev) => ({
-            ...prev!,
-            currentFilePath: result.currentFilePath,
-            fileType: result.currentFilePath?.split('.').pop()?.toLowerCase(),
-          }));
-        }
-
-        // Record any errors
-        if (result.errors && result.errors.length > 0) {
-          setHasError(true);
-
-          // Process each error into the summary
-          result.errors.forEach((error) => {
-            if (!error.path || !error.message) return;
-
-            const errorType = categorizeError(error.message);
-            const fileName = error.path.split('/').pop() || error.path;
-
-            setErrorSummary((prev) => {
-              const newSummary = { ...prev };
-              if (!newSummary[errorType]) {
-                newSummary[errorType] = { count: 0, examples: [] };
-              }
-              newSummary[errorType].count += 1;
-              if (newSummary[errorType].examples.length < 3) {
-                newSummary[errorType].examples.push(fileName);
-              }
-              return newSummary;
-            });
-          });
-        }
-
-        if (result.processed === 0) {
-          // No more items to process
-          break;
-        }
+      if (!stream) {
+        throw new Error('Failed to start thumbnail processing stream');
       }
 
-      // Only show completion message if we weren't aborted
-      if (!controller.signal.aborted) {
-        const message = `Generated thumbnails for ${currentProcessed - totalLargeFilesSkipped} media items${totalLargeFilesSkipped ? `, skipped ${totalLargeFilesSkipped} large files` : ''}.`;
-        toast.success(message);
+      // Set up a reader for the stream
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
 
-        setDetailProgress({
-          status: 'completed',
-          message,
-        });
+      try {
+        // Process stream data
+        while (true) {
+          // Check if operation was cancelled
+          if (controller.signal.aborted) {
+            reader.cancel('Operation cancelled by user');
+            setDetailProgress({
+              status: 'error',
+              message: 'Thumbnail generation cancelled by user',
+            });
+            break;
+          }
+
+          const { done, value } = await reader.read();
+
+          // Exit if stream is done
+          if (done) {
+            break;
+          }
+
+          // Decode and process the stream data
+          const text = decoder.decode(value);
+          const messages = text.split('\n\n');
+
+          for (const message of messages) {
+            if (!message.startsWith('data: ')) continue;
+
+            try {
+              const data = JSON.parse(message.substring(6));
+
+              // Update UI with progress
+              if (data.status === 'error') {
+                setHasError(true);
+                if (data.error) {
+                  const errorType = categorizeError(data.error);
+                  setErrorSummary((prev) => {
+                    const newSummary = { ...prev };
+                    if (!newSummary[errorType]) {
+                      newSummary[errorType] = { count: 0, examples: [] };
+                    }
+                    newSummary[errorType].count += 1;
+                    if (newSummary[errorType].examples.length < 3) {
+                      newSummary[errorType].examples.push(data.error);
+                    }
+                    return newSummary;
+                  });
+                }
+              }
+
+              // Update counters and progress
+              if (data.totalItems) {
+                setTotal(data.totalItems);
+              }
+
+              if (data.processed !== undefined) {
+                setProcessed(data.processed);
+                if (data.totalItems) {
+                  setProgress(
+                    Math.round((data.processed / data.totalItems) * 100),
+                  );
+                }
+              }
+
+              if (data.successCount !== undefined) {
+                setSuccessCount(data.successCount);
+              }
+
+              if (data.failedCount !== undefined) {
+                setFailedCount(data.failedCount);
+              }
+
+              if (data.skippedLargeFiles !== undefined) {
+                setLargeFilesSkipped(data.skippedLargeFiles);
+              }
+
+              // Update file details
+              if (data.currentFilePath || data.currentFileName) {
+                setDetailProgress((prev) => ({
+                  ...prev!,
+                  message: data.message || prev?.message,
+                  currentFilePath:
+                    data.currentFilePath || prev?.currentFilePath,
+                  fileType: data.fileType || prev?.fileType,
+                }));
+              } else if (data.message) {
+                setDetailProgress((prev) => ({
+                  ...prev!,
+                  message: data.message,
+                }));
+              }
+            } catch (parseError) {
+              console.error('Error parsing stream data:', parseError);
+            }
+          }
+        }
+      } catch (streamError) {
+        console.error('Error reading from stream:', streamError);
+        setHasError(true);
+        throw streamError;
+      } finally {
+        reader.releaseLock();
       }
     } catch (error: any) {
       const errorMessage = error.message || 'An unknown error occurred';
@@ -381,14 +360,27 @@ export default function ThumbnailGenerator() {
     } finally {
       setIsGenerating(false);
       setAbortController(null);
+      currentAbortToken.current = null;
+
+      // Refresh stats after completion
+      fetchRemainingCount();
+      fetchThumbnailStats();
     }
   };
 
-  // Add cancel handler
-  const handleCancel = () => {
+  // Update cancel handler to use the abortToken
+  const handleCancel = async () => {
     if (abortController) {
       toast.info('Cancelling thumbnail generation...');
+
+      // First abort the client-side controller to stop the stream reading
       abortController.abort();
+
+      // We also need to abort any active processing on the server
+      // Using abortToken from the current generation process
+      if (currentAbortToken.current) {
+        await abortThumbnailGeneration(currentAbortToken.current);
+      }
     }
   };
 
@@ -486,8 +478,8 @@ export default function ThumbnailGenerator() {
               {`Skipped ${largeFilesSkipped} large files (over ${Math.round(LARGE_FILE_THRESHOLD / 1024 / 1024)}MB)`}
             </div>
           )}
-          <div className="text-xs text-muted-foreground truncate mt-1">
-            Current file: {detailProgress?.currentFilePath || '--'}
+          <div className="text-xs text-muted-foreground truncate mt-1 flex justify-between">
+            <span>Current file: {detailProgress?.currentFilePath || '_'}</span>
             <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-secondary">
               .{detailProgress?.fileType || '??'}
             </span>

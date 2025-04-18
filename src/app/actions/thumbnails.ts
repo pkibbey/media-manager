@@ -4,13 +4,16 @@ import { exec } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import {
+  addAbortToken,
+  isAborted as checkAbortToken,
+} from '@/lib/abort-tokens';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { LARGE_FILE_THRESHOLD, isSkippedLargeFile } from '@/lib/utils';
 import type {
   ThumbnailOptions,
   ThumbnailResult,
 } from '@/types/thumbnail-types';
-// Remove heic-convert import
 import { revalidatePath } from 'next/cache';
 import sharp from 'sharp';
 
@@ -1019,5 +1022,321 @@ export async function countMissingThumbnails(): Promise<{
   } catch (error: any) {
     console.error('Error counting missing thumbnails:', error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Stream process thumbnails for all media items without thumbnails
+ * This is a streaming version that provides real-time progress updates
+ */
+export async function streamProcessMissingThumbnails(
+  options: ThumbnailOptions = {},
+) {
+  const encoder = new TextEncoder();
+  const { skipLargeFiles = false, abortToken } = options;
+
+  // Create a transform stream to send progress updates
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
+
+  // Start processing in the background
+  processInBackground({ writer, skipLargeFiles, abortToken });
+
+  // Return the readable stream
+  return stream.readable;
+
+  async function processInBackground({
+    writer,
+    skipLargeFiles,
+    abortToken,
+  }: {
+    writer: WritableStreamDefaultWriter;
+    skipLargeFiles: boolean;
+    abortToken?: string;
+  }) {
+    try {
+      const supabase = createServerSupabaseClient();
+
+      // Send initial progress update
+      await sendProgress(writer, {
+        status: 'started',
+        message: `Starting thumbnail generation${skipLargeFiles ? ' (skipping large files)' : ''}`,
+      });
+
+      // Get ignored file extensions first
+      const { data: ignoredTypes } = await supabase
+        .from('file_types')
+        .select('extension')
+        .eq('ignore', true);
+
+      const ignoredExtensions =
+        ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
+
+      // Define the image file extensions we want to process
+      const imageExtensions = [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+        'tiff',
+        'tif',
+        'heic',
+        'avif',
+        'bmp',
+      ];
+
+      // Build the query to count all pending items
+      let countQuery = supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .is('thumbnail_path', null)
+        .in('extension', imageExtensions);
+
+      // Exclude ignored file types
+      if (ignoredExtensions.length > 0) {
+        countQuery = countQuery.not(
+          'extension',
+          'in',
+          `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+        );
+      }
+
+      // Get the total count of items to process
+      const { count: totalCount, error: countError } = await countQuery;
+
+      if (countError) {
+        await sendProgress(writer, {
+          status: 'error',
+          message: `Failed to count media items: ${countError.message}`,
+          error: countError.message,
+        });
+        await writer.close();
+        return;
+      }
+
+      if (!totalCount || totalCount === 0) {
+        await sendProgress(writer, {
+          status: 'completed',
+          message: 'No image files without thumbnails found',
+          totalItems: 0,
+          processed: 0,
+          successCount: 0,
+          failedCount: 0,
+          skippedLargeFiles: 0,
+        });
+        await writer.close();
+        return;
+      }
+
+      // Send total count to the UI
+      await sendProgress(writer, {
+        status: 'processing',
+        message: `Found ${totalCount} files to process`,
+        totalItems: totalCount,
+        processed: 0,
+        successCount: 0,
+        failedCount: 0,
+        skippedLargeFiles: 0,
+      });
+
+      // Process in smaller batches to avoid timeouts
+      const batchSize = 10;
+      let processedCount = 0;
+      let successCount = 0;
+      let failedCount = 0;
+      let skippedLargeFiles = 0;
+
+      // Function to delay execution
+      const delay = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+
+      // Function to check if operation has been aborted
+      const checkAborted = async (): Promise<boolean> => {
+        if (!abortToken) return false;
+        return await checkAbortToken(abortToken);
+      };
+
+      // Process until all items are done
+      while (processedCount < totalCount) {
+        // Check if operation was aborted
+        if (await checkAborted()) {
+          await sendProgress(writer, {
+            status: 'aborted',
+            message: 'Thumbnail generation was cancelled',
+            totalItems: totalCount,
+            processed: processedCount,
+            successCount,
+            failedCount,
+            skippedLargeFiles,
+          });
+          await writer.close();
+          return;
+        }
+
+        // Build the query to get the next batch
+        let query = supabase
+          .from('media_items')
+          .select('id, file_path, file_name, extension')
+          .is('thumbnail_path', null)
+          .in('extension', imageExtensions);
+
+        // Exclude ignored file types
+        if (ignoredExtensions.length > 0) {
+          query = query.not(
+            'extension',
+            'in',
+            `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+          );
+        }
+
+        // Get the next batch of items to process
+        const { data: mediaItems, error: fetchError } = await query
+          .order('id', { ascending: true })
+          .limit(batchSize);
+
+        if (fetchError) {
+          await sendProgress(writer, {
+            status: 'error',
+            message: `Failed to fetch media items: ${fetchError.message}`,
+            error: fetchError.message,
+            totalItems: totalCount,
+            processed: processedCount,
+            successCount,
+            failedCount,
+            skippedLargeFiles,
+          });
+          await writer.close();
+          return;
+        }
+
+        if (!mediaItems || mediaItems.length === 0) {
+          // No more items to process
+          break;
+        }
+
+        // Process each item one at a time to provide better progress updates
+        for (const item of mediaItems) {
+          // Check if operation was aborted before processing each item
+          if (await checkAborted()) {
+            await sendProgress(writer, {
+              status: 'aborted',
+              message: 'Thumbnail generation was cancelled',
+              totalItems: totalCount,
+              processed: processedCount,
+              successCount,
+              failedCount,
+              skippedLargeFiles,
+            });
+            await writer.close();
+            return;
+          }
+
+          // Send progress update before processing each file
+          await sendProgress(writer, {
+            status: 'processing',
+            message: `Processing ${processedCount + 1} of ${totalCount}`,
+            totalItems: totalCount,
+            processed: processedCount,
+            successCount,
+            failedCount,
+            skippedLargeFiles,
+            currentFilePath: item.file_path,
+            currentFileName: item.file_name,
+            fileType: item.extension,
+          });
+
+          // Process the item
+          const result = await generateThumbnail(item.id, { skipLargeFiles });
+
+          // Update counters based on result
+          processedCount++;
+
+          if (result.success) {
+            if (result.skipped && result.skippedReason === 'large_file') {
+              skippedLargeFiles++;
+            } else {
+              successCount++;
+            }
+          } else {
+            failedCount++;
+          }
+
+          // Send progress update after processing each file
+          await sendProgress(writer, {
+            status: 'processing',
+            // message: `Processed ${processedCount} of ${totalCount}`,
+            totalItems: totalCount,
+            processed: processedCount,
+            successCount,
+            failedCount,
+            skippedLargeFiles,
+            currentFilePath: item.file_path,
+            currentFileName: item.file_name,
+            fileType: item.extension,
+          });
+
+          // Add a small delay to prevent overwhelming the browser with updates
+          await delay(100);
+        }
+      }
+
+      // Send final progress update
+      await sendProgress(writer, {
+        status: 'completed',
+        message: `Completed processing ${processedCount} files: ${successCount} thumbnails generated, ${failedCount} failed, ${skippedLargeFiles} large files skipped`,
+        totalItems: totalCount,
+        processed: processedCount,
+        successCount,
+        failedCount,
+        skippedLargeFiles,
+      });
+
+      // Revalidate paths
+      revalidatePath('/browse');
+      revalidatePath('/folders');
+      revalidatePath('/admin');
+
+      // Close the stream
+      await writer.close();
+    } catch (error: any) {
+      console.error('Error during thumbnail processing:', error);
+      await sendProgress(writer, {
+        status: 'error',
+        message: `Error during thumbnail processing: ${error.message}`,
+        error: error.message,
+      });
+      await writer.close();
+    }
+  }
+
+  async function sendProgress(
+    writer: WritableStreamDefaultWriter,
+    progress: any,
+  ) {
+    await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
+  }
+}
+
+/**
+ * Abort thumbnail generation process
+ */
+export async function abortThumbnailGeneration(token: string): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  try {
+    // Add the token to the abort set
+    await addAbortToken(token);
+    return {
+      success: true,
+      message: 'Thumbnail generation aborted successfully',
+    };
+  } catch (error: any) {
+    console.error('Error aborting thumbnail generation:', error);
+    return {
+      success: false,
+      message: `Error aborting thumbnail generation: ${error.message || 'Unknown error'}`,
+    };
   }
 }
