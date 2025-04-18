@@ -67,6 +67,7 @@ export default function MediaFilterView({
       organized: 'all',
       camera: '',
       hasLocation: 'all',
+      hasThumbnail: 'all',
     },
   });
 
@@ -139,6 +140,11 @@ export default function MediaFilterView({
       formValues.hasLocation = hasLocation as MediaFilters['hasLocation'];
     }
 
+    const hasThumbnail = searchParams.get('hasThumbnail');
+    if (hasThumbnail && ['all', 'yes', 'no'].includes(hasThumbnail)) {
+      formValues.hasThumbnail = hasThumbnail as MediaFilters['hasThumbnail'];
+    }
+
     // Check if advanced filters are used (compare to defaults)
     const isAdvanced =
       (processed && processed !== 'all') ||
@@ -192,6 +198,8 @@ export default function MediaFilterView({
           params.set('camera', values.camera);
         if (values.hasLocation !== 'all')
           params.set('hasLocation', values.hasLocation);
+        if (values.hasThumbnail !== 'all')
+          params.set('hasThumbnail', values.hasThumbnail);
 
         // Update URL
         router.push(`/browse?${params.toString()}`);
@@ -220,6 +228,7 @@ export default function MediaFilterView({
       organized: 'all',
       camera: '',
       hasLocation: 'all',
+      hasThumbnail: 'all',
     });
     router.push('/browse');
     onFiltersChange(form.getValues());
@@ -538,6 +547,27 @@ export default function MediaFilterView({
                         <SelectItem value="all">Any file</SelectItem>
                         <SelectItem value="yes">Has location</SelectItem>
                         <SelectItem value="no">No location</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              {/* Thumbnail Status */}
+              <FormField
+                control={form.control}
+                name="hasThumbnail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Thumbnail Status</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Thumbnail status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any file</SelectItem>
+                        <SelectItem value="yes">Has thumbnail</SelectItem>
+                        <SelectItem value="no">No thumbnail</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>

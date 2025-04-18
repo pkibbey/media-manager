@@ -55,15 +55,15 @@ export async function updateFileType(
       return { success: false, error: error.message };
     }
 
-    // Revalidate paths that might show file types
-    await revalidatePath('/admin');
-    await revalidatePath('/folders');
-    await revalidatePath('/browse');
-
     return { success: true, data };
   } catch (error: any) {
     console.error('Error updating file type:', error);
     return { success: false, error: error.message };
+  } finally {
+    // Revalidate paths after updating
+    await revalidatePath('/admin');
+    await revalidatePath('/folders');
+    await revalidatePath('/browse');
   }
 }
 

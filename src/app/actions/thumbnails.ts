@@ -393,11 +393,6 @@ export async function batchGenerateThumbnails(
       }
     }
 
-    // Revalidate paths
-    revalidatePath('/browse');
-    revalidatePath('/folders');
-    revalidatePath('/admin');
-
     return {
       success: true,
       message: `Generated ${successCount} thumbnails. Failed: ${failedCount}${skippedLargeFiles ? `. Skipped ${skippedLargeFiles} large files.` : ''}`,
@@ -425,6 +420,11 @@ export async function batchGenerateThumbnails(
         },
       ],
     };
+  } finally {
+    // Revalidate paths after processing
+    revalidatePath('/browse');
+    revalidatePath('/folders');
+    revalidatePath('/admin');
   }
 }
 
@@ -612,11 +612,6 @@ export async function resetAllThumbnails(): Promise<ThumbnailResult> {
       };
     }
 
-    // 4. Revalidate paths
-    revalidatePath('/browse');
-    revalidatePath('/folders');
-    revalidatePath('/admin');
-
     return {
       success: true,
       message: `Successfully reset ${count || 0} thumbnails`,
@@ -628,6 +623,11 @@ export async function resetAllThumbnails(): Promise<ThumbnailResult> {
       success: false,
       message: `Error resetting thumbnails: ${error.message}`,
     };
+  } finally {
+    // Revalidate paths after all operations
+    revalidatePath('/browse');
+    revalidatePath('/folders');
+    revalidatePath('/admin');
   }
 }
 
@@ -1234,11 +1234,6 @@ export async function streamProcessMissingThumbnails(
         skippedLargeFiles,
       });
 
-      // Revalidate paths
-      revalidatePath('/browse');
-      revalidatePath('/folders');
-      revalidatePath('/admin');
-
       // Close the stream
       await writer.close();
     } catch (error: any) {
@@ -1249,6 +1244,11 @@ export async function streamProcessMissingThumbnails(
         error: error.message,
       });
       await writer.close();
+    } finally {
+      // Revalidate paths after all operations
+      revalidatePath('/browse');
+      revalidatePath('/folders');
+      revalidatePath('/admin');
     }
   }
 

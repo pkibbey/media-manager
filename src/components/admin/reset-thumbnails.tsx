@@ -143,7 +143,7 @@ export default function ResetThumbnails() {
             </Button>
             <Button
               variant="destructive"
-              onClick={handleReset}
+              onClick={async () => await handleReset()}
               disabled={isLoading}
             >
               {isLoading ? 'Resetting...' : 'Yes, Reset All Thumbnails'}

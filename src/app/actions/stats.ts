@@ -307,11 +307,6 @@ export async function resetAllMediaItems(): Promise<{
       return { success: false, error: updateError.message };
     }
 
-    // Revalidate paths to update UI
-    revalidatePath('/browse');
-    revalidatePath('/folders');
-    revalidatePath('/admin');
-
     return {
       success: true,
       message: `Successfully reset ${count} media items to unprocessed state.`,
@@ -319,5 +314,10 @@ export async function resetAllMediaItems(): Promise<{
   } catch (error: any) {
     console.error('Error resetting media items:', error);
     return { success: false, error: error.message };
+  } finally {
+    // Revalidate paths after all operations
+    revalidatePath('/browse');
+    revalidatePath('/folders');
+    revalidatePath('/admin');
   }
 }

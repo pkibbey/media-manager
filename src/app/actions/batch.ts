@@ -226,17 +226,6 @@ export async function streamBatchProcessExif({
         processedCount,
         totalCount: totalItems,
       });
-
-      // Revalidate paths
-      try {
-        revalidatePath('/folders');
-        revalidatePath('/browse');
-      } catch (error) {
-        console.error('Error revalidating paths:', error);
-      }
-
-      // Close the stream
-      await writer.close();
     } catch (error: any) {
       console.error('Error during batch processing:', error);
       await sendProgress(writer, {
@@ -244,7 +233,12 @@ export async function streamBatchProcessExif({
         message: 'Error during batch processing',
         error: error.message,
       });
+    } finally {
+      // Close the stream
       await writer.close();
+
+      revalidatePath('/folders');
+      revalidatePath('/browse');
     }
   }
 

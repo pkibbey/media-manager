@@ -106,6 +106,20 @@ export async function browseMedia(
       query = query.eq('organized', filters.organized === 'yes');
     }
 
+    if (filters.hasThumbnail !== 'all') {
+      if (filters.hasThumbnail === 'yes') {
+        // Filter for items that have thumbnails (not null and not starting with 'skipped:')
+        query = query
+          .not('thumbnail_path', 'is', null)
+          .not('thumbnail_path', 'like', 'skipped:%');
+      } else {
+        // Filter for items without thumbnails (null or starting with 'skipped:')
+        query = query.or(
+          'thumbnail_path.is.null,thumbnail_path.like.skipped:%',
+        );
+      }
+    }
+
     // Apply sorting
     const sortColumn = {
       date: 'media_date',

@@ -14,6 +14,7 @@ export interface MediaFilters {
   organized: 'all' | 'yes' | 'no';
   camera: string;
   hasLocation: 'all' | 'yes' | 'no';
+  hasThumbnail: 'all' | 'yes' | 'no';
 }
 
 /**

@@ -23,6 +23,7 @@ const defaultFilters: MediaFilters = {
   organized: 'all',
   camera: '',
   hasLocation: 'all',
+  hasThumbnail: 'all',
 };
 
 export default function BrowsePage() {

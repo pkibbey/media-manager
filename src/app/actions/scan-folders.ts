@@ -57,12 +57,15 @@ export async function addScanFolder(
       return { success: false, error: error.message };
     }
 
-    // Only revalidate path after all operations are complete
-    await revalidatePath('/admin');
     return { success: true, data };
   } catch (error: any) {
     console.error('Error adding scan folder:', error);
     return { success: false, error: error.message };
+  } finally {
+    // Revalidate paths that might show scan folders
+    revalidatePath('/folders');
+    revalidatePath('/browse');
+    revalidatePath('/admin');
   }
 }
 

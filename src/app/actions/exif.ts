@@ -68,11 +68,6 @@ export async function processMediaExif({
       return { success: false, message: error.message };
     }
 
-    // Revalidate relevant paths to update the UI
-    revalidatePath('/browse');
-    revalidatePath('/folders');
-    revalidatePath(`/media/${media.id}`);
-
     return {
       success: true,
       message: 'EXIF data extracted and stored successfully',
@@ -85,6 +80,11 @@ export async function processMediaExif({
       message:
         error instanceof Error ? error.message : 'Unknown error occurred',
     };
+  } finally {
+    // Revalidate paths after all operations
+    revalidatePath('/browse');
+    revalidatePath('/folders');
+    revalidatePath('/admin');
   }
 }
 
@@ -127,11 +127,6 @@ export async function batchProcessExif({
       }
     }
 
-    // Revalidate paths
-    revalidatePath('/browse');
-    revalidatePath('/folders');
-    revalidatePath('/admin');
-
     return {
       success: true,
       message: `Processed ${successCount} of ${total} files`,
@@ -147,6 +142,11 @@ export async function batchProcessExif({
       processed: 0,
       total: 0,
     };
+  } finally {
+    // Revalidate paths after all operations
+    revalidatePath('/browse');
+    revalidatePath('/folders');
+    revalidatePath('/admin');
   }
 }
 
@@ -331,11 +331,6 @@ export async function processAllUnprocessedItems({
       }
     }
 
-    // Revalidate paths
-    revalidatePath('/browse');
-    revalidatePath('/folders');
-    revalidatePath('/admin');
-
     return {
       success: true,
       message: `Processed ${successCount} of ${total} files`,
@@ -351,6 +346,11 @@ export async function processAllUnprocessedItems({
       processed: 0,
       total: 0,
     };
+  } finally {
+    // Revalidate paths after all operations
+    revalidatePath('/browse');
+    revalidatePath('/folders');
+    revalidatePath('/admin');
   }
 }
 
@@ -429,11 +429,6 @@ export async function updateMediaDatesFromFilenames({
       }
     }
 
-    // Revalidate paths to update UI
-    revalidatePath('/browse');
-    revalidatePath('/folders');
-    revalidatePath('/admin');
-
     return {
       success: true,
       message: `Updated dates for ${updatedCount} of ${mediaItems.length} files`,
@@ -448,6 +443,11 @@ export async function updateMediaDatesFromFilenames({
       processed: 0,
       updated: 0,
     };
+  } finally {
+    // Revalidate paths after all operations
+    revalidatePath('/browse');
+    revalidatePath('/folders');
+    revalidatePath('/admin');
   }
 }
 
@@ -887,15 +887,6 @@ export async function streamProcessUnprocessedItems(
         return;
       }
 
-      // Revalidate paths to update UI
-      try {
-        revalidatePath('/browse');
-        revalidatePath('/folders');
-        revalidatePath('/admin');
-      } catch (error) {
-        console.error('Error revalidating paths:', error);
-      }
-
       // Prepare final message
       let finalMessage = `EXIF processing completed. Found ${totalCount} total items, processed ${processedCount} EXIF-compatible files: ${successCount} successful, ${failedCount} failed`;
 
@@ -914,9 +905,6 @@ export async function streamProcessUnprocessedItems(
         largeFilesSkipped: largeFilesSkipped,
         method: extractionMethod,
       });
-
-      // Close the stream
-      await writer.close();
     } catch (error: any) {
       console.error('Error during EXIF processing:', error);
       await sendProgress(writer, {
@@ -930,7 +918,14 @@ export async function streamProcessUnprocessedItems(
         failedCount: 0,
         method: extractionMethod,
       });
+    } finally {
+      // Close the stream if it hasn't been closed yet
       await writer.close();
+
+      // Revalidate paths to update UI
+      revalidatePath('/browse');
+      revalidatePath('/folders');
+      revalidatePath('/admin');
     }
   }
 
