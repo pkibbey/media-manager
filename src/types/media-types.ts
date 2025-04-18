@@ -2,7 +2,7 @@
  * Media filtering options for browsing and searching media items
  */
 export interface MediaFilters {
-  search: string;
+  search?: string;
   type: 'all' | 'image' | 'video' | 'data';
   dateFrom: Date | null;
   dateTo: Date | null;

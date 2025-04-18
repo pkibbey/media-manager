@@ -13,3 +13,5 @@
 - Make sure that the stats display is displaying the correct values
 - Fix folder counts for all subfolders view in Folder View
 - Media Filters should change onChange, instead of relying on clicking apply
+- When we finish exif processing, and there is a failure, do we stil mark it as processed?
+- Show a count of the number of images needing Timestamp Correction (these are all media items that do not have exif data, but are capable of having exif data and have been processed)

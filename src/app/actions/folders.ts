@@ -145,7 +145,7 @@ export async function getMediaItemsByFolder(
     }
 
     // Apply additional filters if provided
-    if (filters.search && filters.search.trim()) {
+    if (filters.search?.trim()) {
       mediaItemsQuery = mediaItemsQuery.ilike(
         'file_name',
         `%${filters.search}%`,
@@ -229,7 +229,7 @@ export async function getMediaItemsByFolder(
       countQuery.eq('folder_path', folderPath);
     }
 
-    if (filters.search && filters.search.trim()) {
+    if (filters.search?.trim()) {
       countQuery.ilike('file_name', `%${filters.search}%`);
     }
 

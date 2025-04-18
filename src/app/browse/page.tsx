@@ -34,6 +34,7 @@ export default function BrowsePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -127,16 +128,22 @@ export default function BrowsePage() {
     }
 
     // Update filters with parsed values
-    setFilters({
+    setFilters((filters) => ({
+      ...filters,
       ...defaultFilters,
       ...parsedFilters,
-    });
+    }));
   }, [searchParams]);
 
   // Load media items with current filters and pagination
   useEffect(() => {
     const loadMedia = async () => {
-      setLoading(true);
+      // Only show loading indicator on initial load,
+      // for subsequent loads we'll keep showing the existing content
+      if (initialLoad) {
+        setLoading(true);
+      }
+
       setError(null);
 
       try {
@@ -163,23 +170,28 @@ export default function BrowsePage() {
           }
         } else {
           setError(result.error || 'Failed to load media items');
+          // Only clear media items if there's an error
           setMediaItems([]);
         }
       } catch (error: any) {
         setError(error.message || 'An unexpected error occurred');
+        // Only clear media items if there's an error
         setMediaItems([]);
       } finally {
         setLoading(false);
+        setInitialLoad(false);
       }
     };
 
     loadMedia();
-  }, [filters, currentPage]);
+  }, [filters, currentPage, initialLoad]);
 
   // Handle filter changes
   const handleFiltersChange = (newFilters: MediaFilters) => {
-    setFilters(newFilters);
-    setCurrentPage(1); // Reset to first page when filters change
+    setFilters((filters: MediaFilters) => ({ ...filters, ...newFilters }));
+    if (currentPage !== 1) {
+      setCurrentPage(1); // Reset to first page when filters change
+    }
   };
 
   // Handle page changes
@@ -197,24 +209,21 @@ export default function BrowsePage() {
       <h1 className="text-3xl font-bold mb-6">Browse Media</h1>
 
       <div className="min-h-[200px]">
-        {loading ? (
+        {!loading && error && (
+          <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-md text-destructive">
+            {error}
+          </div>
+        )}
+        {initialLoad && loading && (
           <div className="flex items-center justify-center h-60">
             <div className="animate-pulse text-muted-foreground">
               Loading media...
             </div>
           </div>
-        ) : error ? (
-          <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-md text-destructive">
-            {error}
-          </div>
-        ) : mediaItems.length === 0 ? (
-          <div className="p-8 border rounded-md text-center">
-            <p className="text-muted-foreground">
-              No media items match your criteria
-            </p>
-          </div>
-        ) : (
-          <>
+        )}
+
+        {!loading && (
+          <div className="relative">
             <MediaList
               items={mediaItems}
               filterComponent={
@@ -236,7 +245,7 @@ export default function BrowsePage() {
                 />
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>

@@ -71,9 +71,6 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
-      dotenv:
-        specifier: ^16.5.0
-        version: 16.5.0
       exif-reader:
         specifier: ^2.0.2
         version: 2.0.2
@@ -86,6 +83,9 @@ importers:
       heic-convert:
         specifier: ^2.1.0
         version: 2.1.0
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
       lucide-react:
         specifier: 0.488.0
         version: 0.488.0(react@19.1.0)
@@ -132,6 +132,9 @@ importers:
       '@types/heic-convert':
         specifier: ^2.1.0
         version: 2.1.0
+      '@types/lodash':
+        specifier: ^4.17.16
+        version: 4.17.16
       '@types/mime-types':
         specifier: ^2.1.4
         version: 2.1.4
@@ -938,6 +941,9 @@ packages:
   '@types/heic-convert@2.1.0':
     resolution: {integrity: sha512-Cf5Sdc2Gm2pfZ0uN1zjj35wcf3mF1lJCMIzws5OdJynrdMJRTIRUGa5LegbVg0hatzOPkH2uAf2JRjPYgl9apg==}
 
+  '@types/lodash@4.17.16':
+    resolution: {integrity: sha512-HX7Em5NYQAXKW+1T+FiuG27NGwzJfCX3s1GjOa7ujxZa52kjJLOr4FUxT+giF6Tgxv1e+/czV/iTtBw27WTU9g==}
+
   '@types/mime-types@2.1.4':
     resolution: {integrity: sha512-lfU4b34HOri+kAY5UheuFMWPDOI+OPceBSHZKp69gEyTL/mmJ4cnU6Y/rlme3UL3GyOn6Y42hyIEw0/q8sWx5w==}
 
@@ -1051,10 +1057,6 @@ packages:
 
   detect-node-es@1.1.0:
     resolution: {integrity: sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ==}
-
-  dotenv@16.5.0:
-    resolution: {integrity: sha512-m/C+AwOAr9/W1UOIZUo232ejMNnJAJtYQjUbHoNTBNTJSvqzzDh7vnrei3o3r3m9blf6ZoDkvcw0VmozNRFJxg==}
-    engines: {node: '>=12'}
 
   electron-to-chromium@1.5.137:
     resolution: {integrity: sha512-/QSJaU2JyIuTbbABAo/crOs+SuAZLS+fVVS10PVrIT9hrRkmZl8Hb0xPSkKRUUWHQtYzXHpQUW3Dy5hwMzGZkA==}
@@ -1193,6 +1195,9 @@ packages:
 
   linebreak@1.1.0:
     resolution: {integrity: sha512-MHp03UImeVhB7XZtjd0E4n6+3xr5Dq/9xI/5FptGk5FrbDR3zagPa2DS6U8ks/3HjbKWG9Q1M2ufOzxV2qLYSQ==}
+
+  lodash@4.17.21:
+    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
   lucide-react@0.488.0:
     resolution: {integrity: sha512-ronlL0MyKut4CEzBY/ai2ZpKPxyWO4jUqdAkm2GNK5Zn3Rj+swDz+3lvyAUXN0PNqPKIX6XM9Xadwz/skLs/pQ==}
@@ -2158,6 +2163,8 @@ snapshots:
 
   '@types/heic-convert@2.1.0': {}
 
+  '@types/lodash@4.17.16': {}
+
   '@types/mime-types@2.1.4': {}
 
   '@types/node@22.14.1':
@@ -2265,8 +2272,6 @@ snapshots:
 
   detect-node-es@1.1.0: {}
 
-  dotenv@16.5.0: {}
-
   electron-to-chromium@1.5.137: {}
 
   emoji-regex@10.4.0: {}
@@ -2370,6 +2375,8 @@ snapshots:
     dependencies:
       base64-js: 0.0.8
       unicode-trie: 2.0.0
+
+  lodash@4.17.21: {}
 
   lucide-react@0.488.0(react@19.1.0):
     dependencies:

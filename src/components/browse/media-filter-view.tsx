@@ -30,8 +30,9 @@ import {
   ReloadIcon,
 } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
+import { debounce } from 'lodash';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 interface MediaFiltersProps {
@@ -71,6 +72,14 @@ export default function MediaFilterView({
     },
   });
 
+  // Create a debounced version of the filter apply function
+  // We'll use this for text search to avoid too many requests while typing
+  const debouncedApplyFilters = useRef(
+    debounce((values: MediaFilters) => {
+      applyFilters(values);
+    }, 300),
+  ).current;
+
   // Initialize form values from URL params
   useEffect(() => {
     const formValues: Partial<MediaFilters> = {};
@@ -79,9 +88,12 @@ export default function MediaFilterView({
       formValues.search = searchParams.get('search') || '';
     }
 
+    // Fix for data files type selection issue
     const type = searchParams.get('type');
     if (type && ['all', 'image', 'video', 'data'].includes(type)) {
       formValues.type = type as MediaFilters['type'];
+    } else {
+      formValues.type = 'all'; // Default to 'all' if not specified or invalid
     }
 
     if (searchParams.has('dateFrom')) {
@@ -147,54 +159,82 @@ export default function MediaFilterView({
 
     setIsAdvancedOpen(false);
 
-    // Reset form with values from URL
+    // Reset form with values from URL, ensuring we always have valid values
     form.reset({
-      ...form.getValues(),
-      ...formValues,
-      // Ensure min/max size default properly
+      search: formValues.search || '',
+      type: formValues.type || 'all',
+      dateFrom: formValues.dateFrom || null,
+      dateTo: formValues.dateTo || null,
       minSize: formValues.minSize !== undefined ? formValues.minSize : 0,
       maxSize:
         formValues.maxSize !== undefined ? formValues.maxSize : maxFileSize,
+      sortBy: formValues.sortBy || 'date',
+      sortOrder: formValues.sortOrder || 'desc',
+      processed: formValues.processed || 'all',
+      organized: formValues.organized || 'all',
+      camera: formValues.camera || '',
+      hasLocation: formValues.hasLocation || 'all',
+      hasThumbnail: formValues.hasThumbnail || 'all',
     });
+
+    // Ensure form values get applied after reset
+    const currentFormValues = form.getValues();
+    if (formValues.type && formValues.type !== currentFormValues.type) {
+      form.setValue('type', formValues.type);
+    }
   }, [searchParams, form, maxFileSize]);
 
   // Apply filters and update URL
-  const handleSubmit = useCallback(
-    async (values: MediaFilters) => {
+  const applyFilters = useCallback(
+    (values: MediaFilters) => {
       setIsLoading(true);
 
       try {
+        // Ensure we have valid values before applying filters
+        const validatedValues = {
+          ...values,
+          type: values.type || 'all',
+          sortBy: values.sortBy || 'date',
+          sortOrder: values.sortOrder || 'desc',
+          maxSize: values.maxSize !== undefined ? values.maxSize : maxFileSize,
+        };
+
         // Update URL with filter params
         const params = new URLSearchParams();
 
         // Only add non-empty filters
-        if (values.search) params.set('search', values.search);
-        if (values.type !== 'all') params.set('type', values.type);
-        if (values.dateFrom)
-          params.set('dateFrom', values.dateFrom.toISOString());
-        if (values.dateTo) params.set('dateTo', values.dateTo.toISOString());
-        if (values.minSize > 0) params.set('minSize', String(values.minSize));
-        if (values.maxSize < maxFileSize)
-          params.set('maxSize', String(values.maxSize));
-        if (values.sortBy !== 'date') params.set('sortBy', values.sortBy);
-        if (values.sortOrder !== 'desc')
-          params.set('sortOrder', values.sortOrder);
-        if (values.processed !== 'all')
-          params.set('processed', values.processed);
-        if (values.organized !== 'all')
-          params.set('organized', values.organized);
-        if (values.camera && values.camera !== 'all')
-          params.set('camera', values.camera);
-        if (values.hasLocation !== 'all')
-          params.set('hasLocation', values.hasLocation);
-        if (values.hasThumbnail !== 'all')
-          params.set('hasThumbnail', values.hasThumbnail);
+        if (validatedValues.search)
+          params.set('search', validatedValues.search);
+        if (validatedValues.type !== 'all')
+          params.set('type', validatedValues.type);
+        if (validatedValues.dateFrom)
+          params.set('dateFrom', validatedValues.dateFrom.toISOString());
+        if (validatedValues.dateTo)
+          params.set('dateTo', validatedValues.dateTo.toISOString());
+        if (validatedValues.minSize > 0)
+          params.set('minSize', String(validatedValues.minSize));
+        if (validatedValues.maxSize < maxFileSize)
+          params.set('maxSize', String(validatedValues.maxSize));
+        if (validatedValues.sortBy !== 'date')
+          params.set('sortBy', validatedValues.sortBy);
+        if (validatedValues.sortOrder !== 'desc')
+          params.set('sortOrder', validatedValues.sortOrder);
+        if (validatedValues.processed !== 'all')
+          params.set('processed', validatedValues.processed);
+        if (validatedValues.organized !== 'all')
+          params.set('organized', validatedValues.organized);
+        if (validatedValues.camera && validatedValues.camera !== 'all')
+          params.set('camera', validatedValues.camera);
+        if (validatedValues.hasLocation !== 'all')
+          params.set('hasLocation', validatedValues.hasLocation);
+        if (validatedValues.hasThumbnail !== 'all')
+          params.set('hasThumbnail', validatedValues.hasThumbnail);
 
         // Update URL
         router.push(`/browse?${params.toString()}`);
 
         // Notify parent component
-        onFiltersChange(values);
+        onFiltersChange(validatedValues);
       } finally {
         setIsLoading(false);
       }
@@ -202,9 +242,68 @@ export default function MediaFilterView({
     [router, onFiltersChange, maxFileSize],
   );
 
+  // Watch for changes to select fields and apply filters automatically
+  useEffect(() => {
+    const subscription = form.watch((values, { name }) => {
+      // Don't auto-submit for search text input (we're using debounce for that)
+      if (
+        name &&
+        [
+          'type',
+          'sortBy',
+          'sortOrder',
+          'processed',
+          'organized',
+          'camera',
+          'hasLocation',
+          'hasThumbnail',
+        ].includes(name)
+      ) {
+        // Ensure we always reset to page 1 when filters change
+        const params = new URLSearchParams();
+
+        // Copy existing search parameters that we want to preserve
+        if (values.search) params.set('search', values.search);
+        if (values.type !== 'all') params.set('type', values.type || 'all');
+        if (values.dateFrom)
+          params.set('dateFrom', values.dateFrom.toISOString());
+        if (values.dateTo) params.set('dateTo', values.dateTo.toISOString());
+        if ((values.minSize ?? 0) > 0)
+          params.set('minSize', String(values.minSize));
+        if (values.maxSize !== undefined && values.maxSize < maxFileSize)
+          params.set('maxSize', String(values.maxSize));
+        if (values.sortBy !== 'date' && values.sortBy)
+          params.set('sortBy', values.sortBy);
+        if (values.sortOrder !== 'desc' && values.sortOrder)
+          params.set('sortOrder', values.sortOrder);
+        if (values.processed !== 'all' && values.processed)
+          params.set('processed', values.processed);
+        if (values.organized !== 'all' && values.organized)
+          params.set('organized', values.organized);
+        if (values.camera && values.camera !== 'all')
+          params.set('camera', values.camera);
+        if (values.hasLocation !== 'all' && values.hasLocation)
+          params.set('hasLocation', values.hasLocation);
+        if (values.hasThumbnail !== 'all' && values.hasThumbnail)
+          params.set('hasThumbnail', values.hasThumbnail);
+
+        // Always reset to page 1 when filter changes
+        params.set('page', '1');
+
+        // Update URL first
+        router.push(`/browse?${params.toString()}`);
+
+        // Then apply filters
+        applyFilters(values as MediaFilters);
+      }
+    });
+
+    // Clean up subscription
+    return () => subscription.unsubscribe();
+  }, [form, router, maxFileSize, applyFilters]);
   // Reset filters
   const handleReset = useCallback(() => {
-    form.reset({
+    const defaultValues: MediaFilters = {
       search: '',
       type: 'all',
       dateFrom: null,
@@ -218,16 +317,22 @@ export default function MediaFilterView({
       camera: '',
       hasLocation: 'all',
       hasThumbnail: 'all',
-    });
+    };
+
+    form.reset(defaultValues);
     router.push('/browse');
-    onFiltersChange(form.getValues());
+    onFiltersChange(defaultValues);
   }, [form, router, onFiltersChange, maxFileSize]);
 
   return (
     <div className="bg-card rounded-lg px-6 py-5">
       <h3 className="text-lg font-semibold mb-4">Media Filters</h3>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <form
+          // Keep the onSubmit handler for pressing Enter in text fields
+          onSubmit={form.handleSubmit((values) => applyFilters(values))}
+          className="space-y-4"
+        >
           <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
             {/* Search */}
             <FormField
@@ -240,6 +345,11 @@ export default function MediaFilterView({
                       placeholder="Search media..."
                       {...field}
                       className="w-full min-w-32"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Use debounced version for search text
+                        debouncedApplyFilters(form.getValues());
+                      }}
                     />
                   </FormControl>
                 </FormItem>
@@ -252,9 +362,17 @@ export default function MediaFilterView({
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value || 'all'} // Ensure there's always a default value
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Media type" />
+                      <SelectValue>
+                        {field.value === 'all' && 'All types'}
+                        {field.value === 'image' && 'Images'}
+                        {field.value === 'video' && 'Videos'}
+                        {field.value === 'data' && 'Data files'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All types</SelectItem>
@@ -274,14 +392,16 @@ export default function MediaFilterView({
               render={({ field }) => (
                 <FormItem>
                   <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      form.handleSubmit(handleSubmit)();
-                    }}
+                    value={field.value || 'date'} // Ensure there's always a default value
+                    onValueChange={field.onChange}
                   >
                     <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Sort by" />
+                      <SelectValue>
+                        {field.value === 'date' && 'Date'}
+                        {field.value === 'name' && 'Name'}
+                        {field.value === 'size' && 'Size'}
+                        {field.value === 'type' && 'Type'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="date">Date</SelectItem>
@@ -301,14 +421,14 @@ export default function MediaFilterView({
               render={({ field }) => (
                 <FormItem>
                   <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      form.handleSubmit(handleSubmit)();
-                    }}
+                    value={field.value || 'desc'} // Ensure there's always a default value
+                    onValueChange={field.onChange}
                   >
                     <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Sort order" />
+                      <SelectValue>
+                        {field.value === 'asc' && 'Ascending'}
+                        {field.value === 'desc' && 'Descending'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="asc">Ascending</SelectItem>
@@ -374,6 +494,8 @@ export default function MediaFilterView({
                           selected={field.value || undefined}
                           onSelect={(date) => {
                             field.onChange(date);
+                            // Apply filter when date is selected
+                            applyFilters(form.getValues());
                           }}
                           disabled={(date) =>
                             form.getValues('dateTo')
@@ -389,7 +511,11 @@ export default function MediaFilterView({
                         variant="ghost"
                         size="sm"
                         className="mt-1 text-xs h-auto py-1"
-                        onClick={() => field.onChange(null)}
+                        onClick={() => {
+                          field.onChange(null);
+                          // Apply filter when date is cleared
+                          applyFilters(form.getValues());
+                        }}
                       >
                         Clear
                       </Button>
@@ -429,6 +555,8 @@ export default function MediaFilterView({
                           selected={field.value || undefined}
                           onSelect={(date) => {
                             field.onChange(date);
+                            // Apply filter when date is selected
+                            applyFilters(form.getValues());
                           }}
                           disabled={(date) =>
                             form.getValues('dateFrom')
@@ -444,7 +572,11 @@ export default function MediaFilterView({
                         variant="ghost"
                         size="sm"
                         className="mt-1 text-xs h-auto py-1"
-                        onClick={() => field.onChange(null)}
+                        onClick={() => {
+                          field.onChange(null);
+                          // Apply filter when date is cleared
+                          applyFilters(form.getValues());
+                        }}
                       >
                         Clear
                       </Button>
@@ -588,6 +720,12 @@ export default function MediaFilterView({
                       onValueChange={(values) => {
                         form.setValue('minSize', values[0]);
                         form.setValue('maxSize', values[1]);
+                      }}
+                      onValueCommit={(values) => {
+                        form.setValue('minSize', values[0]);
+                        form.setValue('maxSize', values[1]);
+                        // Only apply filter when slider stops moving
+                        applyFilters(form.getValues());
                       }}
                       className="py-4"
                     />

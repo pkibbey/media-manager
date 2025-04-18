@@ -2,7 +2,6 @@
 
 import { bytesToSize } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
-import { CheckIcon } from '@radix-ui/react-icons';
 import MediaPreview from './media-preview';
 
 interface MediaCardProps {
@@ -24,7 +23,7 @@ export default function MediaCard({
   return (
     <div
       className={`group relative bg-muted rounded-md overflow-hidden cursor-pointer transition-all ${
-        isSelected ? 'ring-2 ring-primary ring-offset-1' : ''
+        isSelected ? 'ring-1 ring-primary ring-offset-1' : ''
       }`}
       onClick={onClick}
       onKeyDown={(e) => {
@@ -42,13 +41,6 @@ export default function MediaCard({
     >
       <div className="aspect-square relative">
         <MediaPreview item={item} fill />
-
-        {/* Selection indicator */}
-        {isSelected && (
-          <div className="absolute top-1 right-1 h-6 w-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground z-10">
-            <CheckIcon className="h-4 w-4" />
-          </div>
-        )}
 
         {/* Folder indicator - only shown if folderName exists */}
         {folderName && (

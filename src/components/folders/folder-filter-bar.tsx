@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 export interface FolderFilters {
-  search: string;
+  search?: string;
   type: 'all' | 'image' | 'video' | 'data';
   sortBy: 'date' | 'name' | 'size' | 'type';
   sortOrder: 'asc' | 'desc';
@@ -56,9 +56,12 @@ export default function FolderFilterBar({
       formValues.search = searchParams.get('search') || '';
     }
 
+    // Fix for data files type selection issue
     const type = searchParams.get('type');
     if (type && ['all', 'image', 'video', 'data'].includes(type)) {
       formValues.type = type as FolderFilters['type'];
+    } else {
+      formValues.type = 'all'; // Default to 'all' if not specified or invalid
     }
 
     const sortBy = searchParams.get('sortBy');
@@ -76,11 +79,20 @@ export default function FolderFilterBar({
       formValues.hasThumbnail = hasThumbnail as FolderFilters['hasThumbnail'];
     }
 
-    // Reset form with values from URL
+    // Reset form with values from URL, ensuring we always have valid values
     form.reset({
-      ...form.getValues(),
-      ...formValues,
+      search: formValues.search || '',
+      type: formValues.type || 'all',
+      sortBy: formValues.sortBy || 'date',
+      sortOrder: formValues.sortOrder || 'desc',
+      hasThumbnail: formValues.hasThumbnail || 'all',
     });
+
+    // Ensure form values get applied after reset
+    const currentFormValues = form.getValues();
+    if (formValues.type && formValues.type !== currentFormValues.type) {
+      form.setValue('type', formValues.type);
+    }
   }, [searchParams, form]);
 
   // Apply filters and update URL
@@ -89,36 +101,45 @@ export default function FolderFilterBar({
       setIsLoading(true);
 
       try {
+        // Ensure we have valid values before applying filters
+        const validatedValues = {
+          ...values,
+          type: values.type || 'all',
+          sortBy: values.sortBy || 'date',
+          sortOrder: values.sortOrder || 'desc',
+          hasThumbnail: values.hasThumbnail || 'all',
+        };
+
         // Get existing folder parameters that we want to preserve
         const params = new URLSearchParams(searchParams);
 
         // Only add non-empty filters
-        if (values.search) {
-          params.set('search', values.search);
+        if (validatedValues.search) {
+          params.set('search', validatedValues.search);
         } else {
           params.delete('search');
         }
 
-        if (values.type !== 'all') {
-          params.set('type', values.type);
+        if (validatedValues.type !== 'all') {
+          params.set('type', validatedValues.type);
         } else {
           params.delete('type');
         }
 
-        if (values.sortBy !== 'date') {
-          params.set('sortBy', values.sortBy);
+        if (validatedValues.sortBy !== 'date') {
+          params.set('sortBy', validatedValues.sortBy);
         } else {
           params.delete('sortBy');
         }
 
-        if (values.sortOrder !== 'desc') {
-          params.set('sortOrder', values.sortOrder);
+        if (validatedValues.sortOrder !== 'desc') {
+          params.set('sortOrder', validatedValues.sortOrder);
         } else {
           params.delete('sortOrder');
         }
 
-        if (values.hasThumbnail !== 'all') {
-          params.set('hasThumbnail', values.hasThumbnail);
+        if (validatedValues.hasThumbnail !== 'all') {
+          params.set('hasThumbnail', validatedValues.hasThumbnail);
         } else {
           params.delete('hasThumbnail');
         }
@@ -130,7 +151,7 @@ export default function FolderFilterBar({
         router.push(`${pathname}?${params.toString()}`);
 
         // Notify parent component
-        onFiltersChange(values);
+        onFiltersChange(validatedValues);
       } finally {
         setIsLoading(false);
       }
@@ -140,6 +161,7 @@ export default function FolderFilterBar({
 
   // Reset filters
   const handleReset = useCallback(() => {
+    console.log('handleReset: ');
     // Get existing folder parameters that we want to preserve
     const folder = searchParams.get('folder') || '/';
     const subfolders = searchParams.get('subfolders');
@@ -163,6 +185,63 @@ export default function FolderFilterBar({
 
     onFiltersChange(form.getValues());
   }, [form, router, pathname, searchParams, onFiltersChange]);
+
+  // Watch for changes to select fields and apply filters automatically
+  useEffect(() => {
+    const subscription = form.watch((values, { name }) => {
+      // Only auto-submit for select fields, not the search input
+      if (
+        name &&
+        ['type', 'sortBy', 'sortOrder', 'hasThumbnail'].includes(name)
+      ) {
+        // Build complete params object with all current filter values
+        const params = new URLSearchParams(searchParams);
+
+        // Update with current form values
+        if (values.search && values.search) {
+          params.set('search', values.search);
+        } else {
+          params.delete('search');
+        }
+
+        if (values.type !== 'all' && values.type) {
+          params.set('type', values.type);
+        } else {
+          params.delete('type');
+        }
+
+        if (values.sortBy !== 'date' && values.sortBy) {
+          params.set('sortBy', values.sortBy);
+        } else {
+          params.delete('sortBy');
+        }
+
+        if (values.sortOrder !== 'desc' && values.sortOrder) {
+          params.set('sortOrder', values.sortOrder);
+        } else {
+          params.delete('sortOrder');
+        }
+
+        if (values.hasThumbnail !== 'all' && values.hasThumbnail) {
+          params.set('hasThumbnail', values.hasThumbnail);
+        } else {
+          params.delete('hasThumbnail');
+        }
+
+        // Always reset to page 1 when filters change
+        params.set('page', '1');
+
+        // Update URL only once with all parameters
+        router.push(`${pathname}?${params.toString()}`);
+
+        // Notify parent component
+        onFiltersChange(values as FolderFilters);
+      }
+    });
+
+    // Clean up subscription
+    return () => subscription.unsubscribe();
+  }, [form, searchParams, router, pathname, onFiltersChange]);
 
   return (
     <div className="bg-card rounded-lg px-4 py-3 mb-4">
@@ -192,9 +271,20 @@ export default function FolderFilterBar({
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value || 'all'}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      form.setValue('search', ''); // Clear search when type changes
+                    }}
+                  >
                     <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Media type" />
+                      <SelectValue>
+                        {field.value === 'all' && 'All types'}
+                        {field.value === 'image' && 'Images'}
+                        {field.value === 'video' && 'Videos'}
+                        {field.value === 'data' && 'Data files'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All types</SelectItem>
@@ -214,14 +304,16 @@ export default function FolderFilterBar({
               render={({ field }) => (
                 <FormItem>
                   <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      form.handleSubmit(handleSubmit)();
-                    }}
+                    value={field.value || 'date'}
+                    onValueChange={field.onChange}
                   >
                     <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Sort by" />
+                      <SelectValue>
+                        {field.value === 'date' && 'Date'}
+                        {field.value === 'name' && 'Name'}
+                        {field.value === 'size' && 'Size'}
+                        {field.value === 'type' && 'Type'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="date">Date</SelectItem>
@@ -241,14 +333,14 @@ export default function FolderFilterBar({
               render={({ field }) => (
                 <FormItem>
                   <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      form.handleSubmit(handleSubmit)();
-                    }}
+                    value={field.value || 'desc'}
+                    onValueChange={field.onChange}
                   >
                     <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Sort order" />
+                      <SelectValue>
+                        {field.value === 'asc' && 'Ascending'}
+                        {field.value === 'desc' && 'Descending'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="asc">Ascending</SelectItem>
@@ -265,9 +357,16 @@ export default function FolderFilterBar({
               name="hasThumbnail"
               render={({ field }) => (
                 <FormItem>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value || 'all'}
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Thumbnails" />
+                      <SelectValue>
+                        {field.value === 'all' && 'All files'}
+                        {field.value === 'yes' && 'Has thumbnail'}
+                        {field.value === 'no' && 'No thumbnail'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All files</SelectItem>
