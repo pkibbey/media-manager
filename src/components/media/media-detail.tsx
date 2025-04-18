@@ -1,5 +1,4 @@
 'use client';
-import { useMediaSelection } from '@/components/folders/media-list';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { bytesToSize, isImage, isVideo } from '@/lib/utils';
@@ -8,8 +7,9 @@ import { FileIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import { memo } from 'react';
-import MediaPreview from '../folders/media-preview';
 import ExifDataDisplay from './exif-data-display';
+import { useMediaSelection } from './media-list';
+import MediaPreview from './media-preview';
 
 // Helper function to safely type exif_data from Json
 function getExifData(item: MediaItem): Exif | null {

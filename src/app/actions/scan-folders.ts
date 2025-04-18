@@ -63,7 +63,6 @@ export async function addScanFolder(
     return { success: false, error: error.message };
   } finally {
     // Revalidate paths that might show scan folders
-    revalidatePath('/folders');
     revalidatePath('/browse');
     revalidatePath('/admin');
   }

@@ -211,7 +211,6 @@ export async function updateMediaDatesFromFilenames({
   } finally {
     // Revalidate paths after all operations
     revalidatePath('/browse');
-    revalidatePath('/folders');
     revalidatePath('/admin');
   }
 }
@@ -689,7 +688,6 @@ export async function streamProcessUnprocessedItems(
 
       // Revalidate paths to update UI
       revalidatePath('/browse');
-      revalidatePath('/folders');
       revalidatePath('/admin');
     }
   }

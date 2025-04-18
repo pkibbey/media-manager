@@ -2,7 +2,7 @@
 
 import { browseMedia } from '@/app/actions/browse';
 import MediaFilterView from '@/components/browse/media-filter-view';
-import MediaList from '@/components/folders/media-list';
+import MediaList from '@/components/media/media-list';
 import { Pagination } from '@/components/ui/pagination';
 import { PAGE_SIZE } from '@/lib/consts';
 import type { MediaItem } from '@/types/db-types';

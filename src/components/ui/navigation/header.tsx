@@ -1,13 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import {
-  CubeIcon,
-  GearIcon,
-  GridIcon,
-  HomeIcon,
-  ImageIcon,
-} from '@radix-ui/react-icons';
+import { GearIcon, GridIcon, HomeIcon, ImageIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -50,11 +44,6 @@ export function Header() {
             href="/"
             label="Home"
             icon={<HomeIcon className="h-4 w-4" />}
-          />
-          <NavItem
-            href="/folders"
-            label="Folders"
-            icon={<CubeIcon className="h-4 w-4" />}
           />
           <NavItem
             href="/browse"

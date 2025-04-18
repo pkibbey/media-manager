@@ -3,7 +3,7 @@
 import type { MediaItem } from '@/types/db-types';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import MediaPreview from '../folders/media-preview';
+import MediaPreview from './media-preview';
 
 interface RandomImageSlideshowProps {
   images: MediaItem[];

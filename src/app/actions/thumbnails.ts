@@ -423,7 +423,6 @@ export async function batchGenerateThumbnails(
   } finally {
     // Revalidate paths after processing
     revalidatePath('/browse');
-    revalidatePath('/folders');
     revalidatePath('/admin');
   }
 }
@@ -626,7 +625,6 @@ export async function resetAllThumbnails(): Promise<ThumbnailResult> {
   } finally {
     // Revalidate paths after all operations
     revalidatePath('/browse');
-    revalidatePath('/folders');
     revalidatePath('/admin');
   }
 }
@@ -1247,7 +1245,6 @@ export async function streamProcessMissingThumbnails(
     } finally {
       // Revalidate paths after all operations
       revalidatePath('/browse');
-      revalidatePath('/folders');
       revalidatePath('/admin');
     }
   }

@@ -35,3 +35,11 @@ export interface MediaStats {
   unorganizedCount: number;
   ignoredCount: number; // Count of files with ignored file types
 }
+
+export interface MediaItemsFilter {
+  search?: string;
+  type?: 'all' | 'image' | 'video' | 'data';
+  sortBy?: 'date' | 'name' | 'size' | 'type';
+  sortOrder?: 'asc' | 'desc';
+  hasThumbnail?: 'all' | 'yes' | 'no';
+}

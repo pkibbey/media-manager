@@ -1,5 +1,5 @@
 import RandomImageSlideshow from '@/components/media/random-image-slideshow';
-import { BackpackIcon, GearIcon, GridIcon } from '@radix-ui/react-icons';
+import { GearIcon, GridIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
 import { getRandomMedia } from './actions/random-media';
 
@@ -43,12 +43,6 @@ export default async function Home() {
         )}
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <NavigationCard
-            href="/folders"
-            title="Folder View"
-            description="Browse your media organized by folder structure."
-            icon={<BackpackIcon className="h-6 w-6" />}
-          />
           <NavigationCard
             href="/browse"
             title="Media Browser"

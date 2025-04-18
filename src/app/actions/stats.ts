@@ -313,7 +313,6 @@ export async function resetAllMediaItems(): Promise<{
   } finally {
     // Revalidate paths after all operations
     revalidatePath('/browse');
-    revalidatePath('/folders');
     revalidatePath('/admin');
   }
 }

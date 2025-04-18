@@ -62,7 +62,6 @@ export async function updateFileType(
   } finally {
     // Revalidate paths after updating
     await revalidatePath('/admin');
-    await revalidatePath('/folders');
     await revalidatePath('/browse');
   }
 }
