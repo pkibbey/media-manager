@@ -19,17 +19,54 @@ export default function MediaPreview({ item }: { item: MediaItem }) {
     // This avoids the async database call that was causing errors
     const determineFileType = () => {
       const extension = item.extension?.toLowerCase() || '';
-      
-      const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'avif', 'heic', 'tiff', 'tif', 'raw', 'bmp', 'nef', 'cr2', 'arw', 'orf'];
-      const videoFormats = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'mkv', 'flv', 'm4v'];
+
+      const imageFormats = [
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'svg',
+        'webp',
+        'avif',
+        'heic',
+        'tiff',
+        'tif',
+        'raw',
+        'bmp',
+        'nef',
+        'cr2',
+        'arw',
+        'orf',
+      ];
+      const videoFormats = [
+        'mp4',
+        'webm',
+        'ogg',
+        'mov',
+        'avi',
+        'wmv',
+        'mkv',
+        'flv',
+        'm4v',
+      ];
       const audioFormats = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'];
-      const documentFormats = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'xls', 'xlsx', 'ppt', 'pptx'];
-      
+      const documentFormats = [
+        'pdf',
+        'doc',
+        'docx',
+        'txt',
+        'rtf',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+      ];
+
       if (imageFormats.includes(extension)) return 'image';
       if (videoFormats.includes(extension)) return 'video';
       if (audioFormats.includes(extension)) return 'audio';
       if (documentFormats.includes(extension)) return 'document';
-      
+
       return 'other';
     };
 

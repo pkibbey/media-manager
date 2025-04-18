@@ -484,6 +484,41 @@ export function exifDataToJson(data: Exif): Json {
 }
 
 /**
+ * Sanitize EXIF data to remove problematic characters that PostgreSQL can't handle
+ * Specifically targets null bytes (\u0000) and other invalid unicode that causes
+ * the "unsupported Unicode escape sequence" error
+ */
+export function sanitizeExifData(data: any): any {
+  if (data === null || data === undefined) {
+    return data;
+  }
+
+  if (typeof data === 'string') {
+    // Replace null bytes and other control characters that might cause issues
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: <explanation>
+    return data.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+  }
+
+  if (typeof data === 'object') {
+    if (Array.isArray(data)) {
+      return data.map((item) => sanitizeExifData(item));
+    }
+
+    const result: Record<string, any> = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        // Recursively sanitize nested objects
+        result[key] = sanitizeExifData(data[key]);
+      }
+    }
+    return result;
+  }
+
+  // For numbers, booleans, etc., return as is
+  return data;
+}
+
+/**
  * Guess the file category based on the file extension
  * @param extension File extension (e.g. "jpg", "mp4")
  * @returns File category (e.g. "image", "video", "data", "other")
