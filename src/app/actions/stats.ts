@@ -203,6 +203,29 @@ export async function getMediaStats(): Promise<{
       }
     }
 
+    // Count files needing timestamp correction:
+    // processed = true, has_exif = false, extension in EXIF-compatible, not ignored
+    const exifCompatibleExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
+    let needsTimestampCorrectionCount = 0;
+    {
+      const { count, error } = await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('processed', true)
+        .eq('has_exif', false)
+        .in('extension', exifCompatibleExtensions)
+        .not(
+          'extension',
+          'in',
+          ignoredExtensions.length > 0
+            ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+            : '("")',
+        );
+      if (!error) {
+        needsTimestampCorrectionCount = count || 0;
+      }
+    }
+
     const mediaStats: MediaStats = {
       totalMediaItems: statsResult.total_count,
       totalSizeBytes: statsResult.total_size_bytes,
@@ -213,6 +236,7 @@ export async function getMediaStats(): Promise<{
       organizedCount: statsResult.organized_count,
       unorganizedCount: statsResult.unorganized_count,
       ignoredCount,
+      needsTimestampCorrectionCount,
     };
 
     return { success: true, data: mediaStats };

@@ -34,6 +34,7 @@ export interface MediaStats {
   organizedCount: number;
   unorganizedCount: number;
   ignoredCount: number; // Count of files with ignored file types
+  needsTimestampCorrectionCount?: number; // Count of files needing timestamp correction
 }
 
 export interface MediaItemsFilter {

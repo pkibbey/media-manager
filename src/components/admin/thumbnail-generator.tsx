@@ -358,7 +358,7 @@ export default function ThumbnailGenerator() {
         <h2 className="text-lg font-medium">Thumbnail Generator</h2>
         <div className="text-sm text-muted-foreground">
           {!thumbnailStats ? (
-            <span>Loading...</span>
+            <span>Loading stats...</span>
           ) : (
             <span>
               {thumbnailStats.filesWithThumbnails + thumbnailStats.filesSkipped}{' '}
@@ -368,55 +368,62 @@ export default function ThumbnailGenerator() {
         </div>
       </div>
 
-      {/* Progress bar for overall thumbnail generation */}
-      {thumbnailStats && (
-        <Progress
-          value={
-            thumbnailStats.filesPending === 0
+      {/* Progress bar for overall thumbnail generation - show immediately */}
+      <Progress
+        value={
+          !thumbnailStats
+            ? undefined // This creates a loading state animation in the Progress component
+            : thumbnailStats.filesPending === 0
               ? 100
               : Math.round(
                   (thumbnailStats.filesWithThumbnails /
                     thumbnailStats.totalCompatibleFiles) *
                     100,
                 )
-          }
-          className="h-2"
-        />
-      )}
+        }
+        className="h-2"
+      />
 
       {/* Thumbnail statistics summary */}
-      {thumbnailStats && (
-        <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
-          <div className="flex justify-between">
-            <span>
-              {thumbnailStats.filesWithThumbnails} files with thumbnails
-            </span>
-            <span>{thumbnailStats.skippedLargeFiles} large files skipped</span>
-          </div>
-          <div className="flex justify-between">
-            <span>
-              {thumbnailStats.filesPending} files waiting to be processed
-            </span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help border-b border-dotted border-gray-400">
-                    {thumbnailStats.totalCompatibleFiles} total
-                    thumbnail-compatible files
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>
-                    Compatible image formats: JPG, JPEG, PNG, WebP, GIF, TIFF,
-                    HEIC, AVIF, BMP. Excluded are files with extensions marked
-                    as "ignored" in file settings.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+      <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
+        <div className="flex justify-between">
+          <span>
+            {thumbnailStats
+              ? `${thumbnailStats.filesWithThumbnails} files with thumbnails`
+              : 'Loading...'}
+          </span>
+          <span>
+            {thumbnailStats
+              ? `${thumbnailStats.skippedLargeFiles} large files skipped`
+              : 'Loading...'}
+          </span>
         </div>
-      )}
+        <div className="flex justify-between">
+          <span>
+            {thumbnailStats
+              ? `${thumbnailStats.filesPending} files waiting to be processed`
+              : 'Loading...'}
+          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help border-b border-dotted border-gray-400">
+                  {thumbnailStats
+                    ? `${thumbnailStats.totalCompatibleFiles} total thumbnail-compatible files`
+                    : 'Loading thumbnail-compatible files...'}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>
+                  Compatible image formats: JPG, JPEG, PNG, WebP, GIF, TIFF,
+                  HEIC, AVIF, BMP. Excluded are files with extensions marked as
+                  "ignored" in file settings.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
 
       {/* Description */}
       <p className="text-sm text-muted-foreground">
@@ -503,15 +510,18 @@ export default function ThumbnailGenerator() {
           onClick={handleGenerateThumbnails}
           disabled={
             isGenerating ||
+            !thumbnailStats || // Disable when stats are loading
             (thumbnailStats && thumbnailStats.filesPending === 0) ||
             false
           }
         >
-          {thumbnailStats && thumbnailStats.filesPending === 0 && !isGenerating
-            ? 'All Thumbnails Generated'
-            : isGenerating
-              ? 'Generating...'
-              : 'Generate Thumbnails'}
+          {!thumbnailStats
+            ? 'Loading...'
+            : thumbnailStats.filesPending === 0 && !isGenerating
+              ? 'All Thumbnails Generated'
+              : isGenerating
+                ? 'Generating...'
+                : 'Generate Thumbnails'}
         </Button>
 
         {isGenerating && (

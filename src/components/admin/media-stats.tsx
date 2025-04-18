@@ -24,6 +24,7 @@ interface MediaStats {
   organizedCount: number;
   unorganizedCount: number;
   ignoredCount: number; // Count of files with ignored file types
+  needsTimestampCorrectionCount?: number; // Count of files needing timestamp correction
 }
 
 interface MediaStatsProps {
@@ -103,6 +104,17 @@ export default function MediaStats({ stats }: MediaStatsProps) {
             <span className="text-sm font-normal text-muted-foreground">
               / {stats.totalMediaItems}
             </span>
+          </div>
+        </div>
+        <div className="bg-card border rounded-md p-4 flex flex-col">
+          <div className="text-muted-foreground text-sm mb-1">
+            Needs Timestamp Correction
+          </div>
+          <div className="text-2xl font-bold">
+            {stats.needsTimestampCorrectionCount ?? 0}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Processed, EXIF-capable, no EXIF
           </div>
         </div>
       </div>

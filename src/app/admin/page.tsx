@@ -7,6 +7,7 @@ import PersistentTabs from '@/components/admin/persistent-tabs';
 import ResetMedia from '@/components/admin/reset-media';
 import ResetScan from '@/components/admin/reset-scan';
 import ResetThumbnails from '@/components/admin/reset-thumbnails';
+import ResetTimestamps from '@/components/admin/reset-timestamps';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
 import TimestampCorrector from '@/components/admin/timestamp-corrector';
@@ -86,8 +87,9 @@ export default async function AdminPage() {
       label: 'Timestamps',
       content: (
         <div className="space-y-6">
-          <div className="border-t pt-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
             <TimestampCorrector />
+            <ResetTimestamps />
           </div>
         </div>
       ),
