@@ -20,6 +20,7 @@ export function formatDate(dateString: string, formatString = 'PP') {
     const date = new Date(dateString);
     return format(date, formatString);
   } catch (error) {
+    console.log('Error formatting date:', error);
     return 'Invalid date';
   }
 }
@@ -32,6 +33,7 @@ export function formatRelativeTime(dateString: string) {
     const date = new Date(dateString);
     return formatDistanceToNow(date, { addSuffix: true });
   } catch (error) {
+    console.log('Error formatting relative time:', error);
     return 'Invalid date';
   }
 }

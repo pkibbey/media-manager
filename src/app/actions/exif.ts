@@ -172,9 +172,6 @@ export async function getExifStats() {
         ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
         : '("")';
 
-    // Generate the IN filter expression for supported extensions
-    const supportedFilterExpr = `(${exifSupportedExtensions.map((ext) => `"${ext}"`).join(',')})`;
-
     // Get total count of EXIF compatible items
     const { count: totalCompatibleCount, error: totalCompatibleError } =
       await supabase
@@ -237,9 +234,6 @@ export async function getExifStats() {
     const processedNoExif = processedNoExifCount || 0;
     const unprocessedCount2 = unprocessedCount || 0;
     const totalExifCompatibleCount = totalCompatibleCount || 0;
-
-    // Double-check that the total processed count doesn't exceed the total
-    const calculatedTotal = withExif + processedNoExif + unprocessedCount2;
 
     return {
       success: true,

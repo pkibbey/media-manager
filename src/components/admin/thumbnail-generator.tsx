@@ -19,6 +19,7 @@ import {
 import { LARGE_FILE_THRESHOLD } from '@/lib/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { ProcessingTimeEstimator } from './processing-time-estimator';
 
 // Type for tracking error frequencies
 type ErrorSummary = {
@@ -43,10 +44,6 @@ export default function ThumbnailGenerator() {
   const [processed, setProcessed] = useState(0);
   const [skipLargeFiles, setSkipLargeFiles] = useState(true);
   const [largeFilesSkipped, setLargeFilesSkipped] = useState(0);
-  const [remainingThumbnails, setRemainingThumbnails] = useState<number | null>(
-    null,
-  );
-  const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [errorSummary, setErrorSummary] = useState<ErrorSummary>({});
   const [detailProgress, setDetailProgress] =
@@ -69,6 +66,11 @@ export default function ThumbnailGenerator() {
   // Add a ref to store the current abort token
   const currentAbortToken = useRef<string | null>(null);
 
+  // Add processing start time state
+  const [processingStartTime, setProcessingStartTime] = useState<
+    number | undefined
+  >(undefined);
+
   // Cleanup function for the abort controller
   useEffect(() => {
     return () => {
@@ -77,30 +79,6 @@ export default function ThumbnailGenerator() {
       }
     };
   }, [abortController]);
-
-  // Fetch the count of items that still need thumbnails
-  const fetchRemainingCount = useCallback(async () => {
-    try {
-      setIsLoading(true);
-
-      const result = await countMissingThumbnails();
-
-      if (result.success) {
-        setRemainingThumbnails(result.count || 0);
-      } else {
-        console.error(
-          'Failed to fetch remaining thumbnails count:',
-          result.error,
-        );
-        setRemainingThumbnails(null);
-      }
-    } catch (error) {
-      console.error('Error fetching remaining thumbnails count:', error);
-      setRemainingThumbnails(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   // Function to fetch thumbnail statistics
   const fetchThumbnailStats = useCallback(async () => {
@@ -117,22 +95,10 @@ export default function ThumbnailGenerator() {
     }
   }, []);
 
-  // Fetch remaining count when component mounts
-  useEffect(() => {
-    fetchRemainingCount();
-  }, [fetchRemainingCount]);
-
   // Fetch thumbnail stats when component mounts
   useEffect(() => {
     fetchThumbnailStats();
   }, [fetchThumbnailStats]);
-
-  // Re-fetch count after generation completes
-  useEffect(() => {
-    if (!isGenerating) {
-      fetchRemainingCount();
-    }
-  }, [isGenerating, fetchRemainingCount]);
 
   // Re-fetch stats after generation completes
   useEffect(() => {
@@ -189,6 +155,9 @@ export default function ThumbnailGenerator() {
       // Generate a unique abort token
       const abortToken = `${Date.now()}-${Math.random()}`;
       currentAbortToken.current = abortToken;
+
+      // Set processing start time
+      setProcessingStartTime(Date.now());
 
       // Use the direct server action to get the count
       const countResult = await countMissingThumbnails();
@@ -363,7 +332,6 @@ export default function ThumbnailGenerator() {
       currentAbortToken.current = null;
 
       // Refresh stats after completion
-      fetchRemainingCount();
       fetchThumbnailStats();
     }
   };
@@ -389,7 +357,7 @@ export default function ThumbnailGenerator() {
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">Thumbnail Generator</h2>
         <div className="text-sm text-muted-foreground">
-          {isLoading || !thumbnailStats ? (
+          {!thumbnailStats ? (
             <span>Loading...</span>
           ) : (
             <span>
@@ -473,6 +441,15 @@ export default function ThumbnailGenerator() {
             <span>Failed: {failedCount}</span>
             <span>{progress}%</span>
           </div>
+
+          <ProcessingTimeEstimator
+            isProcessing={isGenerating}
+            processed={processed}
+            remaining={total - processed}
+            startTime={processingStartTime}
+            rateUnit="thumbnails/sec"
+          />
+
           {largeFilesSkipped > 0 && (
             <div className="text-xs text-muted-foreground">
               {`Skipped ${largeFilesSkipped} large files (over ${Math.round(LARGE_FILE_THRESHOLD / 1024 / 1024)}MB)`}

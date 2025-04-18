@@ -1,13 +1,12 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import type { FolderNode } from '@/types';
+import type { FolderNode } from '@/types/folder-types';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
   CubeIcon,
 } from '@radix-ui/react-icons';
-import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
 interface FolderTreeProps {
@@ -53,9 +52,6 @@ function FolderTreeItem({
     // Auto-expand if the folder is in the path of the selected item
     return selectedPath.startsWith(folder.path);
   });
-  const searchParams = useSearchParams();
-  const includeSubfolders = searchParams.get('includeSubfolders') === 'true';
-
   const isSelected = selectedPath === folder.path;
   const hasChildren = folder.children.length > 0;
 

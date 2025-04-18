@@ -44,7 +44,7 @@ export default function MediaList({ items }: MediaListProps) {
             key={item.id}
             item={item}
             index={index}
-            onClick={(e) => {
+            onClick={(_e) => {
               setSelectedMediaItem(item);
             }}
           />

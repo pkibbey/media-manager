@@ -24,6 +24,7 @@ export async function addScanFolder(
     try {
       await fs.access(folderPath);
     } catch (error) {
+      console.error('Folder does not exist or is not accessible:', error);
       return {
         success: false,
         error: 'Folder path does not exist or is not accessible',

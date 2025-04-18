@@ -548,7 +548,7 @@ export default function MediaFilterView({
               <FormField
                 control={form.control}
                 name="minSize"
-                render={({ field }) => (
+                render={() => (
                   <FormItem className="col-span-full">
                     <div className="flex justify-between">
                       <FormLabel>File Size Range</FormLabel>

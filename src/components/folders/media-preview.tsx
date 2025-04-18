@@ -84,7 +84,20 @@ export default function MediaPreview({ item }: { item: MediaItem }) {
             alt={item.file_name}
             className="object-cover"
             fill
-            sizes="100%"
+            sizes="(max-width: 768px) 100vw, 300px"
+            unoptimized={false}
+            loading="lazy"
+            placeholder="empty"
+            onError={(e) => {
+              // Fallback for failed thumbnails
+              const target = e.target as HTMLImageElement;
+              target.onerror = null;
+              target.style.display = 'none';
+              // Force parent to show fallback
+              if (target.parentElement) {
+                target.parentElement.classList.add('thumbnail-error');
+              }
+            }}
           />
         </div>
       ) : isVideoFile ? (

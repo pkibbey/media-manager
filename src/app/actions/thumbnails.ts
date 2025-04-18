@@ -23,55 +23,6 @@ const execAsync = promisify(exec);
 const THUMBNAIL_SIZE = 300; // Size for standard thumbnails
 
 /**
- * Ensure that the thumbnails bucket exists, creating it if necessary
- */
-async function ensureThumbnailsBucketExists() {
-  try {
-    const supabase = createServerSupabaseClient();
-
-    // Check if the thumbnails bucket exists
-    const { data: buckets, error } = await supabase.storage.listBuckets();
-
-    if (error) {
-      console.error('Error checking storage buckets:', error);
-      return {
-        success: false,
-        message: `Failed to check storage buckets: ${error.message}`,
-      };
-    }
-
-    // Check if the thumbnails bucket exists
-    const thumbnailsBucketExists = buckets.some(
-      (bucket) => bucket.name === 'thumbnails',
-    );
-
-    // Create the bucket if it doesn't exist
-    if (!thumbnailsBucketExists) {
-      const { error: createError } = await supabase.storage.createBucket(
-        'thumbnails',
-        {
-          public: true, // Make bucket publicly accessible
-          fileSizeLimit: 5 * 1024 * 1024, // 5MB max file size for thumbnails
-        },
-      );
-
-      if (createError) {
-        console.error('Error creating thumbnails bucket:', createError);
-        return {
-          success: false,
-          message: `Failed to create thumbnails bucket: ${createError.message}`,
-        };
-      }
-    }
-
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error ensuring thumbnails bucket exists:', error);
-    return { success: false, message: error.message };
-  }
-}
-
-/**
  * Convert a HEIC image to JPEG using ImageMagick or native sips (macOS)
  */
 async function convertHeicToJpeg(
@@ -113,8 +64,8 @@ async function convertHeicToJpeg(
     try {
       await fs.access(tempOutputPath);
       await fs.unlink(tempOutputPath);
-    } catch (e) {
-      // File doesn't exist, no need to delete
+    } catch (error) {
+      console.error(error);
     }
   }
 }
@@ -134,7 +85,7 @@ export async function generateThumbnail(
   }
 > {
   // Only log the start of thumbnail generation if in debug mode
-  const { skipLargeFiles = false, debug = false } = options;
+  const { skipLargeFiles = false } = options;
 
   try {
     const supabase = createServerSupabaseClient();
@@ -159,7 +110,9 @@ export async function generateThumbnail(
     try {
       await fs.access(mediaItem.file_path);
     } catch (error) {
-      console.error(`[Thumbnail] File not found: ${mediaItem.file_path}`);
+      console.error(
+        `[Thumbnail] File not found: ${mediaItem.file_path} - ${error}`,
+      );
       return {
         success: false,
         message: `File not found: ${mediaItem.file_path}`,
@@ -173,9 +126,6 @@ export async function generateThumbnail(
         const stats = await fs.stat(mediaItem.file_path);
 
         if (isSkippedLargeFile(mediaItem.file_path, stats.size)) {
-          if (debug) {
-          }
-
           // Mark as processed but skip thumbnail generation
           await supabase
             .from('media_items')
@@ -244,6 +194,7 @@ export async function generateThumbnail(
         const tempOutputPath = path.join(tempDir, tempFileName);
 
         // Convert HEIC to JPEG using our robust multi-method converter
+
         const jpegBuffer = await convertHeicToJpeg(
           mediaItem.file_path,
           tempOutputPath,
@@ -257,10 +208,15 @@ export async function generateThumbnail(
           .toBuffer();
       } else {
         // For all other image formats, use Sharp directly
-        thumbnailBuffer = await sharp(mediaItem.file_path)
+        thumbnailBuffer = await sharp(mediaItem.file_path, {
+          limitInputPixels: 30000 * 30000, // Allow reasonably large images
+        })
           .rotate()
-          .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
-          .webp({ quality: 80 })
+          .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+            fit: 'cover',
+            fastShrinkOnLoad: true, // Enable fast shrink optimization
+          })
+          .webp({ quality: 80, effort: 2 }) // Lower effort = faster processing
           .toBuffer();
       }
     } catch (sharpError) {
@@ -276,27 +232,13 @@ export async function generateThumbnail(
       };
     }
 
-    // Ensure the thumbnails bucket exists
-    const { success: bucketExists, message: bucketMessage } =
-      await ensureThumbnailsBucketExists();
-    if (!bucketExists) {
-      console.error(
-        `[Thumbnail] Failed to ensure thumbnails bucket exists: ${bucketMessage}`,
-      );
-      return {
-        success: false,
-        message: `Failed to ensure thumbnails bucket exists: ${bucketMessage}`,
-        filePath: mediaItem.file_path,
-      };
-    }
-
     // Upload to Supabase Storage
     const fileName = `${mediaId}_thumb.webp`;
 
     try {
-      const { error: storageError, data: storageData } = await supabase.storage
+      const { error: storageError } = await supabase.storage
         .from('thumbnails')
-        .upload(`thumbnails/${fileName}`, thumbnailBuffer, {
+        .upload(fileName, thumbnailBuffer, {
           contentType: 'image/webp',
           upsert: true,
         });
@@ -329,7 +271,7 @@ export async function generateThumbnail(
     // Get the public URL for the uploaded thumbnail
     const { data: publicUrlData } = supabase.storage
       .from('thumbnails')
-      .getPublicUrl(`thumbnails/${fileName}`);
+      .getPublicUrl(fileName);
 
     const thumbnailUrl = publicUrlData.publicUrl;
 
@@ -403,8 +345,8 @@ export async function batchGenerateThumbnails(
     const errors: Array<{ path: string; message: string }> = [];
 
     // CONCURRENCY CONTROL: Process items with limited concurrency
-    const CONCURRENT_LIMIT = 3; // Only process 3 thumbnails at a time
-    const DELAY_BETWEEN_UPLOADS = 200; // Add a small delay (in ms) between uploads
+    const CONCURRENT_LIMIT = 8; // Increased from 3 to 8
+    const DELAY_BETWEEN_UPLOADS = 50; // Add a small delay (in ms) between uploads
 
     // Function to delay execution
     const delay = (ms: number) =>
@@ -1141,7 +1083,7 @@ export async function streamProcessMissingThumbnails(
       });
 
       // Process in smaller batches to avoid timeouts
-      const batchSize = 10;
+      const batchSize = 25;
       let processedCount = 0;
       let successCount = 0;
       let failedCount = 0;
@@ -1339,4 +1281,36 @@ export async function abortThumbnailGeneration(token: string): Promise<{
       message: `Error aborting thumbnail generation: ${error.message || 'Unknown error'}`,
     };
   }
+}
+
+// Migration script to fix existing thumbnail paths
+export async function fixThumbnailPaths(): Promise<{ fixed: number }> {
+  const supabase = createServerSupabaseClient();
+
+  // Find records with duplicate thumbnails/ prefix
+  const { data, error } = await supabase
+    .from('media_items')
+    .select('id, thumbnail_path')
+    .like('thumbnail_path', '%/thumbnails/thumbnails/%');
+
+  if (error || !data) {
+    console.error('Error finding records with duplicate paths:', error);
+    return { fixed: 0 };
+  }
+
+  let fixedCount = 0;
+  for (const item of data) {
+    const fixedPath = item.thumbnail_path?.replace(
+      '/thumbnails/thumbnails/',
+      '/thumbnails/',
+    );
+    const { error: updateError } = await supabase
+      .from('media_items')
+      .update({ thumbnail_path: fixedPath })
+      .eq('id', item.id);
+
+    if (!updateError) fixedCount++;
+  }
+
+  return { fixed: fixedCount };
 }

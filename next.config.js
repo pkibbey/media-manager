@@ -4,9 +4,7 @@ const nextConfig = {
   devIndicators: false,
   images: {
     remotePatterns: [
-      new URL(
-        'http://127.0.0.1:54321/storage/v1/object/public/thumbnails/thumbnails/**',
-      ),
+      new URL('http://127.0.0.1:54321/storage/v1/object/public/thumbnails/**'),
     ],
   },
   // Enable experimental features for server actions

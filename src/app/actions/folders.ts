@@ -209,16 +209,3 @@ export async function getMediaItemsByFolder(
     return { data: [], success: false, error: error.message };
   }
 }
-
-/**
- * Helper function to get the parent path
- */
-function getParentPath(path: string): string {
-  if (path === '/' || !path.includes('/')) return '';
-
-  const parts = path.split('/').filter(Boolean);
-  if (parts.length === 1) return '/';
-
-  parts.pop();
-  return `/${parts.join('/')}`;
-}

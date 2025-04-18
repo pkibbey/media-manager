@@ -52,6 +52,7 @@ async function extractMetadataDirectOnly(
     const fileBuffer = await fs.readFile(filePath);
     return exifReader(fileBuffer);
   } catch (error) {
+    console.log('Error extracting EXIF data directly:', error);
     return null;
   }
 }
@@ -75,6 +76,7 @@ async function extractMetadataMarkerOnly(
     }
     return null;
   } catch (error) {
+    console.log('Error extracting EXIF data via markers:', error);
     return null;
   }
 }
@@ -94,6 +96,7 @@ async function extractMetadataWithFallbacks(
       // Try to extract EXIF data from the buffer
       exifData = exifReader(fileBuffer);
     } catch (error) {
+      console.error('Error extracting EXIF data directly:', error);
       // If the direct extraction fails, try to find the EXIF marker
       try {
         // JPEG files typically have EXIF data starting after the APP1 marker (0xFFE1)
@@ -149,9 +152,6 @@ async function extractMetadataWithFallbacks(
     if (!exifData) {
       return null;
     }
-
-    // Add file format information to the EXIF data for consistency
-    const format = path.extname(filePath).substring(1).toLowerCase();
 
     // Convert exifReader format to match what our application expects
     return exifData;
@@ -298,9 +298,8 @@ export async function extractDateFromMediaFile(
         ) {
           return new Date(year, month, day);
         }
-      } catch (e) {
-        // Continue to the next pattern if parsing fails
-        // continue;
+      } catch (error) {
+        console.log('Error parsing date from filename:', error);
       }
     }
   }
@@ -310,6 +309,7 @@ export async function extractDateFromMediaFile(
     const stats = await fs.stat(filePath);
     return stats.mtime;
   } catch (error) {
+    console.error('Error getting file stats:', error);
     return null;
   }
 }

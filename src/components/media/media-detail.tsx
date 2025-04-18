@@ -63,6 +63,7 @@ export default function MediaDetail({ item }: MediaDetailProps) {
                   width={item.width}
                   height={item.height}
                   className="object-cover w-full h-full"
+                  unoptimized
                 />
               </div>
             ) : isVideoFile ? (

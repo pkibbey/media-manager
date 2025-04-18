@@ -13,7 +13,6 @@ export type ThumbnailOptions = {
   skipLargeFiles?: boolean; // Whether to skip files over the large file threshold
   batchSize?: number; // Number of items to process in each batch
   abortToken?: string; // Token to check for abort operations
-  debug?: boolean; // Whether to enable debug logging
 };
 
 /**

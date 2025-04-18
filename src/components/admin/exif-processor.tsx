@@ -28,6 +28,7 @@ import type { ExifProgress } from '@/types/exif';
 import { InfoCircledIcon } from '@radix-ui/react-icons';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { ProcessingTimeEstimator } from './processing-time-estimator';
 
 type EnhancedExifStats = {
   with_exif: number;
@@ -57,30 +58,28 @@ export default function ExifProcessor() {
   const [progress, setProgress] = useState<ExifProgress | null>(null);
   const [hasError, setHasError] = useState(false);
   const [skipLargeFiles, setSkipLargeFiles] = useState(true);
-  const [processingEventSource, setProcessingEventSource] =
-    useState<EventSource | null>(null);
   const [errorSummary, setErrorSummary] = useState<ErrorSummary>({});
   const [abortController, setAbortController] =
     useState<AbortController | null>(null);
   const [extractionMethod, setExtractionMethod] =
     useState<ExtractionMethod>('default');
+  const [processingStartTime, setProcessingStartTime] = useState<
+    number | undefined
+  >(undefined);
 
   // Load stats on component mount
   useEffect(() => {
     fetchStats();
   }, []);
 
-  // Clean up EventSource on unmount
+  // Clean up abortController on unmount
   useEffect(() => {
     return () => {
-      if (processingEventSource) {
-        processingEventSource.close();
-      }
       if (abortController) {
         abortController.abort();
       }
     };
-  }, [processingEventSource, abortController]);
+  }, [abortController]);
 
   const fetchStats = async () => {
     const { success, stats: exifStats } = await getExifStats();
@@ -95,6 +94,7 @@ export default function ExifProcessor() {
       setIsStreaming(true);
       setHasError(false);
       setErrorSummary({}); // Reset error summary when starting a new processing run
+      setProcessingStartTime(Date.now()); // Set the start time for estimation
       setProgress({
         status: 'started',
         message: 'Starting EXIF processing...',
@@ -273,22 +273,6 @@ export default function ExifProcessor() {
       ? ((progress.filesProcessed || 0) / progress.filesDiscovered) * 100
       : 0;
 
-  // Update the mapping logic for method display labels
-  const methodDisplayName = (method: string) => {
-    switch (method) {
-      case 'default':
-        return 'Default (Multiple Fallbacks)';
-      case 'direct-only':
-        return 'Direct Extraction Only';
-      case 'marker-only':
-        return 'Marker-based Extraction Only';
-      case 'sharp-only':
-        return 'Sharp Library Only';
-      default:
-        return method;
-    }
-  };
-
   return (
     <div className="overflow-hidden space-y-4">
       <div className="flex justify-between items-center mb-2">
@@ -307,6 +291,7 @@ export default function ExifProcessor() {
             {stats.processed_no_exif} files processed but no EXIF found
           </span>
         </div>
+
         <div className="flex justify-between">
           <span>{stats.unprocessed} files waiting to be processed</span>
           <TooltipProvider>
@@ -350,7 +335,21 @@ export default function ExifProcessor() {
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Success: {progress?.successCount || 0}</span>
             <span>Failed: {progress?.failedCount || 0}</span>
+            <span>{streamingProgressPercentage.toFixed(1)}%</span>
           </div>
+
+          {/* Add the ProcessingTimeEstimator component */}
+          <ProcessingTimeEstimator
+            isProcessing={isStreaming}
+            processed={progress?.filesProcessed || 0}
+            remaining={
+              (progress?.filesDiscovered || 0) - (progress?.filesProcessed || 0)
+            }
+            startTime={processingStartTime}
+            label="Est. time remaining"
+            rateUnit="files/sec"
+          />
+
           <div className="text-xs text-muted-foreground">
             Skipped {progress?.largeFilesSkipped || 0} large files (over 100MB)
           </div>

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     try {
       await fs.access(mediaItem.file_path);
     } catch (error) {
-      console.error('File not found on disk:', mediaItem.file_path);
+      console.error('File not found on disk:', mediaItem.file_path, error);
       return NextResponse.json(
         { error: 'File not found on disk' },
         { status: 404 },
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
           },
         });
       } catch (error) {
+        console.log('Thumbnail not found in cache, generating:', error);
         // Thumbnail doesn't exist in cache, generate it
         if (isImageFile) {
           try {
@@ -168,6 +169,10 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch (error) {
+      console.log(
+        'Converted file not found in cache, performing conversion:',
+        error,
+      );
       // Converted file doesn't exist in cache, perform conversion
       if (isImageFile) {
         try {

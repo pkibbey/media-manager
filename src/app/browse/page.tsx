@@ -40,7 +40,6 @@ export default function BrowsePage() {
     total: 0,
   });
   const [maxFileSize, setMaxFileSize] = useState(100);
-  const [availableExtensions, setAvailableExtensions] = useState<string[]>([]);
   const [availableCameras, setAvailableCameras] = useState<string[]>([]);
 
   // Parse page from URL on initial load
@@ -140,7 +139,6 @@ export default function BrowsePage() {
           setMediaItems(result.data);
           setPagination(result.pagination);
           setMaxFileSize(result.maxFileSize);
-          setAvailableExtensions(result.availableExtensions || []);
 
           // Extract unique camera models from media items with processed EXIF data
           if (result.data.length > 0) {

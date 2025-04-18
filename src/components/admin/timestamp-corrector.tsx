@@ -10,6 +10,7 @@ import {
   RotateCounterClockwiseIcon,
 } from '@radix-ui/react-icons';
 import { useState } from 'react';
+import { ProcessingTimeEstimator } from './processing-time-estimator';
 
 export default function TimestampCorrector() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -19,12 +20,16 @@ export default function TimestampCorrector() {
     updated: 0,
     percent: 0,
   });
+  const [processingStartTime, setProcessingStartTime] = useState<
+    number | undefined
+  >(undefined);
 
   const handleUpdateTimestamps = async (itemCount: number) => {
     if (isProcessing) return;
 
     setIsProcessing(true);
     setProgress({ processed: 0, updated: 0, percent: 0 });
+    setProcessingStartTime(Date.now()); // Set start time for estimation
 
     try {
       const result = await updateMediaDatesFromFilenames({
@@ -98,6 +103,23 @@ export default function TimestampCorrector() {
                   Updated {progress.updated} of {progress.processed} files
                 </span>
               </div>
+
+              {/* Add the time estimator */}
+              <ProcessingTimeEstimator
+                isProcessing={isProcessing}
+                processed={progress.processed}
+                remaining={
+                  progress.processed > 0
+                    ? Math.round(
+                        progress.processed / (progress.percent / 100) -
+                          progress.processed,
+                      )
+                    : 0
+                }
+                startTime={processingStartTime}
+                label="Est. time remaining"
+                rateUnit="files/sec"
+              />
             </div>
           )}
 
