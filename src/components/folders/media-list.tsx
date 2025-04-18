@@ -2,7 +2,14 @@
 
 import type { MediaItem } from '@/types/db-types';
 import { MixerHorizontalIcon } from '@radix-ui/react-icons';
-import { createContext, memo, useContext, useRef, useState } from 'react';
+import {
+  createContext,
+  memo,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import MediaDetail from '../media/media-detail';
 import MediaCard from './media-card';
 
@@ -36,6 +43,13 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
   );
   const gridRef = useRef<HTMLDivElement>(null);
 
+  // Auto-select the first image when items are loaded and no item is currently selected
+  useEffect(() => {
+    if (items.length > 0 && !selectedMediaItem) {
+      setSelectedMediaItem(items[0]);
+    }
+  }, [items, selectedMediaItem]);
+
   // Create context value with both ID and full item
   const contextValue = {
     selectedItemId: selectedMediaItem?.id || null,
@@ -61,11 +75,7 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
     <MediaSelectionContext.Provider value={contextValue}>
       <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_500px] gap-4">
         <div className="flex flex-col space-y-6">
-          {filterComponent && (
-            <div className="bg-card border border-neutral-700 rounded-lg">
-              {filterComponent}
-            </div>
-          )}
+          {filterComponent}
           <div
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-max content-start"
             ref={gridRef}
