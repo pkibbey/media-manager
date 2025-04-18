@@ -124,3 +124,31 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Media Detail Zoom Mode */
+.media-zoom-mode img {
+  max-height: 100%;
+  max-width: none;
+  object-fit: contain;
+  transform-origin: center;
+}
+
+.media-zoom-mode.rotated-image img {
+  transform: rotate(90deg);
+  max-height: none;
+  max-width: 100%;
+}
+
+/* Responsive zoom mode adjustments */
+@media (max-width: 640px) {
+  .media-zoom-mode img {
+    max-width: 100%;
+    max-height: none;
+  }
+}
+
+/* Toggle component enhancements */
+.toggle-pressed {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}

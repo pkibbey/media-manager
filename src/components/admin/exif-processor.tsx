@@ -23,12 +23,21 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  addWorkerListener,
+  getProcessStatus,
+  isProcessActive,
+  storeProcessStatus,
+} from '@/lib/worker-manager';
 import type { ExtractionMethod } from '@/types/exif';
 import type { ExifProgress } from '@/types/exif';
 import { InfoCircledIcon } from '@radix-ui/react-icons';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ProcessingTimeEstimator } from './processing-time-estimator';
+
+// Process type identifier for EXIF processing
+const EXIF_PROCESS_ID = 'exif-processing';
 
 type EnhancedExifStats = {
   with_exif: number;
@@ -72,6 +81,53 @@ export default function ExifProcessor() {
     fetchStats();
   }, []);
 
+  // Check for existing processing state on mount
+  useEffect(() => {
+    const checkExistingProcess = async () => {
+      try {
+        // Check if there's already a process running in the background
+        const active = await isProcessActive(EXIF_PROCESS_ID);
+        if (active) {
+          const status = await getProcessStatus(EXIF_PROCESS_ID);
+          if (status) {
+            setIsStreaming(true);
+            setProgress(status.progress || null);
+
+            // Create a new abort controller to allow cancelling
+            const controller = new AbortController();
+            setAbortController(controller);
+
+            toast.info('Resuming EXIF processing that was already in progress');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for existing process:', error);
+      }
+    };
+
+    checkExistingProcess();
+
+    // Set up listener for progress updates from worker
+    const cleanup = addWorkerListener('EXIF_PROGRESS_UPDATE', (data) => {
+      if (data.progress) {
+        setProgress(data.progress);
+
+        // Update local state based on progress
+        if (
+          data.progress.status === 'completed' ||
+          data.progress.status === 'error'
+        ) {
+          setIsStreaming(false);
+          setAbortController(null);
+        }
+      }
+    });
+
+    return () => {
+      cleanup();
+    };
+  }, []);
+
   // Clean up abortController on unmount
   useEffect(() => {
     return () => {
@@ -113,6 +169,23 @@ export default function ExifProcessor() {
       // Generate an abort token
       const abortToken = `${Date.now()}-${Math.random()}`;
 
+      // Store the initial processing state in worker
+      storeProcessStatus(EXIF_PROCESS_ID, {
+        active: true,
+        startTime: Date.now(),
+        abortToken,
+        progress: {
+          status: 'started',
+          message: 'Starting EXIF processing...',
+          largeFilesSkipped: 0,
+          filesDiscovered: 0,
+          filesProcessed: 0,
+          successCount: 0,
+          failedCount: 0,
+          method: extractionMethod,
+        },
+      });
+
       // Call the server action to get a ReadableStream
       const stream = await streamProcessUnprocessedItems({
         skipLargeFiles,
@@ -144,6 +217,15 @@ export default function ExifProcessor() {
               }
             : null,
         );
+
+        // Update worker state
+        storeProcessStatus(EXIF_PROCESS_ID, {
+          active: false,
+          progress: {
+            status: 'error',
+            message: 'Processing cancelled by user',
+          },
+        });
       });
 
       // Process stream data
@@ -155,6 +237,13 @@ export default function ExifProcessor() {
             if (done) {
               setIsStreaming(false);
               setAbortController(null);
+
+              // Update worker to mark processing as complete
+              storeProcessStatus(EXIF_PROCESS_ID, {
+                active: false,
+                progress: progress,
+              });
+
               break;
             }
 
@@ -167,6 +256,13 @@ export default function ExifProcessor() {
                 try {
                   const data = JSON.parse(line.substring(6)) as ExifProgress;
                   setProgress(data);
+
+                  // Store progress in worker to persist across navigation
+                  storeProcessStatus(EXIF_PROCESS_ID, {
+                    active: true,
+                    progress: data,
+                    lastUpdated: Date.now(),
+                  });
 
                   // Track error information when available
                   if (data.error) {
@@ -201,12 +297,27 @@ export default function ExifProcessor() {
                     setIsStreaming(false);
                     setAbortController(null);
                     toast.success('EXIF processing completed successfully');
+
+                    // Update worker status
+                    storeProcessStatus(EXIF_PROCESS_ID, {
+                      active: false,
+                      progress: data,
+                      completed: true,
+                    });
+
                     fetchStats(); // Refresh stats after completion
                   } else if (data.status === 'error') {
                     setIsStreaming(false);
                     setAbortController(null);
                     setHasError(true);
                     toast.error(`Error processing EXIF data: ${data.error}`);
+
+                    // Update worker status
+                    storeProcessStatus(EXIF_PROCESS_ID, {
+                      active: false,
+                      progress: data,
+                      error: data.error,
+                    });
                   }
                 } catch (error) {
                   console.error('Error parsing event data:', error, line);
@@ -220,6 +331,12 @@ export default function ExifProcessor() {
           setAbortController(null);
           setHasError(true);
           toast.error('Error processing EXIF data stream');
+
+          // Update worker status
+          storeProcessStatus(EXIF_PROCESS_ID, {
+            active: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
         }
       };
 
@@ -231,6 +348,12 @@ export default function ExifProcessor() {
       setHasError(true);
       toast.error('Failed to start EXIF processing');
       console.error('Error starting EXIF processing:', error);
+
+      // Update worker status
+      storeProcessStatus(EXIF_PROCESS_ID, {
+        active: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   };
 

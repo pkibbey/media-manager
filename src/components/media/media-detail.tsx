@@ -1,12 +1,19 @@
 'use client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { bytesToSize, isImage, isVideo } from '@/lib/utils';
+import { Toggle } from '@/components/ui/toggle';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { bytesToSize, isImage } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
-import { FileIcon } from '@radix-ui/react-icons';
+import { FileIcon, HandIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
 import type { Exif } from 'exif-reader';
-import { memo } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import ExifDataDisplay from './exif-data-display';
 import { useMediaSelection } from './media-list';
 import MediaPreview from './media-preview';
@@ -28,7 +35,7 @@ export function getDimensionsFromExif(exifData: Exif): {
   if (exifData.Image?.ImageWidth && exifData.Image?.ImageHeight) {
     return {
       width: exifData.Image?.ImageWidth,
-      height: exifData.Image?.ImageWidth,
+      height: exifData.Image?.ImageHeight as number,
     };
   }
 
@@ -36,7 +43,7 @@ export function getDimensionsFromExif(exifData: Exif): {
   if (exifData.Photo?.PixelXDimension && exifData.Photo?.PixelYDimension) {
     return {
       width: exifData.Photo?.PixelXDimension,
-      height: exifData.Photo?.PixelXDimension,
+      height: exifData.Photo?.PixelYDimension,
     };
   }
 
@@ -47,141 +54,176 @@ export function getDimensionsFromExif(exifData: Exif): {
   };
 }
 
+// Local storage key for zoom preference
+const ZOOM_PREFERENCE_KEY = 'media-detail-zoom-mode';
+
 // Use memo to prevent unnecessary re-renders
 const MediaDetail = memo(function MediaDetail() {
   // Get the selected item from context instead of props
-  const { selectedItem: item } = useMediaSelection();
+  const { selectedItems } = useMediaSelection();
+  const [zoomMode, setZoomMode] = useState(false);
 
-  if (!item) return null;
+  // Load zoom preference from local storage on mount
+  useEffect(() => {
+    const savedPreference = localStorage.getItem(ZOOM_PREFERENCE_KEY);
+    if (savedPreference) {
+      setZoomMode(savedPreference === 'true');
+    }
+  }, []);
 
-  // Use properly typed EXIF data
+  // Toggle zoom mode and save to local storage
+  const toggleZoomMode = useCallback(() => {
+    setZoomMode((prev) => {
+      const newValue = !prev;
+      localStorage.setItem(ZOOM_PREFERENCE_KEY, String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  // If there are no selected items, return placeholder
+  if (selectedItems.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+        <div className="text-center">
+          <FileIcon className="h-10 w-10 mx-auto mb-2" />
+          <p>Select a file to view details</p>
+        </div>
+      </div>
+    );
+  }
+
+  // We'll just show the first selected item for now
+  const item = selectedItems[0];
   const exifData = getExifData(item);
-  const exifDimensions = exifData && getDimensionsFromExif(exifData);
-
-  // File type detection based on extension
-  const fileExtension = item.extension?.toLowerCase();
-  const isImageFile = isImage(fileExtension);
-  const isVideoFile = isVideo(fileExtension);
-
-  // Format creation date
-  const createdAt = item.created_at
-    ? format(new Date(item.created_at), 'PPP')
-    : 'Unknown';
-
-  // Format the media date if available (from EXIF data)
-  const mediaTakenDate = item.media_date
-    ? format(new Date(item.media_date), 'PPP')
-    : null;
+  const isImageFile = isImage(item.extension);
 
   return (
-    <div className="bg-background md:border-l md:pl-6 shadow-xl md:h-full">
-      <div className="sticky top-0 bg-background z-10 flex flex-col">
-        <div className="py-2">
-          <h2 className="text-lg font-semibold truncate" title={item.file_name}>
-            {item.file_name}
-          </h2>
-
-          <p className="text-xs text-muted-foreground">
-            Added on {createdAt} • {bytesToSize(item.size_bytes || 0)}
-          </p>
-        </div>
-        <div className="py-2 space-y-4">
-          {/* Media Preview */}
-          <div className="flex flex-col items-center justify-center">
-            {isImageFile ? (
-              <div className="w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
-                {exifData && (
-                  <MediaPreview
-                    item={item}
-                    fill={false}
-                    width={exifDimensions?.width}
-                    height={exifDimensions?.height}
-                  />
-                )}
-              </div>
-            ) : isVideoFile ? (
-              <div className="w-full max-h-[400px] lg:max-h-[600px] bg-muted rounded-md overflow-hidden flex items-center justify-center">
-                <video
-                  muted
-                  src={`/api/media?id=${item.id}`}
-                  controls
-                  className="max-h-full max-w-full"
-                />
-              </div>
-            ) : (
-              <div className="w-full h-[250px] bg-muted rounded-md overflow-hidden flex items-center justify-center">
-                <div className="flex flex-col items-center text-muted-foreground">
-                  <FileIcon className="h-16 w-16" />
-                  <div className="text-lg mt-2">
-                    {fileExtension ? `.${fileExtension.toUpperCase()}` : 'File'}
-                  </div>
-                </div>
-              </div>
-            )}
+    <div className="w-full h-full flex flex-col">
+      <div className="relative flex-grow overflow-hidden bg-background">
+        {isImageFile && (
+          <div
+            className={
+              'absolute top-2 right-2 z-10 flex space-x-2 bg-background/80 backdrop-blur-sm p-1 rounded-md shadow-md'
+            }
+          >
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={zoomMode}
+                    onPressedChange={toggleZoomMode}
+                    size="sm"
+                    variant="outline"
+                    aria-label="Toggle zoom mode"
+                  >
+                    <HandIcon className="h-4 w-4" />
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Toggle zoom mode for rotated images</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+        )}
+        <div
+          className={`w-full h-full flex items-center justify-center overflow-hidden ${
+            zoomMode ? 'media-zoom-mode' : ''
+          }`}
+        >
+          <MediaPreview item={item} fill />
+        </div>
+      </div>
 
+      <Card className="flex-shrink-0 max-h-[40%] overflow-hidden border-t rounded-none">
+        <CardContent className="p-4 h-full overflow-y-auto">
           <Tabs defaultValue="info">
-            <TabsList className="w-full">
-              <TabsTrigger value="info" className="flex-1">
-                File Info
-              </TabsTrigger>
-              {item.processed && (
-                <TabsTrigger value="exif" className="flex-1">
-                  Exif Data
-                </TabsTrigger>
+            <TabsList className="mb-4">
+              <TabsTrigger value="info">Info</TabsTrigger>
+              {isImageFile && exifData && (
+                <TabsTrigger value="exif">EXIF Data</TabsTrigger>
               )}
             </TabsList>
 
-            <TabsContent value="info" className="mt-2">
-              <Card className="py-4">
-                <CardContent className="px-4">
-                  <div className="grid grid-cols-1 gap-y-3 text-sm">
-                    <div>
-                      <div className="font-medium">File Path</div>
-                      <div className="text-muted-foreground overflow-hidden text-ellipsis">
-                        {item.file_path}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-medium">Size</div>
-                      <div>{bytesToSize(item.size_bytes || 0)}</div>
-                    </div>
-                    {mediaTakenDate && (
-                      <div>
-                        <div className="font-medium">Date Taken</div>
-                        <div>{mediaTakenDate}</div>
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-medium">Added to Library</div>
-                      <div>{createdAt}</div>
-                    </div>
-                    {!item.processed && (
-                      <div>
-                        <div className="font-medium">
-                          EXIF Processing Status
-                        </div>
-                        <div className="text-amber-500 dark:text-amber-400">
-                          Pending
-                        </div>
-                      </div>
-                    )}
+            <TabsContent value="info" className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">{item.file_name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {item.folder_path}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Size</p>
+                  <p>{bytesToSize(item.size_bytes || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Type</p>
+                  <p className="uppercase">{item.extension}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Modified</p>
+                  <p>
+                    {item.modified_date
+                      ? format(
+                          new Date(item.modified_date),
+                          'MMM d, yyyy h:mm a',
+                        )
+                      : 'Unknown'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Media Date</p>
+                  <p>
+                    {item.media_date
+                      ? format(new Date(item.media_date), 'MMM d, yyyy h:mm a')
+                      : 'Unknown'}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-muted-foreground">Processing Status</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    <span
+                      className={`px-2 py-1 text-xs rounded-md ${
+                        item.processed
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                      }`}
+                    >
+                      {item.processed ? 'Processed' : 'Unprocessed'}
+                    </span>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-md ${
+                        item.has_exif
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                    >
+                      {item.has_exif ? 'EXIF Data' : 'No EXIF'}
+                    </span>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-md ${
+                        item.organized
+                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                    >
+                      {item.organized ? 'Organized' : 'Unorganized'}
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </TabsContent>
 
-            {item.processed && exifData && (
-              <TabsContent value="exif" className="mt-4">
-                <ExifDataDisplay
-                  exifData={exifData}
-                  mediaDate={item.media_date}
-                />
+            {isImageFile && exifData && (
+              <TabsContent value="exif">
+                <ExifDataDisplay exifData={exifData} />
               </TabsContent>
             )}
           </Tabs>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 });

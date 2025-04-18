@@ -17,6 +17,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { LARGE_FILE_THRESHOLD } from '@/lib/utils';
+import {
+  addProcessUpdateListener,
+  addWorkerListener,
+  getAllProcesses,
+  storeProcessStatus,
+} from '@/lib/worker-manager';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ProcessingTimeEstimator } from './processing-time-estimator';
@@ -37,6 +43,9 @@ type ThumbnailProgress = {
   error?: string;
 };
 
+// Process type identifier for thumbnail generation
+const THUMBNAIL_PROCESS_ID = 'thumbnail-generation';
+
 export default function ThumbnailGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -50,11 +59,8 @@ export default function ThumbnailGenerator() {
     useState<ThumbnailProgress | null>(null);
   const [successCount, setSuccessCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
-  // Add abort controller state
   const [abortController, setAbortController] =
     useState<AbortController | null>(null);
-
-  // Add thumbnail stats state
   const [thumbnailStats, setThumbnailStats] = useState<{
     totalCompatibleFiles: number;
     filesWithThumbnails: number;
@@ -62,16 +68,11 @@ export default function ThumbnailGenerator() {
     filesPending: number;
     skippedLargeFiles: number;
   } | null>(null);
-
-  // Add a ref to store the current abort token
   const currentAbortToken = useRef<string | null>(null);
-
-  // Add processing start time state
   const [processingStartTime, setProcessingStartTime] = useState<
     number | undefined
   >(undefined);
 
-  // Cleanup function for the abort controller
   useEffect(() => {
     return () => {
       if (abortController) {
@@ -80,7 +81,6 @@ export default function ThumbnailGenerator() {
     };
   }, [abortController]);
 
-  // Function to fetch thumbnail statistics
   const fetchThumbnailStats = useCallback(async () => {
     try {
       const result = await getThumbnailStats();
@@ -95,19 +95,16 @@ export default function ThumbnailGenerator() {
     }
   }, []);
 
-  // Fetch thumbnail stats when component mounts
   useEffect(() => {
     fetchThumbnailStats();
   }, [fetchThumbnailStats]);
 
-  // Re-fetch stats after generation completes
   useEffect(() => {
     if (!isGenerating) {
       fetchThumbnailStats();
     }
   }, [isGenerating, fetchThumbnailStats]);
 
-  // Function to categorize errors into common types for better grouping
   const categorizeError = (errorMessage: string): string => {
     const lowerCaseError = errorMessage.toLowerCase();
 
@@ -129,9 +126,142 @@ export default function ThumbnailGenerator() {
     if (lowerCaseError.includes('large file')) return 'File Too Large';
     if (lowerCaseError.includes('storage')) return 'Storage Error';
 
-    // Default category for uncategorized errors
     return 'Other Errors';
   };
+
+  useEffect(() => {
+    const checkExistingProcess = async () => {
+      try {
+        // Get all processes first to avoid race conditions
+        const allProcesses = await getAllProcesses();
+        const processInfo = allProcesses[THUMBNAIL_PROCESS_ID];
+
+        const active =
+          processInfo?.active === true &&
+          Date.now() - (processInfo.lastUpdated || 0) <= 30000;
+
+        if (active && processInfo.progress) {
+          setIsGenerating(true);
+
+          // Update all relevant UI state from the stored progress
+          setProgress(processInfo.progress.progress || 0);
+          setTotal(processInfo.progress.total || 0);
+          setProcessed(processInfo.progress.processed || 0);
+          setSuccessCount(processInfo.progress.successCount || 0);
+          setFailedCount(processInfo.progress.failedCount || 0);
+          setLargeFilesSkipped(processInfo.progress.skippedLargeFiles || 0);
+          setDetailProgress(processInfo.progress.detailProgress || null);
+
+          // Create a new abort controller to allow cancelling
+          const controller = new AbortController();
+          setAbortController(controller);
+
+          // Store the current abort token
+          if (processInfo.abortToken) {
+            currentAbortToken.current = processInfo.abortToken;
+          }
+
+          // Set the processing start time for time estimation
+          setProcessingStartTime(processInfo.startTime || Date.now());
+
+          toast.info('Thumbnail generation is running in the background', {
+            id: 'thumbnail-resume-toast',
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        console.error('Error checking for existing process:', error);
+      }
+    };
+
+    checkExistingProcess();
+
+    // Add a general process update listener
+    const processUpdateCleanup = addProcessUpdateListener((data) => {
+      if (data.processType === THUMBNAIL_PROCESS_ID) {
+        const processInfo = data.status;
+
+        // If the process is active, update the UI
+        if (processInfo.active && processInfo.progress) {
+          setIsGenerating(true);
+          setProgress(processInfo.progress.progress || 0);
+          setTotal(processInfo.progress.total || 0);
+          setProcessed(processInfo.progress.processed || 0);
+          setSuccessCount(processInfo.progress.successCount || 0);
+          setFailedCount(processInfo.progress.failedCount || 0);
+          setLargeFilesSkipped(processInfo.progress.skippedLargeFiles || 0);
+          setDetailProgress(processInfo.progress.detailProgress || null);
+
+          // Ensure we have an abort controller
+          if (!abortController) {
+            const controller = new AbortController();
+            setAbortController(controller);
+          }
+
+          // Update the abort token if needed
+          if (processInfo.abortToken && !currentAbortToken.current) {
+            currentAbortToken.current = processInfo.abortToken;
+          }
+        }
+        // If the process completed or errored while we were away
+        else if (!processInfo.active) {
+          setIsGenerating(false);
+          setAbortController(null);
+          currentAbortToken.current = null;
+
+          // Only show completion toast if we were previously generating
+          if (isGenerating) {
+            if (processInfo.error) {
+              toast.error(`Thumbnail generation failed: ${processInfo.error}`, {
+                id: 'thumbnail-complete-toast',
+              });
+              setHasError(true);
+            } else {
+              toast.success('Thumbnail generation completed successfully', {
+                id: 'thumbnail-complete-toast',
+              });
+            }
+
+            // Refresh stats after completion
+            fetchThumbnailStats();
+          }
+        }
+      }
+    });
+
+    // Set up specific listener for thumbnail updates
+    const thumbnailUpdateCleanup = addWorkerListener(
+      'THUMBNAIL_PROGRESS_UPDATE',
+      (data) => {
+        if (data.progress) {
+          setProgress(data.progress.progress || 0);
+          setTotal(data.progress.total || 0);
+          setProcessed(data.progress.processed || 0);
+          setSuccessCount(data.progress.successCount || 0);
+          setFailedCount(data.progress.failedCount || 0);
+          setLargeFilesSkipped(data.progress.skippedLargeFiles || 0);
+          setDetailProgress(data.progress.detailProgress || null);
+
+          if (
+            data.progress.status === 'completed' ||
+            data.progress.status === 'error'
+          ) {
+            setIsGenerating(false);
+            setAbortController(null);
+            currentAbortToken.current = null;
+
+            // Refresh stats after completion
+            fetchThumbnailStats();
+          }
+        }
+      },
+    );
+
+    return () => {
+      processUpdateCleanup();
+      thumbnailUpdateCleanup();
+    };
+  }, [fetchThumbnailStats, isGenerating, abortController]);
 
   const handleGenerateThumbnails = async () => {
     try {
@@ -148,18 +278,33 @@ export default function ThumbnailGenerator() {
         message: 'Starting thumbnail generation...',
       });
 
-      // Create a new abort controller
       const controller = new AbortController();
       setAbortController(controller);
 
-      // Generate a unique abort token
       const abortToken = `${Date.now()}-${Math.random()}`;
       currentAbortToken.current = abortToken;
 
-      // Set processing start time
-      setProcessingStartTime(Date.now());
+      const startTime = Date.now();
+      setProcessingStartTime(startTime);
 
-      // Use the direct server action to get the count
+      storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+        active: true,
+        startTime,
+        abortToken,
+        progress: {
+          progress: 0,
+          total: 0,
+          processed: 0,
+          successCount: 0,
+          failedCount: 0,
+          skippedLargeFiles: 0,
+          detailProgress: {
+            status: 'started',
+            message: 'Starting thumbnail generation...',
+          },
+        },
+      });
+
       const countResult = await countMissingThumbnails();
       if (!countResult.success) {
         throw new Error(
@@ -170,6 +315,24 @@ export default function ThumbnailGenerator() {
       const totalToProcess = countResult.count || 0;
       setTotal(totalToProcess);
 
+      storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+        active: true,
+        startTime,
+        abortToken,
+        progress: {
+          progress: 0,
+          total: totalToProcess,
+          processed: 0,
+          successCount: 0,
+          failedCount: 0,
+          skippedLargeFiles: 0,
+          detailProgress: {
+            status: 'started',
+            message: `Found ${totalToProcess} files to process`,
+          },
+        },
+      });
+
       if (totalToProcess === 0) {
         toast.success('No thumbnails to generate');
         setIsGenerating(false);
@@ -178,14 +341,33 @@ export default function ThumbnailGenerator() {
           status: 'completed',
           message: 'All thumbnails already generated.',
         });
+
+        storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+          active: false,
+          completed: true,
+          progress: {
+            progress: 100,
+            total: 0,
+            processed: 0,
+            successCount: 0,
+            failedCount: 0,
+            skippedLargeFiles: 0,
+            detailProgress: {
+              status: 'completed',
+              message: 'All thumbnails already generated.',
+            },
+          },
+        });
+
         return;
       }
 
       toast.success(
-        `Generating thumbnails for ${totalToProcess} media items${skipLargeFiles ? ' (skipping large files)' : ''}.`,
+        `Generating thumbnails for ${totalToProcess} media items${
+          skipLargeFiles ? ' (skipping large files)' : ''
+        }.`,
       );
 
-      // Use the streaming version for real-time progress updates with abort token
       const stream = await streamProcessMissingThumbnails({
         skipLargeFiles,
         abortToken,
@@ -195,31 +377,38 @@ export default function ThumbnailGenerator() {
         throw new Error('Failed to start thumbnail processing stream');
       }
 
-      // Set up a reader for the stream
       const reader = stream.getReader();
       const decoder = new TextDecoder();
 
       try {
-        // Process stream data
         while (true) {
-          // Check if operation was cancelled
           if (controller.signal.aborted) {
             reader.cancel('Operation cancelled by user');
             setDetailProgress({
               status: 'error',
               message: 'Thumbnail generation cancelled by user',
             });
+
+            storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+              active: false,
+              cancelled: true,
+              progress: {
+                detailProgress: {
+                  status: 'error',
+                  message: 'Thumbnail generation cancelled by user',
+                },
+              },
+            });
+
             break;
           }
 
           const { done, value } = await reader.read();
 
-          // Exit if stream is done
           if (done) {
             break;
           }
 
-          // Decode and process the stream data
           const text = decoder.decode(value);
           const messages = text.split('\n\n');
 
@@ -229,7 +418,6 @@ export default function ThumbnailGenerator() {
             try {
               const data = JSON.parse(message.substring(6));
 
-              // Update UI with progress
               if (data.status === 'error') {
                 setHasError(true);
                 if (data.error) {
@@ -248,7 +436,6 @@ export default function ThumbnailGenerator() {
                 }
               }
 
-              // Update counters and progress
               if (data.totalItems) {
                 setTotal(data.totalItems);
               }
@@ -256,9 +443,30 @@ export default function ThumbnailGenerator() {
               if (data.processed !== undefined) {
                 setProcessed(data.processed);
                 if (data.totalItems) {
-                  setProgress(
-                    Math.round((data.processed / data.totalItems) * 100),
+                  const progressPercent = Math.round(
+                    (data.processed / data.totalItems) * 100,
                   );
+                  setProgress(progressPercent);
+
+                  storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+                    active: true,
+                    startTime,
+                    abortToken,
+                    progress: {
+                      progress: progressPercent,
+                      total: data.totalItems,
+                      processed: data.processed,
+                      successCount: data.successCount || 0,
+                      failedCount: data.failedCount || 0,
+                      skippedLargeFiles: data.skippedLargeFiles || 0,
+                      detailProgress: {
+                        status: data.status || 'processing',
+                        message: data.message || 'Processing thumbnails...',
+                        currentFilePath: data.currentFilePath,
+                        fileType: data.fileType,
+                      },
+                    },
+                  });
                 }
               }
 
@@ -274,7 +482,6 @@ export default function ThumbnailGenerator() {
                 setLargeFilesSkipped(data.skippedLargeFiles);
               }
 
-              // Update file details
               if (data.currentFilePath || data.currentFileName) {
                 setDetailProgress((prev) => ({
                   ...prev!,
@@ -289,6 +496,26 @@ export default function ThumbnailGenerator() {
                   message: data.message,
                 }));
               }
+
+              if (data.status === 'completed') {
+                storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+                  active: false,
+                  completed: true,
+                  progress: {
+                    progress: 100,
+                    total: data.totalItems || total,
+                    processed: data.processed || processed,
+                    successCount: data.successCount || successCount,
+                    failedCount: data.failedCount || failedCount,
+                    skippedLargeFiles:
+                      data.skippedLargeFiles || largeFilesSkipped,
+                    detailProgress: {
+                      status: 'completed',
+                      message: data.message || 'Thumbnail generation completed',
+                    },
+                  },
+                });
+              }
             } catch (parseError) {
               console.error('Error parsing stream data:', parseError);
             }
@@ -297,6 +524,15 @@ export default function ThumbnailGenerator() {
       } catch (streamError) {
         console.error('Error reading from stream:', streamError);
         setHasError(true);
+
+        storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+          active: false,
+          error:
+            streamError instanceof Error
+              ? streamError.message
+              : 'Error reading from stream',
+        });
+
         throw streamError;
       } finally {
         reader.releaseLock();
@@ -313,7 +549,6 @@ export default function ThumbnailGenerator() {
         error: errorMessage,
       });
 
-      // Add to error summary
       const errorType = categorizeError(errorMessage);
       setErrorSummary((prev) => {
         const newSummary = { ...prev };
@@ -326,26 +561,33 @@ export default function ThumbnailGenerator() {
         }
         return newSummary;
       });
+
+      storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+        active: false,
+        error: errorMessage,
+        progress: {
+          detailProgress: {
+            status: 'error',
+            message: `Error: ${errorMessage}`,
+            error: errorMessage,
+          },
+        },
+      });
     } finally {
       setIsGenerating(false);
       setAbortController(null);
       currentAbortToken.current = null;
 
-      // Refresh stats after completion
       fetchThumbnailStats();
     }
   };
 
-  // Update cancel handler to use the abortToken
   const handleCancel = async () => {
     if (abortController) {
       toast.info('Cancelling thumbnail generation...');
 
-      // First abort the client-side controller to stop the stream reading
       abortController.abort();
 
-      // We also need to abort any active processing on the server
-      // Using abortToken from the current generation process
       if (currentAbortToken.current) {
         await abortThumbnailGeneration(currentAbortToken.current);
       }
@@ -368,11 +610,10 @@ export default function ThumbnailGenerator() {
         </div>
       </div>
 
-      {/* Progress bar for overall thumbnail generation - show immediately */}
       <Progress
         value={
           !thumbnailStats
-            ? undefined // This creates a loading state animation in the Progress component
+            ? undefined
             : thumbnailStats.filesPending === 0
               ? 100
               : Math.round(
@@ -384,7 +625,6 @@ export default function ThumbnailGenerator() {
         className="h-2"
       />
 
-      {/* Thumbnail statistics summary */}
       <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
         <div className="flex justify-between">
           <span>
@@ -425,7 +665,6 @@ export default function ThumbnailGenerator() {
         </div>
       </div>
 
-      {/* Description */}
       <p className="text-sm text-muted-foreground">
         Generate thumbnails for image files and store them in Supabase Storage.
         This helps improve performance by pre-generating thumbnails instead of
@@ -433,7 +672,6 @@ export default function ThumbnailGenerator() {
         etc.).
       </p>
 
-      {/* Current processing status */}
       {isGenerating && (
         <div className="mt-4 space-y-2">
           <div className="flex justify-between text-sm gap-4">
@@ -459,7 +697,9 @@ export default function ThumbnailGenerator() {
 
           {largeFilesSkipped > 0 && (
             <div className="text-xs text-muted-foreground">
-              {`Skipped ${largeFilesSkipped} large files (over ${Math.round(LARGE_FILE_THRESHOLD / 1024 / 1024)}MB)`}
+              {`Skipped ${largeFilesSkipped} large files (over ${Math.round(
+                LARGE_FILE_THRESHOLD / 1024 / 1024,
+              )}MB)`}
             </div>
           )}
           <div className="text-xs text-muted-foreground truncate mt-1 flex justify-between">
@@ -471,14 +711,12 @@ export default function ThumbnailGenerator() {
         </div>
       )}
 
-      {/* Error message */}
       {hasError && (
         <div className="text-sm text-destructive mt-2">
           Some errors occurred during processing. See details below.
         </div>
       )}
 
-      {/* Skip large files checkbox */}
       <div className="flex items-center space-x-2 mt-2">
         <Checkbox
           id="skipLargeFiles"
@@ -490,7 +728,9 @@ export default function ThumbnailGenerator() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="cursor-help border-b border-dotted border-gray-400">
-                  {`Skip large files (over ${Math.round(LARGE_FILE_THRESHOLD / 1024 / 1024)}MB)`}
+                  {`Skip large files (over ${Math.round(
+                    LARGE_FILE_THRESHOLD / 1024 / 1024,
+                  )}MB)`}
                 </span>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
@@ -504,13 +744,12 @@ export default function ThumbnailGenerator() {
         </Label>
       </div>
 
-      {/* Action buttons */}
       <div className="flex gap-2">
         <Button
           onClick={handleGenerateThumbnails}
           disabled={
             isGenerating ||
-            !thumbnailStats || // Disable when stats are loading
+            !thumbnailStats ||
             (thumbnailStats && thumbnailStats.filesPending === 0) ||
             false
           }
@@ -531,7 +770,6 @@ export default function ThumbnailGenerator() {
         )}
       </div>
 
-      {/* Display error summary when there are failed items */}
       {failedCount > 0 && Object.keys(errorSummary).length > 0 && (
         <div className="mt-4 border-t border-gray-200 pt-4">
           <h3 className="text-sm font-medium mb-2">
@@ -540,7 +778,7 @@ export default function ThumbnailGenerator() {
 
           <ul className="space-y-3">
             {Object.entries(errorSummary)
-              .sort(([, a], [, b]) => b.count - a.count) // Sort by count (highest first)
+              .sort(([, a], [, b]) => b.count - a.count)
               .map(([errorType, details]) => (
                 <li key={errorType} className="text-xs">
                   <div className="flex justify-between">
@@ -554,7 +792,10 @@ export default function ThumbnailGenerator() {
                       <div className="text-xs mb-1">Examples:</div>
                       {details.examples.map((example, i) => (
                         <div
-                          key={`${errorType}-example-${i}-${example.substring(0, 10)}`}
+                          key={`${errorType}-example-${i}-${example.substring(
+                            0,
+                            10,
+                          )}`}
                           className="truncate pl-2 text-[10px]"
                         >
                           {example}

@@ -4,14 +4,15 @@ import { isImage, isSkippedLargeFile, isVideo } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 interface MediaPreviewProps {
   item: MediaItem;
-  isNativelySupported?: boolean;
   fill?: boolean;
   width?: number;
   height?: number;
+  className?: string;
+  zoomMode?: boolean;
 }
 
 // Use React.memo to prevent unnecessary re-renders when parent components update
@@ -21,17 +22,39 @@ const MediaPreview = memo(
     fill = false,
     width,
     height,
+    className = '',
+    zoomMode = false,
   }: MediaPreviewProps) {
-    const isImageFile = isImage(item.extension);
-    const isVideoFile = isVideo(item.extension);
-    const fileExtension = item.extension?.toLowerCase();
+    const [orientation, setOrientation] = useState<number | null>(null);
+    const extension = item.extension?.toLowerCase();
+    const isImg = isImage(extension);
+    const isVid = isVideo(extension);
+
+    // Get image orientation from EXIF data
+    useEffect(() => {
+      if (isImg && item.exif_data) {
+        try {
+          const exifData = item.exif_data as any;
+          const orientation = exifData?.Image?.Orientation || null;
+          setOrientation(orientation);
+        } catch (e) {
+          console.error('Error reading EXIF orientation:', e);
+        }
+      }
+    }, [isImg, item.exif_data]);
+
+    // Determine if image is rotated 90/270 degrees based on EXIF
+    const isRotated = orientation === 6 || orientation === 8;
+
+    // Apply special class for rotated images in zoom mode
+    const containerClass = zoomMode && isRotated ? 'rotated-image' : '';
 
     return (
       <>
-        {isImageFile &&
+        {isImg &&
         (item.thumbnail_path || item.file_path) &&
         !isSkippedLargeFile(item.file_path, item.size_bytes) ? (
-          <div className="w-full h-full relative">
+          <div className={`w-full h-full relative ${containerClass}`}>
             <Image
               src={
                 item.thumbnail_path
@@ -40,7 +63,7 @@ const MediaPreview = memo(
               }
               unoptimized={fill}
               alt={item.file_name}
-              className={fill ? 'object-cover' : 'max-w-full h-auto'}
+              className={`${fill ? 'object-cover' : 'max-w-full h-auto'} ${className}`}
               fill={fill}
               sizes={
                 fill
@@ -64,7 +87,7 @@ const MediaPreview = memo(
               }}
             />
           </div>
-        ) : isVideoFile ? (
+        ) : isVid ? (
           <div className="w-full h-full relative bg-black flex items-center justify-center">
             <VideoIcon className="h-12 w-12 text-white opacity-50 group-hover:opacity-75 transition-opacity" />
             <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs rounded px-1 py-0.5">
@@ -76,7 +99,7 @@ const MediaPreview = memo(
             <div className="flex flex-col items-center">
               <FileIcon className="h-10 w-10 text-muted-foreground" />
               <span className="text-xs font-medium mt-2 uppercase">
-                {fileExtension || 'FILE'}
+                {extension || 'FILE'}
               </span>
             </div>
           </div>
