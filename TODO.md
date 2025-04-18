@@ -2,4 +2,17 @@
 - Make the advanced filters more useful
 - Select images using range selection in the browse view
 - Select images using ctrl + a in the browse view
-- Display the browse options on the right hand side, above the MediaPreview
+- Offload the processing work to a different thread, so that if a user navigates away and then back, the process is still running
+- Add a toggle to change the image display into zoom mode, which renders the image height the same aspect ratio if it were rotated 90 degrees - this persists when a different image is selected
+- process each image for keyword analysis
+- process each image for sentiment analysis
+- process each image for face detection
+- process each image for percieved quality
+- process each image for content safety
+- Add filter options to the folder view
+- Add a method to export your data to a JSON object
+- Find UI performance improvements to prevent re-renders
+- For any components that fetch their own data on load, move any client code into new components, keeping the fetch component being able to be an async server component and fetching data with a simple await
+- Look into time stamp correction logic
+- Make sure that the stats display is displaying the correct values
+- Auto select the first image when loading the browse view

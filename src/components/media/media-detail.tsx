@@ -89,7 +89,7 @@ const MediaDetail = memo(function MediaDetail() {
           {/* Media Preview */}
           <div className="flex flex-col items-center justify-center">
             {isImageFile ? (
-              <div className="w-full h-[250px] bg-muted rounded-md overflow-hidden flex items-center justify-center">
+              <div className="w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
                 {exifData && (
                   <MediaPreview
                     item={item}

@@ -157,6 +157,8 @@ export default function FoldersPage() {
 
   return (
     <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Folder View</h1>
+
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left sidebar - folder tree */}
         <div className="w-full lg:w-72 shrink-0">

@@ -224,7 +224,7 @@ export default function MediaFilterView({
   }, [form, router, onFiltersChange, maxFileSize]);
 
   return (
-    <div className="bg-card rounded-lg p-4">
+    <div className="bg-card rounded-lg px-6 py-5">
       <h3 className="text-lg font-semibold mb-4">Media Filters</h3>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">

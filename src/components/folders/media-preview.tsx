@@ -33,9 +33,14 @@ const MediaPreview = memo(
         !isSkippedLargeFile(item.file_path, item.size_bytes) ? (
           <div className="w-full h-full relative">
             <Image
-              src={`/api/media?id=${item.id}`}
+              src={
+                item.thumbnail_path
+                  ? item.thumbnail_path
+                  : `/api/media?id=${item.id}`
+              }
+              unoptimized={fill}
               alt={item.file_name}
-              className="object-cover"
+              className={fill ? 'object-cover' : 'max-w-full h-auto'}
               fill={fill}
               sizes={
                 fill
