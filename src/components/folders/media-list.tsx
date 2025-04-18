@@ -27,9 +27,10 @@ export function useMediaSelection() {
 
 interface MediaListProps {
   items: MediaItem[];
+  filterComponent?: React.ReactNode;
 }
 
-export default function MediaList({ items }: MediaListProps) {
+export default function MediaList({ items, filterComponent }: MediaListProps) {
   const [selectedMediaItem, setSelectedMediaItem] = useState<MediaItem | null>(
     null,
   );
@@ -58,19 +59,29 @@ export default function MediaList({ items }: MediaListProps) {
 
   return (
     <MediaSelectionContext.Provider value={contextValue}>
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] lg:grid-cols-[1fr_700px] gap-4">
-        <div
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-max content-start"
-          ref={gridRef}
-          role="grid"
-          aria-label="Media items grid"
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          {items.map((item, index) => (
-            <MemoizedMediaCard key={item.id} item={item} index={index} />
-          ))}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_500px] gap-4">
+        <div className="flex flex-col space-y-6">
+          {filterComponent && (
+            <div className="bg-card border border-neutral-700 rounded-lg">
+              {filterComponent}
+            </div>
+          )}
+          <div
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-max content-start"
+            ref={gridRef}
+            role="grid"
+            aria-label="Media items grid"
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            {items.map((item, index) => (
+              <MemoizedMediaCard key={item.id} item={item} index={index} />
+            ))}
+          </div>
         </div>
-        <MediaDetail />
+
+        <div className="flex flex-col space-y-4">
+          <MediaDetail />
+        </div>
       </div>
     </MediaSelectionContext.Provider>
   );

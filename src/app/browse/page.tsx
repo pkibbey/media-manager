@@ -196,15 +196,6 @@ export default function BrowsePage() {
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Browse Media</h1>
 
-      <div className="mb-6">
-        <MediaFilterView
-          totalCount={pagination.total}
-          maxFileSize={maxFileSize}
-          availableCameras={availableCameras}
-          onFiltersChange={handleFiltersChange}
-        />
-      </div>
-
       <div className="min-h-[200px]">
         {loading ? (
           <div className="flex items-center justify-center h-60">
@@ -224,7 +215,17 @@ export default function BrowsePage() {
           </div>
         ) : (
           <>
-            <MediaList items={mediaItems} />
+            <MediaList
+              items={mediaItems}
+              filterComponent={
+                <MediaFilterView
+                  totalCount={pagination.total}
+                  maxFileSize={maxFileSize}
+                  availableCameras={availableCameras}
+                  onFiltersChange={handleFiltersChange}
+                />
+              }
+            />
 
             {pagination.pageCount > 1 && (
               <div className="mt-6">

@@ -1,1 +1,5 @@
 - Figue out ways to process files that failed to process
+- Make the advanced filters more useful
+- Select images using range selection in the browse view
+- Select images using ctrl + a in the browse view
+- Display the browse options on the right hand side, above the MediaPreview

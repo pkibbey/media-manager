@@ -145,18 +145,7 @@ export default function MediaFilterView({
       formValues.hasThumbnail = hasThumbnail as MediaFilters['hasThumbnail'];
     }
 
-    // Check if advanced filters are used (compare to defaults)
-    const isAdvanced =
-      (processed && processed !== 'all') ||
-      (organized && organized !== 'all') ||
-      (camera && camera !== '') ||
-      (hasLocation && hasLocation !== 'all') ||
-      !!formValues.dateFrom ||
-      !!formValues.dateTo ||
-      (typeof formValues.minSize === 'number' && formValues.minSize > 0) ||
-      (typeof formValues.maxSize === 'number' &&
-        formValues.maxSize < maxFileSize);
-    setIsAdvancedOpen(isAdvanced);
+    setIsAdvancedOpen(false);
 
     // Reset form with values from URL
     form.reset({
@@ -235,10 +224,11 @@ export default function MediaFilterView({
   }, [form, router, onFiltersChange, maxFileSize]);
 
   return (
-    <div className="bg-card border rounded-lg shadow-sm p-4">
+    <div className="bg-card rounded-lg p-4">
+      <h3 className="text-lg font-semibold mb-4">Media Filters</h3>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
             {/* Search */}
             <FormField
               control={form.control}
@@ -249,7 +239,7 @@ export default function MediaFilterView({
                     <Input
                       placeholder="Search media..."
                       {...field}
-                      className="w-full"
+                      className="w-full min-w-32"
                     />
                   </FormControl>
                 </FormItem>
@@ -335,24 +325,24 @@ export default function MediaFilterView({
               )}
               Apply
             </Button>
-          </div>
 
-          {/* Advanced Filters Toggle */}
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-            >
-              <MixerHorizontalIcon className="mr-2 h-4 w-4" />
-              {isAdvancedOpen ? 'Hide' : 'Show'} Advanced Filters
-            </Button>
+            {/* Advanced Filters Toggle */}
+            <div>
+              <Button
+                type="button"
+                variant={isAdvancedOpen ? 'outline' : 'secondary'}
+                className="w-full"
+                onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+              >
+                <MixerHorizontalIcon className="mr-2 h-4 w-4" />
+                {isAdvancedOpen ? 'Hide' : 'Show'} Advanced Filters
+              </Button>
+            </div>
           </div>
 
           {/* Advanced Filters */}
           {isAdvancedOpen && (
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 border-t pt-4">
+            <div className="grid grid-cols-2 gap-4 auto-rows-max content-start">
               {/* Date Range - From */}
               <FormField
                 control={form.control}
