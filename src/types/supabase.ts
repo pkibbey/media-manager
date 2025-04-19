@@ -55,6 +55,82 @@ export type Database = {
         };
         Relationships: [];
       };
+      detection_results: {
+        Row: {
+          created_at: string;
+          detected_items: Json;
+          detection_date: string;
+          detection_method: string;
+          id: string;
+          media_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          detected_items?: Json;
+          detection_date?: string;
+          detection_method?: string;
+          id?: string;
+          media_id: string;
+        };
+        Update: {
+          created_at?: string;
+          detected_items?: Json;
+          detection_date?: string;
+          detection_method?: string;
+          id?: string;
+          media_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'detection_results_media_id_fkey';
+            columns: ['media_id'];
+            isOneToOne: false;
+            referencedRelation: 'media_items';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      failed_detections: {
+        Row: {
+          attempted_at: string;
+          created_at: string;
+          error: string | null;
+          extension: string | null;
+          file_name: string;
+          file_path: string;
+          id: string;
+          media_id: string;
+        };
+        Insert: {
+          attempted_at?: string;
+          created_at?: string;
+          error?: string | null;
+          extension?: string | null;
+          file_name: string;
+          file_path: string;
+          id?: string;
+          media_id: string;
+        };
+        Update: {
+          attempted_at?: string;
+          created_at?: string;
+          error?: string | null;
+          extension?: string | null;
+          file_name?: string;
+          file_path?: string;
+          id?: string;
+          media_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'failed_detections_media_id_fkey';
+            columns: ['media_id'];
+            isOneToOne: false;
+            referencedRelation: 'media_items';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       file_types: {
         Row: {
           can_display_natively: boolean | null;
@@ -98,6 +174,7 @@ export type Database = {
           file_name: string;
           file_path: string;
           folder_path: string;
+          has_detection: boolean | null;
           has_exif: boolean;
           id: string;
           media_date: string | null;
@@ -117,6 +194,7 @@ export type Database = {
           file_name: string;
           file_path: string;
           folder_path: string;
+          has_detection?: boolean | null;
           has_exif?: boolean;
           id?: string;
           media_date?: string | null;
@@ -136,6 +214,7 @@ export type Database = {
           file_name?: string;
           file_path?: string;
           folder_path?: string;
+          has_detection?: boolean | null;
           has_exif?: boolean;
           id?: string;
           media_date?: string | null;
@@ -233,6 +312,13 @@ export type Database = {
           unprocessed_count: number;
           organized_count: number;
           unorganized_count: number;
+        }[];
+      };
+      search_media_by_keywords: {
+        Args: { search_terms: string[] };
+        Returns: {
+          media_id: string;
+          match_count: number;
         }[];
       };
     };

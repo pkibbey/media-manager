@@ -584,12 +584,57 @@ export default function ThumbnailGenerator() {
 
   const handleCancel = async () => {
     if (abortController) {
-      toast.info('Cancelling thumbnail generation...');
+      toast.info('Cancelling thumbnail generation...', {
+        id: 'cancel-toast',
+        duration: 3000,
+      });
 
+      // First abort the client-side controller
       abortController.abort();
 
+      // Then abort the server-side process
       if (currentAbortToken.current) {
-        await abortThumbnailGeneration(currentAbortToken.current);
+        try {
+          const result = await abortThumbnailGeneration(
+            currentAbortToken.current,
+          );
+
+          if (result.success) {
+            toast.success('Thumbnail generation cancelled successfully');
+            setDetailProgress({
+              status: 'error',
+              message: 'Thumbnail generation cancelled by user',
+            });
+
+            // Store process status after successful cancellation
+            storeProcessStatus(THUMBNAIL_PROCESS_ID, {
+              active: false,
+              cancelled: true,
+              progress: {
+                progress,
+                total,
+                processed,
+                successCount,
+                failedCount,
+                skippedLargeFiles: largeFilesSkipped,
+                detailProgress: {
+                  status: 'error',
+                  message: 'Thumbnail generation cancelled by user',
+                },
+              },
+            });
+
+            // Only reset the state after confirming cancellation success
+            setIsGenerating(false);
+            setAbortController(null);
+            currentAbortToken.current = null;
+          } else {
+            toast.error(`Failed to cancel: ${result.message}`);
+          }
+        } catch (error) {
+          console.error('Error during cancellation:', error);
+          toast.error('Error during cancellation process');
+        }
       }
     }
   };

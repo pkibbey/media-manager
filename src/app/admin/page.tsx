@@ -1,12 +1,11 @@
 import AddFolderForm from '@/components/admin/add-folder-form';
-import ExifFailedProcessor from '@/components/admin/exif-failed-processor';
+import DetectionAnalyzer from '@/components/admin/detection-analyzer';
 import ExifProcessor from '@/components/admin/exif-processor';
-import FailedFileProcessor from '@/components/admin/failed-file-processor';
-import FailedThumbnailProcessor from '@/components/admin/failed-thumbnail-processor';
 import FileTypeManager from '@/components/admin/file-type-manager';
 import FolderList from '@/components/admin/folder-list';
 import MediaStats from '@/components/admin/media-stats';
 import PersistentTabs from '@/components/admin/persistent-tabs';
+import ResetDetection from '@/components/admin/reset-detection';
 import ResetMedia from '@/components/admin/reset-media';
 import ResetScan from '@/components/admin/reset-scan';
 import ResetThumbnails from '@/components/admin/reset-thumbnails';
@@ -54,11 +53,17 @@ export default async function AdminPage() {
             <ExifProcessor />
             <ResetMedia />
           </div>
-          <div className="border rounded-lg p-4 shadow-sm">
-            <FailedFileProcessor />
-          </div>
-          <div className="border rounded-lg p-4 shadow-sm">
-            <ExifFailedProcessor />
+        </div>
+      ),
+    },
+    {
+      value: 'detection',
+      label: 'Detection',
+      content: (
+        <div className="space-y-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
+            <DetectionAnalyzer />
+            <ResetDetection />
           </div>
         </div>
       ),
@@ -71,9 +76,6 @@ export default async function AdminPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
             <ThumbnailGenerator />
             <ResetThumbnails />
-          </div>
-          <div className="border rounded-lg p-4 shadow-sm">
-            <FailedThumbnailProcessor />
           </div>
         </div>
       ),

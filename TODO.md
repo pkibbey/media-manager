@@ -1,8 +1,4 @@
-- Make the advanced filters more useful
-- Find UI performance improvements to prevent re-renders
-- For any components that fetch their own data on load, move any client code into new components, keeping the fetch component being able to be an async server component and fetching data with a simple await
 - Process each image for keyword analysis
 - Process each image for sentiment analysis
-- Process each image for face detection
 - Process each image for perceived quality
 - Process each image for content safety
