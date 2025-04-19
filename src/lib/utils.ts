@@ -4,6 +4,7 @@ import { type ClassValue, clsx } from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import { twMerge } from 'tailwind-merge';
+import { LARGE_FILE_THRESHOLD } from './consts';
 
 /**
  * Combines class names with clsx and tailwind-merge
@@ -549,8 +550,6 @@ export async function getFileCategory(extension: string): Promise<string> {
   // Fall back to default logic
   return 'other';
 }
-
-export const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB in bytes
 
 export function isSkippedLargeFile(
   filePath: string,

@@ -67,6 +67,10 @@ export default async function AdminPage() {
             <ExifProcessor />
             <ResetMedia />
           </div>
+          {/* Hide failed processors for now */}
+          {/* <div className="border rounded-lg p-4 shadow-sm">
+            <FailedFileProcessor />
+          </div> */}
         </div>
       ),
     },
@@ -79,6 +83,10 @@ export default async function AdminPage() {
             <ThumbnailGenerator />
             <ResetThumbnails />
           </div>
+          {/* Hide failed processors for now */}
+          {/* <div className="border rounded-lg p-4 shadow-sm">
+            <FailedThumbnailProcessor />
+          </div> */}
         </div>
       ),
     },

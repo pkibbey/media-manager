@@ -44,3 +44,18 @@ export interface MediaItemsFilter {
   sortOrder?: 'asc' | 'desc';
   hasThumbnail?: 'all' | 'yes' | 'no';
 }
+
+export type FailedFile = {
+  id: string;
+  file_name: string;
+  file_path: string;
+  error: string | null;
+  extension: string;
+  size_bytes?: number;
+};
+
+export type ErrorCategory = {
+  type: string;
+  count: number;
+  examples: FailedFile[];
+};

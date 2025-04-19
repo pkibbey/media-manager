@@ -34,6 +34,27 @@ export type Database = {
   };
   public: {
     Tables: {
+      abort_tokens: {
+        Row: {
+          created_at: string;
+          expires_at: string;
+          process_type: string | null;
+          token: string;
+        };
+        Insert: {
+          created_at?: string;
+          expires_at?: string;
+          process_type?: string | null;
+          token: string;
+        };
+        Update: {
+          created_at?: string;
+          expires_at?: string;
+          process_type?: string | null;
+          token?: string;
+        };
+        Relationships: [];
+      };
       file_types: {
         Row: {
           can_display_natively: boolean | null;
@@ -71,6 +92,7 @@ export type Database = {
         Row: {
           created_at: string;
           created_date: string | null;
+          error: string | null;
           exif_data: Json | null;
           extension: string;
           file_name: string;
@@ -89,6 +111,7 @@ export type Database = {
         Insert: {
           created_at?: string;
           created_date?: string | null;
+          error?: string | null;
           exif_data?: Json | null;
           extension: string;
           file_name: string;
@@ -107,6 +130,7 @@ export type Database = {
         Update: {
           created_at?: string;
           created_date?: string | null;
+          error?: string | null;
           exif_data?: Json | null;
           extension?: string;
           file_name?: string;
@@ -164,6 +188,10 @@ export type Database = {
       calculate_success_rate_by_method: {
         Args: { method_name: string };
         Returns: number;
+      };
+      cleanup_expired_abort_tokens: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
       };
       count_folder_media: {
         Args: {

@@ -16,7 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { LARGE_FILE_THRESHOLD } from '@/lib/utils';
+import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import {
   addProcessUpdateListener,
   addWorkerListener,

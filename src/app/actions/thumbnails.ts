@@ -8,8 +8,9 @@ import {
   addAbortToken,
   isAborted as checkAbortToken,
 } from '@/lib/abort-tokens';
+import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { LARGE_FILE_THRESHOLD, isSkippedLargeFile } from '@/lib/utils';
+import { isSkippedLargeFile } from '@/lib/utils';
 import type {
   ThumbnailOptions,
   ThumbnailResult,
@@ -319,6 +320,188 @@ export async function generateThumbnail(
       success: false,
       message: `Error generating thumbnail: ${error.message}`,
       filePath,
+    };
+  }
+}
+
+/**
+ * Get files that failed thumbnail generation
+ */
+export async function getFailedThumbnails() {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    // Get image files that are processed but don't have thumbnails
+    const { data, error } = await supabase
+      .from('media_items')
+      .select('id, file_name, file_path, extension, error, size_bytes')
+      .eq('processed', true)
+      .is('thumbnail_path', null)
+      .in('extension', [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+        'tiff',
+        'heic',
+        'avif',
+      ])
+      .order('file_name');
+
+    if (error) {
+      console.error('Error fetching failed thumbnails:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    // Format the response
+    const files = data.map((file) => ({
+      id: file.id,
+      file_name: file.file_name,
+      file_path: file.file_path,
+      error: file.error,
+      extension: file.extension,
+      size_bytes: file.size_bytes,
+    }));
+
+    return {
+      success: true,
+      files,
+    };
+  } catch (error: any) {
+    console.error('Error getting failed thumbnails:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Retry generating thumbnails for files that previously failed
+ */
+export async function retryFailedThumbnails(
+  fileIds: string[],
+  options: {
+    skipLargeFiles?: boolean;
+    abortToken?: string;
+  } = {},
+  onProgress?: (processed: number) => void,
+) {
+  try {
+    const supabase = createServerSupabaseClient();
+    let successCount = 0;
+    let processedCount = 0;
+    let skippedLargeFiles = 0;
+    const { skipLargeFiles = true, abortToken } = options;
+
+    // Helper function to check if operation should be aborted
+    const isOperationAborted = async (): Promise<boolean> => {
+      if (!abortToken) return false;
+      return await checkAbortToken(abortToken);
+    };
+
+    // Process files one by one
+    for (const fileId of fileIds) {
+      // Check for abort signal at the beginning of each iteration
+      if (await isOperationAborted()) {
+        return {
+          success: false,
+          message: 'Operation was aborted by user',
+          processedCount,
+          successCount,
+          skippedLargeFiles,
+        };
+      }
+
+      try {
+        // Reset thumbnail status
+        await supabase
+          .from('media_items')
+          .update({
+            thumbnail_path: null,
+            error: null,
+          })
+          .eq('id', fileId);
+
+        // Check for abort signal before starting the actual processing
+        if (await isOperationAborted()) {
+          return {
+            success: false,
+            message: 'Operation was aborted by user',
+            processedCount,
+            successCount,
+            skippedLargeFiles,
+          };
+        }
+
+        // Get file info
+        const { data: mediaItem } = await supabase
+          .from('media_items')
+          .select('file_path, size_bytes')
+          .eq('id', fileId)
+          .single();
+
+        if (!mediaItem) {
+          console.warn(`Media item ${fileId} not found`);
+          continue;
+        }
+
+        // Skip large files if requested
+        if (
+          skipLargeFiles &&
+          mediaItem.size_bytes &&
+          mediaItem.size_bytes > LARGE_FILE_THRESHOLD
+        ) {
+          skippedLargeFiles++;
+
+          // Update the record to indicate it was skipped
+          await supabase
+            .from('media_items')
+            .update({
+              error: `Skipped large file (${Math.round(mediaItem.size_bytes / 1024 / 1024)}MB)`,
+            })
+            .eq('id', fileId);
+
+          continue;
+        }
+
+        // Generate thumbnail
+        const result = await generateThumbnail(fileId, { skipLargeFiles });
+
+        if (result.success) {
+          successCount++;
+        }
+      } catch (error) {
+        console.error(`Error processing thumbnail for file ${fileId}:`, error);
+        // Continue with next file
+      }
+
+      // Update progress
+      processedCount++;
+      if (onProgress) {
+        onProgress(processedCount);
+      }
+    }
+
+    // Revalidate paths
+    revalidatePath('/admin');
+    revalidatePath('/browse');
+
+    return {
+      success: true,
+      processedCount,
+      successCount,
+      skippedLargeFiles,
+    };
+  } catch (error: any) {
+    console.error('Error retrying failed thumbnails:', error);
+    return {
+      success: false,
+      error: error.message,
     };
   }
 }

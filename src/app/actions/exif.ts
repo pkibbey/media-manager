@@ -222,15 +222,22 @@ export async function updateMediaDatesFromFilenames({
 export async function processExifData({
   mediaId,
   method,
-}: { mediaId: string; method: ExtractionMethod }) {
+  progressCallback,
+}: {
+  mediaId: string;
+  method: ExtractionMethod;
+  progressCallback?: (message: string) => void;
+}) {
   try {
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient();
 
+    progressCallback?.('Fetching media item details');
+
     // First get the media item to access its file path
     const { data: mediaItem, error: fetchError } = await supabase
       .from('media_items')
-      .select('file_path')
+      .select('file_path, file_name')
       .eq('id', mediaId)
       .single();
 
@@ -243,18 +250,21 @@ export async function processExifData({
     }
 
     const filePath = mediaItem.file_path;
+    progressCallback?.(`Processing ${mediaItem.file_name}`);
 
     // Check if file exists
     try {
+      progressCallback?.('Checking file access');
       await fs.access(filePath);
     } catch (fileError) {
+      progressCallback?.('File not found');
       // File doesn't exist - mark as processed but with error
       await supabase
         .from('media_items')
         .update({
           processed: true,
           has_exif: false,
-          processed_error: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
+          error: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
         })
         .eq('id', mediaId);
 
@@ -265,17 +275,19 @@ export async function processExifData({
     }
 
     // Extract EXIF data from the file
+    progressCallback?.(`Extracting metadata using ${method} method`);
     const exifData = await extractMetadata({ filePath, method });
 
     // Even if we don't get EXIF data, mark the file as processed
     if (!exifData) {
+      progressCallback?.('No EXIF data found in file');
       // Update the media record to mark as processed but without EXIF
       await supabase
         .from('media_items')
         .update({
           processed: true,
           has_exif: false,
-          processed_error: 'No EXIF data extracted',
+          error: 'No EXIF data extracted',
         })
         .eq('id', mediaId);
 
@@ -287,19 +299,21 @@ export async function processExifData({
     }
 
     // Import sanitizeExifData function
+    progressCallback?.('Sanitizing EXIF data');
     const { sanitizeExifData } = await import('@/lib/utils');
 
     // Sanitize EXIF data before storing it
     const sanitizedExifData = sanitizeExifData(exifData);
 
     // Update the media record in the database
+    progressCallback?.('Updating database record with EXIF data');
     const { error } = await supabase
       .from('media_items')
       .update({
         exif_data: sanitizedExifData as Json,
         has_exif: true,
         processed: true,
-        processed_error: null, // Clear any previous errors
+        error: null, // Clear any previous errors
         // Use correct date property from Photo section
         media_date:
           exifData.Photo?.DateTimeOriginal?.toISOString() ||
@@ -308,6 +322,7 @@ export async function processExifData({
       .eq('id', mediaId);
 
     if (error) {
+      progressCallback?.(`Database error: ${error.message}`);
       console.error('Error updating media with EXIF data:', error);
 
       // Still mark as processed even if database update fails
@@ -317,7 +332,7 @@ export async function processExifData({
           .update({
             processed: true,
             has_exif: false,
-            processed_error: `Database error: ${error.message}`,
+            error: `Database error: ${error.message}`,
           })
           .eq('id', mediaId);
       } catch (updateError) {
@@ -330,12 +345,16 @@ export async function processExifData({
       return { success: false, message: error.message };
     }
 
+    progressCallback?.('EXIF data extraction completed successfully');
     return {
       success: true,
       message: 'EXIF data extracted and stored successfully',
       exifData,
     };
   } catch (error) {
+    progressCallback?.(
+      `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
     console.error('Error processing EXIF data:', error);
 
     // Even on error, mark the item as processed to avoid retrying problematic files
@@ -346,8 +365,7 @@ export async function processExifData({
         .update({
           processed: true,
           has_exif: false,
-          processed_error:
-            error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : 'Unknown error',
         })
         .eq('id', mediaId);
     } catch (updateError) {
@@ -625,6 +643,19 @@ export async function streamProcessUnprocessedItems(
               const result = await processExifData({
                 mediaId: media.id,
                 method: extractionMethod || 'default',
+                progressCallback: async (message) => {
+                  // Send granular progress updates
+                  await sendProgress(writer, {
+                    status: 'processing',
+                    message: `${message} - ${media.file_name}`,
+                    filesDiscovered: effectiveTotal,
+                    filesProcessed: itemsProcessed,
+                    successCount: successCount,
+                    failedCount: failedCount,
+                    largeFilesSkipped: largeFilesSkipped,
+                    currentFilePath: media.file_path,
+                  });
+                },
               });
 
               // Update counters
@@ -760,6 +791,207 @@ export async function abortExifProcessing(token: string): Promise<{
     return {
       success: false,
       message: `Error aborting processing: ${error.message || 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * Get files that failed EXIF data extraction
+ */
+export async function getFailedExifFiles() {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    // Get files that are processed but don't have EXIF data
+    const { data, error } = await supabase
+      .from('media_items')
+      .select(
+        'id, file_name, file_path, extension, error, size_bytes, processed',
+      )
+      .eq('processed', true)
+      .eq('has_exif', false)
+      .order('file_name');
+
+    if (error) {
+      console.error('Error fetching failed EXIF files:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: 'Error fetching failed EXIF files',
+      };
+    }
+
+    // Format the response
+    const files = data.map((file) => ({
+      id: file.id,
+      file_name: file.file_name,
+      file_path: file.file_path,
+      error: file.error,
+      extension: file.extension,
+      size_bytes: file.size_bytes,
+    }));
+
+    return {
+      success: true,
+      files,
+      message: 'Failed EXIF files fetched successfully',
+    };
+  } catch (error: any) {
+    console.error('Error getting failed EXIF files:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Retry EXIF extraction for files that previously failed
+ * Server-compatible implementation without client references
+ */
+export async function retryFailedExifFiles(
+  fileIds: string[],
+  options: {
+    method?: ExtractionMethod;
+    skipLargeFiles?: boolean;
+    abortToken?: string;
+  } = {},
+  onProgress?: (processed: number, message?: string) => void,
+) {
+  try {
+    const supabase = createServerSupabaseClient();
+    let successCount = 0;
+    let processedCount = 0;
+    let skippedLargeFiles = 0;
+    const { method = 'default', skipLargeFiles = true, abortToken } = options;
+
+    // Process files one by one
+    for (const fileId of fileIds) {
+      // Check for abort token (server-side version)
+      if (abortToken) {
+        try {
+          const abortRequested = await isAborted(abortToken);
+          if (abortRequested) {
+            return {
+              success: false,
+              message: 'Operation was aborted by user',
+              processedCount,
+              successCount,
+              skippedLargeFiles,
+            };
+          }
+        } catch (error) {
+          console.error('Error checking abort status:', error);
+          // Continue processing even if abort check fails
+        }
+      }
+
+      try {
+        // Reset processed status first
+        await supabase
+          .from('media_items')
+          .update({
+            processed: false,
+            error: null,
+          })
+          .eq('id', fileId);
+
+        // Get file info if we need to check file size
+        if (skipLargeFiles) {
+          const { data: mediaItem } = await supabase
+            .from('media_items')
+            .select('file_path, size_bytes')
+            .eq('id', fileId)
+            .single();
+
+          if (!mediaItem) {
+            console.warn(`Media item ${fileId} not found`);
+            continue;
+          }
+
+          // Skip large files if requested
+          if (
+            skipLargeFiles &&
+            mediaItem.size_bytes &&
+            mediaItem.size_bytes > BATCH_SIZE * 1024 * 1024 // Use batch size as threshold
+          ) {
+            skippedLargeFiles++;
+
+            // Update the record to indicate it was skipped
+            await supabase
+              .from('media_items')
+              .update({
+                processed: true,
+                has_exif: false,
+                error: `Skipped large file (${Math.round(mediaItem.size_bytes / 1024 / 1024)}MB)`,
+              })
+              .eq('id', fileId);
+
+            continue;
+          }
+        }
+
+        // Check for abort token again before starting the actual processing
+        if (abortToken) {
+          try {
+            const abortRequested = await isAborted(abortToken);
+            if (abortRequested) {
+              return {
+                success: false,
+                message: 'Operation was aborted by user',
+                processedCount,
+                successCount,
+                skippedLargeFiles,
+              };
+            }
+          } catch (error) {
+            console.error('Error checking abort status:', error);
+            // Continue if abort check fails
+          }
+        }
+
+        // Process EXIF data
+        const result = await processExifData({
+          mediaId: fileId,
+          method,
+          progressCallback: (message) => {
+            // If we have a progress callback from the caller, use it
+            if (onProgress) {
+              onProgress(processedCount, message);
+            }
+          },
+        });
+
+        if (result.success) {
+          successCount++;
+        }
+      } catch (error) {
+        console.error(`Error processing EXIF for file ${fileId}:`, error);
+        // Continue with next file
+      }
+
+      // Update progress
+      processedCount++;
+      if (onProgress) {
+        onProgress(processedCount);
+      }
+    }
+
+    // Revalidate paths
+    revalidatePath('/admin');
+    revalidatePath('/browse');
+
+    return {
+      success: true,
+      processedCount,
+      successCount,
+      skippedLargeFiles,
+    };
+  } catch (error: any) {
+    console.error('Error retrying failed EXIF files:', error);
+    return {
+      success: false,
+      error: error.message,
     };
   }
 }
