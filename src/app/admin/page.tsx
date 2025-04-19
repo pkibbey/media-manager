@@ -16,25 +16,14 @@ import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
 import { TimestampCorrectorWrapper } from '@/components/admin/timestamp-corrector-wrapper';
 import { Suspense } from 'react';
 import { getFileTypes } from '../actions/file-types';
-import { getScanFolders } from '../actions/scan-folders';
-import { getMediaStats } from '../actions/stats';
 
 export default async function AdminPage() {
-  const {
-    success: foldersSuccess,
-    data: folders,
-    error: foldersError,
-  } = await getScanFolders();
+  // We only need to fetch file types now, as other data is fetched by the server components
   const {
     success: fileTypesSuccess,
     data: fileTypes,
     error: fileTypesError,
   } = await getFileTypes();
-  const {
-    success: statsSuccess,
-    data: mediaStats,
-    error: statsError,
-  } = await getMediaStats();
 
   const tabOptions = [
     {
@@ -49,13 +38,8 @@ export default async function AdminPage() {
           <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[1fr_2fr] items-start gap-6">
             <AddFolderForm />
             <Suspense fallback={<div>Loading folders...</div>}>
-              {foldersSuccess ? (
-                <FolderList folders={folders || []} />
-              ) : (
-                <div className="p-4 border rounded-md bg-destructive/10 text-destructive">
-                  Error loading folders: {foldersError}
-                </div>
-              )}
+              {/* FolderList now fetches its own data */}
+              <FolderList />
             </Suspense>
           </div>
         </div>
@@ -131,13 +115,8 @@ export default async function AdminPage() {
       content: (
         <div className="space-y-6">
           <Suspense fallback={<div>Loading statistics...</div>}>
-            {statsSuccess && mediaStats ? (
-              <MediaStats stats={mediaStats} />
-            ) : (
-              <div className="p-4 border rounded-md bg-destructive/10 text-destructive">
-                Error loading statistics: {statsError}
-              </div>
-            )}
+            {/* MediaStats now fetches its own data */}
+            <MediaStats />
           </Suspense>
         </div>
       ),

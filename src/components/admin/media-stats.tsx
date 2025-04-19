@@ -1,5 +1,4 @@
-'use client';
-
+import { getMediaStats } from '@/app/actions/stats';
 import { formatBytes } from '@/lib/utils';
 import {
   BarChartIcon,
@@ -10,28 +9,18 @@ import {
   PieChartIcon,
 } from '@radix-ui/react-icons';
 
-interface MediaStats {
-  totalMediaItems: number;
-  totalSizeBytes: number;
-  itemsByCategory: {
-    [category: string]: number;
-  };
-  itemsByExtension: {
-    [extension: string]: number;
-  };
-  processedCount: number;
-  unprocessedCount: number;
-  organizedCount: number;
-  unorganizedCount: number;
-  ignoredCount: number; // Count of files with ignored file types
-  needsTimestampCorrectionCount?: number; // Count of files needing timestamp correction
-}
+export default async function MediaStats() {
+  // Fetch data directly in the server component
+  const { success, data: stats, error } = await getMediaStats();
 
-interface MediaStatsProps {
-  stats: MediaStats;
-}
+  if (!success || !stats) {
+    return (
+      <div className="p-4 border rounded-md bg-destructive/10 text-destructive">
+        Error loading statistics: {error}
+      </div>
+    );
+  }
 
-export default function MediaStats({ stats }: MediaStatsProps) {
   // Calculate percentages for progress bars - using only non-ignored files
   const processedPercentage =
     stats.totalMediaItems > 0

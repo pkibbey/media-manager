@@ -1,153 +1,97 @@
-'use client';
-
-import { getFailedExifFiles, retryFailedExifFiles } from '@/app/actions/exif';
-import type { ExtractionMethod } from '@/types/exif';
+import { getFailedExifFiles } from '@/app/actions/exif';
 import type { ErrorCategory, FailedFile } from '@/types/media-types';
-import { useEffect, useState } from 'react';
-import RetryProcessor from './shared/retry-processor';
+import { revalidatePath } from 'next/cache';
+import { Suspense } from 'react';
+import ExifFailedProcessorClient from './exif-failed-processor-client';
 
-export default function ExifFailedProcessor() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [failedFiles, setFailedFiles] = useState<FailedFile[]>([]);
-  const [errorCategories, setErrorCategories] = useState<ErrorCategory[]>([]);
+// Helper function to categorize error messages into standardized types
+function categorizeError(errorMessage: string | null): string {
+  if (!errorMessage) return 'Missing EXIF';
 
-  useEffect(() => {
-    loadFailedFiles();
-  }, []);
+  const lowerCase = errorMessage.toLowerCase();
 
-  const loadFailedFiles = async () => {
-    setIsLoading(true);
-    try {
-      const res = await getFailedExifFiles();
-      if (res.success && res.files) {
-        setFailedFiles(res.files);
+  if (lowerCase.includes('not found') || lowerCase.includes('no such file'))
+    return 'File Not Found';
+  if (lowerCase.includes('permission denied')) return 'Permission Denied';
+  if (lowerCase.includes('corrupt') || lowerCase.includes('invalid'))
+    return 'Corrupt/Invalid File';
+  if (lowerCase.includes('timeout')) return 'Processing Timeout';
+  if (lowerCase.includes('unsupported')) return 'Unsupported Format';
+  if (lowerCase.includes('large file')) return 'Large File';
+  if (lowerCase.includes('exif')) return 'EXIF Parsing Error';
 
-        // Group files by error type
-        const errorGroups: Record<string, FailedFile[]> = {};
-        res.files.forEach((file: FailedFile) => {
-          // Create a simplified error type from the error message
-          const errorType = categorizeError(file.error || 'Unknown error');
+  return 'Other Error';
+}
 
-          if (!errorGroups[errorType]) {
-            errorGroups[errorType] = [];
-          }
-          errorGroups[errorType].push(file);
-        });
+export type ExifFailedData = {
+  files: FailedFile[];
+  errorCategories: ErrorCategory[];
+};
 
-        // Convert to array and sort by count
-        const categories = Object.entries(errorGroups).map(([type, files]) => ({
-          type,
-          count: files.length,
-          examples: files.slice(0, 3), // Keep up to 3 examples per category
-        }));
+async function loadExifFailedData(): Promise<ExifFailedData> {
+  // Fetch data on the server
+  const res = await getFailedExifFiles();
 
-        categories.sort((a, b) => b.count - a.count);
-        setErrorCategories(categories);
-      } else {
-        console.error('Failed to load failed EXIF files');
+  if (res.success && res.files) {
+    // Group files by error type or file size
+    const errorGroups: Record<string, FailedFile[]> = {};
+    res.files.forEach((file: FailedFile) => {
+      // Categorize files
+      let errorType = 'Missing EXIF';
+
+      if (file.error) {
+        if (file.error.includes('large file')) {
+          errorType = 'Large File';
+        } else {
+          errorType = categorizeError(file.error);
+        }
       }
-    } catch (error) {
-      console.error('Error loading failed EXIF files:', error);
-    } finally {
-      setIsLoading(false);
-    }
+
+      if (!errorGroups[errorType]) {
+        errorGroups[errorType] = [];
+      }
+      errorGroups[errorType].push(file);
+    });
+
+    // Convert to array and sort by count
+    const categories = Object.entries(errorGroups).map(([type, files]) => ({
+      type,
+      count: files.length,
+      examples: files.slice(0, 3), // Keep up to 3 examples per category
+    }));
+
+    categories.sort((a, b) => b.count - a.count);
+
+    return {
+      files: res.files,
+      errorCategories: categories,
+    };
+  }
+
+  // Return empty data if there was an error
+  return {
+    files: [],
+    errorCategories: [],
   };
+}
 
-  // Function to categorize error messages into standardized types
-  const categorizeError = (errorMessage: string): string => {
-    const lowerCase = errorMessage.toLowerCase();
+export default async function ExifFailedProcessor() {
+  // Load the initial data on the server
+  const failedData = await loadExifFailedData();
 
-    if (lowerCase.includes('not found') || lowerCase.includes('no such file'))
-      return 'File Not Found';
-    if (lowerCase.includes('permission denied')) return 'Permission Denied';
-    if (lowerCase.includes('corrupt') || lowerCase.includes('invalid'))
-      return 'Corrupt/Invalid File';
-    if (lowerCase.includes('timeout')) return 'Processing Timeout';
-    if (lowerCase.includes('unsupported')) return 'Unsupported Format';
-    if (lowerCase.includes('metadata') || lowerCase.includes('exif'))
-      return 'Metadata Error';
-    if (lowerCase.includes('large file')) return 'File Too Large';
-
-    return 'Other Error';
-  };
-
-  const handleRetry = async (
-    selectedIds: string[],
-    options: { skipLargeFiles: boolean; method: string },
-  ) => {
-    try {
-      const result = await retryFailedExifFiles(selectedIds, {
-        skipLargeFiles: options.skipLargeFiles,
-        method: options.method as ExtractionMethod,
-      });
-
-      return {
-        success: result.success,
-        processedCount: result.processedCount,
-        successCount: result.successCount,
-        error: result.error,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'An error occurred during retry',
-      };
-    }
+  // Function to refresh data (will be passed to client component)
+  const handleRefresh = async () => {
+    'use server';
+    // Revalidate paths to refresh the server component
+    revalidatePath('/admin');
   };
 
   return (
-    <RetryProcessor
-      title="Failed EXIF Processor"
-      description="This tool allows you to retry EXIF extraction for files where it previously failed. Select the files you want to retry and click 'Retry Selected'."
-      items={failedFiles}
-      categories={errorCategories}
-      isLoading={isLoading}
-      onRefresh={loadFailedFiles}
-      onRetry={handleRetry}
-      retryOptions={[
-        {
-          label: 'Skip Large Files',
-          key: 'skipLargeFiles',
-          defaultValue: true,
-          type: 'checkbox',
-        },
-        {
-          label: 'EXIF Extraction Method',
-          key: 'method',
-          defaultValue: 'default',
-          type: 'select',
-          options: [
-            { label: 'Default', value: 'default' },
-            { label: 'ExifTool', value: 'exiftool' },
-            { label: 'ExifReader', value: 'exifreader' },
-          ],
-        },
-      ]}
-      renderTableHeader={() => (
-        <>
-          <th className="px-4 py-2 text-left font-medium">File</th>
-          <th className="px-4 py-2 text-left font-medium">Error</th>
-        </>
-      )}
-      renderTableRow={(file, isSelected, onToggle) => (
-        <tr key={file.id} className="hover:bg-muted/50">
-          <td className="px-4 py-2">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={onToggle}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-          </td>
-          <td className="px-4 py-2 font-mono text-xs truncate max-w-40">
-            {file.file_name}
-          </td>
-          <td className="px-4 py-2 text-xs text-muted-foreground truncate">
-            {file.error || 'Unknown error'}
-          </td>
-        </tr>
-      )}
-      emptyMessage="No files with failed EXIF extraction found"
-    />
+    <Suspense fallback={<div>Loading failed EXIF files...</div>}>
+      <ExifFailedProcessorClient
+        initialData={failedData}
+        onRefresh={handleRefresh}
+      />
+    </Suspense>
   );
 }
