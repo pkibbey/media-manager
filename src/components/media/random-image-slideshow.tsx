@@ -3,7 +3,7 @@
 import type { MediaItem } from '@/types/db-types';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import MediaPreview from './media-preview';
+import MediaFullView from './media-full-view';
 
 interface RandomImageSlideshowProps {
   images: MediaItem[];
@@ -70,7 +70,7 @@ export default function RandomImageSlideshow({
           fadeState === 'fade-in' ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <MediaPreview item={currentImage} fill />
+        <MediaFullView item={currentImage} />
       </div>
 
       {/* Optional overlay with photo information */}

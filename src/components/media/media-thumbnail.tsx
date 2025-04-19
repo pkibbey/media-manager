@@ -1,0 +1,77 @@
+'use client';
+
+import { isImage, isSkippedLargeFile, isVideo } from '@/lib/utils';
+import type { MediaItem } from '@/types/db-types';
+import { FileIcon, VideoIcon } from 'lucide-react';
+import Image from 'next/image';
+import { memo } from 'react';
+
+interface MediaThumbnailProps {
+  item: MediaItem;
+  className?: string;
+}
+
+// Optimized component for small card thumbnails
+const MediaThumbnail = memo(
+  function MediaThumbnail({ item, className = '' }: MediaThumbnailProps) {
+    const extension = item.extension?.toLowerCase();
+    const isImg = isImage(extension);
+    const isVid = isVideo(extension);
+
+    return (
+      <>
+        {isImg &&
+        (item.thumbnail_path || item.file_path) &&
+        !isSkippedLargeFile(item.file_path, item.size_bytes) ? (
+          <div className="w-full h-full relative">
+            <Image
+              src={
+                item.thumbnail_path
+                  ? item.thumbnail_path
+                  : `/api/media?id=${item.id}`
+              }
+              alt={item.file_name}
+              className={`object-cover ${className}`}
+              fill
+              sizes="(max-width: 768px) 33vw, 20vw"
+              loading="lazy"
+              placeholder="empty"
+              onError={(e) => {
+                // Fallback for failed thumbnails
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.style.display = 'none';
+                // Force parent to show fallback
+                if (target.parentElement) {
+                  target.parentElement.classList.add('thumbnail-error');
+                }
+              }}
+            />
+          </div>
+        ) : isVid ? (
+          <div className="w-full h-full relative bg-black flex items-center justify-center">
+            <VideoIcon className="h-8 w-8 text-white opacity-50 group-hover:opacity-75 transition-opacity" />
+            <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs rounded px-1 py-0.5">
+              VIDEO
+            </div>
+          </div>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="flex flex-col items-center">
+              <FileIcon className="h-8 w-8 text-muted-foreground" />
+              <span className="text-xs font-medium mt-1 uppercase">
+                {extension || 'FILE'}
+              </span>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if the item ID changes
+    return prevProps.item.id === nextProps.item.id;
+  },
+);
+
+export default MediaThumbnail;

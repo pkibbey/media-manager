@@ -2,7 +2,7 @@
 
 import { bytesToSize } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
-import MediaPreview from './media-preview';
+import MediaThumbnail from './media-thumbnail';
 
 interface MediaCardProps {
   item: MediaItem;
@@ -40,7 +40,7 @@ export default function MediaCard({
       aria-selected={isSelected}
     >
       <div className="aspect-square relative">
-        <MediaPreview item={item} fill />
+        <MediaThumbnail item={item} />
 
         {/* Folder indicator - only shown if folderName exists */}
         {folderName && (

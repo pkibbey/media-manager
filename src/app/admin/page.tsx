@@ -1,11 +1,9 @@
 import AddFolderForm from '@/components/admin/add-folder-form';
-import DetectionAnalyzer from '@/components/admin/detection-analyzer';
 import ExifProcessor from '@/components/admin/exif-processor';
 import FileTypeManager from '@/components/admin/file-type-manager';
 import FolderList from '@/components/admin/folder-list';
 import MediaStats from '@/components/admin/media-stats';
 import PersistentTabs from '@/components/admin/persistent-tabs';
-import ResetDetection from '@/components/admin/reset-detection';
 import ResetMedia from '@/components/admin/reset-media';
 import ResetScan from '@/components/admin/reset-scan';
 import ResetThumbnails from '@/components/admin/reset-thumbnails';
@@ -56,18 +54,7 @@ export default async function AdminPage() {
         </div>
       ),
     },
-    {
-      value: 'detection',
-      label: 'Detection',
-      content: (
-        <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
-            <DetectionAnalyzer />
-            <ResetDetection />
-          </div>
-        </div>
-      ),
-    },
+
     {
       value: 'thumbnails',
       label: 'Thumbnails',
@@ -94,6 +81,7 @@ export default async function AdminPage() {
         </div>
       ),
     },
+
     {
       value: 'file-types',
       label: 'File Types',

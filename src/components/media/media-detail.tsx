@@ -15,8 +15,8 @@ import { format } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import { memo, useCallback, useEffect, useState } from 'react';
 import ExifDataDisplay from './exif-data-display';
+import MediaFullView from './media-full-view';
 import { useMediaSelection } from './media-list';
-import MediaPreview from './media-preview';
 
 // Helper function to safely type exif_data from Json
 function getExifData(item: MediaItem): Exif | null {
@@ -32,10 +32,10 @@ export function getDimensionsFromExif(exifData: Exif): {
   }
 
   // Try to get dimensions from Image or Photo tags
-  if (exifData.Image?.ImageWidth && exifData.Image?.ImageHeight) {
+  if (exifData.Image?.ImageWidth && exifData.Image?.ImageLength) {
     return {
       width: exifData.Image?.ImageWidth,
-      height: exifData.Image?.ImageHeight as number,
+      height: exifData.Image?.ImageLength,
     };
   }
 
@@ -98,8 +98,8 @@ const MediaDetail = memo(function MediaDetail() {
   const isImageFile = isImage(item.extension);
 
   return (
-    <div className="w-full h-full flex flex-col">
-      <div className="relative flex-grow overflow-hidden bg-background">
+    <div className="sticky top-6 flex flex-col">
+      <div className="relative overflow-hidden bg-background">
         {isImageFile && (
           <div
             className={
@@ -131,7 +131,7 @@ const MediaDetail = memo(function MediaDetail() {
             zoomMode ? 'media-zoom-mode' : ''
           }`}
         >
-          <MediaPreview item={item} fill />
+          <MediaFullView item={item} zoomMode={zoomMode} />
         </div>
       </div>
 

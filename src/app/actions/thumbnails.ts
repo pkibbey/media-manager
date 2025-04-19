@@ -114,13 +114,13 @@ export async function generateThumbnail(
       console.error(
         `[Thumbnail] File not found: ${mediaItem.file_path} - ${error}`,
       );
-      
+
       // Mark as processed with error status
       await supabase
         .from('media_items')
         .update({ thumbnail_path: 'error:file_not_found' })
         .eq('id', mediaId);
-        
+
       return {
         success: false,
         message: `File not found: ${mediaItem.file_path}`,
@@ -183,7 +183,7 @@ export async function generateThumbnail(
         .from('media_items')
         .update({ thumbnail_path: `error:unsupported_format:${extension}` })
         .eq('id', mediaId);
-        
+
       return {
         success: false,
         message: `File type not supported for thumbnails: ${extension}`,
@@ -238,20 +238,21 @@ export async function generateThumbnail(
         `[Thumbnail] Error generating thumbnail for ${mediaItem.file_path}:`,
         sharpError,
       );
-      
+
       // Mark as processed with processing error
-      const errorMessage = sharpError instanceof Error ? sharpError.message : 'Processing error';
-      const errorType = errorMessage.toLowerCase().includes('corrupt') 
-        ? 'corrupt_file' 
-        : errorMessage.toLowerCase().includes('memory') 
+      const errorMessage =
+        sharpError instanceof Error ? sharpError.message : 'Processing error';
+      const errorType = errorMessage.toLowerCase().includes('corrupt')
+        ? 'corrupt_file'
+        : errorMessage.toLowerCase().includes('memory')
           ? 'out_of_memory'
           : 'processing_error';
-          
+
       await supabase
         .from('media_items')
         .update({ thumbnail_path: `error:${errorType}` })
         .eq('id', mediaId);
-        
+
       return {
         success: false,
         message: `Error generating thumbnail: ${errorMessage}`,
@@ -276,13 +277,13 @@ export async function generateThumbnail(
           `[Thumbnail] Error uploading thumbnail to storage for ${mediaItem.file_path}:`,
           storageError,
         );
-        
+
         // Mark as processed with storage error
         await supabase
           .from('media_items')
           .update({ thumbnail_path: 'error:storage_upload_failed' })
           .eq('id', mediaId);
-          
+
         return {
           success: false,
           message: `Failed to upload thumbnail: ${storageError.message}`,
@@ -295,13 +296,13 @@ export async function generateThumbnail(
         `[Thumbnail] Exception during thumbnail upload for ${mediaItem.file_path}:`,
         uploadError,
       );
-      
+
       // Mark as processed with upload error
       await supabase
         .from('media_items')
         .update({ thumbnail_path: 'error:upload_exception' })
         .eq('id', mediaId);
-        
+
       return {
         success: false,
         message: `Exception during upload: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`,
@@ -328,15 +329,14 @@ export async function generateThumbnail(
         `[Thumbnail] Error updating media item ${mediaId}:`,
         updateError,
       );
-      
+
       // Even though we successfully generated and uploaded the thumbnail,
       // we couldn't update the record, so mark it with an error
       await supabase
         .from('media_items')
         .update({ thumbnail_path: 'error:record_update_failed' })
-        .eq('id', mediaId)
-        .catch(e => console.error('Final error recovery attempt failed:', e));
-        
+        .eq('id', mediaId);
+
       return {
         success: false,
         message: `Failed to update media item: ${updateError.message}`,
@@ -365,7 +365,7 @@ export async function generateThumbnail(
         filePath = filePathMatch[0];
       }
     }
-    
+
     // Try to mark as processed with general error
     try {
       const supabase = createServerSupabaseClient();
@@ -374,7 +374,10 @@ export async function generateThumbnail(
         .update({ thumbnail_path: 'error:unhandled_exception' })
         .eq('id', mediaId);
     } catch (dbError) {
-      console.error('[Thumbnail] Failed to mark item as error after exception:', dbError);
+      console.error(
+        '[Thumbnail] Failed to mark item as error after exception:',
+        dbError,
+      );
     }
 
     return {
