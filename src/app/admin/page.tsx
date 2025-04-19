@@ -1,5 +1,8 @@
 import AddFolderForm from '@/components/admin/add-folder-form';
+import ExifFailedProcessor from '@/components/admin/exif-failed-processor';
 import ExifProcessor from '@/components/admin/exif-processor';
+import FailedFileProcessor from '@/components/admin/failed-file-processor';
+import FailedThumbnailProcessor from '@/components/admin/failed-thumbnail-processor';
 import FileTypeManager from '@/components/admin/file-type-manager';
 import FolderList from '@/components/admin/folder-list';
 import MediaStats from '@/components/admin/media-stats';
@@ -67,10 +70,12 @@ export default async function AdminPage() {
             <ExifProcessor />
             <ResetMedia />
           </div>
-          {/* Hide failed processors for now */}
-          {/* <div className="border rounded-lg p-4 shadow-sm">
+          <div className="border rounded-lg p-4 shadow-sm">
             <FailedFileProcessor />
-          </div> */}
+          </div>
+          <div className="border rounded-lg p-4 shadow-sm">
+            <ExifFailedProcessor />
+          </div>
         </div>
       ),
     },
@@ -83,10 +88,9 @@ export default async function AdminPage() {
             <ThumbnailGenerator />
             <ResetThumbnails />
           </div>
-          {/* Hide failed processors for now */}
-          {/* <div className="border rounded-lg p-4 shadow-sm">
+          <div className="border rounded-lg p-4 shadow-sm">
             <FailedThumbnailProcessor />
-          </div> */}
+          </div>
         </div>
       ),
     },

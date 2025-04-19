@@ -1,14 +1,12 @@
 'use client';
 
-import {
-  getFailedThumbnails,
-  retryFailedThumbnails,
-} from '@/app/actions/thumbnails';
+import { getFailedExifFiles, retryFailedExifFiles } from '@/app/actions/exif';
+import type { ExtractionMethod } from '@/types/exif';
 import type { ErrorCategory, FailedFile } from '@/types/media-types';
 import { useEffect, useState } from 'react';
 import RetryProcessor from './shared/retry-processor';
 
-export default function FailedThumbnailProcessor() {
+export default function ExifFailedProcessor() {
   const [isLoading, setIsLoading] = useState(true);
   const [failedFiles, setFailedFiles] = useState<FailedFile[]>([]);
   const [errorCategories, setErrorCategories] = useState<ErrorCategory[]>([]);
@@ -20,7 +18,7 @@ export default function FailedThumbnailProcessor() {
   const loadFailedFiles = async () => {
     setIsLoading(true);
     try {
-      const res = await getFailedThumbnails();
+      const res = await getFailedExifFiles();
       if (res.success && res.files) {
         setFailedFiles(res.files);
 
@@ -46,10 +44,10 @@ export default function FailedThumbnailProcessor() {
         categories.sort((a, b) => b.count - a.count);
         setErrorCategories(categories);
       } else {
-        console.error('Failed to load files with failed thumbnails');
+        console.error('Failed to load failed EXIF files');
       }
     } catch (error) {
-      console.error('Error loading failed thumbnail files:', error);
+      console.error('Error loading failed EXIF files:', error);
     } finally {
       setIsLoading(false);
     }
@@ -65,8 +63,9 @@ export default function FailedThumbnailProcessor() {
     if (lowerCase.includes('corrupt') || lowerCase.includes('invalid'))
       return 'Corrupt/Invalid File';
     if (lowerCase.includes('timeout')) return 'Processing Timeout';
-    if (lowerCase.includes('unsupported format')) return 'Unsupported Format';
-    if (lowerCase.includes('memory')) return 'Out of Memory';
+    if (lowerCase.includes('unsupported')) return 'Unsupported Format';
+    if (lowerCase.includes('metadata') || lowerCase.includes('exif'))
+      return 'Metadata Error';
     if (lowerCase.includes('large file')) return 'File Too Large';
 
     return 'Other Error';
@@ -74,11 +73,12 @@ export default function FailedThumbnailProcessor() {
 
   const handleRetry = async (
     selectedIds: string[],
-    options: { skipLargeFiles: boolean },
+    options: { skipLargeFiles: boolean; method: string },
   ) => {
     try {
-      const result = await retryFailedThumbnails(selectedIds, {
+      const result = await retryFailedExifFiles(selectedIds, {
         skipLargeFiles: options.skipLargeFiles,
+        method: options.method as ExtractionMethod,
       });
 
       return {
@@ -97,8 +97,8 @@ export default function FailedThumbnailProcessor() {
 
   return (
     <RetryProcessor
-      title="Failed Thumbnail Processor"
-      description="This tool allows you to retry thumbnail generation for files where it previously failed. Select the files you want to retry and click 'Retry Selected'."
+      title="Failed EXIF Processor"
+      description="This tool allows you to retry EXIF extraction for files where it previously failed. Select the files you want to retry and click 'Retry Selected'."
       items={failedFiles}
       categories={errorCategories}
       isLoading={isLoading}
@@ -110,6 +110,17 @@ export default function FailedThumbnailProcessor() {
           key: 'skipLargeFiles',
           defaultValue: true,
           type: 'checkbox',
+        },
+        {
+          label: 'EXIF Extraction Method',
+          key: 'method',
+          defaultValue: 'default',
+          type: 'select',
+          options: [
+            { label: 'Default', value: 'default' },
+            { label: 'ExifTool', value: 'exiftool' },
+            { label: 'ExifReader', value: 'exifreader' },
+          ],
         },
       ]}
       renderTableHeader={() => (
@@ -136,7 +147,7 @@ export default function FailedThumbnailProcessor() {
           </td>
         </tr>
       )}
-      emptyMessage="No files with failed thumbnail generation found"
+      emptyMessage="No files with failed EXIF extraction found"
     />
   );
 }
