@@ -13,7 +13,7 @@ import ResetThumbnails from '@/components/admin/reset-thumbnails';
 import ResetTimestamps from '@/components/admin/reset-timestamps';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
-import TimestampCorrector from '@/components/admin/timestamp-corrector';
+import { TimestampCorrectorWrapper } from '@/components/admin/timestamp-corrector-wrapper';
 import { Suspense } from 'react';
 import { getFileTypes } from '../actions/file-types';
 import { getScanFolders } from '../actions/scan-folders';
@@ -100,7 +100,9 @@ export default async function AdminPage() {
       content: (
         <div className="space-y-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
-            <TimestampCorrector />
+            <Suspense fallback={<div>Loading timestamp corrector...</div>}>
+              <TimestampCorrectorWrapper />
+            </Suspense>
             <ResetTimestamps />
           </div>
         </div>
