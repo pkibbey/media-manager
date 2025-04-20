@@ -19,24 +19,28 @@ const MediaThumbnail = memo(
     priority = false,
     className = '',
   }: MediaThumbnailProps) {
-    const extension = item.extension?.toLowerCase();
+    const extension = item.extension?.toLowerCase() || '';
     const isImg = isImage(extension);
     const isVid = isVideo(extension);
+
+    // Get thumbnail path from processing_state if available, otherwise use legacy field
+    const thumbnailPath =
+      item.processing_state?.thumbnail?.path || item.thumbnail_path;
+    const hasThumbnail =
+      !!thumbnailPath &&
+      !thumbnailPath.startsWith('error:') &&
+      !thumbnailPath.startsWith('skipped:');
 
     return (
       <>
         {isImg &&
         !isSkippedLargeFile(
-          item.thumbnail_path || item.file_path,
-          item.size_bytes,
+          thumbnailPath || item.file_path,
+          item.size_bytes || 0,
         ) ? (
           <div className="w-full h-full relative">
             <Image
-              src={
-                item.thumbnail_path
-                  ? item.thumbnail_path
-                  : `/api/media?id=${item.id}`
-              }
+              src={hasThumbnail ? thumbnailPath : `/api/media?id=${item.id}`}
               alt={item.file_name}
               className={`object-cover ${className}`}
               fill

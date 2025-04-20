@@ -12,6 +12,7 @@ import type {
   ExtractionMethod,
 } from '@/types/exif';
 import type { Json } from '@/types/supabase';
+import type { ProcessingState } from '@/types/thumbnail-types';
 import { revalidatePath } from 'next/cache';
 
 export async function getExifStats() {
@@ -237,7 +238,7 @@ export async function processExifData({
     // First get the media item to access its file path
     const { data: mediaItem, error: fetchError } = await supabase
       .from('media_items')
-      .select('file_path, file_name')
+      .select('file_path, file_name, processing_state')
       .eq('id', mediaId)
       .single();
 
@@ -258,10 +259,21 @@ export async function processExifData({
       await fs.access(filePath);
     } catch (fileError) {
       progressCallback?.('File not found');
-      // File doesn't exist - mark as processed but with error
+
+      // Update processing state with error
       await supabase
         .from('media_items')
         .update({
+          processing_state: {
+            ...(mediaItem.processing_state as ProcessingState),
+            exif: {
+              status: 'error',
+              processedAt: new Date().toISOString(),
+              error: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
+              method,
+            },
+          },
+          // Keep legacy fields for backward compatibility
           processed: true,
           has_exif: false,
           error: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
@@ -278,13 +290,23 @@ export async function processExifData({
     progressCallback?.(`Extracting metadata using ${method} method`);
     const exifData = await extractMetadata({ filePath, method });
 
-    // Even if we don't get EXIF data, mark the file as processed
+    // If no EXIF data found, update processing state accordingly
     if (!exifData) {
       progressCallback?.('No EXIF data found in file');
-      // Update the media record to mark as processed but without EXIF
+
+      // Update processing state
       await supabase
         .from('media_items')
         .update({
+          processing_state: {
+            ...(mediaItem.processing_state as ProcessingState),
+            exif: {
+              status: 'success', // Still mark as success, just no EXIF found
+              processedAt: new Date().toISOString(),
+              method,
+            },
+          },
+          // Keep legacy fields for backward compatibility
           processed: true,
           has_exif: false,
           error: 'No EXIF data extracted',
@@ -305,19 +327,38 @@ export async function processExifData({
     // Sanitize EXIF data before storing it
     const sanitizedExifData = sanitizeExifData(exifData);
 
-    // Update the media record in the database
+    // Get media date from EXIF
+    const mediaDate =
+      exifData.Photo?.DateTimeOriginal?.toISOString() ||
+      exifData.Image?.DateTime?.toISOString();
+
+    // Update the media record in the database with processing state
     progressCallback?.('Updating database record with EXIF data');
     const { error } = await supabase
       .from('media_items')
       .update({
+        processing_state: {
+          ...(mediaItem.processing_state as ProcessingState),
+          exif: {
+            status: 'success',
+            processedAt: new Date().toISOString(),
+            method,
+          },
+          // If we have a date from EXIF, also update dateCorrection state
+          ...(mediaDate && {
+            dateCorrection: {
+              status: 'success',
+              processedAt: new Date().toISOString(),
+              source: 'exif',
+            },
+          }),
+        },
+        // Keep legacy fields for backward compatibility
         exif_data: sanitizedExifData as Json,
         has_exif: true,
         processed: true,
-        error: null, // Clear any previous errors
-        // Use correct date property from Photo section
-        media_date:
-          exifData.Photo?.DateTimeOriginal?.toISOString() ||
-          exifData.Image?.DateTime?.toISOString(),
+        error: null,
+        media_date: mediaDate,
       })
       .eq('id', mediaId);
 
@@ -325,11 +366,21 @@ export async function processExifData({
       progressCallback?.(`Database error: ${error.message}`);
       console.error('Error updating media with EXIF data:', error);
 
-      // Still mark as processed even if database update fails
+      // Update processing state with database error
       try {
         await supabase
           .from('media_items')
           .update({
+            processing_state: {
+              ...(mediaItem.processing_state as ProcessingState),
+              exif: {
+                status: 'error',
+                processedAt: new Date().toISOString(),
+                error: `Database error: ${error.message}`,
+                method,
+              },
+            },
+            // Keep legacy fields for backward compatibility
             processed: true,
             has_exif: false,
             error: `Database error: ${error.message}`,

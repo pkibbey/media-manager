@@ -9,7 +9,7 @@
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",
     "types": "supabase gen types typescript --local > src/types/supabase.ts",
-    "fix-thumbnails": "pnpm dlx tsx scripts/fix-thumbnail-paths.ts"
+    "sync": "supabase migrations up --local --include-all && pnpm types && pnpm format"
   },
   "dependencies": {
     "@hookform/resolvers": "5.0.1",
@@ -35,6 +35,7 @@
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.5.0",
     "exif-reader": "^2.0.2",
     "fluent-ffmpeg": "^2.1.3",
     "geist": "1.3.1",

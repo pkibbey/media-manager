@@ -171,7 +171,6 @@ export async function scanFolders(options: ScanOptions = {}) {
         return;
       }
 
-      // Send initial progress update
       await sendProgress(writer, {
         status: 'started',
         message: `Starting scan of ${folders.length} folders${

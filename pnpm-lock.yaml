@@ -77,6 +77,9 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
+      dotenv:
+        specifier: ^16.5.0
+        version: 16.5.0
       exif-reader:
         specifier: ^2.0.2
         version: 2.0.2
@@ -3365,7 +3368,7 @@ snapshots:
   axios@1.8.4(debug@4.4.0):
     dependencies:
       follow-redirects: 1.15.9(debug@4.4.0)
-      form-data: 4.0.0
+      form-data: 4.0.2
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
       - debug
@@ -3645,7 +3648,7 @@ snapshots:
       isstream: 0.1.2
       jsonwebtoken: 9.0.2
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.8.4)
+      retry-axios: 2.6.0(axios@1.8.4(debug@4.4.0))
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -4017,7 +4020,7 @@ snapshots:
 
   requires-port@1.0.0: {}
 
-  retry-axios@2.6.0(axios@1.8.4):
+  retry-axios@2.6.0(axios@1.8.4(debug@4.4.0)):
     dependencies:
       axios: 1.8.4(debug@4.4.0)
 

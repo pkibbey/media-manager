@@ -104,6 +104,7 @@ export type Database = {
           modified_date: string;
           organized: boolean;
           processed: boolean;
+          processing_state: Json | null;
           size_bytes: number;
           thumbnail_path: string | null;
           updated_at: string;
@@ -123,6 +124,7 @@ export type Database = {
           modified_date: string;
           organized?: boolean;
           processed?: boolean;
+          processing_state?: Json | null;
           size_bytes: number;
           thumbnail_path?: string | null;
           updated_at?: string;
@@ -142,6 +144,7 @@ export type Database = {
           modified_date?: string;
           organized?: boolean;
           processed?: boolean;
+          processing_state?: Json | null;
           size_bytes?: number;
           thumbnail_path?: string | null;
           updated_at?: string;
@@ -189,10 +192,6 @@ export type Database = {
         Args: { method_name: string };
         Returns: number;
       };
-      cleanup_expired_abort_tokens: {
-        Args: Record<PropertyKey, never>;
-        Returns: undefined;
-      };
       count_folder_media: {
         Args: {
           target_folder: string;
@@ -234,6 +233,10 @@ export type Database = {
           organized_count: number;
           unorganized_count: number;
         }[];
+      };
+      reset_all_thumbnails: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
       };
     };
     Enums: {

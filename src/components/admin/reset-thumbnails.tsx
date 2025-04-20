@@ -41,9 +41,11 @@ export default function ResetThumbnails() {
       }
 
       setDialogOpen(false);
-    } catch (error) {
-      toast.error('An unexpected error occurred while resetting thumbnails');
-      console.error('Error resetting thumbnails:', error);
+    } catch (error: any) {
+      toast.error(
+        'An unexpected error occurred while resetting thumbnails',
+        error.message,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -61,9 +63,11 @@ export default function ResetThumbnails() {
           result.message || 'Failed to regenerate missing thumbnails',
         );
       }
-    } catch (error) {
-      toast.error('An unexpected error occurred while regenerating thumbnails');
-      console.error('Error regenerating thumbnails:', error);
+    } catch (error: any) {
+      toast.error(
+        'An unexpected error occurred while regenerating thumbnails',
+        error.message,
+      );
     } finally {
       setIsRegenerating(false);
     }

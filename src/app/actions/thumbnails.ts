@@ -4,18 +4,15 @@ import { exec } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import {
-  addAbortToken,
-  isAborted as checkAbortToken,
-} from '@/lib/abort-tokens';
+import { addAbortToken, isAborted, removeAbortToken } from '@/lib/abort-tokens';
 import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
 import type {
+  ProcessingState,
   ThumbnailOptions,
   ThumbnailResult,
 } from '@/types/thumbnail-types';
-import { revalidatePath } from 'next/cache';
 import sharp from 'sharp';
 
 const execAsync = promisify(exec);
@@ -115,10 +112,19 @@ export async function generateThumbnail(
         `[Thumbnail] File not found: ${mediaItem.file_path} - ${error}`,
       );
 
-      // Mark as processed with error status
+      // Update processing state
       await supabase
         .from('media_items')
-        .update({ thumbnail_path: 'error:file_not_found' })
+        .update({
+          processing_state: {
+            ...(mediaItem.processing_state as ProcessingState),
+            thumbnail: {
+              status: 'error',
+              processedAt: new Date().toISOString(),
+              error: 'File not found',
+            },
+          },
+        })
         .eq('id', mediaId);
 
       return {
@@ -134,10 +140,21 @@ export async function generateThumbnail(
         const stats = await fs.stat(mediaItem.file_path);
 
         if (isSkippedLargeFile(mediaItem.file_path, stats.size)) {
-          // Mark as processed but skip thumbnail generation
+          // Mark as skipped in processing state
           await supabase
             .from('media_items')
-            .update({ thumbnail_path: 'skipped:large_file' })
+            .update({
+              processing_state: {
+                ...(mediaItem.processing_state as ProcessingState),
+                thumbnail: {
+                  status: 'skipped',
+                  processedAt: new Date().toISOString(),
+                  error: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
+                },
+              },
+              // Keep legacy field for backward compatibility
+              thumbnail_path: 'skipped:large_file',
+            })
             .eq('id', mediaId);
 
           return {
@@ -178,10 +195,21 @@ export async function generateThumbnail(
     ];
 
     if (!supportedImageFormats.includes(extension)) {
-      // Mark as processed with unsupported format error
+      // Mark as unsupported in processing state
       await supabase
         .from('media_items')
-        .update({ thumbnail_path: `error:unsupported_format:${extension}` })
+        .update({
+          processing_state: {
+            ...(mediaItem.processing_state as ProcessingState),
+            thumbnail: {
+              status: 'unsupported',
+              processedAt: new Date().toISOString(),
+              error: `Unsupported format: ${extension}`,
+            },
+          },
+          // Keep legacy field for backward compatibility
+          thumbnail_path: `error:unsupported_format:${extension}`,
+        })
         .eq('id', mediaId);
 
       return {
@@ -250,7 +278,18 @@ export async function generateThumbnail(
 
       await supabase
         .from('media_items')
-        .update({ thumbnail_path: `error:${errorType}` })
+        .update({
+          processing_state: {
+            ...(mediaItem.processing_state as ProcessingState),
+            thumbnail: {
+              status: 'error',
+              processedAt: new Date().toISOString(),
+              error: errorMessage,
+            },
+          },
+          // Keep legacy field for backward compatibility
+          thumbnail_path: `error:${errorType}`,
+        })
         .eq('id', mediaId);
 
       return {
@@ -281,7 +320,18 @@ export async function generateThumbnail(
         // Mark as processed with storage error
         await supabase
           .from('media_items')
-          .update({ thumbnail_path: 'error:storage_upload_failed' })
+          .update({
+            processing_state: {
+              ...(mediaItem.processing_state as ProcessingState),
+              thumbnail: {
+                status: 'error',
+                processedAt: new Date().toISOString(),
+                error: 'Storage upload failed',
+              },
+            },
+            // Keep legacy field for backward compatibility
+            thumbnail_path: 'error:storage_upload_failed',
+          })
           .eq('id', mediaId);
 
         return {
@@ -300,7 +350,18 @@ export async function generateThumbnail(
       // Mark as processed with upload error
       await supabase
         .from('media_items')
-        .update({ thumbnail_path: 'error:upload_exception' })
+        .update({
+          processing_state: {
+            ...(mediaItem.processing_state as ProcessingState),
+            thumbnail: {
+              status: 'error',
+              processedAt: new Date().toISOString(),
+              error: 'Upload exception',
+            },
+          },
+          // Keep legacy field for backward compatibility
+          thumbnail_path: 'error:upload_exception',
+        })
         .eq('id', mediaId);
 
       return {
@@ -321,7 +382,18 @@ export async function generateThumbnail(
     // Update the media item with the thumbnail path
     const { error: updateError } = await supabase
       .from('media_items')
-      .update({ thumbnail_path: thumbnailUrl })
+      .update({
+        processing_state: {
+          ...(mediaItem.processing_state as ProcessingState),
+          thumbnail: {
+            status: 'success',
+            processedAt: new Date().toISOString(),
+            path: thumbnailUrl,
+          },
+        },
+        // Keep legacy field for backward compatibility
+        thumbnail_path: thumbnailUrl,
+      })
       .eq('id', mediaId);
 
     if (updateError) {
@@ -334,7 +406,18 @@ export async function generateThumbnail(
       // we couldn't update the record, so mark it with an error
       await supabase
         .from('media_items')
-        .update({ thumbnail_path: 'error:record_update_failed' })
+        .update({
+          processing_state: {
+            ...(mediaItem.processing_state as ProcessingState),
+            thumbnail: {
+              status: 'error',
+              processedAt: new Date().toISOString(),
+              error: 'Record update failed',
+            },
+          },
+          // Keep legacy field for backward compatibility
+          thumbnail_path: 'error:record_update_failed',
+        })
         .eq('id', mediaId);
 
       return {
@@ -371,7 +454,17 @@ export async function generateThumbnail(
       const supabase = createServerSupabaseClient();
       await supabase
         .from('media_items')
-        .update({ thumbnail_path: 'error:unhandled_exception' })
+        .update({
+          processing_state: {
+            thumbnail: {
+              status: 'error',
+              processedAt: new Date().toISOString(),
+              error: 'Unhandled exception',
+            },
+          },
+          // Keep legacy field for backward compatibility
+          thumbnail_path: 'error:unhandled_exception',
+        })
         .eq('id', mediaId);
     } catch (dbError) {
       console.error(
@@ -389,313 +482,18 @@ export async function generateThumbnail(
 }
 
 /**
- * Get files that failed thumbnail generation
+ * Count the number of media items missing thumbnails
  */
-export async function getFailedThumbnails() {
+export async function countMissingThumbnails(): Promise<{
+  success: boolean;
+  count?: number;
+  error?: string;
+}> {
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get image files that are processed but don't have thumbnails
-    const { data, error } = await supabase
-      .from('media_items')
-      .select('id, file_name, file_path, extension, error, size_bytes')
-      .eq('processed', true)
-      .is('thumbnail_path', null)
-      .in('extension', [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'gif',
-        'tiff',
-        'heic',
-        'avif',
-      ])
-      .order('file_name');
-
-    if (error) {
-      console.error('Error fetching failed thumbnails:', error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-
-    // Format the response
-    const files = data.map((file) => ({
-      id: file.id,
-      file_name: file.file_name,
-      file_path: file.file_path,
-      error: file.error,
-      extension: file.extension,
-      size_bytes: file.size_bytes,
-    }));
-
-    return {
-      success: true,
-      files,
-    };
-  } catch (error: any) {
-    console.error('Error getting failed thumbnails:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-}
-
-/**
- * Retry generating thumbnails for files that previously failed
- */
-export async function retryFailedThumbnails(
-  fileIds: string[],
-  options: {
-    skipLargeFiles?: boolean;
-    abortToken?: string;
-  } = {},
-  onProgress?: (processed: number) => void,
-) {
-  try {
-    const supabase = createServerSupabaseClient();
-    let successCount = 0;
-    let processedCount = 0;
-    let skippedLargeFiles = 0;
-    const { skipLargeFiles = true, abortToken } = options;
-
-    // Helper function to check if operation should be aborted
-    const isOperationAborted = async (): Promise<boolean> => {
-      if (!abortToken) return false;
-      return await checkAbortToken(abortToken);
-    };
-
-    // Process files one by one
-    for (const fileId of fileIds) {
-      // Check for abort signal at the beginning of each iteration
-      if (await isOperationAborted()) {
-        return {
-          success: false,
-          message: 'Operation was aborted by user',
-          processedCount,
-          successCount,
-          skippedLargeFiles,
-        };
-      }
-
-      try {
-        // Reset thumbnail status
-        await supabase
-          .from('media_items')
-          .update({
-            thumbnail_path: null,
-            error: null,
-          })
-          .eq('id', fileId);
-
-        // Check for abort signal before starting the actual processing
-        if (await isOperationAborted()) {
-          return {
-            success: false,
-            message: 'Operation was aborted by user',
-            processedCount,
-            successCount,
-            skippedLargeFiles,
-          };
-        }
-
-        // Get file info
-        const { data: mediaItem } = await supabase
-          .from('media_items')
-          .select('file_path, size_bytes')
-          .eq('id', fileId)
-          .single();
-
-        if (!mediaItem) {
-          console.warn(`Media item ${fileId} not found`);
-          continue;
-        }
-
-        // Skip large files if requested
-        if (
-          skipLargeFiles &&
-          mediaItem.size_bytes &&
-          mediaItem.size_bytes > LARGE_FILE_THRESHOLD
-        ) {
-          skippedLargeFiles++;
-
-          // Update the record to indicate it was skipped
-          await supabase
-            .from('media_items')
-            .update({
-              error: `Skipped large file (${Math.round(mediaItem.size_bytes / 1024 / 1024)}MB)`,
-            })
-            .eq('id', fileId);
-
-          continue;
-        }
-
-        // Generate thumbnail
-        const result = await generateThumbnail(fileId, { skipLargeFiles });
-
-        if (result.success) {
-          successCount++;
-        }
-      } catch (error) {
-        console.error(`Error processing thumbnail for file ${fileId}:`, error);
-        // Continue with next file
-      }
-
-      // Update progress
-      processedCount++;
-      if (onProgress) {
-        onProgress(processedCount);
-      }
-    }
-
-    // Revalidate paths
-    revalidatePath('/admin');
-    revalidatePath('/browse');
-
-    return {
-      success: true,
-      processedCount,
-      successCount,
-      skippedLargeFiles,
-    };
-  } catch (error: any) {
-    console.error('Error retrying failed thumbnails:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-}
-
-/**
- * Batch generate thumbnails for multiple media items
- */
-export async function batchGenerateThumbnails(
-  mediaIds: string[],
-  options: ThumbnailOptions = {},
-): Promise<ThumbnailResult> {
-  try {
-    const { batchSize = 50, skipLargeFiles = false } = options;
-
-    // Limit the number of items to process at once to avoid timeout
-    const itemsToProcess = mediaIds.slice(0, batchSize);
-
-    let successCount = 0;
-    let failedCount = 0;
-    let skippedLargeFiles = 0;
-    let currentFilePath = '';
-    let fileType = '';
-    // Store detailed error information
-    const errors: Array<{ path: string; message: string }> = [];
-
-    // CONCURRENCY CONTROL: Process items with limited concurrency
-    const CONCURRENT_LIMIT = 8; // Increased from 3 to 8
-    const DELAY_BETWEEN_UPLOADS = 50; // Add a small delay (in ms) between uploads
-
-    // Function to delay execution
-    const delay = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
-
-    // Process items in smaller chunks with limited concurrency
-    for (let i = 0; i < itemsToProcess.length; i += CONCURRENT_LIMIT) {
-      const chunk = itemsToProcess.slice(i, i + CONCURRENT_LIMIT);
-      const chunkResults = await Promise.all(
-        chunk.map(async (id) => {
-          const result = await generateThumbnail(id, { skipLargeFiles });
-          // Add a small delay after each item to prevent overwhelming the storage API
-          await delay(DELAY_BETWEEN_UPLOADS);
-          return result;
-        }),
-      );
-
-      // Process results from this chunk
-      for (let i = 0; i < chunkResults.length; i++) {
-        const result = chunkResults[i];
-        const id = chunk[i];
-        // Track current file for UI updates
-        if (result.filePath) {
-          currentFilePath = result.filePath;
-        }
-        if (result.fileType) {
-          fileType = result.fileType;
-        }
-
-        if (result.success) {
-          if (result.skipped && result.skippedReason === 'large_file') {
-            skippedLargeFiles++;
-          } else {
-            successCount++;
-          }
-        } else {
-          failedCount++;
-          // Add detailed error information
-          errors.push({
-            path: result.filePath || id,
-            message: result.message || 'Unknown error',
-          });
-        }
-      }
-    }
-
-    return {
-      success: true,
-      message: `Generated ${successCount} thumbnails. Failed: ${failedCount}${skippedLargeFiles ? `. Skipped ${skippedLargeFiles} large files.` : ''}`,
-      processed: successCount + failedCount + skippedLargeFiles,
-      successCount: successCount,
-      failedCount: failedCount,
-      skippedLargeFiles,
-      currentFilePath,
-      fileType,
-      errors: errors.length > 0 ? errors : undefined,
-    };
-  } catch (error: any) {
-    console.error('Error in batch thumbnail generation:', error);
-    return {
-      success: false,
-      message: `Error in batch processing: ${error.message}`,
-      processed: 0,
-      successCount: 0,
-      failedCount: 0,
-      skippedLargeFiles: 0,
-      errors: [
-        {
-          path: 'batch-process',
-          message: error.message || 'Unknown batch processing error',
-        },
-      ],
-    };
-  } finally {
-    // Revalidate paths after processing
-    revalidatePath('/browse');
-    revalidatePath('/admin');
-  }
-}
-
-/**
- * Generate thumbnails for all media items without thumbnails
- */
-export async function generateMissingThumbnails(
-  batchSize = 50,
-  options: ThumbnailOptions = {},
-): Promise<ThumbnailResult> {
-  try {
-    const supabase = createServerSupabaseClient();
-    const { skipLargeFiles = false } = options;
-
-    // Get ignored file extensions first
-    const { data: ignoredTypes } = await supabase
-      .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
-
-    const ignoredExtensions =
-      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
-
-    // Define the image file extensions we want to process
-    const imageExtensions = [
+    // Get supported image formats
+    const supportedImageFormats = [
       'jpg',
       'jpeg',
       'png',
@@ -708,193 +506,79 @@ export async function generateMissingThumbnails(
       'bmp',
     ];
 
-    // Build the query
-    let query = supabase
+    // Get the count of items that need thumbnails
+    // First try the new processing_state approach
+    const { count, error } = await supabase
       .from('media_items')
-      .select('id, file_path, file_name, extension')
-      .is('thumbnail_path', null) // Only include items with null thumbnail_path
-      .in('extension', imageExtensions); // Only include image files
-
-    // Exclude ignored file types if any are configured
-    if (ignoredExtensions.length > 0) {
-      query = query.not(
-        'extension',
-        'in',
-        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+      .select('*', { count: 'exact', head: true })
+      .in('extension', supportedImageFormats)
+      .or(
+        // No processing state at all
+        'processing_state.is.null,' +
+          // Has processing state but no thumbnail info
+          'processing_state->>thumbnail.is.null,' +
+          // Has thumbnail info but status is not success or skipped
+          "processing_state->'thumbnail'->>'status'.neq.success," +
+          "processing_state->'thumbnail'->>'status'.neq.skipped",
       );
-    }
-
-    // Complete the query with ordering and limit
-    const { data: mediaItems, error } = await query
-      .order('id', { ascending: true })
-      .limit(batchSize);
 
     if (error) {
-      return {
-        success: false,
-        message: `Failed to fetch media items: ${error.message}`,
-        processed: 0,
-        skippedLargeFiles: 0,
-        successCount: 0,
-        failedCount: 0,
-      };
-    }
+      // If the JSON query fails (likely due to old database version), fall back to legacy approach
+      console.error(
+        'Error with JSON query, falling back to legacy approach:',
+        error,
+      );
 
-    if (!mediaItems || mediaItems.length === 0) {
+      const { count: legacyCount, error: legacyError } = await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .in('extension', supportedImageFormats)
+        .or('thumbnail_path.is.null,thumbnail_path.like.error:%');
+
+      if (legacyError) {
+        throw new Error(
+          `Failed to count missing thumbnails: ${legacyError.message}`,
+        );
+      }
+
       return {
         success: true,
-        message: 'No image files without thumbnails found',
-        processed: 0,
-        skippedLargeFiles: 0,
-        successCount: 0,
-        failedCount: 0,
-      };
-    }
-
-    // Get the first file path to show in the UI immediately
-    const initialFilePath = mediaItems[0]?.file_path || '';
-    const fileExtension = initialFilePath.split('.').pop()?.toLowerCase() || '';
-
-    const mediaIds = mediaItems.map((item) => item.id);
-    const result = await batchGenerateThumbnails(mediaIds, {
-      batchSize,
-      skipLargeFiles,
-    });
-
-    // If no current file path was set during processing, use the initial one
-    if (!result.currentFilePath && initialFilePath) {
-      result.currentFilePath = initialFilePath;
-    }
-
-    // If no file type was set, use the extension from the initial file
-    if (!result.fileType && fileExtension) {
-      result.fileType = fileExtension;
-    }
-
-    return result;
-  } catch (error: any) {
-    console.error('Error generating missing thumbnails:', error);
-    return {
-      success: false,
-      message: `Error generating missing thumbnails: ${error.message}`,
-      processed: 0,
-      skippedLargeFiles: 0,
-      successCount: 0,
-      failedCount: 0,
-      errors: [
-        {
-          path: 'missing-thumbnails',
-          message:
-            error.message || 'Unknown error in generateMissingThumbnails',
-        },
-      ],
-    };
-  }
-}
-
-/**
- * Reset all thumbnails by deleting them from storage and clearing thumbnail_path
- */
-export async function resetAllThumbnails(): Promise<ThumbnailResult> {
-  try {
-    const supabase = createServerSupabaseClient();
-
-    // 1. Count media items with thumbnails for the result message
-    const { count, error: countError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .not('thumbnail_path', 'is', null);
-
-    if (countError) {
-      console.error('Error counting thumbnails:', countError);
-      return {
-        success: false,
-        message: `Failed to count thumbnails: ${countError.message}`,
-      };
-    }
-
-    // 2. Delete all files from the thumbnails bucket
-    const { data: listData, error: listError } = await supabase.storage
-      .from('thumbnails')
-      .list('thumbnails');
-
-    if (listError) {
-      console.error('Error listing thumbnails in storage:', listError);
-      return {
-        success: false,
-        message: `Error listing thumbnails: ${listError.message}`,
-      };
-    }
-
-    if (listData && listData.length > 0) {
-      // Delete files in batches to avoid timeout
-      const batchSize = 100;
-      for (let i = 0; i < listData.length; i += batchSize) {
-        const batch = listData.slice(i, i + batchSize);
-        const filesToDelete = batch.map((item) => `thumbnails/${item.name}`);
-
-        const { error: deleteError } = await supabase.storage
-          .from('thumbnails')
-          .remove(filesToDelete);
-
-        if (deleteError) {
-          console.error('Error deleting thumbnails batch:', deleteError);
-          // Continue with next batch
-        }
-      }
-    }
-
-    // 3. Reset thumbnail_path for all media items
-    const { error: updateError } = await supabase
-      .from('media_items')
-      .update({ thumbnail_path: null })
-      .not('thumbnail_path', 'is', null);
-
-    if (updateError) {
-      console.error('Error resetting media items:', updateError);
-      return {
-        success: false,
-        message: `Error resetting media items: ${updateError.message}`,
+        count: legacyCount || 0,
       };
     }
 
     return {
       success: true,
-      message: `Successfully reset ${count || 0} thumbnails`,
-      processed: count || 0,
+      count: count || 0,
     };
   } catch (error: any) {
-    console.error('Error resetting thumbnails:', error);
+    console.error('Error counting missing thumbnails:', error);
     return {
       success: false,
-      message: `Error resetting thumbnails: ${error.message}`,
+      error: error.message,
     };
-  } finally {
-    // Revalidate paths after all operations
-    revalidatePath('/browse');
-    revalidatePath('/admin');
   }
 }
 
 /**
- * Get thumbnail generation statistics
- * This provides counts of thumbnails generated, skipped, and pending
+ * Get statistics about thumbnail status
  */
-export async function getThumbnailStats() {
+export async function getThumbnailStats(): Promise<{
+  success: boolean;
+  stats?: {
+    totalCompatibleFiles: number;
+    filesWithThumbnails: number;
+    filesSkipped: number;
+    filesPending: number;
+    skippedLargeFiles: number;
+  };
+  error?: string;
+}> {
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get ignored file types first for consistent filtering
-    const { data: fileTypes } = await supabase
-      .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
-
-    const ignoredExtensions =
-      fileTypes?.map((ft) => ft.extension.toLowerCase()) || [];
-
-    // Define the image file extensions we support for thumbnails
-    const imageExtensions = [
+    // Define supported formats for thumbnails
+    const supportedImageFormats = [
       'jpg',
       'jpeg',
       'png',
@@ -907,144 +591,116 @@ export async function getThumbnailStats() {
       'bmp',
     ];
 
-    // Prepare the filter expression if we have ignored extensions
-    const ignoredFilter =
-      ignoredExtensions.length > 0
-        ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-        : null;
-
-    // 1. Count all thumbnail-compatible files (excluding ignored types)
-    let compatibleQuery = supabase
+    // Get total count of compatible files
+    const { count: totalCount, error: totalError } = await supabase
       .from('media_items')
       .select('*', { count: 'exact', head: true })
-      .in('extension', imageExtensions);
+      .in('extension', supportedImageFormats);
 
-    if (ignoredFilter) {
-      compatibleQuery = compatibleQuery.filter(
-        'extension',
-        'not.in',
-        ignoredFilter,
+    if (totalError) {
+      throw new Error(
+        `Failed to get total compatible files: ${totalError.message}`,
       );
     }
 
-    const { count: compatibleCount, error: compatibleError } =
-      await compatibleQuery;
+    // Get count of files with successful thumbnails using processing_state
+    const { count: withThumbnailsCountNew, error: withThumbnailsErrorNew } =
+      await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .in('extension', supportedImageFormats)
+        .not('processing_state', 'is', null)
+        .eq('processing_state->thumbnail->status', 'success');
 
-    if (compatibleError) {
-      console.error('Error counting compatible files:', compatibleError);
-      return {
-        success: false,
-        error: compatibleError.message,
-      };
-    }
+    const withThumbnailsCount = withThumbnailsErrorNew
+      ? 0
+      : withThumbnailsCountNew || 0;
 
-    // 2. Count files with thumbnails successfully generated
-    let withThumbnailsQuery = supabase
+    // Get count of files skipped due to being large
+    const {
+      count: skippedLargeFilesCountNew,
+      error: skippedLargeFilesErrorNew,
+    } = await supabase
       .from('media_items')
       .select('*', { count: 'exact', head: true })
-      .in('extension', imageExtensions)
-      .not('thumbnail_path', 'is', null)
-      .not('thumbnail_path', 'like', 'skipped:%'); // Exclude skipped files
+      .in('extension', supportedImageFormats)
+      .not('processing_state', 'is', null)
+      .eq('processing_state->thumbnail->status', 'skipped');
 
-    if (ignoredFilter) {
-      withThumbnailsQuery = withThumbnailsQuery.filter(
-        'extension',
-        'not.in',
-        ignoredFilter,
-      );
+    const skippedLargeFilesCount = skippedLargeFilesErrorNew
+      ? 0
+      : skippedLargeFilesCountNew || 0;
+
+    // Get count of files with other skipped statuses (unsupported, etc.)
+    const { count: otherSkippedCountNew, error: otherSkippedErrorNew } =
+      await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .in('extension', supportedImageFormats)
+        .not('processing_state', 'is', null)
+        .eq('processing_state->thumbnail->status', 'unsupported');
+
+    const otherSkippedCount = otherSkippedErrorNew
+      ? 0
+      : otherSkippedCountNew || 0;
+
+    // If the new approach failed (likely due to old DB), try the legacy approach for counts
+    let legacyWithThumbnailsCount = 0;
+    let legacySkippedFilesCount = 0;
+
+    if (withThumbnailsErrorNew) {
+      console.log('Falling back to legacy approach for thumbnail stats');
+
+      // Get count with thumbnails using legacy field
+      const { count: legacyWithCount, error: legacyWithError } = await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .in('extension', supportedImageFormats)
+        .not('thumbnail_path', 'is', null)
+        .not('thumbnail_path', 'like', 'error:%')
+        .not('thumbnail_path', 'like', 'skipped:%');
+
+      if (!legacyWithError) {
+        legacyWithThumbnailsCount = legacyWithCount || 0;
+      }
+
+      // Get count of skipped files using legacy field
+      const { count: legacySkippedCount, error: legacySkippedError } =
+        await supabase
+          .from('media_items')
+          .select('*', { count: 'exact', head: true })
+          .in('extension', supportedImageFormats)
+          .like('thumbnail_path', 'skipped:%');
+
+      if (!legacySkippedError) {
+        legacySkippedFilesCount = legacySkippedCount || 0;
+      }
     }
 
-    const { count: withThumbnailsCount, error: withThumbnailsError } =
-      await withThumbnailsQuery;
+    // Use the best available counts
+    const filesWithThumbnails =
+      withThumbnailsCount > 0 ? withThumbnailsCount : legacyWithThumbnailsCount;
+    const filesSkipped = otherSkippedCount;
+    const skippedLargeFiles =
+      skippedLargeFilesCount > 0
+        ? skippedLargeFilesCount
+        : legacySkippedFilesCount;
 
-    if (withThumbnailsError) {
-      console.error(
-        'Error counting files with thumbnails:',
-        withThumbnailsError,
-      );
-      return {
-        success: false,
-        error: withThumbnailsError.message,
-      };
-    }
-
-    // 3. Count files that were skipped (e.g., large files)
-    let skippedQuery = supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .in('extension', imageExtensions)
-      .like('thumbnail_path', 'skipped:%');
-
-    if (ignoredFilter) {
-      skippedQuery = skippedQuery.filter('extension', 'not.in', ignoredFilter);
-    }
-
-    const { count: skippedCount, error: skippedError } = await skippedQuery;
-
-    if (skippedError) {
-      console.error('Error counting skipped files:', skippedError);
-      return {
-        success: false,
-        error: skippedError.message,
-      };
-    }
-
-    // 4. Count files pending thumbnail generation
-    let pendingQuery = supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .in('extension', imageExtensions)
-      .is('thumbnail_path', null);
-
-    if (ignoredFilter) {
-      pendingQuery = pendingQuery.filter('extension', 'not.in', ignoredFilter);
-    }
-
-    const { count: pendingCount, error: pendingError } = await pendingQuery;
-
-    if (pendingError) {
-      console.error('Error counting pending files:', pendingError);
-      return {
-        success: false,
-        error: pendingError.message,
-      };
-    }
-
-    // 5. Break down skipped files by reason (e.g., large files)
-    let largeFilesQuery = supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .in('extension', imageExtensions)
-      .eq('thumbnail_path', 'skipped:large_file');
-
-    if (ignoredFilter) {
-      largeFilesQuery = largeFilesQuery.filter(
-        'extension',
-        'not.in',
-        ignoredFilter,
-      );
-    }
-
-    const { count: largeFilesCount, error: largeFilesError } =
-      await largeFilesQuery;
-
-    if (largeFilesError) {
-      console.error('Error counting large files:', largeFilesError);
-      return {
-        success: false,
-        error: largeFilesError.message,
-      };
-    }
+    // Calculate pending files by subtracting thumbnail-having files from total
+    const filesPending =
+      (totalCount || 0) -
+      filesWithThumbnails -
+      filesSkipped -
+      skippedLargeFiles;
 
     return {
       success: true,
       stats: {
-        totalCompatibleFiles: compatibleCount || 0,
-        filesWithThumbnails: withThumbnailsCount || 0,
-        filesSkipped: skippedCount || 0,
-        filesPending: pendingCount || 0,
-        skippedLargeFiles: largeFilesCount || 0,
-        // Add more specific stats as needed
+        totalCompatibleFiles: totalCount || 0,
+        filesWithThumbnails,
+        filesSkipped,
+        filesPending: filesPending > 0 ? filesPending : 0,
+        skippedLargeFiles,
       },
     };
   } catch (error: any) {
@@ -1057,210 +713,127 @@ export async function getThumbnailStats() {
 }
 
 /**
- * Regenerate thumbnails for items that should have thumbnails but don't
- * This looks for items with a null thumbnail_path field
+ * Reset all thumbnails by clearing paths and removing files from storage
  */
-export async function regenerateMissingThumbnails(): Promise<ThumbnailResult> {
-  try {
-    const supabase = createServerSupabaseClient();
-
-    // Get image extensions
-    const imageExtensions = [
-      'jpg',
-      'jpeg',
-      'png',
-      'webp',
-      'gif',
-      'tiff',
-      'tif',
-      'heic',
-      'avif',
-      'bmp',
-    ];
-
-    // Get ignored file types
-    const { data: ignoredTypes } = await supabase
-      .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
-
-    const ignoredExtensions =
-      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
-
-    // Find items that should have thumbnails but don't
-    let query = supabase
-      .from('media_items')
-      .select('id')
-      .in('extension', imageExtensions)
-      .is('thumbnail_path', null);
-
-    // Exclude ignored file types
-    if (ignoredExtensions.length > 0) {
-      query = query.not(
-        'extension',
-        'in',
-        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
-      );
-    }
-
-    const { data: mediaItems, error } = await query;
-
-    if (error) {
-      console.error(
-        '[Thumbnail] Error finding items missing thumbnails:',
-        error,
-      );
-      return {
-        success: false,
-        message: `Error finding items missing thumbnails: ${error.message}`,
-        processed: 0,
-      };
-    }
-
-    if (!mediaItems || mediaItems.length === 0) {
-      return {
-        success: true,
-        message: 'No media items missing thumbnails found',
-        processed: 0,
-      };
-    }
-
-    const mediaIds = mediaItems.map((item) => item.id);
-
-    // Process these items with the existing batch function
-    const result = await batchGenerateThumbnails(mediaIds, {
-      batchSize: 50,
-      skipLargeFiles: true,
-    });
-
-    return {
-      ...result,
-      message: `Regenerated ${result.successCount || 0} thumbnails for items that were missing them`,
-    };
-  } catch (error: any) {
-    console.error('[Thumbnail] Error regenerating missing thumbnails:', error);
-    return {
-      success: false,
-      message: `Error regenerating missing thumbnails: ${error.message}`,
-      processed: 0,
-    };
-  }
-}
-
-/**
- * Count media items that need thumbnails (no thumbnail_path)
- * Uses the same filtering logic as generateMissingThumbnails
- */
-export async function countMissingThumbnails(): Promise<{
+export async function resetAllThumbnails(): Promise<{
   success: boolean;
-  count?: number;
-  error?: string;
+  message: string;
 }> {
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get ignored file extensions
-    const { data: ignoredTypes } = await supabase
-      .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
-
-    const ignoredExtensions =
-      ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
-
-    // Define the image file extensions we want to process
-    const imageExtensions = [
-      'jpg',
-      'jpeg',
-      'png',
-      'webp',
-      'gif',
-      'tiff',
-      'tif',
-      'heic',
-      'avif',
-      'bmp',
-    ];
-
-    // Build the query
-    let query = supabase
+    // First, get list of thumbnails to delete from storage
+    const { data: mediaItems, error: mediaError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .is('thumbnail_path', null) // Only include items with null thumbnail_path
-      .in('extension', imageExtensions); // Only include image files
+      .select('id, processing_state, thumbnail_path')
+      .or('thumbnail_path.neq.null,processing_state->thumbnail->path.neq.null')
+      .not('thumbnail_path', 'like', 'error:%')
+      .not('thumbnail_path', 'like', 'skipped:%');
 
-    // Exclude ignored file types if any are configured
-    if (ignoredExtensions.length > 0) {
-      query = query.not(
-        'extension',
-        'in',
-        `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+    if (mediaError) {
+      throw new Error(
+        `Failed to get existing thumbnails: ${mediaError.message}`,
       );
     }
 
-    const { count, error } = await query;
+    if (mediaItems && mediaItems.length > 0) {
+      // Extract file names from paths or use IDs to build filenames
+      const filesToDelete = mediaItems.map((item) => {
+        // Try to get thumbnail path from processing_state first
+        const thumbnailPath =
+          (item.processing_state as ProcessingState)?.thumbnail?.path ||
+          item.thumbnail_path;
 
-    if (error) {
-      console.error('Error counting missing thumbnails:', error);
-      return { success: false, error: error.message };
+        if (
+          !thumbnailPath ||
+          thumbnailPath.startsWith('error:') ||
+          thumbnailPath.startsWith('skipped:')
+        ) {
+          return `${item.id}_thumb.webp`; // If no path, use ID-based filename
+        }
+
+        // Extract filename from URL
+        const urlParts = thumbnailPath.split('/');
+        return urlParts[urlParts.length - 1];
+      });
+
+      // Delete files from storage in batches
+      const batchSize = 100;
+      for (let i = 0; i < filesToDelete.length; i += batchSize) {
+        const batch = filesToDelete.slice(i, i + batchSize);
+
+        // Remove empty strings, nulls, or paths that don't include _thumb
+        const filteredBatch = batch.filter((file) => file.includes('_thumb'));
+
+        if (filteredBatch.length > 0) {
+          const { error: deleteError } = await supabase.storage
+            .from('thumbnails')
+            .remove(filteredBatch);
+
+          if (deleteError) {
+            console.error(
+              `Error deleting thumbnail batch ${i}-${i + batchSize}:`,
+              deleteError,
+            );
+            // Continue to next batch even if this one fails
+          }
+        }
+      }
     }
 
-    return { success: true, count: count || 0 };
+    // Update all media items to clear thumbnail paths in both fields
+    const { error: updateError } = await supabase.rpc('reset_all_thumbnails');
+
+    if (updateError) {
+      // Fallback to direct update if RPC fails
+      console.error('RPC failed, using direct update:', updateError);
+
+      throw new Error(
+        `Failed to reset thumbnail paths: ${updateError.message}`,
+      );
+    }
+
+    return {
+      success: true,
+      message: `Successfully reset thumbnails for ${mediaItems?.length || 0} files`,
+    };
   } catch (error: any) {
-    console.error('Error counting missing thumbnails:', error);
-    return { success: false, error: error.message };
+    console.error('Error resetting thumbnails:', error);
+    return {
+      success: false,
+      message: `Failed to reset thumbnails: ${error.message}`,
+    };
   }
 }
 
 /**
- * Stream process thumbnails for all media items without thumbnails
- * This is a streaming version that provides real-time progress updates
+ * Stream process missing thumbnails with progress updates
  */
 export async function streamProcessMissingThumbnails(
   options: ThumbnailOptions = {},
 ) {
   const encoder = new TextEncoder();
-  const { skipLargeFiles = false, abortToken } = options;
 
   // Create a transform stream to send progress updates
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
   // Start processing in the background
-  processInBackground({ writer, skipLargeFiles, abortToken });
+  processAllMissingThumbnails(writer, options);
 
   // Return the readable stream
   return stream.readable;
 
-  async function processInBackground({
-    writer,
-    skipLargeFiles,
-    abortToken,
-  }: {
-    writer: WritableStreamDefaultWriter;
-    skipLargeFiles: boolean;
-    abortToken?: string;
-  }) {
+  async function processAllMissingThumbnails(
+    writer: WritableStreamDefaultWriter,
+    options: ThumbnailOptions,
+  ) {
     try {
       const supabase = createServerSupabaseClient();
+      const { skipLargeFiles = true, abortToken } = options;
 
-      // Send initial progress update
-      await sendProgress(writer, {
-        status: 'started',
-        message: `Starting thumbnail generation${skipLargeFiles ? ' (skipping large files)' : ''}`,
-      });
-
-      // Get ignored file extensions first
-      const { data: ignoredTypes } = await supabase
-        .from('file_types')
-        .select('extension')
-        .eq('ignore', true);
-
-      const ignoredExtensions =
-        ignoredTypes?.map((type) => type.extension.toLowerCase()) || [];
-
-      // Define the image file extensions we want to process
-      const imageExtensions = [
+      // Define supported image formats
+      const supportedImageFormats = [
         'jpg',
         'jpeg',
         'png',
@@ -1273,144 +846,75 @@ export async function streamProcessMissingThumbnails(
         'bmp',
       ];
 
-      // Build the query to count all pending items
-      let countQuery = supabase
-        .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .is('thumbnail_path', null)
-        .in('extension', imageExtensions);
-
-      // Exclude ignored file types
-      if (ignoredExtensions.length > 0) {
-        countQuery = countQuery.not(
-          'extension',
-          'in',
-          `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
-        );
+      // Add abort token to active tokens
+      if (abortToken) {
+        await addAbortToken(abortToken);
       }
 
-      // Get the total count of items to process
-      const { count: totalCount, error: countError } = await countQuery;
-
-      if (countError) {
-        await sendProgress(writer, {
-          status: 'error',
-          message: `Failed to count media items: ${countError.message}`,
-          error: countError.message,
-        });
-        await writer.close();
-        return;
-      }
-
-      if (!totalCount || totalCount === 0) {
-        await sendProgress(writer, {
-          status: 'completed',
-          message: 'No image files without thumbnails found',
-          totalItems: 0,
-          processed: 0,
-          successCount: 0,
-          failedCount: 0,
-          skippedLargeFiles: 0,
-        });
-        await writer.close();
-        return;
-      }
-
-      // Send total count to the UI
+      // Send initial progress
       await sendProgress(writer, {
-        status: 'processing',
-        message: `Found ${totalCount} files to process`,
-        totalItems: totalCount,
-        processed: 0,
-        successCount: 0,
-        failedCount: 0,
-        skippedLargeFiles: 0,
+        status: 'started',
+        message: 'Starting thumbnail generation',
       });
 
-      // Process in smaller batches to avoid timeouts
-      const batchSize = 25;
-      let processedCount = 0;
+      // Query to get items that need thumbnails, using both old and new fields
+      const { data: items, error } = await supabase
+        .from('media_items')
+        .select(
+          'id, file_path, file_name, extension, size_bytes, processing_state, thumbnail_path',
+        )
+        .in('extension', supportedImageFormats)
+        .or(
+          'processing_state.is.null,' +
+            'processing_state->>thumbnail.is.null,' +
+            "processing_state->'thumbnail'->>'status'.neq.success," +
+            "processing_state->'thumbnail'->>'status'.neq.skipped",
+        )
+        .order('id');
+
+      if (error) {
+        await sendProgress(writer, {
+          status: 'error',
+          message: `Error fetching media items: ${error.message}`,
+          error: error.message,
+        });
+        await writer.close();
+        return;
+      }
+
+      if (!items || items.length === 0) {
+        await sendProgress(writer, {
+          status: 'completed',
+          message: 'No items need thumbnail processing',
+          totalItems: 0,
+          processed: 0,
+        });
+        await writer.close();
+        return;
+      }
+
+      await sendProgress(writer, {
+        status: 'generating',
+        message: `Found ${items.length} items that need thumbnails`,
+        totalItems: items.length,
+        processed: 0,
+      });
+
+      // Process items in batches
+      let processed = 0;
       let successCount = 0;
       let failedCount = 0;
       let skippedLargeFiles = 0;
 
-      // Function to delay execution
-      const delay = (ms: number) =>
-        new Promise((resolve) => setTimeout(resolve, ms));
-
-      // Function to check if operation has been aborted
-      const checkAborted = async (): Promise<boolean> => {
-        if (!abortToken) return false;
-        return await checkAbortToken(abortToken);
-      };
-
-      // Process until all items are done
-      while (processedCount < totalCount) {
-        // Check if operation was aborted
-        if (await checkAborted()) {
-          await sendProgress(writer, {
-            status: 'aborted',
-            message: 'Thumbnail generation was cancelled',
-            totalItems: totalCount,
-            processed: processedCount,
-            successCount,
-            failedCount,
-            skippedLargeFiles,
-          });
-          await writer.close();
-          return;
-        }
-
-        // Build the query to get the next batch
-        let query = supabase
-          .from('media_items')
-          .select('id, file_path, file_name, extension')
-          .is('thumbnail_path', null)
-          .in('extension', imageExtensions);
-
-        // Exclude ignored file types
-        if (ignoredExtensions.length > 0) {
-          query = query.not(
-            'extension',
-            'in',
-            `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
-          );
-        }
-
-        // Get the next batch of items to process
-        const { data: mediaItems, error: fetchError } = await query
-          .order('id', { ascending: true })
-          .limit(batchSize);
-
-        if (fetchError) {
-          await sendProgress(writer, {
-            status: 'error',
-            message: `Failed to fetch media items: ${fetchError.message}`,
-            error: fetchError.message,
-            totalItems: totalCount,
-            processed: processedCount,
-            successCount,
-            failedCount,
-            skippedLargeFiles,
-          });
-          await writer.close();
-          return;
-        }
-
-        if (!mediaItems || mediaItems.length === 0) {
-          // No more items to process
-          break;
-        }
-
-        // Process each item one at a time to provide better progress updates
-        for (const item of mediaItems) {
-          // Check if operation was aborted before processing each item
-          if (await checkAborted()) {
+      for (const item of items) {
+        try {
+          // Check for abort request
+          if (abortToken && (await isAborted(abortToken))) {
             await sendProgress(writer, {
-              status: 'aborted',
-              message: 'Thumbnail generation was cancelled',
-              totalItems: totalCount,
-              processed: processedCount,
+              status: 'error',
+              message: 'Thumbnail generation aborted by user',
+              totalItems: items.length,
+              processed,
               successCount,
               failedCount,
               skippedLargeFiles,
@@ -1419,86 +923,97 @@ export async function streamProcessMissingThumbnails(
             return;
           }
 
-          // Send progress update before processing each file
           await sendProgress(writer, {
-            status: 'processing',
-            message: `Processing ${processedCount + 1} of ${totalCount}`,
-            totalItems: totalCount,
-            processed: processedCount,
-            successCount,
-            failedCount,
-            skippedLargeFiles,
+            status: 'generating',
+            message: `Generating thumbnail for file ${processed + 1} of ${items.length}`,
             currentFilePath: item.file_path,
             currentFileName: item.file_name,
             fileType: item.extension,
+            totalItems: items.length,
+            processed,
+            successCount,
+            failedCount,
+            skippedLargeFiles,
           });
 
-          // Process the item
+          // Generate thumbnail
           const result = await generateThumbnail(item.id, { skipLargeFiles });
 
-          // Update counters based on result
-          processedCount++;
-
-          if (result.success) {
-            if (result.skipped && result.skippedReason === 'large_file') {
-              skippedLargeFiles++;
-            } else {
-              successCount++;
-            }
+          if (result.skipped) {
+            skippedLargeFiles++;
+          } else if (result.success) {
+            successCount++;
           } else {
             failedCount++;
           }
 
-          // Send progress update after processing each file
+          processed++;
+
+          // Send progress update
           await sendProgress(writer, {
-            status: 'processing',
-            // message: `Processed ${processedCount} of ${totalCount}`,
-            totalItems: totalCount,
-            processed: processedCount,
+            status: 'generating',
+            message: `${processed} of ${items.length} processed (${successCount} success, ${failedCount} failed, ${skippedLargeFiles} skipped)`,
+            totalItems: items.length,
+            processed,
             successCount,
             failedCount,
             skippedLargeFiles,
+            currentFilePath: result.filePath,
+            currentFileName: result.fileName,
+            fileType: result.fileType,
+          });
+        } catch (itemError: any) {
+          failedCount++;
+          processed++;
+
+          console.error(`Error processing item ${item.id}:`, itemError);
+          await sendProgress(writer, {
+            status: 'error',
+            message: `Error processing item: ${itemError.message}`,
+            error: itemError.message,
             currentFilePath: item.file_path,
             currentFileName: item.file_name,
             fileType: item.extension,
+            totalItems: items.length,
+            processed,
+            successCount,
+            failedCount,
+            skippedLargeFiles,
           });
-
-          // Add a small delay to prevent overwhelming the browser with updates
-          await delay(100);
         }
       }
 
-      // Send final progress update
+      // Remove abort token now that processing is complete
+      if (abortToken) {
+        await removeAbortToken(abortToken);
+      }
+
+      // Send final progress
       await sendProgress(writer, {
         status: 'completed',
-        message: `Completed processing ${processedCount} files: ${successCount} thumbnails generated, ${failedCount} failed, ${skippedLargeFiles} large files skipped`,
-        totalItems: totalCount,
-        processed: processedCount,
+        message: `Thumbnail generation completed: ${processed} processed, ${successCount} successful, ${failedCount} failed, ${skippedLargeFiles} skipped`,
+        totalItems: items.length,
+        processed,
         successCount,
         failedCount,
         skippedLargeFiles,
       });
 
-      // Close the stream
       await writer.close();
     } catch (error: any) {
-      console.error('Error during thumbnail processing:', error);
+      console.error('Error processing thumbnails:', error);
       await sendProgress(writer, {
         status: 'error',
-        message: `Error during thumbnail processing: ${error.message}`,
+        message: `Error processing thumbnails: ${error.message}`,
         error: error.message,
       });
       await writer.close();
-    } finally {
-      // Revalidate paths after all operations
-      revalidatePath('/browse');
-      revalidatePath('/admin');
     }
   }
 
   async function sendProgress(
     writer: WritableStreamDefaultWriter,
-    progress: any,
+    progress: Record<string, any>,
   ) {
     await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
   }
@@ -1512,49 +1027,122 @@ export async function abortThumbnailGeneration(token: string): Promise<{
   message: string;
 }> {
   try {
-    // Add the token to the abort set
+    // Check if the token exists
+    const isActive = await isAborted(token);
+
+    if (isActive) {
+      return {
+        success: true,
+        message: 'Cancellation already in progress',
+      };
+    }
+
+    // Add the token to the abort list
     await addAbortToken(token);
+
     return {
       success: true,
-      message: 'Thumbnail generation aborted successfully',
+      message: 'Thumbnail generation cancelled',
     };
   } catch (error: any) {
     console.error('Error aborting thumbnail generation:', error);
     return {
       success: false,
-      message: `Error aborting thumbnail generation: ${error.message || 'Unknown error'}`,
+      message: `Failed to abort: ${error.message}`,
     };
   }
 }
 
-// Migration script to fix existing thumbnail paths
-export async function fixThumbnailPaths(): Promise<{ fixed: number }> {
-  const supabase = createServerSupabaseClient();
+/**
+ * Regenerate missing thumbnails (non-streaming batch version)
+ */
+export async function regenerateMissingThumbnails(): Promise<{
+  success: boolean;
+  message: string;
+  count?: number;
+}> {
+  try {
+    const supabase = createServerSupabaseClient();
+    let processed = 0;
+    let successCount = 0;
+    let failedCount = 0;
+    let skippedCount = 0;
 
-  // Find records with duplicate thumbnails/ prefix
-  const { data, error } = await supabase
-    .from('media_items')
-    .select('id, thumbnail_path')
-    .like('thumbnail_path', '%/thumbnails/thumbnails/%');
+    // Define supported image formats
+    const supportedImageFormats = [
+      'jpg',
+      'jpeg',
+      'png',
+      'webp',
+      'gif',
+      'tiff',
+      'tif',
+      'heic',
+      'avif',
+      'bmp',
+    ];
 
-  if (error || !data) {
-    console.error('Error finding records with duplicate paths:', error);
-    return { fixed: 0 };
-  }
-
-  let fixedCount = 0;
-  for (const item of data) {
-    const fixedPath = item.thumbnail_path?.replace(
-      '/thumbnails/thumbnails/',
-      '/thumbnails/',
-    );
-    const { error: updateError } = await supabase
+    // Get items that need thumbnails, using both old and new fields
+    const { data: items, error } = await supabase
       .from('media_items')
-      .update({ thumbnail_path: fixedPath })
-      .eq('id', item.id);
+      .select('id')
+      .in('extension', supportedImageFormats)
+      .or(
+        'thumbnail_path.is.null,' +
+          'thumbnail_path.like.error:%,' +
+          'processing_state.is.null,' +
+          "processing_state->'thumbnail'->>'status'.eq.error",
+      )
+      .limit(100); // Limit to a reasonable batch size
 
-    if (!updateError) fixedCount++;
+    if (error) {
+      throw new Error(`Error fetching media items: ${error.message}`);
+    }
+
+    if (!items || items.length === 0) {
+      return {
+        success: true,
+        message: 'No missing thumbnails to regenerate',
+        count: 0,
+      };
+    }
+
+    // Process each item
+    for (const item of items) {
+      try {
+        const result = await generateThumbnail(item.id, {
+          skipLargeFiles: true,
+        });
+
+        processed++;
+
+        if (result.skipped) {
+          skippedCount++;
+        } else if (result.success) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+      } catch (itemError) {
+        failedCount++;
+        processed++;
+        console.error(
+          `Error regenerating thumbnail for ${item.id}:`,
+          itemError,
+        );
+      }
+    }
+
+    return {
+      success: true,
+      message: `Regenerated ${successCount} thumbnails (${failedCount} failed, ${skippedCount} skipped)`,
+      count: processed,
+    };
+  } catch (error: any) {
+    console.error('Error regenerating thumbnails:', error);
+    return {
+      success: false,
+      message: `Failed to regenerate thumbnails: ${error.message}`,
+    };
   }
-
-  return { fixed: fixedCount };
 }
