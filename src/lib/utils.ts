@@ -5,6 +5,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import { twMerge } from 'tailwind-merge';
 import { LARGE_FILE_THRESHOLD } from './consts';
+import { fileTypeCache } from './file-type-cache';
 
 /**
  * Combines class names with clsx and tailwind-merge
@@ -70,94 +71,56 @@ export function parseDateFromFilename(filename: string): Date | null {
 
 /**
  * Check if a file format can be natively displayed in most browsers
+ * @param fileTypeId The file type ID to check
  */
-export function canDisplayNatively(extension: string): boolean {
-  const lowerCaseExtension = extension.toLowerCase();
-  const nativeImageFormats = [
-    'jpg',
-    'jpeg',
-    'png',
-    'gif',
-    'svg',
-    'webp',
-    'avif',
-  ];
-  const nativeVideoFormats = ['mp4', 'webm', 'ogg'];
-  const nativeAudioFormats = ['mp3', 'wav', 'ogg', 'aac'];
-  const nativeDocumentFormats = ['pdf', 'txt'];
-
-  return (
-    nativeImageFormats.includes(lowerCaseExtension) ||
-    nativeVideoFormats.includes(lowerCaseExtension) ||
-    nativeAudioFormats.includes(lowerCaseExtension) ||
-    nativeDocumentFormats.includes(lowerCaseExtension)
-  );
+export async function canDisplayNatively(
+  fileTypeId?: number | null,
+): Promise<boolean> {
+  // If fileTypeId is provided, use that instead
+  if (fileTypeId !== undefined && fileTypeId !== null) {
+    const fileType = await fileTypeCache.getFileTypeById(fileTypeId);
+    // Use the can_display_natively property if available
+    if (fileType?.can_display_natively !== null) {
+      return fileType?.can_display_natively === true;
+    }
+  }
+  return false;
 }
 
 /**
  * Check if a file needs conversion to be displayed on web
+ * @param fileTypeId The file type ID to check
  */
-export function needsConversion(extension: string): boolean {
-  const formatsNeedingConversion = [
-    'heic',
-    'raw',
-    'tiff',
-    'tif',
-    'nef',
-    'cr2',
-    'arw',
-    'orf',
-    'mov',
-    'avi',
-    'wmv',
-    'mkv',
-    'flv',
-  ];
+export async function needsConversion(
+  fileTypeId?: number | null,
+): Promise<boolean> {
+  if (fileTypeId !== undefined && fileTypeId !== null) {
+    return fileTypeCache.needsConversionById(fileTypeId);
+  }
 
-  return formatsNeedingConversion.includes(extension.toLowerCase());
+  return false;
 }
 
 /**
  * Check if a file is an image
+ * @param fileTypeId The file type ID to check
  */
-export function isImage(extension: string): boolean {
-  const imageFormats = [
-    'jpg',
-    'jpeg',
-    'png',
-    'gif',
-    'svg',
-    'webp',
-    'avif',
-    'heic',
-    'tiff',
-    'tif',
-    'raw',
-    'bmp',
-    'nef',
-    'cr2',
-    'arw',
-    'orf',
-  ];
-  return imageFormats.includes(extension.toLowerCase());
+export async function isImage(fileTypeId?: number | null): Promise<boolean> {
+  if (fileTypeId !== undefined && fileTypeId !== null) {
+    return fileTypeCache.isImageById(fileTypeId);
+  }
+  return false;
 }
 
 /**
  * Check if a file is a video
+ * @param fileTypeId The file type ID to check
  */
-export function isVideo(extension: string): boolean {
-  const videoFormats = [
-    'mp4',
-    'webm',
-    'ogg',
-    'mov',
-    'avi',
-    'wmv',
-    'mkv',
-    'flv',
-    'm4v',
-  ];
-  return videoFormats.includes(extension.toLowerCase());
+export async function isVideo(fileTypeId?: number | null): Promise<boolean> {
+  if (fileTypeId !== undefined && fileTypeId !== null) {
+    return fileTypeCache.isVideoById(fileTypeId);
+  }
+  return false;
 }
 
 /**
@@ -513,32 +476,37 @@ export function sanitizeExifData(data: any): any {
 }
 
 /**
- * Guess the file category based on the file extension
- * @param extension File extension (e.g. "jpg", "mp4")
- * @returns File category (e.g. "image", "video", "data", "other")
+ * Get MIME type for a file
+ * @param fileTypeId The file type ID to use
  */
-export async function getFileCategory(extension: string): Promise<string> {
-  // First check if this file type exists in the database
-  try {
-    const { createServerSupabaseClient } = await import('@/lib/supabase');
-    const supabase = createServerSupabaseClient();
-
-    const { data } = await supabase
-      .from('file_types')
-      .select('category')
-      .eq('extension', extension.toLowerCase())
-      .maybeSingle();
-
-    // If we found a category in the database, use that
-    if (data?.category) {
-      return data.category;
-    }
-  } catch (error) {
-    // If there's any error, fall back to the default logic
-    console.error(`Error checking file type category from database: ${error}`);
+export async function getMimeType(
+  fileTypeId?: number | null,
+): Promise<string | null> {
+  if (fileTypeId !== undefined && fileTypeId !== null) {
+    return fileTypeCache.getMimeTypeById(fileTypeId);
   }
 
-  // Fall back to default logic
+  return null;
+}
+
+/**
+ * Get the category of a file based on its file type ID
+ * @param fileTypeId The file type ID to check
+ * @returns File category (e.g. "image", "video", "data", "other")
+ */
+export async function getFileCategory(
+  fileTypeId: number | null,
+): Promise<string> {
+  // If fileTypeId is provided, use it to get the category
+  if (fileTypeId !== undefined && fileTypeId !== null) {
+    const fileType = await fileTypeCache.getFileTypeById(fileTypeId);
+    if (fileType?.category) {
+      return fileType.category;
+    }
+  }
+
+  // Return "other" as the default category if no file type ID is provided
+  // or if the file type ID doesn't map to a known category
   return 'other';
 }
 

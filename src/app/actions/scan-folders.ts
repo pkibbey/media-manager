@@ -2,9 +2,8 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getFileTypeInfo } from '@/lib/file-types-utils'; // Import the new utility
+import { getDetailedFileTypeInfo } from '@/lib/file-types-utils'; // Import the new utility
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { canDisplayNatively, getFileCategory } from '@/lib/utils';
 import type { ScanOptions, ScanProgress } from '@/types/progress-types';
 import { revalidatePath } from 'next/cache';
 
@@ -179,8 +178,8 @@ export async function scanFolders(options: ScanOptions = {}) {
         }`,
       });
 
-      // Use the utility function to get file type info
-      const fileTypeInfo = await getFileTypeInfo();
+      // Use the detailed file type info to get access to extension-to-id mapping
+      const fileTypeInfo = await getDetailedFileTypeInfo();
 
       if (!fileTypeInfo) {
         const error = 'Error fetching file type information';
@@ -391,15 +390,21 @@ export async function scanFolders(options: ScanOptions = {}) {
                 newFileTypes.add(extension);
               }
 
+              // Get file type ID from extension if available
+              const fileTypeId = fileTypeInfo.extensionToId.get(
+                extension.toLowerCase(),
+              );
+
               // Create a media item record
               newMediaItems.push({
                 file_path: file.path,
                 file_name: path.basename(file.path),
-                extension: extension,
+                extension: extension, // Add the required extension field
                 folder_path: path.dirname(file.path),
                 size_bytes: fileSize,
                 modified_date: stats.mtime.toISOString(),
                 created_date: stats.birthtime.toISOString(),
+                file_type_id: fileTypeId || null, // Use null if the file type ID is not found
               });
 
               totalFilesProcessed++;
@@ -529,7 +534,7 @@ export async function scanFolders(options: ScanOptions = {}) {
           .eq('id', folder.id);
       }
 
-      // Add any new file types to the database
+      // Add any new file types to the database and update extension-to-id mapping
       if (newFileTypes.size > 0) {
         await sendProgress(writer, {
           status: 'scanning',
@@ -537,15 +542,148 @@ export async function scanFolders(options: ScanOptions = {}) {
           newFileTypes: Array.from(newFileTypes),
         });
 
+        // Map to track new file type IDs
+        const newFileTypeIds = new Map<string, number>();
+
         for (const extension of newFileTypes) {
-          const category = await getFileCategory(extension);
-          await supabase.from('file_types').insert({
-            extension,
-            category,
-            can_display_natively: canDisplayNatively(extension),
-            needs_conversion: !canDisplayNatively(extension),
-            ignore: false,
-          });
+          // For new file types, we need to determine a default category and other properties
+          // based on common file extension patterns since we don't have a file_type_id yet
+
+          // We'll implement a simplified version of the file extension detection
+          // logic directly here rather than relying on getFileCategory, which now
+          // works only with file_type_ids
+
+          // Determine category based on common patterns
+          let category = 'other';
+
+          // Image extensions
+          if (
+            [
+              'jpg',
+              'jpeg',
+              'png',
+              'gif',
+              'webp',
+              'avif',
+              'bmp',
+              'svg',
+            ].includes(extension.toLowerCase())
+          ) {
+            category = 'image';
+          }
+          // Raw image extensions
+          else if (
+            [
+              'raw',
+              'arw',
+              'cr2',
+              'nef',
+              'orf',
+              'rw2',
+              'dng',
+              'heic',
+              'heif',
+              'tiff',
+              'tif',
+            ].includes(extension.toLowerCase())
+          ) {
+            category = 'raw_image';
+          }
+          // Video extensions
+          else if (
+            [
+              'mp4',
+              'mov',
+              'avi',
+              'mkv',
+              'webm',
+              'wmv',
+              'flv',
+              'mpg',
+              'mpeg',
+              'm4v',
+            ].includes(extension.toLowerCase())
+          ) {
+            category = 'video';
+          }
+          // Document extensions
+          else if (
+            [
+              'pdf',
+              'doc',
+              'docx',
+              'xls',
+              'xlsx',
+              'ppt',
+              'pptx',
+              'txt',
+            ].includes(extension.toLowerCase())
+          ) {
+            category = 'document';
+          }
+          // Audio extensions
+          else if (
+            ['mp3', 'wav', 'ogg', 'flac', 'aac', 'wma', 'm4a'].includes(
+              extension.toLowerCase(),
+            )
+          ) {
+            category = 'audio';
+          }
+          // Data formats
+          else if (
+            ['json', 'xml', 'csv', 'yaml', 'yml'].includes(
+              extension.toLowerCase(),
+            )
+          ) {
+            category = 'data';
+          }
+
+          // Insert new file type and get its ID
+          const { data: newFileType, error } = await supabase
+            .from('file_types')
+            .insert({
+              extension,
+              category,
+              can_display_natively: [
+                'jpg',
+                'jpeg',
+                'png',
+                'gif',
+                'mp4',
+                'webm',
+                'mp3',
+                'wav',
+              ].includes(extension.toLowerCase()),
+              needs_conversion: ![
+                'jpg',
+                'jpeg',
+                'png',
+                'gif',
+                'mp4',
+                'webm',
+                'mp3',
+                'wav',
+              ].includes(extension.toLowerCase()),
+              ignore: false,
+            })
+            .select()
+            .single();
+
+          if (!error && newFileType) {
+            newFileTypeIds.set(extension.toLowerCase(), newFileType.id);
+          }
+        }
+
+        // If we have new file types, update any media items that weren't assigned a file_type_id
+        if (newFileTypeIds.size > 0) {
+          // Get all media items without file_type_id but with extension that matches new types
+          for (const [extension, typeId] of newFileTypeIds.entries()) {
+            await supabase
+              .from('media_items')
+              .update({ file_type_id: typeId })
+              .is('file_type_id', null)
+              .eq('extension', extension);
+          }
         }
       }
 

@@ -27,7 +27,7 @@ export default async function AdminPage() {
       value: 'folders',
       label: 'Folders',
       content: (
-        <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
+        <div className="border-t pt-6 grid items-start gap-6">
           <AddFolderForm />
           <Suspense fallback={<div>Loading folders...</div>}>
             <FolderList />
@@ -83,7 +83,6 @@ export default async function AdminPage() {
       label: 'File-types',
       content: (
         <div className="border-t pt-6 items-start">
-          {' '}
           <Suspense fallback={<div>Loading file types...</div>}>
             {fileTypesSuccess ? (
               <FileTypeManager fileTypes={fileTypes || []} />

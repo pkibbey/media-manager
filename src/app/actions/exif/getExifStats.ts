@@ -1,5 +1,6 @@
 'use server';
 
+import { getIgnoredExtensions } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
 export async function getExifStats() {
@@ -7,21 +8,15 @@ export async function getExifStats() {
     const supabase = createServerSupabaseClient();
 
     // Get ignored file types first for consistent filtering
-    const { data: fileTypes } = await supabase
-      .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
-
-    const ignoredExtensions =
-      fileTypes?.map((ft) => ft.extension.toLowerCase()) || [];
+    const ignoredTypes = await getIgnoredExtensions();
 
     // Define list of supported extensions
     const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
 
     // Generate the NOT IN filter expression for ignored extensions
     const ignoreFilterExpr =
-      ignoredExtensions.length > 0
-        ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+      ignoredTypes.length > 0
+        ? `(${ignoredTypes.map((ext) => `"${ext}"`).join(',')})`
         : '("")';
 
     // Get total count of EXIF compatible items

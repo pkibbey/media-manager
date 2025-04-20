@@ -3,6 +3,7 @@ import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileTypeCache } from '@/lib/file-type-cache';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isImage, isVideo, needsConversion } from '@/lib/utils';
 import ffmpeg from 'fluent-ffmpeg';
@@ -59,14 +60,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the file extension and determine if conversion is needed
+    // Get the file extension
     const fileExtension = path
       .extname(mediaItem.file_path)
       .substring(1)
       .toLowerCase();
-    const requiresConversion = needsConversion(fileExtension);
-    const isImageFile = isImage(fileExtension);
-    const isVideoFile = isVideo(fileExtension);
+
+    // Determine file type properties using file_type_id when available
+    let requiresConversion = false;
+    let isImageFile = false;
+    let isVideoFile = false;
+    let mimeType = '';
+
+    // Use file_type_id if available, otherwise fall back to extension
+    if (mediaItem.file_type_id) {
+      requiresConversion = await fileTypeCache.needsConversionById(
+        mediaItem.file_type_id,
+      );
+      isImageFile = await fileTypeCache.isImageById(mediaItem.file_type_id);
+      isVideoFile = await fileTypeCache.isVideoById(mediaItem.file_type_id);
+      mimeType =
+        (await fileTypeCache.getMimeTypeById(mediaItem.file_type_id)) ||
+        lookup(fileExtension) ||
+        'application/octet-stream';
+    } else {
+      // Fall back to extension-based checks
+      requiresConversion = await needsConversion(mediaItem.file_type_id);
+      isImageFile = await isImage(mediaItem.file_type_id);
+      isVideoFile = await isVideo(mediaItem.file_type_id);
+      mimeType = lookup(fileExtension) || 'application/octet-stream';
+    }
 
     // Handle thumbnails (always convert to webp for efficiency)
     if (thumbnail) {
@@ -138,7 +161,6 @@ export async function GET(request: NextRequest) {
 
     // If no conversion needed, serve the original file
     if (!requiresConversion) {
-      const mimeType = lookup(fileExtension) || 'application/octet-stream';
       const fileData = await fs.readFile(mediaItem.file_path);
 
       return new NextResponse(fileData, {
@@ -278,7 +300,6 @@ export async function GET(request: NextRequest) {
 
       // If we can't convert the file, try returning the original as a fallback
       console.warn(`Unsupported conversion for file type: ${fileExtension}`);
-      const mimeType = lookup(fileExtension) || 'application/octet-stream';
       const fileData = await fs.readFile(mediaItem.file_path);
 
       return new NextResponse(fileData, {

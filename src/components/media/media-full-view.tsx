@@ -1,12 +1,13 @@
 'use client';
 
 import useWindowWidth from '@/hooks/useWindowWidth';
-import { isImage, isSkippedLargeFile, isVideo } from '@/lib/utils';
+import { fileTypeCache } from '@/lib/file-type-cache';
+import { isSkippedLargeFile } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 import type { Exif } from 'exif-reader';
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 interface MediaFullViewProps {
   item: MediaItem;
@@ -45,13 +46,32 @@ const MediaFullView = memo(
     zoomMode = false,
   }: MediaFullViewProps) {
     const windowWidth = useWindowWidth();
-    const extension = item.extension?.toLowerCase();
+    const fileTypeId = item.file_type_id;
     const exifData = item.exif_data as Exif | null;
     const orientation = exifData?.Image?.Orientation || undefined;
     const { height, width } = calculateAspectRatio(exifData);
     const aspectRatio = width / height;
-    const isImg = isImage(extension || '');
-    const isVid = isVideo(extension || '');
+
+    // Track media type state
+    const [isImg, setIsImg] = useState(false);
+    const [isVid, setIsVid] = useState(false);
+    const [category, setCategory] = useState<string | null>(null);
+
+    // Use effect to determine media type using fileTypeId when available
+    useEffect(() => {
+      const checkMediaType = async () => {
+        // Use file_type_id if available, otherwise fall back to extension
+        if (fileTypeId) {
+          // Get media type from file_type_id (preferred approach)
+          setIsImg(await fileTypeCache.isImageById(fileTypeId));
+          setIsVid(await fileTypeCache.isVideoById(fileTypeId));
+          const fileType = await fileTypeCache.getFileTypeById(fileTypeId);
+          setCategory(fileType?.category || null);
+        }
+      };
+
+      checkMediaType();
+    }, [fileTypeId]);
 
     // Determine if image is rotated 90/270 degrees based on EXIF
     const isRotated = orientation === 6 || orientation === 8;
@@ -101,7 +121,7 @@ const MediaFullView = memo(
             <div className="flex flex-col items-center">
               <FileIcon className="h-16 w-16 text-muted-foreground" />
               <span className="text-sm font-medium mt-3 uppercase">
-                {extension || 'FILE'}
+                {category || 'FILE'}
               </span>
             </div>
           </div>

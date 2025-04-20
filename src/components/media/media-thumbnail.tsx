@@ -1,10 +1,11 @@
 'use client';
 
-import { isImage, isSkippedLargeFile, isVideo } from '@/lib/utils';
+import { fileTypeCache } from '@/lib/file-type-cache';
+import { isSkippedLargeFile } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 interface MediaThumbnailProps {
   item: MediaItem;
@@ -19,9 +20,28 @@ const MediaThumbnail = memo(
     priority = false,
     className = '',
   }: MediaThumbnailProps) {
-    const extension = item.extension?.toLowerCase() || '';
-    const isImg = isImage(extension);
-    const isVid = isVideo(extension);
+    const fileTypeId = item.file_type_id;
+
+    // Track media type state
+    const [isImg, setIsImg] = useState(false);
+    const [isVid, setIsVid] = useState(false);
+    const [category, setCategory] = useState<string | null>(null);
+
+    // Use effect to determine media type using fileTypeId when available
+    useEffect(() => {
+      const checkMediaType = async () => {
+        // Use file_type_id if available, otherwise fall back to extension
+        if (fileTypeId) {
+          // Get media type from file_type_id (preferred approach)
+          setIsImg(await fileTypeCache.isImageById(fileTypeId));
+          setIsVid(await fileTypeCache.isVideoById(fileTypeId));
+          const fileType = await fileTypeCache.getFileTypeById(fileTypeId);
+          setCategory(fileType?.category || null);
+        }
+      };
+
+      checkMediaType();
+    }, [fileTypeId]);
 
     // Use the dedicated thumbnail_path field from the media_item
     const thumbnailPath = item.thumbnail_path;
@@ -63,7 +83,7 @@ const MediaThumbnail = memo(
             <div className="flex flex-col items-center">
               <FileIcon className="h-8 w-8 text-muted-foreground" />
               <span className="text-xs font-medium mt-1 uppercase">
-                {extension || 'FILE'}
+                {category || 'FILE'}
               </span>
             </div>
           </div>

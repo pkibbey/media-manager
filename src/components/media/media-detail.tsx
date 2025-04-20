@@ -8,7 +8,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { bytesToSize, isImage } from '@/lib/utils';
+import { fileTypeCache } from '@/lib/file-type-cache';
+import { bytesToSize } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 import { FileIcon, HandIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
@@ -62,6 +63,8 @@ const MediaDetail = memo(function MediaDetail() {
   // Get the selected item from context instead of props
   const { selectedItems } = useMediaSelection();
   const [zoomMode, setZoomMode] = useState(false);
+  const [isImageFile, setIsImageFile] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
 
   // Load zoom preference from local storage on mount
   useEffect(() => {
@@ -70,6 +73,26 @@ const MediaDetail = memo(function MediaDetail() {
       setZoomMode(savedPreference === 'true');
     }
   }, []);
+
+  // Check if the selected item is an image
+  useEffect(() => {
+    if (selectedItems.length > 0) {
+      const item = selectedItems[0];
+
+      const checkIfImage = async () => {
+        // Use file_type_id if available, otherwise fall back to extension
+        if (item.file_type_id) {
+          setIsImageFile(await fileTypeCache.isImageById(item.file_type_id));
+          const fileType = await fileTypeCache.getFileTypeById(
+            item.file_type_id,
+          );
+          setCategory(fileType?.category || null);
+        }
+      };
+
+      checkIfImage();
+    }
+  }, [selectedItems]);
 
   // Toggle zoom mode and save to local storage
   const toggleZoomMode = useCallback(() => {
@@ -95,7 +118,6 @@ const MediaDetail = memo(function MediaDetail() {
   // We'll just show the first selected item for now
   const item = selectedItems[0];
   const exifData = getExifData(item);
-  const isImageFile = isImage(item.extension || '');
 
   return (
     <div className="sticky top-6 flex flex-col">
@@ -160,7 +182,7 @@ const MediaDetail = memo(function MediaDetail() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Type</p>
-                  <p className="uppercase">{item.extension}</p>
+                  <p className="uppercase">{category}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Modified</p>

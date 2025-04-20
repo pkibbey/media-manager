@@ -1,5 +1,5 @@
 'use server';
-
+import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
@@ -73,16 +73,8 @@ export async function clearIgnoredFileTypes() {
   try {
     const supabase = createServerSupabaseClient();
 
-    // First, get the list of ignored file types
-    const { data: ignoredTypes, error: fetchError } = await supabase
-      .from('file_types')
-      .select('extension')
-      .eq('ignore', true);
-
-    if (fetchError) {
-      console.error('Error fetching ignored file types:', fetchError);
-      return { success: false, error: fetchError.message };
-    }
+    // First, get the list of ignored file type IDs
+    const ignoredTypeIds = await getIgnoredFileTypeIds();
 
     // Delete the ignored file types
     const { error: deleteError } = await supabase
@@ -100,7 +92,7 @@ export async function clearIgnoredFileTypes() {
 
     return {
       success: true,
-      message: `Removed ${ignoredTypes?.length || 0} ignored file types`,
+      message: `Removed ${ignoredTypeIds.length} ignored file types`,
     };
   } catch (error: any) {
     console.error('Error clearing ignored file types:', error);
@@ -109,7 +101,7 @@ export async function clearIgnoredFileTypes() {
 }
 
 /**
- * Get all file extensions that can be natively displayed by browsers
+ * Get all file types that can be natively displayed by browsers
  * These are formats that browsers can render without conversion
  */
 export async function getNativelySupportedFormats() {
@@ -118,7 +110,7 @@ export async function getNativelySupportedFormats() {
 
     const { data, error } = await supabase
       .from('file_types')
-      .select('extension')
+      .select('id, extension')
       .eq('can_display_natively', true)
       .order('extension');
 
@@ -127,12 +119,53 @@ export async function getNativelySupportedFormats() {
       return { success: false, error: error.message, formats: [] };
     }
 
-    // Extract just the extension strings from the data
-    const formats = data.map((item) => item.extension.toLowerCase());
+    // Return both IDs and extensions for backward compatibility during transition
+    const formats = {
+      ids: data.map((item) => item.id),
+      extensions: data.map((item) => item.extension.toLowerCase()),
+    };
 
     return { success: true, formats };
   } catch (error: any) {
     console.error('Error getting natively supported formats:', error);
-    return { success: false, error: error.message, formats: [] as string[] };
+    return {
+      success: false,
+      error: error.message,
+      formats: { ids: [], extensions: [] },
+    };
+  }
+}
+
+/**
+ * Get count of media items with missing file_type_id
+ */
+export async function getMissingFileTypeIdCount(): Promise<{
+  success: boolean;
+  count?: number;
+  error?: string;
+}> {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    const { count, error } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true })
+      .is('file_type_id', null);
+
+    if (error) {
+      console.error(
+        'Error counting media items with missing file_type_id:',
+        error,
+      );
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, count: count || 0 };
+  } catch (error: any) {
+    console.error(
+      'Error counting media items with missing file_type_id:',
+      error,
+    );
+    return { success: false, error: error.message };
   }
 }

@@ -1,7 +1,7 @@
 'use server';
 
 import { PAGE_SIZE } from '@/lib/consts';
-import { getFileTypeInfo } from '@/lib/file-types-utils'; // Import the new utility
+import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { MediaFilters } from '@/types/media-types';
 
@@ -17,15 +17,19 @@ export async function browseMedia(
     const supabase = createServerSupabaseClient();
     const offset = (page - 1) * pageSize;
 
-    // Use the utility function to get file type info
-    const fileTypeInfo = await getFileTypeInfo();
+    // Use the detailed file type info to get mapping of file type IDs by category
+    const fileTypeInfo = await getDetailedFileTypeInfo();
 
     if (!fileTypeInfo) {
       return { success: false, error: 'Failed to fetch file type information' };
     }
 
-    const { ignoredExtensions, categorizedExtensions, allFileTypes } =
-      fileTypeInfo;
+    const {
+      ignoredExtensions,
+      categorizedExtensions,
+      categoryToIds,
+      allFileTypes,
+    } = fileTypeInfo;
 
     // Build ignore filter condition
     const ignoreFilter =
@@ -36,8 +40,12 @@ export async function browseMedia(
     // Build query with filters
     let query = supabase.from('media_items').select('*', { count: 'exact' });
 
-    // Exclude ignored file types
-    if (ignoreFilter) {
+    // Exclude ignored file types - use file_type_id if available, fallback to extension
+    if (fileTypeInfo.ignoredIds && fileTypeInfo.ignoredIds.length > 0) {
+      // Primary approach: Filter using file_type_id (if we have IDs of ignored types)
+      query = query.not('file_type_id', 'in', fileTypeInfo.ignoredIds);
+    } else if (ignoreFilter) {
+      // Fallback: Filter using extension
       query = query.not('extension', 'in', ignoreFilter);
     }
 
@@ -47,10 +55,17 @@ export async function browseMedia(
     }
 
     if (filters.type !== 'all') {
-      // Use our database-derived category mapping instead of hardcoded values
-      const extensions = categorizedExtensions[filters.type]; // Use map from utility
-      if (extensions && extensions.length > 0) {
-        query = query.in('extension', extensions);
+      // Use file_type_id for category filtering
+      const categoryIds = categoryToIds[filters.type];
+      if (categoryIds && categoryIds.length > 0) {
+        // Primary approach: Filter using file_type_id
+        query = query.in('file_type_id', categoryIds);
+      } else {
+        // Fallback: Use extension-based filtering if we don't have category IDs
+        const extensions = categorizedExtensions[filters.type];
+        if (extensions && extensions.length > 0) {
+          query = query.in('extension', extensions);
+        }
       }
     }
 
@@ -252,7 +267,7 @@ export async function browseMedia(
       date: 'media_date',
       name: 'file_name',
       size: 'size_bytes',
-      type: 'extension',
+      type: 'extension', // Keep using extension for sorting as it's more user-friendly
     }[filters.sortBy];
 
     if (sortColumn) {

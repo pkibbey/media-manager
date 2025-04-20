@@ -29,7 +29,7 @@ export default function FolderListDisplay({ folders }: FolderListDisplayProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Configured Folders</CardTitle>
+        <CardTitle>Media Locations</CardTitle>
         <CardDescription>
           These folders will be scanned for media files.
         </CardDescription>

@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises';
 import { isAborted } from '@/lib/abort-tokens';
 import { BATCH_SIZE } from '@/lib/consts';
+import { getIgnoredExtensions } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
 import type {
@@ -65,13 +66,7 @@ export async function streamProcessUnprocessedItems(
       });
 
       // Get all media files that don't have EXIF data yet and are not ignored file types
-      const { data: fileTypes } = await supabase
-        .from('file_types')
-        .select('extension')
-        .eq('ignore', true);
-
-      const ignoredExtensions =
-        fileTypes?.map((ft) => ft.extension.toLowerCase()) || [];
+      const ignoredTypes = await getIgnoredExtensions();
 
       // Define list of supported extensions - same as in getExifStats
       const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
@@ -83,7 +78,7 @@ export async function streamProcessUnprocessedItems(
         .from('media_items')
         .select('*', { count: 'exact', head: true })
         .in('extension', exifSupportedExtensions)
-        .not('extension', 'in', ignoredExtensions)
+        .not('extension', 'in', ignoredTypes)
         .not(
           'id',
           'in',
@@ -157,7 +152,7 @@ export async function streamProcessUnprocessedItems(
             .from('media_items')
             .select('id, file_path, extension, file_name')
             .in('extension', exifSupportedExtensions)
-            .not('extension', 'in', ignoredExtensions)
+            .not('extension', 'in', ignoredTypes)
             .not(
               'id',
               'in',

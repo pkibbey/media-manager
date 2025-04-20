@@ -92,7 +92,6 @@ export type Database = {
         Row: {
           created_date: string | null;
           exif_data: Json | null;
-          extension: string;
           file_name: string;
           file_path: string;
           file_type_id: number | null;
@@ -106,7 +105,6 @@ export type Database = {
         Insert: {
           created_date?: string | null;
           exif_data?: Json | null;
-          extension: string;
           file_name: string;
           file_path: string;
           file_type_id?: number | null;
@@ -120,7 +118,6 @@ export type Database = {
         Update: {
           created_date?: string | null;
           exif_data?: Json | null;
-          extension?: string;
           file_name?: string;
           file_path?: string;
           file_type_id?: number | null;
