@@ -40,7 +40,7 @@ export default function MediaCard({
       aria-selected={isSelected}
     >
       <div className="aspect-square relative">
-        <MediaThumbnail item={item} />
+        <MediaThumbnail item={item} priority={index < 6} />
 
         {/* Folder indicator - only shown if folderName exists */}
         {folderName && (

@@ -198,16 +198,15 @@ export default function MediaList({ items, filterComponent }: MediaListProps) {
     <MediaSelectionContext.Provider value={contextValue}>
       <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_500px] gap-4 md:gap-6">
         <div className="flex flex-col space-y-6">
-          {filterComponent}
-          <div className="flex justify-between items-center mb-2">
-            <div className="text-sm">
-              {selectedMediaItems.length > 1 && (
+          {selectedMediaItems.length > 1 && (
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-sm">
                 <span className="text-primary">
                   {selectedMediaItems.length} items selected
                 </span>
-              )}
+              </div>
             </div>
-          </div>
+          )}
           <div
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 auto-rows-max content-start"
             ref={gridRef}

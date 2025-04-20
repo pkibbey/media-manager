@@ -208,7 +208,7 @@ export default function BrowsePage() {
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Browse Media</h1>
 
-      <div className="min-h-[200px]">
+      <div className="grid gap-4 min-h-[200px]">
         {!loading && error && (
           <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-md text-destructive">
             {error}
@@ -222,20 +222,16 @@ export default function BrowsePage() {
           </div>
         )}
 
+        <MediaFilterView
+          totalCount={pagination.total}
+          maxFileSize={maxFileSize}
+          availableCameras={availableCameras}
+          onFiltersChange={handleFiltersChange}
+        />
+
         {!loading && (
           <div className="relative">
-            <MediaList
-              items={mediaItems}
-              filterComponent={
-                <MediaFilterView
-                  totalCount={pagination.total}
-                  maxFileSize={maxFileSize}
-                  availableCameras={availableCameras}
-                  onFiltersChange={handleFiltersChange}
-                />
-              }
-            />
-
+            <MediaList items={mediaItems} />
             {pagination.pageCount > 1 && (
               <div className="mt-6">
                 <Pagination

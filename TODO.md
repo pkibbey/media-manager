@@ -2,3 +2,5 @@
 - Process each image for sentiment analysis
 - Process each image for perceived quality
 - Process each image for content safety
+
+- Enabled images to be marked for deletion

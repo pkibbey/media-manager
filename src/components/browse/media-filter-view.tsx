@@ -24,13 +24,10 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import type { MediaFilters } from '@/types/media-types';
-import {
-  CalendarIcon,
-  MixerHorizontalIcon,
-  ReloadIcon,
-} from '@radix-ui/react-icons';
+import { CalendarIcon } from '@radix-ui/react-icons';
 import { format } from 'date-fns';
 import { debounce } from 'lodash';
+import { ArrowDownCircleIcon, ArrowUpCircleIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -51,9 +48,7 @@ export default function MediaFilterView({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Create form with default values
   const form = useForm<MediaFilters>({
     defaultValues: {
       search: '',
@@ -72,15 +67,12 @@ export default function MediaFilterView({
     },
   });
 
-  // Create a debounced version of the filter apply function
-  // We'll use this for text search to avoid too many requests while typing
   const debouncedApplyFilters = useRef(
     debounce((values: MediaFilters) => {
       applyFilters(values);
     }, 300),
   ).current;
 
-  // Initialize form values from URL params
   useEffect(() => {
     const formValues: Partial<MediaFilters> = {};
 
@@ -88,12 +80,11 @@ export default function MediaFilterView({
       formValues.search = searchParams.get('search') || '';
     }
 
-    // Fix for data files type selection issue
     const type = searchParams.get('type');
     if (type && ['all', 'image', 'video', 'data'].includes(type)) {
       formValues.type = type as MediaFilters['type'];
     } else {
-      formValues.type = 'all'; // Default to 'all' if not specified or invalid
+      formValues.type = 'all';
     }
 
     if (searchParams.has('dateFrom')) {
@@ -159,7 +150,6 @@ export default function MediaFilterView({
 
     setIsAdvancedOpen(false);
 
-    // Reset form with values from URL, ensuring we always have valid values
     form.reset({
       search: formValues.search || '',
       type: formValues.type || 'all',
@@ -177,20 +167,15 @@ export default function MediaFilterView({
       hasThumbnail: formValues.hasThumbnail || 'all',
     });
 
-    // Ensure form values get applied after reset
     const currentFormValues = form.getValues();
     if (formValues.type && formValues.type !== currentFormValues.type) {
       form.setValue('type', formValues.type);
     }
   }, [searchParams, form, maxFileSize]);
 
-  // Apply filters and update URL
   const applyFilters = useCallback(
     (values: MediaFilters) => {
-      setIsLoading(true);
-
       try {
-        // Ensure we have valid values before applying filters
         const validatedValues = {
           ...values,
           type: values.type || 'all',
@@ -199,10 +184,8 @@ export default function MediaFilterView({
           maxSize: values.maxSize !== undefined ? values.maxSize : maxFileSize,
         };
 
-        // Update URL with filter params
         const params = new URLSearchParams();
 
-        // Only add non-empty filters
         if (validatedValues.search)
           params.set('search', validatedValues.search);
         if (validatedValues.type !== 'all')
@@ -230,78 +213,30 @@ export default function MediaFilterView({
         if (validatedValues.hasThumbnail !== 'all')
           params.set('hasThumbnail', validatedValues.hasThumbnail);
 
-        // Update URL
         router.push(`/browse?${params.toString()}`);
 
-        // Notify parent component
         onFiltersChange(validatedValues);
-      } finally {
-        setIsLoading(false);
+      } catch (error) {
+        console.error('Error applying filters:', error);
       }
     },
     [router, onFiltersChange, maxFileSize],
   );
 
-  // Watch for changes to select fields and apply filters automatically
   useEffect(() => {
-    const subscription = form.watch((values, { name }) => {
-      // Don't auto-submit for search text input (we're using debounce for that)
-      if (
-        name &&
-        [
-          'type',
-          'sortBy',
-          'sortOrder',
-          'processed',
-          'organized',
-          'camera',
-          'hasLocation',
-          'hasThumbnail',
-        ].includes(name)
-      ) {
-        // Ensure we always reset to page 1 when filters change
-        const params = new URLSearchParams();
+    const subscription = form.watch((values) => {
+      const completeValues = values as MediaFilters;
 
-        // Copy existing search parameters that we want to preserve
-        if (values.search) params.set('search', values.search);
-        if (values.type !== 'all') params.set('type', values.type || 'all');
-        if (values.dateFrom)
-          params.set('dateFrom', values.dateFrom.toISOString());
-        if (values.dateTo) params.set('dateTo', values.dateTo.toISOString());
-        if ((values.minSize ?? 0) > 0)
-          params.set('minSize', String(values.minSize));
-        if (values.maxSize !== undefined && values.maxSize < maxFileSize)
-          params.set('maxSize', String(values.maxSize));
-        if (values.sortBy !== 'date' && values.sortBy)
-          params.set('sortBy', values.sortBy);
-        if (values.sortOrder !== 'desc' && values.sortOrder)
-          params.set('sortOrder', values.sortOrder);
-        if (values.processed !== 'all' && values.processed)
-          params.set('processed', values.processed);
-        if (values.organized !== 'all' && values.organized)
-          params.set('organized', values.organized);
-        if (values.camera && values.camera !== 'all')
-          params.set('camera', values.camera);
-        if (values.hasLocation !== 'all' && values.hasLocation)
-          params.set('hasLocation', values.hasLocation);
-        if (values.hasThumbnail !== 'all' && values.hasThumbnail)
-          params.set('hasThumbnail', values.hasThumbnail);
+      const timeoutId = setTimeout(() => {
+        applyFilters(completeValues);
+      }, 300);
 
-        // Always reset to page 1 when filter changes
-        params.set('page', '1');
-
-        // Update URL first
-        router.push(`/browse?${params.toString()}`);
-
-        // Then apply filters
-        applyFilters(values as MediaFilters);
-      }
+      return () => clearTimeout(timeoutId);
     });
 
-    // Clean up subscription
     return () => subscription.unsubscribe();
-  }, [form, router, maxFileSize, applyFilters]);
-  // Reset filters
+  }, [form, applyFilters]);
+
   const handleReset = useCallback(() => {
     const defaultValues: MediaFilters = {
       search: '',
@@ -326,20 +261,16 @@ export default function MediaFilterView({
 
   return (
     <div className="bg-card rounded-lg px-6 py-5">
-      <h3 className="text-lg font-semibold mb-4">Media Filters</h3>
       <Form {...form}>
-        <form
-          // Keep the onSubmit handler for pressing Enter in text fields
-          onSubmit={form.handleSubmit((values) => applyFilters(values))}
-          className="space-y-4"
-        >
-          <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+        <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+          <div className="flex flex-col items-end sm:flex-row gap-4 flex-wrap">
             {/* Search */}
             <FormField
               control={form.control}
               name="search"
               render={({ field }) => (
                 <FormItem className="flex-1">
+                  <FormLabel>Search</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Search media..."
@@ -347,7 +278,6 @@ export default function MediaFilterView({
                       className="w-full min-w-32"
                       onChange={(e) => {
                         field.onChange(e);
-                        // Use debounced version for search text
                         debouncedApplyFilters(form.getValues());
                       }}
                     />
@@ -356,113 +286,174 @@ export default function MediaFilterView({
               )}
             />
 
-            {/* Media Type */}
+            {/* EXIF Processing Status */}
             <FormField
               control={form.control}
-              name="type"
+              name="processed"
               render={({ field }) => (
                 <FormItem>
-                  <Select
-                    value={field.value || 'all'} // Ensure there's always a default value
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue>
-                        {field.value === 'all' && 'All types'}
-                        {field.value === 'image' && 'Images'}
-                        {field.value === 'video' && 'Videos'}
-                        {field.value === 'data' && 'Data files'}
-                      </SelectValue>
+                  <FormLabel>Exif</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="ExifData status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All types</SelectItem>
-                      <SelectItem value="image">Images</SelectItem>
-                      <SelectItem value="video">Videos</SelectItem>
-                      <SelectItem value="data">Data files</SelectItem>
+                      <SelectItem value="all">All files</SelectItem>
+                      <SelectItem value="yes">Processed</SelectItem>
+                      <SelectItem value="no">Not processed</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
               )}
             />
 
-            {/* Sort By */}
+            {/* Organized Status */}
             <FormField
               control={form.control}
-              name="sortBy"
+              name="organized"
               render={({ field }) => (
                 <FormItem>
-                  <Select
-                    value={field.value || 'date'} // Ensure there's always a default value
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue>
-                        {field.value === 'date' && 'Date'}
-                        {field.value === 'name' && 'Name'}
-                        {field.value === 'size' && 'Size'}
-                        {field.value === 'type' && 'Type'}
-                      </SelectValue>
+                  <FormLabel>Tidy</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Organization status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="name">Name</SelectItem>
-                      <SelectItem value="size">Size</SelectItem>
-                      <SelectItem value="type">Type</SelectItem>
+                      <SelectItem value="all">All files</SelectItem>
+                      <SelectItem value="yes">Organized</SelectItem>
+                      <SelectItem value="no">Not organized</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
               )}
             />
 
-            {/* Sort Order */}
+            {/* Thumbnail Status */}
             <FormField
               control={form.control}
-              name="sortOrder"
+              name="hasThumbnail"
               render={({ field }) => (
                 <FormItem>
-                  <Select
-                    value={field.value || 'desc'} // Ensure there's always a default value
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue>
-                        {field.value === 'asc' && 'Ascending'}
-                        {field.value === 'desc' && 'Descending'}
-                      </SelectValue>
+                  <FormLabel>Thumbnail</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Thumbnail status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="asc">Ascending</SelectItem>
-                      <SelectItem value="desc">Descending</SelectItem>
+                      <SelectItem value="all">Any file</SelectItem>
+                      <SelectItem value="yes">Has thumbnail</SelectItem>
+                      <SelectItem value="no">No thumbnail</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
               )}
             />
-
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && (
-                <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Apply
-            </Button>
 
             {/* Advanced Filters Toggle */}
             <div>
               <Button
                 type="button"
-                variant={isAdvancedOpen ? 'outline' : 'secondary'}
+                variant={isAdvancedOpen ? 'default' : 'secondary'}
                 className="w-full"
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
               >
-                <MixerHorizontalIcon className="mr-2 h-4 w-4" />
-                {isAdvancedOpen ? 'Hide' : 'Show'} Advanced Filters
+                {isAdvancedOpen ? (
+                  <ArrowUpCircleIcon className="h-4 w-4" />
+                ) : (
+                  <ArrowDownCircleIcon className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
 
           {/* Advanced Filters */}
           {isAdvancedOpen && (
-            <div className="grid grid-cols-2 gap-4 auto-rows-max content-start">
+            <div className="grid grid-cols-2 gap-4 auto-rows-max content-start pt-4 border-t mt-4">
+              {/* Media Type */}
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <Select
+                      value={field.value || 'all'}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue>
+                          {field.value === 'all' && 'All types'}
+                          {field.value === 'image' && 'Images'}
+                          {field.value === 'video' && 'Videos'}
+                          {field.value === 'data' && 'Data files'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All types</SelectItem>
+                        <SelectItem value="image">Images</SelectItem>
+                        <SelectItem value="video">Videos</SelectItem>
+                        <SelectItem value="data">Data files</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              {/* Sort By */}
+              <FormField
+                control={form.control}
+                name="sortBy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sort By</FormLabel>
+                    <Select
+                      value={field.value || 'date'}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          {field.value === 'date' && 'Date'}
+                          {field.value === 'name' && 'Name'}
+                          {field.value === 'size' && 'Size'}
+                          {field.value === 'type' && 'Type'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date">Date</SelectItem>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="size">Size</SelectItem>
+                        <SelectItem value="type">Type</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              {/* Sort Order */}
+              <FormField
+                control={form.control}
+                name="sortOrder"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sort Order</FormLabel>
+                    <Select
+                      value={field.value || 'desc'}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          {field.value === 'asc' && 'Ascending'}
+                          {field.value === 'desc' && 'Descending'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">Ascending</SelectItem>
+                        <SelectItem value="desc">Descending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
               {/* Date Range - From */}
               <FormField
                 control={form.control}
@@ -494,7 +485,6 @@ export default function MediaFilterView({
                           selected={field.value || undefined}
                           onSelect={(date) => {
                             field.onChange(date);
-                            // Apply filter when date is selected
                             applyFilters(form.getValues());
                           }}
                           disabled={(date) =>
@@ -513,7 +503,6 @@ export default function MediaFilterView({
                         className="mt-1 text-xs h-auto py-1"
                         onClick={() => {
                           field.onChange(null);
-                          // Apply filter when date is cleared
                           applyFilters(form.getValues());
                         }}
                       >
@@ -555,7 +544,6 @@ export default function MediaFilterView({
                           selected={field.value || undefined}
                           onSelect={(date) => {
                             field.onChange(date);
-                            // Apply filter when date is selected
                             applyFilters(form.getValues());
                           }}
                           disabled={(date) =>
@@ -574,55 +562,12 @@ export default function MediaFilterView({
                         className="mt-1 text-xs h-auto py-1"
                         onClick={() => {
                           field.onChange(null);
-                          // Apply filter when date is cleared
                           applyFilters(form.getValues());
                         }}
                       >
                         Clear
                       </Button>
                     )}
-                  </FormItem>
-                )}
-              />
-
-              {/* EXIF Processing Status */}
-              <FormField
-                control={form.control}
-                name="processed"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ExifData Status</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="ExifData status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All files</SelectItem>
-                        <SelectItem value="yes">Processed</SelectItem>
-                        <SelectItem value="no">Not processed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
-              {/* Organized Status */}
-              <FormField
-                control={form.control}
-                name="organized"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Organization Status</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Organization status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All files</SelectItem>
-                        <SelectItem value="yes">Organized</SelectItem>
-                        <SelectItem value="no">Not organized</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </FormItem>
                 )}
               />
@@ -675,27 +620,6 @@ export default function MediaFilterView({
                 )}
               />
 
-              {/* Thumbnail Status */}
-              <FormField
-                control={form.control}
-                name="hasThumbnail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Thumbnail Status</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Thumbnail status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Any file</SelectItem>
-                        <SelectItem value="yes">Has thumbnail</SelectItem>
-                        <SelectItem value="no">No thumbnail</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
               {/* File Size Range */}
               <FormField
                 control={form.control}
@@ -724,7 +648,6 @@ export default function MediaFilterView({
                       onValueCommit={(values) => {
                         form.setValue('minSize', values[0]);
                         form.setValue('maxSize', values[1]);
-                        // Only apply filter when slider stops moving
                         applyFilters(form.getValues());
                       }}
                       className="py-4"
@@ -732,27 +655,27 @@ export default function MediaFilterView({
                   </FormItem>
                 )}
               />
+
+              {/* Summary and Actions */}
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div className="text-sm text-muted-foreground">
+                  {totalCount > 0 ? (
+                    <>Showing {totalCount} items</>
+                  ) : (
+                    <>No items match your criteria</>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleReset}
+                >
+                  Reset Filters
+                </Button>
+              </div>
             </div>
           )}
-
-          {/* Summary and Actions */}
-          <div className="flex items-center justify-between pt-2 border-t">
-            <div className="text-sm text-muted-foreground">
-              {totalCount > 0 ? (
-                <>Showing {totalCount} items</>
-              ) : (
-                <>No items match your criteria</>
-              )}
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleReset}
-            >
-              Reset Filters
-            </Button>
-          </div>
         </form>
       </Form>
     </div>

@@ -8,12 +8,17 @@ import { memo } from 'react';
 
 interface MediaThumbnailProps {
   item: MediaItem;
+  priority?: boolean;
   className?: string;
 }
 
 // Optimized component for small card thumbnails
 const MediaThumbnail = memo(
-  function MediaThumbnail({ item, className = '' }: MediaThumbnailProps) {
+  function MediaThumbnail({
+    item,
+    priority = false,
+    className = '',
+  }: MediaThumbnailProps) {
     const extension = item.extension?.toLowerCase();
     const isImg = isImage(extension);
     const isVid = isVideo(extension);
@@ -21,8 +26,10 @@ const MediaThumbnail = memo(
     return (
       <>
         {isImg &&
-        (item.thumbnail_path || item.file_path) &&
-        !isSkippedLargeFile(item.file_path, item.size_bytes) ? (
+        !isSkippedLargeFile(
+          item.thumbnail_path || item.file_path,
+          item.size_bytes,
+        ) ? (
           <div className="w-full h-full relative">
             <Image
               src={
@@ -33,8 +40,9 @@ const MediaThumbnail = memo(
               alt={item.file_name}
               className={`object-cover ${className}`}
               fill
+              priority={priority}
               sizes="(max-width: 768px) 33vw, 20vw"
-              loading="lazy"
+              loading={priority ? undefined : 'lazy'}
               placeholder="empty"
               onError={(e) => {
                 // Fallback for failed thumbnails
