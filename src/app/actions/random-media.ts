@@ -15,13 +15,28 @@ export async function getRandomMedia(limit = 5): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Simplify the query - first get only image media that has thumbnails
+    // First, retrieve media_item IDs with successful thumbnail processing
+    const { data: thumbData, error: thumbError } = await supabase
+      .from('processing_states')
+      .select('media_item_id')
+      .eq('type', 'thumbnail')
+      .eq('status', 'success');
+    if (thumbError) {
+      console.error('Error fetching processing states:', thumbError.message);
+      return { success: false, error: thumbError.message };
+    }
+    const thumbnailMediaIds = thumbData
+      ? thumbData.map((item) => item.media_item_id)
+      : [];
+
+    // Then, query media_items using the retrieved IDs
     const { data, error } = await supabase
       .from('media_items')
       .select('*')
-      .eq('processed', true)
-      .neq('thumbnail_path', null)
-      .neq('thumbnail_path', 'skipped:large_file')
+      .in(
+        'id',
+        thumbnailMediaIds.filter((id) => id !== null),
+      )
       .gte('size_bytes', Math.floor(Math.random() * 50000 + 10000))
       .order('size_bytes', { ascending: false })
       .limit(limit);

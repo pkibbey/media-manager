@@ -50,8 +50,8 @@ const MediaFullView = memo(
     const orientation = exifData?.Image?.Orientation || undefined;
     const { height, width } = calculateAspectRatio(exifData);
     const aspectRatio = width / height;
-    const isImg = isImage(extension);
-    const isVid = isVideo(extension);
+    const isImg = isImage(extension || '');
+    const isVid = isVideo(extension || '');
 
     // Determine if image is rotated 90/270 degrees based on EXIF
     const isRotated = orientation === 6 || orientation === 8;
@@ -63,7 +63,7 @@ const MediaFullView = memo(
       <>
         {isImg &&
         item.file_path &&
-        !isSkippedLargeFile(item.file_path, item.size_bytes) ? (
+        !isSkippedLargeFile(item.size_bytes || 0) ? (
           <div
             className={`w-[${windowWidth}px] h-[${Math.round(windowWidth / aspectRatio)}px] relative ${containerClass}`}
           >

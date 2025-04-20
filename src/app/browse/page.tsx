@@ -150,7 +150,7 @@ export default function BrowsePage() {
         const result = await browseMedia(filters, currentPage, PAGE_SIZE);
 
         if (result.success && result.data) {
-          setMediaItems(result.data);
+          setMediaItems(result.data as MediaItem[]);
           setPagination(result.pagination);
           setMaxFileSize(result.maxFileSize);
 

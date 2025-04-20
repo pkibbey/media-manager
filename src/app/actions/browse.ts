@@ -99,24 +99,46 @@ export async function browseMedia(
       query = query.lte('size_bytes', maxSizeBytes);
     }
 
+    // Updated processing filter to use processing_state
     if (filters.processed !== 'all') {
-      query = query.eq('processed', filters.processed === 'yes');
+      if (filters.processed === 'yes') {
+        // Items are considered processed if EXIF processing is success, skipped, or unsupported
+        query = query
+          .not('processing_state', 'is', null) // Ensure processing_state exists
+          .in("processing_state->'exif'->>'status'", [
+            'success',
+            'skipped',
+            'unsupported',
+          ]);
+      } else {
+        // Not processed items are those pending, errored, outdated, or without any EXIF state
+        query = query.or(
+          'processing_state.is.null,' + // No processing state at all
+            "processing_state->'exif'.is.null," + // No EXIF state within processing_state
+            "processing_state->'exif'->>'status'.eq.pending," +
+            "processing_state->'exif'->>'status'.eq.error," +
+            "processing_state->'exif'->>'status'.eq.outdated",
+        );
+      }
     }
 
     if (filters.organized !== 'all') {
       query = query.eq('organized', filters.organized === 'yes');
     }
 
-    if (filters.hasThumbnail !== 'all') {
+    // Fix the JSON query syntax for hasThumbnail filter
+    if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
       if (filters.hasThumbnail === 'yes') {
-        // Filter for items that have thumbnails (not null and not starting with 'skipped:')
+        // Check for successful thumbnail processing
         query = query
-          .not('thumbnail_path', 'is', null)
-          .not('thumbnail_path', 'like', 'skipped:%');
+          .not('processing_state', 'is', null)
+          .eq("processing_state->'thumbnail'->>'status'", 'success');
       } else {
-        // Filter for items without thumbnails (null or starting with 'skipped:')
+        // Check for missing or failed thumbnail processing
         query = query.or(
-          'thumbnail_path.is.null,thumbnail_path.like.skipped:%',
+          'processing_state.is.null,' +
+            'processing_state->thumbnail.is.null,' +
+            "processing_state->'thumbnail'->>'status'.neq.success",
         );
       }
     }

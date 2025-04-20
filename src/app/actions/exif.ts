@@ -11,8 +11,6 @@ import type {
   ExifProgress,
   ExtractionMethod,
 } from '@/types/exif';
-import type { Json } from '@/types/supabase';
-import type { ProcessingState } from '@/types/thumbnail-types';
 import { revalidatePath } from 'next/cache';
 
 export async function getExifStats() {
@@ -50,28 +48,25 @@ export async function getExifStats() {
       return { success: false, message: totalCompatibleError.message };
     }
 
-    // Get items with EXIF data (with same extension filtering as total)
+    // Get items with successful EXIF data using the new processing_states table
     const { count: withExifCount, error: withExifError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('has_exif', true)
-      .in('extension', exifSupportedExtensions) // Only count EXIF-compatible extensions
-      .not('extension', 'in', ignoreFilterExpr);
+      .from('processing_states')
+      .select('media_item_id', { count: 'exact', head: true })
+      .eq('type', 'exif')
+      .eq('status', 'success');
 
     if (withExifError) {
-      console.error('Error with has_exif count:', withExifError);
+      console.error('Error with exif success count:', withExifError);
       return { success: false, message: withExifError.message };
     }
 
-    // Get items that are processed but don't have EXIF (with same extension filtering as total)
+    // Get items that were processed but don't have EXIF (skipped or unsupported)
     const { count: processedNoExifCount, error: processedNoExifError } =
       await supabase
-        .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('processed', true)
-        .eq('has_exif', false)
-        .in('extension', exifSupportedExtensions) // Only count EXIF-compatible extensions
-        .not('extension', 'in', ignoreFilterExpr);
+        .from('processing_states')
+        .select('media_item_id', { count: 'exact', head: true })
+        .eq('type', 'exif')
+        .in('status', ['skipped', 'unsupported']);
 
     if (processedNoExifError) {
       console.error(
@@ -81,20 +76,27 @@ export async function getExifStats() {
       return { success: false, message: processedNoExifError.message };
     }
 
-    // Get unprocessed items that are EXIF compatible
+    // Get count of unprocessed items (no processing state entry for exif)
     const { count: unprocessedCount, error: unprocessedError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('processed', false)
+      .select('id', { count: 'exact', head: true })
       .in('extension', exifSupportedExtensions)
-      .not('extension', 'in', ignoreFilterExpr);
+      .not('extension', 'in', ignoreFilterExpr)
+      .not(
+        'id',
+        'in',
+        supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'exif'),
+      );
 
     if (unprocessedError) {
       console.error('Error with unprocessed count:', unprocessedError);
       return { success: false, message: unprocessedError.message };
     }
 
-    // Calculate statistics - now with consistent filtering
+    // Calculate statistics
     const withExif = withExifCount || 0;
     const processedNoExif = processedNoExifCount || 0;
     const unprocessedCount2 = unprocessedCount || 0;
@@ -238,7 +240,7 @@ export async function processExifData({
     // First get the media item to access its file path
     const { data: mediaItem, error: fetchError } = await supabase
       .from('media_items')
-      .select('file_path, file_name, processing_state')
+      .select('file_path, file_name')
       .eq('id', mediaId)
       .single();
 
@@ -260,25 +262,15 @@ export async function processExifData({
     } catch (fileError) {
       progressCallback?.('File not found');
 
-      // Update processing state with error
-      await supabase
-        .from('media_items')
-        .update({
-          processing_state: {
-            ...(mediaItem.processing_state as ProcessingState),
-            exif: {
-              status: 'error',
-              processedAt: new Date().toISOString(),
-              error: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
-              method,
-            },
-          },
-          // Keep legacy fields for backward compatibility
-          processed: true,
-          has_exif: false,
-          error: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
-        })
-        .eq('id', mediaId);
+      // Insert error state into processing_states table
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'exif',
+        status: 'error',
+        processed_at: new Date().toISOString(),
+        error_message: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
+        metadata: { method },
+      });
 
       return {
         success: false,
@@ -294,24 +286,14 @@ export async function processExifData({
     if (!exifData) {
       progressCallback?.('No EXIF data found in file');
 
-      // Update processing state
-      await supabase
-        .from('media_items')
-        .update({
-          processing_state: {
-            ...(mediaItem.processing_state as ProcessingState),
-            exif: {
-              status: 'success', // Still mark as success, just no EXIF found
-              processedAt: new Date().toISOString(),
-              method,
-            },
-          },
-          // Keep legacy fields for backward compatibility
-          processed: true,
-          has_exif: false,
-          error: 'No EXIF data extracted',
-        })
-        .eq('id', mediaId);
+      // Insert skipped state into processing_states table
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'exif',
+        status: 'success', // Still mark as success, just no EXIF found
+        processed_at: new Date().toISOString(),
+        metadata: { method },
+      });
 
       return {
         success: false,
@@ -332,68 +314,79 @@ export async function processExifData({
       exifData.Photo?.DateTimeOriginal?.toISOString() ||
       exifData.Image?.DateTime?.toISOString();
 
-    // Update the media record in the database with processing state
-    progressCallback?.('Updating database record with EXIF data');
-    const { error } = await supabase
-      .from('media_items')
-      .update({
-        processing_state: {
-          ...(mediaItem.processing_state as ProcessingState),
-          exif: {
+    try {
+      // Update the exif processing state
+      progressCallback?.('Updating processing state');
+      const { error: stateError } = await supabase
+        .from('processing_states')
+        .upsert({
+          media_item_id: mediaId,
+          type: 'exif',
+          status: 'success',
+          processed_at: new Date().toISOString(),
+          metadata: { method },
+        });
+      if (stateError) throw stateError; // Throw error to be caught below
+
+      // If we have a date from EXIF, also update dateCorrection state
+      if (mediaDate) {
+        progressCallback?.('Updating date correction state');
+        const { error: dateStateError } = await supabase
+          .from('processing_states')
+          .upsert({
+            media_item_id: mediaId,
+            type: 'dateCorrection',
             status: 'success',
-            processedAt: new Date().toISOString(),
-            method,
-          },
-          // If we have a date from EXIF, also update dateCorrection state
-          ...(mediaDate && {
-            dateCorrection: {
-              status: 'success',
-              processedAt: new Date().toISOString(),
-              source: 'exif',
-            },
-          }),
-        },
-        // Keep legacy fields for backward compatibility
-        exif_data: sanitizedExifData as Json,
-        has_exif: true,
-        processed: true,
-        error: null,
-        media_date: mediaDate,
-      })
-      .eq('id', mediaId);
+            processed_at: new Date().toISOString(),
+            metadata: { source: 'exif' },
+          });
+        if (dateStateError) throw dateStateError; // Throw error
+      }
 
-    if (error) {
-      progressCallback?.(`Database error: ${error.message}`);
-      console.error('Error updating media with EXIF data:', error);
+      // Update the media record with the actual EXIF data
+      progressCallback?.('Updating media item with EXIF data');
+      const { error: updateError } = await supabase
+        .from('media_items')
+        .update({
+          exif_data: sanitizedExifData,
+          media_date: mediaDate,
+        })
+        .eq('id', mediaId);
 
-      // Update processing state with database error
+      if (updateError) {
+        throw updateError; // This will trigger the catch block
+      }
+    } catch (txError) {
+      progressCallback?.(
+        `Database update error: ${txError instanceof Error ? txError.message : 'Unknown error'}`,
+      );
+      console.error(
+        'Error updating media or processing state with EXIF data:',
+        txError,
+      );
+
+      // Attempt to mark the processing state as error
       try {
-        await supabase
-          .from('media_items')
-          .update({
-            processing_state: {
-              ...(mediaItem.processing_state as ProcessingState),
-              exif: {
-                status: 'error',
-                processedAt: new Date().toISOString(),
-                error: `Database error: ${error.message}`,
-                method,
-              },
-            },
-            // Keep legacy fields for backward compatibility
-            processed: true,
-            has_exif: false,
-            error: `Database error: ${error.message}`,
-          })
-          .eq('id', mediaId);
-      } catch (updateError) {
+        await supabase.from('processing_states').upsert({
+          media_item_id: mediaId,
+          type: 'exif',
+          status: 'error',
+          processed_at: new Date().toISOString(),
+          error_message: `Database update error: ${txError instanceof Error ? txError.message : 'Unknown error'}`,
+          metadata: { method },
+        });
+      } catch (stateUpdateError) {
         console.error(
-          'Error marking as processed after update failure:',
-          updateError,
+          "Failed to update processing state to 'error' after initial update failure:",
+          stateUpdateError,
         );
       }
 
-      return { success: false, message: error.message };
+      return {
+        success: false,
+        message:
+          txError instanceof Error ? txError.message : 'Database update error',
+      };
     }
 
     progressCallback?.('EXIF data extraction completed successfully');
@@ -408,17 +401,16 @@ export async function processExifData({
     );
     console.error('Error processing EXIF data:', error);
 
-    // Even on error, mark the item as processed to avoid retrying problematic files
+    // Even on error, record the error in processing_states table
     try {
       const supabase = createServerSupabaseClient();
-      await supabase
-        .from('media_items')
-        .update({
-          processed: true,
-          has_exif: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        })
-        .eq('id', mediaId);
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'exif',
+        status: 'error',
+        processed_at: new Date().toISOString(),
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+      });
     } catch (updateError) {
       console.error('Error updating processed state:', updateError);
     }
@@ -495,19 +487,22 @@ export async function streamProcessUnprocessedItems(
       const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
 
       // First, count the total number of unprocessed items
-      // Use the same filtering as getExifStats for consistency
-      const countQuery = supabase
+      // Count media items that don't have a corresponding processing_states entry for exif
+      // or have an entry with status other than 'success' or 'skipped'
+      const { count: totalCount, error: countError } = await supabase
         .from('media_items')
         .select('*', { count: 'exact', head: true })
-        .eq('processed', false)
-        .in('extension', exifSupportedExtensions) // Only count EXIF-compatible extensions
-        .filter(
-          'extension',
-          'not.in',
-          `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+        .in('extension', exifSupportedExtensions)
+        .not('extension', 'in', ignoredExtensions)
+        .not(
+          'id',
+          'in',
+          supabase
+            .from('processing_states')
+            .select('media_item_id')
+            .eq('type', 'exif')
+            .in('status', ['success', 'skipped']),
         );
-
-      const { count: totalCount, error: countError } = await countQuery;
 
       if (countError) {
         await sendProgress(writer, {
@@ -562,22 +557,27 @@ export async function streamProcessUnprocessedItems(
             return;
           }
         }
+
         // Calculate how many items to fetch for this page
         const currentPageSize = pageSize;
 
-        // Get a chunk of unprocessed items - use the same filtering as countQuery
+        // Get a chunk of unprocessed items based on processing_states table
         const { data: unprocessedItems, error: unprocessedError } =
           await supabase
             .from('media_items')
             .select('id, file_path, extension, file_name')
-            .eq('processed', false)
-            .in('extension', exifSupportedExtensions) // Only get EXIF-compatible extensions
-            .filter(
-              'extension',
-              'not.in',
-              `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`,
+            .in('extension', exifSupportedExtensions)
+            .not('extension', 'in', ignoredExtensions)
+            .not(
+              'id',
+              'in',
+              supabase
+                .from('processing_states')
+                .select('media_item_id')
+                .eq('type', 'exif')
+                .in('status', ['success', 'skipped']),
             )
-            .range(page * pageSize, page * pageSize + currentPageSize - 1); // Zero-based pagination
+            .range(page * pageSize, page * pageSize + currentPageSize - 1);
 
         if (unprocessedError) {
           await sendProgress(writer, {
@@ -641,15 +641,15 @@ export async function streamProcessUnprocessedItems(
               if (skipLargeFiles) {
                 try {
                   const stats = await fs.stat(media.file_path);
-                  if (isSkippedLargeFile(media.file_path, stats.size)) {
-                    // Mark large file as processed but skip EXIF extraction
-                    await supabase
-                      .from('media_items')
-                      .update({
-                        processed: true,
-                        has_exif: false,
-                      })
-                      .eq('id', media.id);
+                  if (isSkippedLargeFile(stats.size)) {
+                    // Insert skipped state into processing_states table
+                    await supabase.from('processing_states').upsert({
+                      media_item_id: media.id,
+                      type: 'exif',
+                      status: 'skipped',
+                      processed_at: new Date().toISOString(),
+                      error_message: `Large file (over ${Math.round(stats.size / (1024 * 1024))}MB)`,
+                    });
 
                     // Update counters
                     processedCount++;
@@ -853,14 +853,20 @@ export async function getFailedExifFiles() {
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get files that are processed but don't have EXIF data
+    // Get files that have errors in EXIF processing using the processing_states table
+    // Note: Using !inner join might return an array for processing_states
     const { data, error } = await supabase
       .from('media_items')
-      .select(
-        'id, file_name, file_path, extension, error, size_bytes, processed',
-      )
-      .eq('processed', true)
-      .eq('has_exif', false)
+      .select(`
+        id, 
+        file_name, 
+        file_path, 
+        extension, 
+        size_bytes,
+        processing_states!inner(status, error_message)
+      `)
+      .eq('processing_states.type', 'exif')
+      .eq('processing_states.status', 'error')
       .order('file_name');
 
     if (error) {
@@ -872,12 +878,13 @@ export async function getFailedExifFiles() {
       };
     }
 
-    // Format the response
+    // Format the response, accessing the first element of the processing_states array
     const files = data.map((file) => ({
       id: file.id,
       file_name: file.file_name,
       file_path: file.file_path,
-      error: file.error,
+      // Access the first element since !inner join returns an array
+      error: file.processing_states[0]?.error_message || 'Unknown error',
       extension: file.extension,
       size_bytes: file.size_bytes,
     }));
@@ -938,14 +945,15 @@ export async function retryFailedExifFiles(
       }
 
       try {
-        // Reset processed status first
-        await supabase
-          .from('media_items')
-          .update({
-            processed: false,
-            error: null,
-          })
-          .eq('id', fileId);
+        // Reset the processing state for this file in the processing_states table
+        await supabase.from('processing_states').upsert({
+          media_item_id: fileId,
+          type: 'exif',
+          status: 'pending', // Set to pending to mark it for reprocessing
+          processed_at: new Date().toISOString(),
+          error_message: null, // Clear any previous errors
+          metadata: { method },
+        });
 
         // Get file info if we need to check file size
         if (skipLargeFiles) {
@@ -968,15 +976,15 @@ export async function retryFailedExifFiles(
           ) {
             skippedLargeFiles++;
 
-            // Update the record to indicate it was skipped
-            await supabase
-              .from('media_items')
-              .update({
-                processed: true,
-                has_exif: false,
-                error: `Skipped large file (${Math.round(mediaItem.size_bytes / 1024 / 1024)}MB)`,
-              })
-              .eq('id', fileId);
+            // Update the processing state to indicate it was skipped
+            await supabase.from('processing_states').upsert({
+              media_item_id: fileId,
+              type: 'exif',
+              status: 'skipped',
+              processed_at: new Date().toISOString(),
+              error_message: `Skipped large file (${Math.round(mediaItem.size_bytes / 1024 / 1024)}MB)`,
+              metadata: { method },
+            });
 
             continue;
           }
@@ -1018,6 +1026,22 @@ export async function retryFailedExifFiles(
         }
       } catch (error) {
         console.error(`Error processing EXIF for file ${fileId}:`, error);
+
+        // Update the processing state with the error
+        try {
+          await supabase.from('processing_states').upsert({
+            media_item_id: fileId,
+            type: 'exif',
+            status: 'error',
+            processed_at: new Date().toISOString(),
+            error_message:
+              error instanceof Error ? error.message : 'Unknown error',
+            metadata: { method },
+          });
+        } catch (updateError) {
+          console.error('Error updating processing state:', updateError);
+        }
+
         // Continue with next file
       }
 

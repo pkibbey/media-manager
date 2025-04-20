@@ -151,6 +151,41 @@ export type Database = {
         };
         Relationships: [];
       };
+      processing_states: {
+        Row: {
+          error_message: string | null;
+          id: number;
+          media_item_id: string | null;
+          processed_at: string | null;
+          status: string;
+          type: string;
+        };
+        Insert: {
+          error_message?: string | null;
+          id?: number;
+          media_item_id?: string | null;
+          processed_at?: string | null;
+          status: string;
+          type: string;
+        };
+        Update: {
+          error_message?: string | null;
+          id?: number;
+          media_item_id?: string | null;
+          processed_at?: string | null;
+          status?: string;
+          type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'processing_states_media_item_id_fkey';
+            columns: ['media_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'media_items';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       scan_folders: {
         Row: {
           created_at: string;

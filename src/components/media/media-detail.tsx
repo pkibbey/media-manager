@@ -95,7 +95,7 @@ const MediaDetail = memo(function MediaDetail() {
   // We'll just show the first selected item for now
   const item = selectedItems[0];
   const exifData = getExifData(item);
-  const isImageFile = isImage(item.extension);
+  const isImageFile = isImage(item.extension || '');
 
   return (
     <div className="sticky top-6 flex flex-col">

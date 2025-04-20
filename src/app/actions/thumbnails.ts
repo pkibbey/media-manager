@@ -9,7 +9,6 @@ import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
 import type {
-  ProcessingState,
   ThumbnailOptions,
   ThumbnailResult,
 } from '@/types/thumbnail-types';
@@ -112,20 +111,14 @@ export async function generateThumbnail(
         `[Thumbnail] File not found: ${mediaItem.file_path} - ${error}`,
       );
 
-      // Update processing state
-      await supabase
-        .from('media_items')
-        .update({
-          processing_state: {
-            ...(mediaItem.processing_state as ProcessingState),
-            thumbnail: {
-              status: 'error',
-              processedAt: new Date().toISOString(),
-              error: 'File not found',
-            },
-          },
-        })
-        .eq('id', mediaId);
+      // Update processing state in processing_states table
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'thumbnail',
+        status: 'error',
+        processed_at: new Date().toISOString(),
+        error_message: 'File not found',
+      });
 
       return {
         success: false,
@@ -139,23 +132,15 @@ export async function generateThumbnail(
       try {
         const stats = await fs.stat(mediaItem.file_path);
 
-        if (isSkippedLargeFile(mediaItem.file_path, stats.size)) {
-          // Mark as skipped in processing state
-          await supabase
-            .from('media_items')
-            .update({
-              processing_state: {
-                ...(mediaItem.processing_state as ProcessingState),
-                thumbnail: {
-                  status: 'skipped',
-                  processedAt: new Date().toISOString(),
-                  error: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
-                },
-              },
-              // Keep legacy field for backward compatibility
-              thumbnail_path: 'skipped:large_file',
-            })
-            .eq('id', mediaId);
+        if (isSkippedLargeFile(stats.size)) {
+          // Mark as skipped in processing_states table
+          await supabase.from('processing_states').upsert({
+            media_item_id: mediaId,
+            type: 'thumbnail',
+            status: 'skipped',
+            processed_at: new Date().toISOString(),
+            error_message: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
+          });
 
           return {
             success: true,
@@ -195,22 +180,14 @@ export async function generateThumbnail(
     ];
 
     if (!supportedImageFormats.includes(extension)) {
-      // Mark as unsupported in processing state
-      await supabase
-        .from('media_items')
-        .update({
-          processing_state: {
-            ...(mediaItem.processing_state as ProcessingState),
-            thumbnail: {
-              status: 'unsupported',
-              processedAt: new Date().toISOString(),
-              error: `Unsupported format: ${extension}`,
-            },
-          },
-          // Keep legacy field for backward compatibility
-          thumbnail_path: `error:unsupported_format:${extension}`,
-        })
-        .eq('id', mediaId);
+      // Mark as unsupported in processing_states table
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'thumbnail',
+        status: 'unsupported',
+        processed_at: new Date().toISOString(),
+        error_message: `Unsupported format: ${extension}`,
+      });
 
       return {
         success: false,
@@ -236,7 +213,6 @@ export async function generateThumbnail(
         const tempOutputPath = path.join(tempDir, tempFileName);
 
         // Convert HEIC to JPEG using our robust multi-method converter
-
         const jpegBuffer = await convertHeicToJpeg(
           mediaItem.file_path,
           tempOutputPath,
@@ -267,30 +243,17 @@ export async function generateThumbnail(
         sharpError,
       );
 
-      // Mark as processed with processing error
+      // Mark as error in processing_states table
       const errorMessage =
         sharpError instanceof Error ? sharpError.message : 'Processing error';
-      const errorType = errorMessage.toLowerCase().includes('corrupt')
-        ? 'corrupt_file'
-        : errorMessage.toLowerCase().includes('memory')
-          ? 'out_of_memory'
-          : 'processing_error';
 
-      await supabase
-        .from('media_items')
-        .update({
-          processing_state: {
-            ...(mediaItem.processing_state as ProcessingState),
-            thumbnail: {
-              status: 'error',
-              processedAt: new Date().toISOString(),
-              error: errorMessage,
-            },
-          },
-          // Keep legacy field for backward compatibility
-          thumbnail_path: `error:${errorType}`,
-        })
-        .eq('id', mediaId);
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'thumbnail',
+        status: 'error',
+        processed_at: new Date().toISOString(),
+        error_message: errorMessage,
+      });
 
       return {
         success: false,
@@ -317,22 +280,14 @@ export async function generateThumbnail(
           storageError,
         );
 
-        // Mark as processed with storage error
-        await supabase
-          .from('media_items')
-          .update({
-            processing_state: {
-              ...(mediaItem.processing_state as ProcessingState),
-              thumbnail: {
-                status: 'error',
-                processedAt: new Date().toISOString(),
-                error: 'Storage upload failed',
-              },
-            },
-            // Keep legacy field for backward compatibility
-            thumbnail_path: 'error:storage_upload_failed',
-          })
-          .eq('id', mediaId);
+        // Mark as error in processing_states table
+        await supabase.from('processing_states').upsert({
+          media_item_id: mediaId,
+          type: 'thumbnail',
+          status: 'error',
+          processed_at: new Date().toISOString(),
+          error_message: 'Storage upload failed',
+        });
 
         return {
           success: false,
@@ -347,22 +302,14 @@ export async function generateThumbnail(
         uploadError,
       );
 
-      // Mark as processed with upload error
-      await supabase
-        .from('media_items')
-        .update({
-          processing_state: {
-            ...(mediaItem.processing_state as ProcessingState),
-            thumbnail: {
-              status: 'error',
-              processedAt: new Date().toISOString(),
-              error: 'Upload exception',
-            },
-          },
-          // Keep legacy field for backward compatibility
-          thumbnail_path: 'error:upload_exception',
-        })
-        .eq('id', mediaId);
+      // Mark as upload error in processing_states table
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'thumbnail',
+        status: 'error',
+        processed_at: new Date().toISOString(),
+        error_message: 'Upload exception',
+      });
 
       return {
         success: false,
@@ -379,22 +326,16 @@ export async function generateThumbnail(
 
     const thumbnailUrl = publicUrlData.publicUrl;
 
-    // Update the media item with the thumbnail path
+    // Update the processing state in processing_states table with success status and path
     const { error: updateError } = await supabase
-      .from('media_items')
-      .update({
-        processing_state: {
-          ...(mediaItem.processing_state as ProcessingState),
-          thumbnail: {
-            status: 'success',
-            processedAt: new Date().toISOString(),
-            path: thumbnailUrl,
-          },
-        },
-        // Keep legacy field for backward compatibility
-        thumbnail_path: thumbnailUrl,
-      })
-      .eq('id', mediaId);
+      .from('processing_states')
+      .upsert({
+        media_item_id: mediaId,
+        type: 'thumbnail',
+        status: 'success',
+        processed_at: new Date().toISOString(),
+        metadata: { path: thumbnailUrl },
+      });
 
     if (updateError) {
       console.error(
@@ -404,21 +345,13 @@ export async function generateThumbnail(
 
       // Even though we successfully generated and uploaded the thumbnail,
       // we couldn't update the record, so mark it with an error
-      await supabase
-        .from('media_items')
-        .update({
-          processing_state: {
-            ...(mediaItem.processing_state as ProcessingState),
-            thumbnail: {
-              status: 'error',
-              processedAt: new Date().toISOString(),
-              error: 'Record update failed',
-            },
-          },
-          // Keep legacy field for backward compatibility
-          thumbnail_path: 'error:record_update_failed',
-        })
-        .eq('id', mediaId);
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'thumbnail',
+        status: 'error',
+        processed_at: new Date().toISOString(),
+        error_message: 'Record update failed',
+      });
 
       return {
         success: false,
@@ -438,34 +371,16 @@ export async function generateThumbnail(
     };
   } catch (error: any) {
     console.error('[Thumbnail] Error generating thumbnail:', error);
-    // Try to extract the file path from the error message if possible
-    let filePath = '';
-    if (error.message && typeof error.message === 'string') {
-      const filePathMatch = error.message.match(
-        /[/\\][^/\\]+[/\\][^/\\]+\.[a-zA-Z0-9]+/,
-      );
-      if (filePathMatch) {
-        filePath = filePathMatch[0];
-      }
-    }
-
-    // Try to mark as processed with general error
+    // Try to mark as error in processing_states table
     try {
       const supabase = createServerSupabaseClient();
-      await supabase
-        .from('media_items')
-        .update({
-          processing_state: {
-            thumbnail: {
-              status: 'error',
-              processedAt: new Date().toISOString(),
-              error: 'Unhandled exception',
-            },
-          },
-          // Keep legacy field for backward compatibility
-          thumbnail_path: 'error:unhandled_exception',
-        })
-        .eq('id', mediaId);
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'thumbnail',
+        status: 'error',
+        processed_at: new Date().toISOString(),
+        error_message: 'Unhandled exception',
+      });
     } catch (dbError) {
       console.error(
         '[Thumbnail] Failed to mark item as error after exception:',
@@ -476,7 +391,7 @@ export async function generateThumbnail(
     return {
       success: false,
       message: `Error generating thumbnail: ${error.message}`,
-      filePath,
+      filePath: '',
     };
   }
 }
@@ -506,45 +421,23 @@ export async function countMissingThumbnails(): Promise<{
       'bmp',
     ];
 
-    // Get the count of items that need thumbnails
-    // First try the new processing_state approach
+    // Get the count of items that need thumbnails - compatible items without successful/skipped processing
     const { count, error } = await supabase
       .from('media_items')
       .select('*', { count: 'exact', head: true })
       .in('extension', supportedImageFormats)
-      .or(
-        // No processing state at all
-        'processing_state.is.null,' +
-          // Has processing state but no thumbnail info
-          'processing_state->>thumbnail.is.null,' +
-          // Has thumbnail info but status is not success or skipped
-          "processing_state->'thumbnail'->>'status'.neq.success," +
-          "processing_state->'thumbnail'->>'status'.neq.skipped",
+      .not(
+        'id',
+        'in',
+        supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'thumbnail')
+          .in('status', ['success', 'skipped']),
       );
 
     if (error) {
-      // If the JSON query fails (likely due to old database version), fall back to legacy approach
-      console.error(
-        'Error with JSON query, falling back to legacy approach:',
-        error,
-      );
-
-      const { count: legacyCount, error: legacyError } = await supabase
-        .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .in('extension', supportedImageFormats)
-        .or('thumbnail_path.is.null,thumbnail_path.like.error:%');
-
-      if (legacyError) {
-        throw new Error(
-          `Failed to count missing thumbnails: ${legacyError.message}`,
-        );
-      }
-
-      return {
-        success: true,
-        count: legacyCount || 0,
-      };
+      throw new Error(`Failed to count missing thumbnails: ${error.message}`);
     }
 
     return {
@@ -603,104 +496,63 @@ export async function getThumbnailStats(): Promise<{
       );
     }
 
-    // Get count of files with successful thumbnails using processing_state
-    const { count: withThumbnailsCountNew, error: withThumbnailsErrorNew } =
+    // Get count of files with successful thumbnails
+    const { count: withThumbnailsCount, error: withThumbnailsError } =
       await supabase
-        .from('media_items')
+        .from('processing_states')
         .select('*', { count: 'exact', head: true })
-        .in('extension', supportedImageFormats)
-        .not('processing_state', 'is', null)
-        .eq('processing_state->thumbnail->status', 'success');
+        .eq('type', 'thumbnail')
+        .eq('status', 'success');
 
-    const withThumbnailsCount = withThumbnailsErrorNew
-      ? 0
-      : withThumbnailsCountNew || 0;
-
-    // Get count of files skipped due to being large
-    const {
-      count: skippedLargeFilesCountNew,
-      error: skippedLargeFilesErrorNew,
-    } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .in('extension', supportedImageFormats)
-      .not('processing_state', 'is', null)
-      .eq('processing_state->thumbnail->status', 'skipped');
-
-    const skippedLargeFilesCount = skippedLargeFilesErrorNew
-      ? 0
-      : skippedLargeFilesCountNew || 0;
-
-    // Get count of files with other skipped statuses (unsupported, etc.)
-    const { count: otherSkippedCountNew, error: otherSkippedErrorNew } =
-      await supabase
-        .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .in('extension', supportedImageFormats)
-        .not('processing_state', 'is', null)
-        .eq('processing_state->thumbnail->status', 'unsupported');
-
-    const otherSkippedCount = otherSkippedErrorNew
-      ? 0
-      : otherSkippedCountNew || 0;
-
-    // If the new approach failed (likely due to old DB), try the legacy approach for counts
-    let legacyWithThumbnailsCount = 0;
-    let legacySkippedFilesCount = 0;
-
-    if (withThumbnailsErrorNew) {
-      console.log('Falling back to legacy approach for thumbnail stats');
-
-      // Get count with thumbnails using legacy field
-      const { count: legacyWithCount, error: legacyWithError } = await supabase
-        .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .in('extension', supportedImageFormats)
-        .not('thumbnail_path', 'is', null)
-        .not('thumbnail_path', 'like', 'error:%')
-        .not('thumbnail_path', 'like', 'skipped:%');
-
-      if (!legacyWithError) {
-        legacyWithThumbnailsCount = legacyWithCount || 0;
-      }
-
-      // Get count of skipped files using legacy field
-      const { count: legacySkippedCount, error: legacySkippedError } =
-        await supabase
-          .from('media_items')
-          .select('*', { count: 'exact', head: true })
-          .in('extension', supportedImageFormats)
-          .like('thumbnail_path', 'skipped:%');
-
-      if (!legacySkippedError) {
-        legacySkippedFilesCount = legacySkippedCount || 0;
-      }
+    if (withThumbnailsError) {
+      throw new Error(
+        `Failed to get files with thumbnails: ${withThumbnailsError.message}`,
+      );
     }
 
-    // Use the best available counts
-    const filesWithThumbnails =
-      withThumbnailsCount > 0 ? withThumbnailsCount : legacyWithThumbnailsCount;
-    const filesSkipped = otherSkippedCount;
-    const skippedLargeFiles =
-      skippedLargeFilesCount > 0
-        ? skippedLargeFilesCount
-        : legacySkippedFilesCount;
+    // Get count of files skipped due to being large
+    const { count: skippedLargeFilesCount, error: skippedLargeFilesError } =
+      await supabase
+        .from('processing_states')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'thumbnail')
+        .eq('status', 'skipped');
+
+    if (skippedLargeFilesError) {
+      throw new Error(
+        `Failed to get skipped large files count: ${skippedLargeFilesError.message}`,
+      );
+    }
+
+    // Get count of files with unsupported formats
+    const { count: filesSkippedCount, error: filesSkippedError } =
+      await supabase
+        .from('processing_states')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'thumbnail')
+        .eq('status', 'unsupported');
+
+    if (filesSkippedError) {
+      throw new Error(
+        `Failed to get skipped files count: ${filesSkippedError.message}`,
+      );
+    }
 
     // Calculate pending files by subtracting thumbnail-having files from total
     const filesPending =
       (totalCount || 0) -
-      filesWithThumbnails -
-      filesSkipped -
-      skippedLargeFiles;
+      (withThumbnailsCount || 0) -
+      (filesSkippedCount || 0) -
+      (skippedLargeFilesCount || 0);
 
     return {
       success: true,
       stats: {
         totalCompatibleFiles: totalCount || 0,
-        filesWithThumbnails,
-        filesSkipped,
+        filesWithThumbnails: withThumbnailsCount || 0,
+        filesSkipped: filesSkippedCount || 0,
         filesPending: filesPending > 0 ? filesPending : 0,
-        skippedLargeFiles,
+        skippedLargeFiles: skippedLargeFilesCount || 0,
       },
     };
   } catch (error: any) {
@@ -722,80 +574,21 @@ export async function resetAllThumbnails(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // First, get list of thumbnails to delete from storage
-    const { data: mediaItems, error: mediaError } = await supabase
-      .from('media_items')
-      .select('id, processing_state, thumbnail_path')
-      .or('thumbnail_path.neq.null,processing_state->thumbnail->path.neq.null')
-      .not('thumbnail_path', 'like', 'error:%')
-      .not('thumbnail_path', 'like', 'skipped:%');
+    // Delete all thumbnail processing states
+    const { error: deleteError, count } = await supabase
+      .from('processing_states')
+      .delete({ count: 'exact' })
+      .eq('type', 'thumbnail');
 
-    if (mediaError) {
+    if (deleteError) {
       throw new Error(
-        `Failed to get existing thumbnails: ${mediaError.message}`,
-      );
-    }
-
-    if (mediaItems && mediaItems.length > 0) {
-      // Extract file names from paths or use IDs to build filenames
-      const filesToDelete = mediaItems.map((item) => {
-        // Try to get thumbnail path from processing_state first
-        const thumbnailPath =
-          (item.processing_state as ProcessingState)?.thumbnail?.path ||
-          item.thumbnail_path;
-
-        if (
-          !thumbnailPath ||
-          thumbnailPath.startsWith('error:') ||
-          thumbnailPath.startsWith('skipped:')
-        ) {
-          return `${item.id}_thumb.webp`; // If no path, use ID-based filename
-        }
-
-        // Extract filename from URL
-        const urlParts = thumbnailPath.split('/');
-        return urlParts[urlParts.length - 1];
-      });
-
-      // Delete files from storage in batches
-      const batchSize = 100;
-      for (let i = 0; i < filesToDelete.length; i += batchSize) {
-        const batch = filesToDelete.slice(i, i + batchSize);
-
-        // Remove empty strings, nulls, or paths that don't include _thumb
-        const filteredBatch = batch.filter((file) => file.includes('_thumb'));
-
-        if (filteredBatch.length > 0) {
-          const { error: deleteError } = await supabase.storage
-            .from('thumbnails')
-            .remove(filteredBatch);
-
-          if (deleteError) {
-            console.error(
-              `Error deleting thumbnail batch ${i}-${i + batchSize}:`,
-              deleteError,
-            );
-            // Continue to next batch even if this one fails
-          }
-        }
-      }
-    }
-
-    // Update all media items to clear thumbnail paths in both fields
-    const { error: updateError } = await supabase.rpc('reset_all_thumbnails');
-
-    if (updateError) {
-      // Fallback to direct update if RPC fails
-      console.error('RPC failed, using direct update:', updateError);
-
-      throw new Error(
-        `Failed to reset thumbnail paths: ${updateError.message}`,
+        `Failed to reset thumbnail states: ${deleteError.message}`,
       );
     }
 
     return {
       success: true,
-      message: `Successfully reset thumbnails for ${mediaItems?.length || 0} files`,
+      message: `Successfully reset thumbnails for ${count || 0} files`,
     };
   } catch (error: any) {
     console.error('Error resetting thumbnails:', error);
@@ -857,18 +650,19 @@ export async function streamProcessMissingThumbnails(
         message: 'Starting thumbnail generation',
       });
 
-      // Query to get items that need thumbnails, using both old and new fields
+      // Query to get items that need thumbnails using processing_states table
       const { data: items, error } = await supabase
         .from('media_items')
-        .select(
-          'id, file_path, file_name, extension, size_bytes, processing_state, thumbnail_path',
-        )
+        .select('id, file_path, file_name, extension, size_bytes')
         .in('extension', supportedImageFormats)
-        .or(
-          'processing_state.is.null,' +
-            'processing_state->>thumbnail.is.null,' +
-            "processing_state->'thumbnail'->>'status'.neq.success," +
-            "processing_state->'thumbnail'->>'status'.neq.skipped",
+        .not(
+          'id',
+          'in',
+          supabase
+            .from('processing_states')
+            .select('media_item_id')
+            .eq('type', 'thumbnail')
+            .in('status', ['success', 'skipped']),
         )
         .order('id');
 
@@ -1082,16 +876,26 @@ export async function regenerateMissingThumbnails(): Promise<{
       'bmp',
     ];
 
-    // Get items that need thumbnails, using both old and new fields
+    // Get items that need thumbnails using processing_states table
     const { data: items, error } = await supabase
       .from('media_items')
       .select('id')
       .in('extension', supportedImageFormats)
+      .not(
+        'id',
+        'in',
+        supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'thumbnail')
+          .in('status', ['success', 'skipped']),
+      )
       .or(
-        'thumbnail_path.is.null,' +
-          'thumbnail_path.like.error:%,' +
-          'processing_state.is.null,' +
-          "processing_state->'thumbnail'->>'status'.eq.error",
+        `id.in.(${supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'thumbnail')
+          .eq('status', 'error')})`,
       )
       .limit(100); // Limit to a reasonable batch size
 

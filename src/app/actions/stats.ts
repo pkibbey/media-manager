@@ -47,7 +47,6 @@ export async function getMediaStats(): Promise<{
       unorganized_count: number;
     }
 
-    // Use standard queries first as a safer approach
     // Get total count
     const { count: totalCount, error: countError } = await supabase
       .from('media_items')
@@ -86,22 +85,51 @@ export async function getMediaStats(): Promise<{
     const totalSizeBytes =
       sizeData?.reduce((sum, item) => sum + (item.size_bytes || 0), 0) || 0;
 
-    // Get processed count
-    const { count: processedCount, error: processedError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('processed', true)
-      .not(
-        'extension',
-        'in',
-        ignoredExtensions.length > 0
-          ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-          : '("")',
-      );
+    // Get processed count using processing_state first, falling back to legacy field
+    // Fix the query syntax by splitting the conditions with multiple or() calls
+    const { count: processedNewCount, error: processedNewError } =
+      await supabase
+        .from('media_items')
+        .select('*', { count: 'exact', head: true })
+        .or(
+          `processing_state->'exif'->>'status'.eq.success,` +
+            `processing_state->'exif'->>'status'.eq.skipped,` +
+            `processing_state->'exif'->>'status'.eq.unsupported`,
+        )
+        .not(
+          'extension',
+          'in',
+          ignoredExtensions.length > 0
+            ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+            : '("")',
+        );
 
-    if (processedError) {
-      console.error('Error getting processed count:', processedError);
-      return { success: false, error: processedError.message };
+    // Fall back to legacy approach if the JSON query fails
+    let processedCount = 0;
+    if (processedNewError) {
+      console.log('Falling back to legacy processed count approach');
+
+      const { count: legacyProcessedCount, error: processedError } =
+        await supabase
+          .from('media_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('processed', true)
+          .not(
+            'extension',
+            'in',
+            ignoredExtensions.length > 0
+              ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+              : '("")',
+          );
+
+      if (processedError) {
+        console.error('Error getting processed count:', processedError);
+        return { success: false, error: processedError.message };
+      }
+
+      processedCount = legacyProcessedCount || 0;
+    } else {
+      processedCount = processedNewCount || 0;
     }
 
     // Get organized count
@@ -204,25 +232,47 @@ export async function getMediaStats(): Promise<{
     }
 
     // Count files needing timestamp correction:
-    // processed = true, has_exif = false, extension in EXIF-compatible, not ignored
-    const exifCompatibleExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
+    // Use processing_state first, fall back to legacy approach
     let needsTimestampCorrectionCount = 0;
     {
-      const { count, error } = await supabase
-        .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('processed', true)
-        .eq('has_exif', false)
-        .in('extension', exifCompatibleExtensions)
-        .not(
-          'extension',
-          'in',
-          ignoredExtensions.length > 0
-            ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-            : '("")',
-        );
-      if (!error) {
-        needsTimestampCorrectionCount = count || 0;
+      const exifCompatibleExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
+
+      // Try using processing_state first
+      const { count: newTimestampCount, error: newTimestampError } =
+        await supabase
+          .from('media_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('processing_state->exif->status', 'success')
+          .eq('processing_state->dateCorrection->status', 'error')
+          .in('extension', exifCompatibleExtensions)
+          .not(
+            'extension',
+            'in',
+            ignoredExtensions.length > 0
+              ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+              : '("")',
+          );
+
+      if (!newTimestampError) {
+        needsTimestampCorrectionCount = newTimestampCount || 0;
+      } else {
+        // Fall back to legacy approach
+        const { count, error } = await supabase
+          .from('media_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('processed', true)
+          .eq('has_exif', false)
+          .in('extension', exifCompatibleExtensions)
+          .not(
+            'extension',
+            'in',
+            ignoredExtensions.length > 0
+              ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
+              : '("")',
+          );
+        if (!error) {
+          needsTimestampCorrectionCount = count || 0;
+        }
       }
     }
 
@@ -310,13 +360,27 @@ export async function resetAllMediaItems(): Promise<{
       return { success: false, error: countError.message };
     }
 
-    // Reset all media items by marking them as unprocessed
-    // Use filter TRUE to select all rows instead of .neq('id', '')
+    // Reset all media items by updating processing_state and legacy fields
     const { error: updateError } = await supabase
       .from('media_items')
       .update({
-        processed: false,
-        has_exif: false,
+        // Remove legacy fields and only use processing_state
+        processing_state: {
+          exif: {
+            status: 'pending',
+            processedAt: new Date().toISOString(),
+          },
+          // Keep other processing states but mark them as outdated
+          thumbnail: {
+            status: 'outdated',
+            processedAt: new Date().toISOString(),
+          },
+          dateCorrection: {
+            status: 'outdated',
+            processedAt: new Date().toISOString(),
+          },
+        },
+        // Clear any data fields that should be regenerated
         exif_data: null,
         media_date: null,
       })
