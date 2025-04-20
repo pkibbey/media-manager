@@ -181,38 +181,6 @@ const MediaDetail = memo(function MediaDetail() {
                       : 'Unknown'}
                   </p>
                 </div>
-                <div className="col-span-2">
-                  <p className="text-muted-foreground">Processing Status</p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    <span
-                      className={`px-2 py-1 text-xs rounded-md ${
-                        item.processed
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
-                      }`}
-                    >
-                      {item.processed ? 'Processed' : 'Unprocessed'}
-                    </span>
-                    <span
-                      className={`px-2 py-1 text-xs rounded-md ${
-                        item.has_exif
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                      }`}
-                    >
-                      {item.has_exif ? 'EXIF Data' : 'No EXIF'}
-                    </span>
-                    <span
-                      className={`px-2 py-1 text-xs rounded-md ${
-                        item.organized
-                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                      }`}
-                    >
-                      {item.organized ? 'Organized' : 'Unorganized'}
-                    </span>
-                  </div>
-                </div>
               </div>
             </TabsContent>
 

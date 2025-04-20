@@ -11,7 +11,6 @@ export interface MediaFilters {
   sortBy: 'date' | 'name' | 'size' | 'type';
   sortOrder: 'asc' | 'desc';
   processed: 'all' | 'yes' | 'no';
-  organized: 'all' | 'yes' | 'no';
   camera: string;
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';
@@ -31,8 +30,6 @@ export interface MediaStats {
   };
   processedCount: number;
   unprocessedCount: number;
-  organizedCount: number;
-  unorganizedCount: number;
   ignoredCount: number; // Count of files with ignored file types
   needsTimestampCorrectionCount?: number; // Count of files needing timestamp correction
 }

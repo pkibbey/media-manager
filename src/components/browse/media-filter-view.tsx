@@ -60,7 +60,6 @@ export default function MediaFilterView({
       sortBy: 'date',
       sortOrder: 'desc',
       processed: 'all',
-      organized: 'all',
       camera: '',
       hasLocation: 'all',
       hasThumbnail: 'all',
@@ -128,11 +127,6 @@ export default function MediaFilterView({
       formValues.processed = processed as MediaFilters['processed'];
     }
 
-    const organized = searchParams.get('organized');
-    if (organized && ['all', 'yes', 'no'].includes(organized)) {
-      formValues.organized = organized as MediaFilters['organized'];
-    }
-
     const camera = searchParams.get('camera');
     if (camera) {
       formValues.camera = camera;
@@ -161,7 +155,6 @@ export default function MediaFilterView({
       sortBy: formValues.sortBy || 'date',
       sortOrder: formValues.sortOrder || 'desc',
       processed: formValues.processed || 'all',
-      organized: formValues.organized || 'all',
       camera: formValues.camera || '',
       hasLocation: formValues.hasLocation || 'all',
       hasThumbnail: formValues.hasThumbnail || 'all',
@@ -204,8 +197,6 @@ export default function MediaFilterView({
           params.set('sortOrder', validatedValues.sortOrder);
         if (validatedValues.processed !== 'all')
           params.set('processed', validatedValues.processed);
-        if (validatedValues.organized !== 'all')
-          params.set('organized', validatedValues.organized);
         if (validatedValues.camera && validatedValues.camera !== 'all')
           params.set('camera', validatedValues.camera);
         if (validatedValues.hasLocation !== 'all')
@@ -248,7 +239,6 @@ export default function MediaFilterView({
       sortBy: 'date',
       sortOrder: 'desc',
       processed: 'all',
-      organized: 'all',
       camera: '',
       hasLocation: 'all',
       hasThumbnail: 'all',
@@ -301,27 +291,6 @@ export default function MediaFilterView({
                       <SelectItem value="all">All files</SelectItem>
                       <SelectItem value="yes">Processed</SelectItem>
                       <SelectItem value="no">Not processed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
-            />
-
-            {/* Organized Status */}
-            <FormField
-              control={form.control}
-              name="organized"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tidy</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Organization status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All files</SelectItem>
-                      <SelectItem value="yes">Organized</SelectItem>
-                      <SelectItem value="no">Not organized</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>

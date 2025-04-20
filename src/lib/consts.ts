@@ -13,3 +13,5 @@ export const BATCH_SIZE = 25;
  * Files larger than this will be skipped in various processing operations
  */
 export const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
+
+export const THUMBNAIL_SIZE = 300;

@@ -1,6 +1,7 @@
 'use server';
 
 import { PAGE_SIZE } from '@/lib/consts';
+import { getFileTypeInfo } from '@/lib/file-types-utils'; // Import the new utility
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { MediaFilters } from '@/types/media-types';
 
@@ -16,35 +17,15 @@ export async function browseMedia(
     const supabase = createServerSupabaseClient();
     const offset = (page - 1) * pageSize;
 
-    // Get all file type information in a single query (for ignored types and categories)
-    const { data: fileTypes, error: fileTypesError } = await supabase
-      .from('file_types')
-      .select('extension, category, ignore');
+    // Use the utility function to get file type info
+    const fileTypeInfo = await getFileTypeInfo();
 
-    if (fileTypesError) {
-      console.error('Error fetching file types:', fileTypesError);
-      return { success: false, error: fileTypesError.message };
+    if (!fileTypeInfo) {
+      return { success: false, error: 'Failed to fetch file type information' };
     }
 
-    // Process file types to get ignore list and categorize extensions
-    const ignoredExtensions: string[] = [];
-    const categorizedExtensions: Record<string, string[]> = {};
-
-    fileTypes?.forEach((fileType) => {
-      const ext = fileType.extension.toLowerCase();
-
-      // Track ignored extensions
-      if (fileType.ignore) {
-        ignoredExtensions.push(ext);
-      }
-
-      // Group extensions by category
-      const category = fileType.category;
-      if (!categorizedExtensions[category]) {
-        categorizedExtensions[category] = [];
-      }
-      categorizedExtensions[category].push(ext);
-    });
+    const { ignoredExtensions, categorizedExtensions, allFileTypes } =
+      fileTypeInfo;
 
     // Build ignore filter condition
     const ignoreFilter =
@@ -67,7 +48,7 @@ export async function browseMedia(
 
     if (filters.type !== 'all') {
       // Use our database-derived category mapping instead of hardcoded values
-      const extensions = categorizedExtensions[filters.type];
+      const extensions = categorizedExtensions[filters.type]; // Use map from utility
       if (extensions && extensions.length > 0) {
         query = query.in('extension', extensions);
       }
@@ -120,10 +101,6 @@ export async function browseMedia(
             "processing_state->'exif'->>'status'.eq.outdated",
         );
       }
-    }
-
-    if (filters.organized !== 'all') {
-      query = query.eq('organized', filters.organized === 'yes');
     }
 
     // Fix the JSON query syntax for hasThumbnail filter
@@ -193,9 +170,9 @@ export async function browseMedia(
       if (maxFileSize < 100) maxFileSize = 100; // Minimum of 100MB
     }
 
-    // Get all available extensions from the file_types table (we already fetched this)
+    // Get all available extensions from the file_types table (use data from utility)
     const availableExtensions =
-      fileTypes
+      allFileTypes
         ?.filter((type) => !type.ignore) // Filter out ignored types
         .map((type) => type.extension)
         .sort() || [];

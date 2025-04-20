@@ -1,5 +1,6 @@
 'use server';
 
+import { getFileTypeInfo } from '@/lib/file-types-utils'; // Import the new utility
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { MediaStats } from '@/types/media-types';
 import { revalidatePath } from 'next/cache';
@@ -15,27 +16,14 @@ export async function getMediaStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Fetch all file type information in a single query to get both ignored types and categories
-    const { data: fileTypes, error: fileTypesError } = await supabase
-      .from('file_types')
-      .select('extension, category, ignore');
+    // Use the utility function to get file type info
+    const fileTypeInfo = await getFileTypeInfo();
 
-    if (fileTypesError) {
-      console.error('Error fetching file types:', fileTypesError);
-      return { success: false, error: fileTypesError.message };
+    if (!fileTypeInfo) {
+      return { success: false, error: 'Failed to fetch file type information' };
     }
 
-    // Build maps of file type information
-    const ignoredExtensions: string[] = [];
-    const extensionToCategory: Record<string, string> = {};
-
-    fileTypes?.forEach((fileType) => {
-      const ext = fileType.extension.toLowerCase();
-      if (fileType.ignore) {
-        ignoredExtensions.push(ext);
-      }
-      extensionToCategory[ext] = fileType.category;
-    });
+    const { ignoredExtensions, extensionToCategory } = fileTypeInfo;
 
     // Define the structure of our stats result
     interface StatsResult {
@@ -283,8 +271,6 @@ export async function getMediaStats(): Promise<{
       itemsByExtension,
       processedCount: statsResult.processed_count,
       unprocessedCount: statsResult.unprocessed_count,
-      organizedCount: statsResult.organized_count,
-      unorganizedCount: statsResult.unorganized_count,
       ignoredCount,
       needsTimestampCorrectionCount,
     };

@@ -2,6 +2,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { getFileTypeInfo } from '@/lib/file-types-utils'; // Import the new utility
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { canDisplayNatively, getFileCategory } from '@/lib/utils';
 import type { ScanOptions, ScanProgress } from '@/types/progress-types';
@@ -178,24 +179,31 @@ export async function scanFolders(options: ScanOptions = {}) {
         }`,
       });
 
-      // Get all known file types, including their ignore status
-      const { data: fileTypes } = await supabase.from('file_types').select('*');
+      // Use the utility function to get file type info
+      const fileTypeInfo = await getFileTypeInfo();
 
+      if (!fileTypeInfo) {
+        const error = 'Error fetching file type information';
+        console.error('ScanFolders', error);
+        await sendProgress(writer, {
+          status: 'error',
+          message: error,
+        });
+        await writer.close();
+        return;
+      }
+
+      const { ignoredExtensions: ignoredExtensionsSet, allFileTypes } =
+        fileTypeInfo;
+      const ignoredExtensions = Array.from(ignoredExtensionsSet); // Convert Set to Array if needed by downstream logic, or keep as Set
       const knownExtensions = new Set(
-        fileTypes?.map((ft) => ft.extension.toLowerCase()) || [],
+        allFileTypes.map((ft) => ft.extension.toLowerCase()),
       );
 
-      // Create a set of ignored file extensions for faster lookup
-      const ignoredExtensions = new Set(
-        fileTypes
-          ?.filter((ft) => ft.ignore)
-          .map((ft) => ft.extension.toLowerCase()) || [],
-      );
-
-      if (ignoredExtensions.size > 0) {
+      if (ignoredExtensions.length > 0) {
         await sendProgress(writer, {
           status: 'scanning',
-          message: `Will skip ${ignoredExtensions.size} ignored file types: ${Array.from(ignoredExtensions).join(', ')}`,
+          message: `Will skip ${ignoredExtensions.length} ignored file types: ${ignoredExtensions.join(', ')}`,
         });
       }
 
@@ -298,8 +306,9 @@ export async function scanFolders(options: ScanOptions = {}) {
                 .toLowerCase()
                 .substring(1);
 
-              // Skip files with ignored extensions
-              if (ignoredExtensions.has(extension)) {
+              // Skip files with ignored extensions (using the array/set from fileTypeInfo)
+              if (ignoredExtensionsSet.includes(extension)) {
+                // Use Set for faster lookup
                 totalFilesProcessed++;
                 totalIgnoredFiles++;
 

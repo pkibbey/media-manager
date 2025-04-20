@@ -2,7 +2,6 @@ import { getMediaStats } from '@/app/actions/stats';
 import { formatBytes } from '@/lib/utils';
 import {
   BarChartIcon,
-  ClockIcon,
   FileIcon,
   GearIcon,
   ImageIcon,
@@ -25,11 +24,6 @@ export default async function MediaStats() {
   const processedPercentage =
     stats.totalMediaItems > 0
       ? (stats.processedCount / stats.totalMediaItems) * 100
-      : 0;
-
-  const organizedPercentage =
-    stats.totalMediaItems > 0
-      ? (stats.organizedCount / stats.totalMediaItems) * 100
       : 0;
 
   // Function to get top 5 extensions
@@ -81,15 +75,6 @@ export default async function MediaStats() {
           <div className="text-muted-foreground text-sm mb-1">Processed</div>
           <div className="text-2xl font-bold">
             {stats.processedCount}{' '}
-            <span className="text-sm font-normal text-muted-foreground">
-              / {stats.totalMediaItems}
-            </span>
-          </div>
-        </div>
-        <div className="bg-card border rounded-md p-4 flex flex-col">
-          <div className="text-muted-foreground text-sm mb-1">Organized</div>
-          <div className="text-2xl font-bold">
-            {stats.organizedCount}{' '}
             <span className="text-sm font-normal text-muted-foreground">
               / {stats.totalMediaItems}
             </span>
@@ -163,7 +148,7 @@ export default async function MediaStats() {
         </div>
       </div>
 
-      {/* Processing and organization progress */}
+      {/* Processing progress */}
       <div className="space-y-4 border rounded-md p-4">
         <h4 className="font-medium">Progress</h4>
 
@@ -186,28 +171,6 @@ export default async function MediaStats() {
           </div>
           <p className="text-xs text-muted-foreground">
             {stats.unprocessedCount} items remaining to be processed
-          </p>
-        </div>
-
-        {/* Organization progress */}
-        <div className="space-y-1">
-          <div className="flex justify-between text-sm">
-            <div className="flex items-center gap-1.5">
-              <ClockIcon className="h-4 w-4" />
-              <span>Organization</span>
-            </div>
-            <span className="text-muted-foreground">
-              {stats.organizedCount} / {stats.totalMediaItems}
-            </span>
-          </div>
-          <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-primary h-full"
-              style={{ width: `${organizedPercentage}%` }}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {stats.unorganizedCount} items remaining to be organized
           </p>
         </div>
       </div>
