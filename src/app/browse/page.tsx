@@ -21,7 +21,6 @@ const defaultFilters: MediaFilters = {
   sortBy: 'date',
   sortOrder: 'desc',
   processed: 'all',
-  organized: 'all',
   camera: '',
   hasLocation: 'all',
   hasThumbnail: 'all',
@@ -105,11 +104,6 @@ export default function BrowsePage() {
     const processed = searchParams.get('processed');
     if (processed && ['all', 'yes', 'no'].includes(processed)) {
       parsedFilters.processed = processed as MediaFilters['processed'];
-    }
-
-    const organized = searchParams.get('organized');
-    if (organized && ['all', 'yes', 'no'].includes(organized)) {
-      parsedFilters.organized = organized as MediaFilters['organized'];
     }
 
     const camera = searchParams.get('camera');

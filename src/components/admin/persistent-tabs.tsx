@@ -51,7 +51,7 @@ export default function PersistentTabs({
       onValueChange={handleTabChange}
       className={className}
     >
-      <TabsList>
+      <TabsList className="space-x-1 px-1">
         {tabOptions.map((tab) => (
           <TabsTrigger key={tab.value} value={tab.value}>
             {tab.label}

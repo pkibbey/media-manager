@@ -26,6 +26,7 @@ END;
 $$;
 
 -- Create a function for media statistics that combines multiple count queries
+-- Updated to use processing_states table rather than legacy processing_state column
 CREATE OR REPLACE FUNCTION get_media_statistics(ignore_extensions text[] DEFAULT NULL)
 RETURNS TABLE (
   total_count bigint,
@@ -38,20 +39,60 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  processed_statuses text[] := ARRAY['success', 'skipped', 'unsupported']; -- Define final processing statuses
 BEGIN
   RETURN QUERY
   SELECT 
     COUNT(*) FILTER (WHERE ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions))) AS total_count,
-    SUM(size_bytes) FILTER (WHERE ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions))) AS total_size_bytes,
-    COUNT(*) FILTER (WHERE processed = true AND (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))) AS processed_count,
-    COUNT(*) FILTER (WHERE processed = false AND (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))) AS unprocessed_count,
-    COUNT(*) FILTER (WHERE organized = true AND (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))) AS organized_count,
-    COUNT(*) FILTER (WHERE organized = false AND (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))) AS unorganized_count
+    COALESCE(SUM(size_bytes) FILTER (WHERE ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions))), 0) AS total_size_bytes,
+    -- Count as processed if exif status is one of the final statuses
+    COUNT(*) FILTER (
+      WHERE EXISTS (
+        SELECT 1 FROM processing_states ps 
+        WHERE ps.media_item_id = media_items.id 
+        AND ps.type = 'exif' 
+        AND ps.status = ANY(processed_statuses)
+      )
+      AND (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))
+    ) AS processed_count,
+    -- Count as unprocessed if no exif processing_states entry exists with final status
+    COUNT(*) FILTER (
+      WHERE NOT EXISTS (
+        SELECT 1 FROM processing_states ps 
+        WHERE ps.media_item_id = media_items.id 
+        AND ps.type = 'exif' 
+        AND ps.status = ANY(processed_statuses)
+      )
+      AND (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))
+    ) AS unprocessed_count,
+    -- Keep organized logic based on folder structure or other criteria
+    -- This is a placeholder - replace with actual logic for "organized"
+    COUNT(*) FILTER (
+      WHERE EXISTS (
+        SELECT 1 FROM processing_states ps 
+        WHERE ps.media_item_id = media_items.id 
+        AND ps.type = 'dateCorrection' 
+        AND ps.status = 'success'
+      )
+      AND (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))
+    ) AS organized_count,
+    -- Files not yet organized
+    COUNT(*) FILTER (
+      WHERE NOT EXISTS (
+        SELECT 1 FROM processing_states ps 
+        WHERE ps.media_item_id = media_items.id 
+        AND ps.type = 'dateCorrection' 
+        AND ps.status = 'success'
+      )
+      AND (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))
+    ) AS unorganized_count
   FROM media_items;
 END;
 $$;
 
 -- Create a function for EXIF statistics
+-- Updated to use processing_states table 
 CREATE OR REPLACE FUNCTION get_exif_statistics(
   ignore_extensions text[] DEFAULT NULL,
   exif_compatible_extensions text[] DEFAULT ARRAY['jpg', 'jpeg', 'tiff', 'heic']
@@ -68,16 +109,46 @@ AS $$
 BEGIN
   RETURN QUERY
   SELECT
-    COUNT(*) FILTER (WHERE has_exif = true AND 
-                     (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))) AS with_exif,
-    COUNT(*) FILTER (WHERE processed = true AND has_exif = false AND 
-                     (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))) AS processed_no_exif,
-    COUNT(*) FILTER (WHERE processed = false AND 
-                     extension IN (SELECT unnest(exif_compatible_extensions)) AND
-                     (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))) AS unprocessed,
-    COUNT(*) FILTER (WHERE extension IN (SELECT unnest(exif_compatible_extensions)) AND
-                     (ignore_extensions IS NULL OR extension NOT IN (SELECT unnest(ignore_extensions)))) AS total_compatible
-  FROM media_items;
+    -- Count media items with successful EXIF extraction
+    COUNT(DISTINCT mi.id) FILTER (
+      WHERE EXISTS (
+        SELECT 1 FROM processing_states ps
+        WHERE ps.media_item_id = mi.id
+        AND ps.type = 'exif'
+        AND ps.status = 'success'
+      )
+      AND (ignore_extensions IS NULL OR mi.extension NOT IN (SELECT unnest(ignore_extensions)))
+    ) AS with_exif,
+    
+    -- Count media items processed but no EXIF found (skipped or unsupported)
+    COUNT(DISTINCT mi.id) FILTER (
+      WHERE EXISTS (
+        SELECT 1 FROM processing_states ps
+        WHERE ps.media_item_id = mi.id
+        AND ps.type = 'exif'
+        AND ps.status IN ('skipped', 'unsupported')
+      )
+      AND (ignore_extensions IS NULL OR mi.extension NOT IN (SELECT unnest(ignore_extensions)))
+    ) AS processed_no_exif,
+    
+    -- Count unprocessed items compatible with EXIF
+    COUNT(DISTINCT mi.id) FILTER (
+      WHERE NOT EXISTS (
+        SELECT 1 FROM processing_states ps
+        WHERE ps.media_item_id = mi.id
+        AND ps.type = 'exif'
+      )
+      AND mi.extension IN (SELECT unnest(exif_compatible_extensions))
+      AND (ignore_extensions IS NULL OR mi.extension NOT IN (SELECT unnest(ignore_extensions)))
+    ) AS unprocessed,
+    
+    -- Total number of compatible files
+    COUNT(DISTINCT mi.id) FILTER (
+      WHERE mi.extension IN (SELECT unnest(exif_compatible_extensions))
+      AND (ignore_extensions IS NULL OR mi.extension NOT IN (SELECT unnest(ignore_extensions)))
+    ) AS total_compatible
+    
+  FROM media_items mi;
 END;
 $$;
 
@@ -117,3 +188,4 @@ ALTER FUNCTION get_extension_statistics(text[]) SECURITY DEFINER;
 
 -- Optimize database with improved execution plans
 ANALYZE media_items;
+ANALYZE processing_states;

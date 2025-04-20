@@ -25,186 +25,54 @@ export async function getMediaStats(): Promise<{
 
     const { ignoredExtensions, extensionToCategory } = fileTypeInfo;
 
-    // Define the structure of our stats result
-    interface StatsResult {
-      total_count: number;
-      total_size_bytes: number;
-      processed_count: number;
-      unprocessed_count: number;
-      organized_count: number;
-      unorganized_count: number;
+    // Call the database function to get core statistics
+    const { data: statsData, error: statsError } = await supabase.rpc(
+      'get_media_statistics',
+      {
+        ignore_extensions: ignoredExtensions,
+      },
+    );
+
+    if (statsError) {
+      console.error('Error calling get_media_statistics:', statsError);
+      return { success: false, error: statsError.message };
+    }
+    if (!statsData || statsData.length === 0) {
+      console.error('No data returned from get_media_statistics');
+      return { success: false, error: 'Failed to retrieve core statistics' };
     }
 
-    // Get total count
-    const { count: totalCount, error: countError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .not(
-        'extension',
-        'in',
-        ignoredExtensions.length > 0
-          ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-          : '("")',
-      );
+    // The function returns an array with one object
+    const statsResult = statsData[0];
 
-    if (countError) {
-      console.error('Error getting total count:', countError);
-      return { success: false, error: countError.message };
-    }
-
-    // Get total size
-    const { data: sizeData, error: sizeError } = await supabase
-      .from('media_items')
-      .select('size_bytes')
-      .not(
-        'extension',
-        'in',
-        ignoredExtensions.length > 0
-          ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-          : '("")',
-      );
-
-    if (sizeError) {
-      console.error('Error getting size data:', sizeError);
-      return { success: false, error: sizeError.message };
-    }
-
-    // Calculate total size
-    const totalSizeBytes =
-      sizeData?.reduce((sum, item) => sum + (item.size_bytes || 0), 0) || 0;
-
-    // Get processed count using processing_state first, falling back to legacy field
-    // Fix the query syntax by splitting the conditions with multiple or() calls
-    const { count: processedNewCount, error: processedNewError } =
-      await supabase
-        .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .or(
-          `processing_state->'exif'->>'status'.eq.success,` +
-            `processing_state->'exif'->>'status'.eq.skipped,` +
-            `processing_state->'exif'->>'status'.eq.unsupported`,
-        )
-        .not(
-          'extension',
-          'in',
-          ignoredExtensions.length > 0
-            ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-            : '("")',
-        );
-
-    // Fall back to legacy approach if the JSON query fails
-    let processedCount = 0;
-    if (processedNewError) {
-      console.log('Falling back to legacy processed count approach');
-
-      const { count: legacyProcessedCount, error: processedError } =
-        await supabase
-          .from('media_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('processed', true)
-          .not(
-            'extension',
-            'in',
-            ignoredExtensions.length > 0
-              ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-              : '("")',
-          );
-
-      if (processedError) {
-        console.error('Error getting processed count:', processedError);
-        return { success: false, error: processedError.message };
-      }
-
-      processedCount = legacyProcessedCount || 0;
-    } else {
-      processedCount = processedNewCount || 0;
-    }
-
-    // Get organized count
-    const { count: organizedCount, error: organizedError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('organized', true)
-      .not(
-        'extension',
-        'in',
-        ignoredExtensions.length > 0
-          ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-          : '("")',
-      );
-
-    if (organizedError) {
-      console.error('Error getting organized count:', organizedError);
-      return { success: false, error: organizedError.message };
-    }
-
-    // Create stats object from standard queries
-    const statsResult: StatsResult = {
-      total_count: totalCount || 0,
-      total_size_bytes: totalSizeBytes,
-      processed_count: processedCount || 0,
-      unprocessed_count: (totalCount || 0) - (processedCount || 0),
-      organized_count: organizedCount || 0,
-      unorganized_count: (totalCount || 0) - (organizedCount || 0),
-    };
-
-    // Define the structure for extension results
-    interface ExtensionResult {
-      extension: string;
-      count: number;
-      category: string;
-    }
-
-    // Get extension counts with standard query
-    const { data: extensionCounts, error: extensionError } = await supabase
-      .from('media_items')
-      .select('extension')
-      .not(
-        'extension',
-        'in',
-        ignoredExtensions.length > 0
-          ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-          : '("")',
-      );
+    // Call the database function to get extension statistics
+    const { data: extensionResults, error: extensionError } =
+      await supabase.rpc('get_extension_statistics', {
+        ignore_extensions: ignoredExtensions,
+      });
 
     if (extensionError) {
-      console.error('Error getting extensions:', extensionError);
+      console.error('Error calling get_extension_statistics:', extensionError);
       return { success: false, error: extensionError.message };
     }
-
-    // Process extension counts manually
-    const extensionCounting: Record<string, number> = {};
-    extensionCounts?.forEach((item) => {
-      const ext = item.extension.toLowerCase();
-      extensionCounting[ext] = (extensionCounting[ext] || 0) + 1;
-    });
-
-    // Convert to array of extension results
-    const extensionResults: ExtensionResult[] = Object.entries(
-      extensionCounting,
-    ).map(([extension, count]) => ({
-      extension,
-      count,
-      category: extensionToCategory[extension] || 'other',
-    }));
 
     // Process extension counts and build category counts
     const itemsByCategory: Record<string, number> = {};
     const itemsByExtension: Record<string, number> = {};
 
-    extensionResults.forEach((item) => {
+    extensionResults?.forEach((item) => {
       const ext = item.extension.toLowerCase();
-      const count = Number(item.count);
+      const count = Number(item.count); // Ensure count is a number
 
       // Add to extension counts
       itemsByExtension[ext] = count;
 
-      // Add to category counts
+      // Add to category counts using category from function result or fallback
       const category = item.category || extensionToCategory[ext] || 'other';
       itemsByCategory[category] = (itemsByCategory[category] || 0) + count;
     });
 
-    // Count ignored items if relevant
+    // Count ignored items if relevant (Keep this separate as the function excludes them)
     let ignoredCount = 0;
     if (ignoredExtensions.length > 0) {
       const { count, error: ignoredError } = await supabase
@@ -214,65 +82,77 @@ export async function getMediaStats(): Promise<{
 
       if (ignoredError) {
         console.error('Error counting ignored items:', ignoredError);
+        // Decide if this error should halt the process or just log
       } else {
         ignoredCount = count || 0;
       }
     }
 
-    // Count files needing timestamp correction:
-    // Use processing_state first, fall back to legacy approach
+    // Count files needing timestamp correction using the processing_states table
     let needsTimestampCorrectionCount = 0;
     {
-      const exifCompatibleExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
+      const exifCompatibleExtensions = Object.entries(extensionToCategory)
+        .filter(
+          ([, category]) => category === 'image' || category === 'raw_image',
+        )
+        .map(([ext]) => ext); // Dynamically get EXIF compatible extensions based on category
 
-      // Try using processing_state first
-      const { count: newTimestampCount, error: newTimestampError } =
-        await supabase
-          .from('media_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('processing_state->exif->status', 'success')
-          .eq('processing_state->dateCorrection->status', 'error')
-          .in('extension', exifCompatibleExtensions)
-          .not(
-            'extension',
-            'in',
-            ignoredExtensions.length > 0
-              ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-              : '("")',
+      try {
+        // First get media items with successful EXIF extraction
+        const { data: successfulExif } = await supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'exif')
+          .eq('status', 'success');
+
+        // Get media items with error or outdated date correction
+        const { data: failedDateCorrection } = await supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'dateCorrection')
+          .eq('status', 'error');
+
+        if (successfulExif?.length && failedDateCorrection?.length) {
+          // Create Sets for efficient intersection
+          const exifSuccessIds = new Set(
+            successfulExif.map((item) => item.media_item_id),
+          );
+          const dateFailIds = new Set(
+            failedDateCorrection.map((item) => item.media_item_id),
           );
 
-      if (!newTimestampError) {
-        needsTimestampCorrectionCount = newTimestampCount || 0;
-      } else {
-        // Fall back to legacy approach
-        const { count, error } = await supabase
-          .from('media_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('processed', true)
-          .eq('has_exif', false)
-          .in('extension', exifCompatibleExtensions)
-          .not(
-            'extension',
-            'in',
-            ignoredExtensions.length > 0
-              ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-              : '("")',
-          );
-        if (!error) {
-          needsTimestampCorrectionCount = count || 0;
+          // Find IDs in both sets (items that need timestamp correction)
+          const needsCorrectionIds = Array.from(exifSuccessIds)
+            .filter((id) => dateFailIds.has(id))
+            .filter((id) => id !== null) as string[];
+
+          if (needsCorrectionIds.length > 0) {
+            // Filter by extension if needed
+            const { count } = await supabase
+              .from('media_items')
+              .select('*', { count: 'exact', head: true })
+              .in('id', needsCorrectionIds)
+              .in('extension', exifCompatibleExtensions)
+              .not('extension', 'in', ignoredExtensions);
+
+            needsTimestampCorrectionCount = count || 0;
+          }
         }
+      } catch (countError) {
+        console.error('Error counting timestamp correction needs:', countError);
       }
     }
 
     const mediaStats: MediaStats = {
       totalMediaItems: statsResult.total_count,
-      totalSizeBytes: statsResult.total_size_bytes,
+      totalSizeBytes: Number(statsResult.total_size_bytes),
       itemsByCategory,
       itemsByExtension,
+      // Use counts directly from the function result
       processedCount: statsResult.processed_count,
       unprocessedCount: statsResult.unprocessed_count,
-      ignoredCount,
-      needsTimestampCorrectionCount,
+      ignoredCount, // From the separate query
+      needsTimestampCorrectionCount, // From the separate query
     };
 
     return { success: true, data: mediaStats };
@@ -346,35 +226,29 @@ export async function resetAllMediaItems(): Promise<{
       return { success: false, error: countError.message };
     }
 
-    // Reset all media items by updating processing_state and legacy fields
-    const { error: updateError } = await supabase
+    // First, clear the exif_data and media_date fields in media_items
+    const { error: updateMediaError } = await supabase
       .from('media_items')
       .update({
-        // Remove legacy fields and only use processing_state
-        processing_state: {
-          exif: {
-            status: 'pending',
-            processedAt: new Date().toISOString(),
-          },
-          // Keep other processing states but mark them as outdated
-          thumbnail: {
-            status: 'outdated',
-            processedAt: new Date().toISOString(),
-          },
-          dateCorrection: {
-            status: 'outdated',
-            processedAt: new Date().toISOString(),
-          },
-        },
-        // Clear any data fields that should be regenerated
         exif_data: null,
         media_date: null,
       })
-      .filter('id', 'not.is', null); // Select all non-null IDs (all rows)
+      .filter('id', 'not.is', null);
 
-    if (updateError) {
-      console.error('Error resetting media items:', updateError);
-      return { success: false, error: updateError.message };
+    if (updateMediaError) {
+      console.error('Error updating media items:', updateMediaError);
+      return { success: false, error: updateMediaError.message };
+    }
+
+    // Then reset all processing states to pending/outdated
+    const { error: deleteError } = await supabase
+      .from('processing_states')
+      .delete()
+      .neq('id', 0); // Delete all processing states
+
+    if (deleteError) {
+      console.error('Error resetting processing states:', deleteError);
+      return { success: false, error: deleteError.message };
     }
 
     return {

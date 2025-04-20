@@ -80,43 +80,170 @@ export async function browseMedia(
       query = query.lte('size_bytes', maxSizeBytes);
     }
 
-    // Updated processing filter to use processing_state
     if (filters.processed !== 'all') {
+      // We need to use subqueries or exists conditions to filter based on processing_states table
       if (filters.processed === 'yes') {
         // Items are considered processed if EXIF processing is success, skipped, or unsupported
-        query = query
-          .not('processing_state', 'is', null) // Ensure processing_state exists
-          .in("processing_state->'exif'->>'status'", [
-            'success',
-            'skipped',
-            'unsupported',
-          ]);
+        const processedIds = await supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'exif')
+          .in('status', ['success', 'skipped', 'unsupported']);
+
+        if (processedIds.error) {
+          console.error('Error fetching processed items:', processedIds.error);
+          return { success: false, error: processedIds.error.message };
+        }
+
+        // Filter items that have successful processing records
+        if (processedIds.data && processedIds.data.length > 0) {
+          const ids = processedIds.data
+            .map((item) => item.media_item_id || '')
+            .filter(Boolean);
+          query = query.in('id', ids);
+        } else {
+          // If no items are processed, return empty result
+          return {
+            success: true,
+            data: [],
+            pagination: { page, pageSize, pageCount: 0, total: 0 },
+            maxFileSize: 100,
+            availableExtensions: [],
+          };
+        }
       } else {
-        // Not processed items are those pending, errored, outdated, or without any EXIF state
-        query = query.or(
-          'processing_state.is.null,' + // No processing state at all
-            "processing_state->'exif'.is.null," + // No EXIF state within processing_state
-            "processing_state->'exif'->>'status'.eq.pending," +
-            "processing_state->'exif'->>'status'.eq.error," +
-            "processing_state->'exif'->>'status'.eq.outdated",
+        // For items not processed, we need to find media items that either:
+        // 1. Have no entry in processing_states for exif
+        // 2. Have entries but with status pending, error, or outdated
+        const nonProcessedIds = await supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'exif')
+          .in('status', ['pending', 'error', 'outdated']);
+
+        // Also get all media items to find those missing from processing_states
+        const allMediaIds = await supabase.from('media_items').select('id');
+
+        if (nonProcessedIds.error || allMediaIds.error) {
+          console.error(
+            'Error fetching unprocessed items:',
+            nonProcessedIds.error || allMediaIds.error,
+          );
+          return {
+            success: false,
+            error: (nonProcessedIds.error || allMediaIds.error)?.message,
+          };
+        }
+
+        // Get IDs with problematic processing status
+        const problematicIds =
+          nonProcessedIds.data
+            ?.map((item) => item.media_item_id || '')
+            .filter(Boolean) || [];
+
+        // Find IDs that don't have an exif processing entry
+        const allIds = allMediaIds.data?.map((item) => item.id) || [];
+        const processedExifIds = await supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'exif');
+
+        const processedIds =
+          processedExifIds.data
+            ?.map((item) => item.media_item_id)
+            .filter(Boolean) || [];
+        const missingProcessingIds = allIds.filter(
+          (id) => !processedIds.includes(id),
         );
+
+        // Combine problematic and missing processing IDs
+        const unprocessedIds = [
+          ...new Set([...problematicIds, ...missingProcessingIds]),
+        ];
+
+        if (unprocessedIds.length > 0) {
+          query = query.in('id', unprocessedIds);
+        } else {
+          // If all items are processed, return empty result for "not processed" filter
+          return {
+            success: true,
+            data: [],
+            pagination: { page, pageSize, pageCount: 0, total: 0 },
+            maxFileSize: 100,
+            availableExtensions: [],
+          };
+        }
       }
     }
 
-    // Fix the JSON query syntax for hasThumbnail filter
+    // Update hasThumbnail filter to use processing_states table
     if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
       if (filters.hasThumbnail === 'yes') {
         // Check for successful thumbnail processing
-        query = query
-          .not('processing_state', 'is', null)
-          .eq("processing_state->'thumbnail'->>'status'", 'success');
+        const thumbnailIds = await supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'thumbnail')
+          .eq('status', 'success');
+
+        if (thumbnailIds.error) {
+          console.error(
+            'Error fetching items with thumbnails:',
+            thumbnailIds.error,
+          );
+          return { success: false, error: thumbnailIds.error.message };
+        }
+
+        if (thumbnailIds.data && thumbnailIds.data.length > 0) {
+          const ids = thumbnailIds.data
+            .map((item) => item.media_item_id || '')
+            .filter(Boolean);
+          query = query.in('id', ids);
+        } else {
+          // If no items have thumbnails, return empty result
+          return {
+            success: true,
+            data: [],
+            pagination: { page, pageSize, pageCount: 0, total: 0 },
+            maxFileSize: 100,
+            availableExtensions: [],
+          };
+        }
       } else {
-        // Check for missing or failed thumbnail processing
-        query = query.or(
-          'processing_state.is.null,' +
-            'processing_state->thumbnail.is.null,' +
-            "processing_state->'thumbnail'->>'status'.neq.success",
+        // Find items without successful thumbnail processing
+        const allMediaIds = await supabase.from('media_items').select('id');
+        const successThumbnailIds = await supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'thumbnail')
+          .eq('status', 'success');
+
+        if (allMediaIds.error || successThumbnailIds.error) {
+          console.error('Error fetching items without thumbnails');
+          return { success: false, error: 'Failed to query thumbnail status' };
+        }
+
+        const allIds = allMediaIds.data?.map((item) => item.id) || [];
+        const withThumbnailIds =
+          successThumbnailIds.data
+            ?.map((item) => item.media_item_id)
+            .filter(Boolean) || [];
+        const withoutThumbnailIds = allIds.filter(
+          (id) => !withThumbnailIds.includes(id),
         );
+
+        if (withoutThumbnailIds.length > 0) {
+          query = query.in('id', withoutThumbnailIds);
+        } else {
+          // If all items have thumbnails, return empty result for "no thumbnail" filter
+          return {
+            success: true,
+            data: [],
+            pagination: { page, pageSize, pageCount: 0, total: 0 },
+            maxFileSize: 100,
+            availableExtensions: [],
+          };
+        }
       }
     }
 

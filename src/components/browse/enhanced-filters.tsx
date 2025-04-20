@@ -78,17 +78,6 @@ export function EnhancedFilters() {
         ],
       },
       {
-        id: 'organized',
-        label: 'Organization',
-        value: searchParams.get('organized'),
-        type: 'select',
-        options: [
-          { value: 'all', label: 'All Files' },
-          { value: 'yes', label: 'Organized' },
-          { value: 'no', label: 'Unorganized' },
-        ],
-      },
-      {
         id: 'hasLocation',
         label: 'Location Data',
         value: searchParams.get('hasLocation'),

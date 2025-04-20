@@ -63,12 +63,33 @@ export async function updateMediaDatesFromFilenames({
           .from('media_items')
           .update({
             media_date: extractedDate.toISOString(),
-            // If we're updating from filename, we can also mark it as processed
-            processed: true,
           })
           .eq('id', item.id);
 
         if (!updateError) {
+          // Create or update the processing state record to indicate successful EXIF processing
+          const { error: processingError } = await supabase
+            .from('processing_states')
+            .upsert(
+              {
+                media_item_id: item.id,
+                type: 'exif',
+                status: 'success',
+                processed_at: new Date().toISOString(),
+                error_message: null,
+              },
+              {
+                onConflict: 'media_item_id,type',
+              },
+            );
+
+          if (processingError) {
+            console.error(
+              `Error updating processing state for ${item.file_name}:`,
+              processingError,
+            );
+          }
+
           updatedCount++;
         } else {
           console.error(

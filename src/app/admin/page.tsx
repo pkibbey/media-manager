@@ -10,7 +10,7 @@ import ResetThumbnails from '@/components/admin/reset-thumbnails';
 import ResetTimestamps from '@/components/admin/reset-timestamps';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
-import { TimestampCorrectorWrapper } from '@/components/admin/timestamp-corrector-wrapper';
+import { TimestampCorrector } from '@/components/admin/timestamp-corrector';
 import { Suspense } from 'react';
 import { getFileTypes } from '../actions/file-types';
 
@@ -27,18 +27,21 @@ export default async function AdminPage() {
       value: 'folders',
       label: 'Folders',
       content: (
-        <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
-            <ScanFoldersTrigger />
-            <ResetScan />
-          </div>
-          <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[1fr_2fr] items-start gap-6">
-            <AddFolderForm />
-            <Suspense fallback={<div>Loading folders...</div>}>
-              {/* FolderList now fetches its own data */}
-              <FolderList />
-            </Suspense>
-          </div>
+        <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
+          <AddFolderForm />
+          <Suspense fallback={<div>Loading folders...</div>}>
+            <FolderList />
+          </Suspense>
+        </div>
+      ),
+    },
+    {
+      value: 'scan',
+      label: 'Scan',
+      content: (
+        <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
+          <ScanFoldersTrigger />
+          <ResetScan />
         </div>
       ),
     },
@@ -46,11 +49,9 @@ export default async function AdminPage() {
       value: 'processing',
       label: 'Processing',
       content: (
-        <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
-            <ExifProcessor />
-            <ResetMedia />
-          </div>
+        <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
+          <ExifProcessor />
+          <ResetMedia />
         </div>
       ),
     },
@@ -59,11 +60,9 @@ export default async function AdminPage() {
       value: 'thumbnails',
       label: 'Thumbnails',
       content: (
-        <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
-            <ThumbnailGenerator />
-            <ResetThumbnails />
-          </div>
+        <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
+          <ThumbnailGenerator />
+          <ResetThumbnails />
         </div>
       ),
     },
@@ -71,22 +70,20 @@ export default async function AdminPage() {
       value: 'timestamps',
       label: 'Timestamps',
       content: (
-        <div className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
-            <Suspense fallback={<div>Loading timestamp corrector...</div>}>
-              <TimestampCorrectorWrapper />
-            </Suspense>
-            <ResetTimestamps />
-          </div>
+        <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
+          <Suspense fallback={<div>Loading timestamp corrector...</div>}>
+            <TimestampCorrector />
+          </Suspense>
+          <ResetTimestamps />
         </div>
       ),
     },
-
     {
       value: 'file-types',
-      label: 'File Types',
+      label: 'File-types',
       content: (
-        <div className="space-y-6">
+        <div className="border-t pt-6 items-start">
+          {' '}
           <Suspense fallback={<div>Loading file types...</div>}>
             {fileTypesSuccess ? (
               <FileTypeManager fileTypes={fileTypes || []} />
@@ -103,9 +100,8 @@ export default async function AdminPage() {
       value: 'stats',
       label: 'Stats',
       content: (
-        <div className="space-y-6">
+        <div className="border-t pt-6 items-start">
           <Suspense fallback={<div>Loading statistics...</div>}>
-            {/* MediaStats now fetches its own data */}
             <MediaStats />
           </Suspense>
         </div>

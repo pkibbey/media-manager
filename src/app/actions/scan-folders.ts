@@ -400,8 +400,6 @@ export async function scanFolders(options: ScanOptions = {}) {
                 size_bytes: fileSize,
                 modified_date: stats.mtime.toISOString(),
                 created_date: stats.birthtime.toISOString(),
-                processed: false,
-                organized: false,
               });
 
               totalFilesProcessed++;

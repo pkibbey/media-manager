@@ -152,7 +152,6 @@ export default async function MediaStats() {
       <div className="space-y-4 border rounded-md p-4">
         <h4 className="font-medium">Progress</h4>
 
-        {/* Processing progress */}
         <div className="space-y-1">
           <div className="flex justify-between text-sm">
             <div className="flex items-center gap-1.5">

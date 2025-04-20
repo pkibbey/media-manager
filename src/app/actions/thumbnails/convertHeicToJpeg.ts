@@ -4,8 +4,6 @@ import { exec } from 'node:child_process';
 import fs from 'node:fs/promises';
 import { promisify } from 'node:util';
 
-const execAsync = promisify(exec);
-
 /**
  * Convert a HEIC image to JPEG using ImageMagick or native sips (macOS)
  */
@@ -14,6 +12,8 @@ export async function convertHeicToJpeg(
   tempOutputPath: string,
 ): Promise<Buffer> {
   try {
+    const execAsync = promisify(exec);
+
     // First try ImageMagick (requires it to be installed)
     try {
       await execAsync(`magick "${inputPath}" "${tempOutputPath}"`);

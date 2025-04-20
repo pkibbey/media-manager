@@ -12,6 +12,7 @@ import type {
 } from '@/types/exif';
 import { revalidatePath } from 'next/cache';
 import { processExifData } from './processExifData';
+
 /**
  * Process all unprocessed items with streaming updates
  * This function returns a ReadableStream that emits progress updates
