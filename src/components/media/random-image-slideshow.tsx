@@ -25,9 +25,8 @@ export default function RandomImageSlideshow({
   // Use only the first image if only one is available
   if (images.length === 1) {
     const image = images[0];
-    // Get thumbnail path from processing_state if available, otherwise use legacy field
-    const thumbnailPath =
-      image.processing_state?.thumbnail?.path || image.thumbnail_path;
+    // Use the dedicated thumbnail_path field from the media_item
+    const thumbnailPath = image.thumbnail_path;
 
     return (
       <div className="w-full h-[400px] lg:h-[600px] rounded-lg overflow-hidden relative">

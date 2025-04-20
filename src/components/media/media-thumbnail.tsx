@@ -23,16 +23,15 @@ const MediaThumbnail = memo(
     const isImg = isImage(extension);
     const isVid = isVideo(extension);
 
-    // Get thumbnail path from processing_state if available, otherwise use legacy field
-    const thumbnailPath =
-      item.processing_state?.thumbnail?.path || item.thumbnail_path;
+    // Use the dedicated thumbnail_path field from the media_item
+    const thumbnailPath = item.thumbnail_path;
 
     return (
       <>
         {isImg && !isSkippedLargeFile(item.size_bytes || 0) ? (
           <div className="w-full h-full relative">
             <Image
-              src={thumbnailPath ? thumbnailPath : `/api/media?id=${item.id}`}
+              src={thumbnailPath ? thumbnailPath : `/api/media?id=${item.id}`} // Fallback to API if path is missing
               alt={item.file_name}
               className={`object-cover ${className}`}
               fill

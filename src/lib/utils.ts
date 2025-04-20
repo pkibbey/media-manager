@@ -1,8 +1,5 @@
 import type { MediaItem } from '@/types/db-types';
-import type {
-  ProcessingState,
-  ProcessingStatus,
-} from '@/types/thumbnail-types';
+import type {} from '@/types/thumbnail-types';
 import { type ClassValue, clsx } from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import type { Exif } from 'exif-reader';
@@ -547,76 +544,4 @@ export async function getFileCategory(extension: string): Promise<string> {
 
 export function isSkippedLargeFile(fileSize: number): boolean {
   return fileSize > LARGE_FILE_THRESHOLD;
-}
-
-/**
- * Helper that checks if an item has been processed,
- * supporting both the new processing_state and legacy processed field
- */
-export function isItemProcessed(item: MediaItem): boolean {
-  // Check processing_state first (preferred approach)
-  const state = item.processing_state as ProcessingState | null;
-  if (state?.exif) {
-    const status = state.exif.status;
-    return (
-      status === 'success' || status === 'skipped' || status === 'unsupported'
-    );
-  }
-
-  // Fall back to legacy field
-  return !!item.processed;
-}
-
-/**
- * Helper that checks if an item has a valid thumbnail,
- * supporting both the new processing_state and legacy thumbnail_path field
- */
-export function hasValidThumbnail(item: MediaItem): boolean {
-  // Check processing_state first (preferred approach)
-  const state = item.processing_state as ProcessingState | null;
-  if (state?.thumbnail) {
-    return state.thumbnail.status === 'success';
-  }
-
-  // Fall back to legacy field
-  return (
-    !!item.thumbnail_path &&
-    !item.thumbnail_path.startsWith('error:') &&
-    !item.thumbnail_path.startsWith('skipped:')
-  );
-}
-
-/**
- * Helper function to get the thumbnail path from a media item,
- * checking processing_state first then falling back to legacy field
- */
-export function getThumbnailPath(item: MediaItem): string | null {
-  // Check processing_state first
-  const state = item.processing_state as ProcessingState | null;
-  if (state?.thumbnail?.path) {
-    return state.thumbnail.path;
-  }
-
-  // Fall back to legacy field
-  if (
-    item.thumbnail_path &&
-    !item.thumbnail_path.startsWith('error:') &&
-    !item.thumbnail_path.startsWith('skipped:')
-  ) {
-    return item.thumbnail_path;
-  }
-
-  return null;
-}
-
-/**
- * Helper to check the processing status of a specific process
- */
-export function getProcessingStatus(
-  item: MediaItem,
-  process: keyof ProcessingState,
-): ProcessingStatus | null {
-  const state = item.processing_state as ProcessingState | null;
-  if (!state || !state[process]) return null;
-  return state[process]?.status || null;
 }

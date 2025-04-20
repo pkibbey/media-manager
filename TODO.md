@@ -4,3 +4,5 @@
 - Process each image for content safety
 
 - Enabled images to be marked for deletion
+
+- deprecate using extension to figure out file types, just link them to the media-item by id

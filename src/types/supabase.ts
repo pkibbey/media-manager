@@ -90,66 +90,56 @@ export type Database = {
       };
       media_items: {
         Row: {
-          created_at: string;
           created_date: string | null;
-          error: string | null;
           exif_data: Json | null;
           extension: string;
           file_name: string;
           file_path: string;
+          file_type_id: number | null;
           folder_path: string;
-          has_exif: boolean;
           id: string;
           media_date: string | null;
           modified_date: string;
-          organized: boolean;
-          processed: boolean;
-          processing_state: Json | null;
           size_bytes: number;
           thumbnail_path: string | null;
-          updated_at: string;
         };
         Insert: {
-          created_at?: string;
           created_date?: string | null;
-          error?: string | null;
           exif_data?: Json | null;
           extension: string;
           file_name: string;
           file_path: string;
+          file_type_id?: number | null;
           folder_path: string;
-          has_exif?: boolean;
           id?: string;
           media_date?: string | null;
           modified_date: string;
-          organized?: boolean;
-          processed?: boolean;
-          processing_state?: Json | null;
           size_bytes: number;
           thumbnail_path?: string | null;
-          updated_at?: string;
         };
         Update: {
-          created_at?: string;
           created_date?: string | null;
-          error?: string | null;
           exif_data?: Json | null;
           extension?: string;
           file_name?: string;
           file_path?: string;
+          file_type_id?: number | null;
           folder_path?: string;
-          has_exif?: boolean;
           id?: string;
           media_date?: string | null;
           modified_date?: string;
-          organized?: boolean;
-          processed?: boolean;
-          processing_state?: Json | null;
           size_bytes?: number;
           thumbnail_path?: string | null;
-          updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'media_items_file_type_id_fkey';
+            columns: ['file_type_id'];
+            isOneToOne: false;
+            referencedRelation: 'file_types';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       processing_states: {
         Row: {
