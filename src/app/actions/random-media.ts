@@ -21,6 +21,7 @@ export async function getRandomMedia(limit = 5): Promise<{
       .select('media_item_id')
       .eq('type', 'thumbnail')
       .eq('status', 'success');
+
     if (thumbError) {
       console.error('Error fetching processing states:', thumbError.message);
       return { success: false, error: thumbError.message };
@@ -47,7 +48,7 @@ export async function getRandomMedia(limit = 5): Promise<{
     }
 
     if (!data || data.length === 0) {
-      console.log('No media items found or all were filtered out');
+      console.warn('No media items found or all were filtered out');
       return { success: true, data: [] };
     }
 

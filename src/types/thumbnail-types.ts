@@ -20,5 +20,6 @@ export interface ThumbnailResult {
   currentFilePath?: string;
   fileType?: string;
   filePath?: string;
+  fileName?: string; // Add fileName
   errors?: Array<{ path: string; message: string }>;
 }

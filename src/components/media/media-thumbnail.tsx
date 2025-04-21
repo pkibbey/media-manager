@@ -45,13 +45,15 @@ const MediaThumbnail = memo(
 
     // Use the dedicated thumbnail_path field from the media_item
     const thumbnailPath = item.thumbnail_path;
+    const showPlaceholder =
+      !thumbnailPath || isSkippedLargeFile(item.size_bytes || 0);
 
     return (
       <>
-        {isImg && !isSkippedLargeFile(item.size_bytes || 0) ? (
+        {isImg && !showPlaceholder ? (
           <div className="w-full h-full relative">
             <Image
-              src={thumbnailPath ? thumbnailPath : `/api/media?id=${item.id}`} // Fallback to API if path is missing
+              src={thumbnailPath!} // Use non-null assertion as we checked showPlaceholder
               alt={item.file_name}
               className={`object-cover ${className}`}
               fill
@@ -79,10 +81,10 @@ const MediaThumbnail = memo(
             </div>
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="flex flex-col items-center">
+          <div className="w-full h-full flex items-center justify-center bg-secondary/30">
+            <div className="flex flex-col items-center text-center">
               <FileIcon className="h-8 w-8 text-muted-foreground" />
-              <span className="text-xs font-medium mt-1 uppercase">
+              <span className="text-xs font-medium mt-1 uppercase px-1 break-all">
                 {category || 'FILE'}
               </span>
             </div>

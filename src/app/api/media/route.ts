@@ -25,7 +25,7 @@ try {
 
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
-  const thumbnail = request.nextUrl.searchParams.get('thumbnail') === 'true';
+  // const thumbnail = request.nextUrl.searchParams.get('thumbnail') === 'true'; // REMOVED
 
   if (!id) {
     return NextResponse.json({ error: 'Missing media id' }, { status: 400 });
@@ -91,74 +91,6 @@ export async function GET(request: NextRequest) {
       mimeType = lookup(fileExtension) || 'application/octet-stream';
     }
 
-    // Handle thumbnails (always convert to webp for efficiency)
-    if (thumbnail) {
-      const cachedThumbnailPath = path.join(CACHE_DIR, `${id}_thumb.webp`);
-
-      try {
-        // Check if thumbnail already exists in cache
-        await fs.access(cachedThumbnailPath);
-        const thumbnailData = await fs.readFile(cachedThumbnailPath);
-
-        return new NextResponse(thumbnailData, {
-          headers: {
-            'Content-Type': 'image/webp',
-            'Cache-Control': 'public, max-age=604800', // Cache for 7 days
-          },
-        });
-      } catch (error) {
-        console.log('Thumbnail not found in cache, generating:', error);
-        // Thumbnail doesn't exist in cache, generate it
-        if (isImageFile) {
-          try {
-            const thumbnailBuffer = await sharp(mediaItem.file_path)
-              .resize(300, 300, { fit: 'cover' })
-              .webp({ quality: 80 })
-              .toBuffer();
-
-            // Save to cache asynchronously
-            fs.writeFile(cachedThumbnailPath, thumbnailBuffer).catch((err) =>
-              console.error('Failed to cache thumbnail:', err),
-            );
-
-            return new NextResponse(thumbnailBuffer, {
-              headers: {
-                'Content-Type': 'image/webp',
-                'Cache-Control': 'public, max-age=604800', // Cache for 7 days
-              },
-            });
-          } catch (err) {
-            console.error('Error generating image thumbnail:', err);
-          }
-        }
-
-        if (isVideoFile) {
-          // For videos, we'll use a placeholder thumbnail
-          // In a future update, actual video thumbnails could be extracted
-          const placeholderThumbnail = await fs
-            .readFile(
-              path.join(process.cwd(), 'public', 'video-placeholder.png'),
-            )
-            .catch(() => null);
-
-          if (placeholderThumbnail) {
-            return new NextResponse(placeholderThumbnail, {
-              headers: {
-                'Content-Type': 'image/png',
-                'Cache-Control': 'public, max-age=604800', // Cache for 7 days
-              },
-            });
-          }
-        }
-
-        // If all else fails, return a 404
-        return NextResponse.json(
-          { error: 'Cannot generate thumbnail' },
-          { status: 404 },
-        );
-      }
-    }
-
     // If no conversion needed, serve the original file
     if (!requiresConversion) {
       const fileData = await fs.readFile(mediaItem.file_path);
@@ -191,7 +123,7 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch (error) {
-      console.log(
+      console.error(
         'Converted file not found in cache, performing conversion:',
         error,
       );
@@ -222,13 +154,9 @@ export async function GET(request: NextRequest) {
           );
         }
       } else if (isVideoFile) {
+        // Video conversion logic (unchanged)
         return new Promise((resolve) => {
-          // For video conversion, this would be a time-consuming process
-          // In a real implementation, you would want to use a queue system
-          // Here's a minimal implementation for demonstration purposes
-
           const tempOutputPath = path.join(tmpdir(), `${id}_${Date.now()}.mp4`);
-
           ffmpeg(mediaItem.file_path)
             .outputFormat('mp4')
             .videoCodec('libx264')
@@ -298,13 +226,15 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // If we can't convert the file, try returning the original as a fallback
-      console.warn(`Unsupported conversion for file type: ${fileExtension}`);
+      // Fallback for unsupported conversion or other errors
+      console.warn(
+        `Unsupported conversion or error for file type: ${fileExtension}, serving original.`,
+      );
       const fileData = await fs.readFile(mediaItem.file_path);
 
       return new NextResponse(fileData, {
         headers: {
-          'Content-Type': mimeType,
+          'Content-Type': mimeType, // Use the determined mimeType
           'Content-Disposition': `inline; filename="${encodeURIComponent(mediaItem.file_name)}"`,
           'Cache-Control': 'public, max-age=86400', // Cache for 1 day
         },

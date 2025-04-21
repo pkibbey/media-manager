@@ -52,7 +52,7 @@ async function extractMetadataDirectOnly(
     const fileBuffer = await fs.readFile(filePath);
     return exifReader(fileBuffer);
   } catch (error) {
-    console.log('Error extracting EXIF data directly:', error);
+    console.error('Error extracting EXIF data directly:', error);
     return null;
   }
 }
@@ -76,7 +76,7 @@ async function extractMetadataMarkerOnly(
     }
     return null;
   } catch (error) {
-    console.log('Error extracting EXIF data via markers:', error);
+    console.error('Error extracting EXIF data via markers:', error);
     return null;
   }
 }

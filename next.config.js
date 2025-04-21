@@ -11,12 +11,8 @@ const nextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000'],
-      // The experimental serverComponentsHmrCache option allows you to
-      // cache fetch responses in Server Components across Hot Module
-      // Replacement (HMR) refreshes in local development. This results
-      // in faster responses and reduced costs for billed API calls.
-      serverComponentsHmrCache: false,
     },
+    serverComponentsHmrCache: false,
   },
 };
 

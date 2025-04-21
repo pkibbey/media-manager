@@ -1,6 +1,10 @@
 'use server';
 
-import { addAbortToken, isAborted } from '@/lib/abort-tokens';
+import {
+  addAbortToken,
+  clearAbortTokens,
+  removeAbortToken,
+} from '@/lib/abort-tokens';
 
 /**
  * Abort thumbnail generation process
@@ -10,13 +14,22 @@ export async function abortThumbnailGeneration(token: string): Promise<{
   message: string;
 }> {
   try {
-    // Check if the token exists
-    const isActive = await isAborted(token);
-
-    if (isActive) {
+    // Special case: 'cleanup-all' will remove all abort tokens
+    if (token === 'cleanup-all') {
+      await clearAbortTokens();
       return {
         success: true,
-        message: 'Cancellation already in progress',
+        message: 'All abort tokens cleared',
+      };
+    }
+
+    // Check if it's a cleanup request for a specific token
+    if (token.startsWith('cleanup-')) {
+      const actualToken = token.replace('cleanup-', '');
+      await removeAbortToken(actualToken);
+      return {
+        success: true,
+        message: `Token ${actualToken} removed`,
       };
     }
 

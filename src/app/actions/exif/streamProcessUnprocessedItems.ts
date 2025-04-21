@@ -1,7 +1,7 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import { isAborted } from '@/lib/abort-tokens';
+import { addAbortToken, isAborted, removeAbortToken } from '@/lib/abort-tokens';
 import { BATCH_SIZE } from '@/lib/consts';
 import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
@@ -12,7 +12,6 @@ import type {
   ExifProgress,
   ExtractionMethod,
 } from '@/types/exif';
-import { revalidatePath } from 'next/cache';
 import { processExifData } from './processExifData';
 
 /**
@@ -53,6 +52,17 @@ export async function streamProcessUnprocessedItems(
   }) {
     try {
       const supabase = createServerSupabaseClient();
+
+      // First, make sure any existing token with the same name is removed
+      // This ensures we don't accidentally detect an old abort signal
+      if (abortToken) {
+        await removeAbortToken(abortToken);
+      }
+
+      // Add abort token to active tokens if provided
+      if (abortToken) {
+        await addAbortToken(abortToken);
+      }
 
       // Send initial progress update with options info
       const methodInfo =
@@ -96,23 +106,53 @@ export async function streamProcessUnprocessedItems(
         .map((ext) => fileTypeInfo.extensionToId.get(ext))
         .filter((id) => id !== undefined) as number[];
 
+      // Create a subquery to get all media IDs that have been successfully processed or skipped
+      const { data: processedItems, error: processedItemsError } =
+        await supabase
+          .from('processing_states')
+          .select('media_item_id')
+          .eq('type', 'exif')
+          .in('status', ['success', 'skipped']);
+
+      if (processedItemsError) {
+        await sendProgress(writer, {
+          status: 'error',
+          message: `Error getting processed items: ${processedItemsError.message}`,
+          error: processedItemsError.message,
+          largeFilesSkipped: 0,
+          filesDiscovered: 0,
+          filesProcessed: 0,
+          successCount: 0,
+          failedCount: 0,
+          method: extractionMethod,
+        });
+        await writer.close();
+        return;
+      }
+
+      // Extract the IDs of processed items
+      const processedIds = (processedItems || []).map(
+        (item) => item.media_item_id,
+      );
+
       // First, count the total number of unprocessed items
-      // Count media items that don't have a corresponding processing_states entry for exif
-      // or have an entry with status other than 'success' or 'skipped'
-      const { count: totalCount, error: countError } = await supabase
+      // If no items have been processed yet, don't use the NOT IN filter
+      const countQuery = supabase
         .from('media_items')
         .select('*', { count: 'exact' })
         .in('file_type_id', exifSupportedIds)
-        .not('file_type_id', 'in', ignoreFilterExpr)
-        .not(
-          'id',
-          'in',
-          supabase
-            .from('processing_states')
-            .select('media_item_id')
-            .eq('type', 'exif')
-            .in('status', ['success', 'skipped']),
-        );
+        .not('file_type_id', 'in', ignoreFilterExpr);
+
+      // Generate the NOT IN filter expression for ignored IDs
+      const processedFilterExpr =
+        processedIds.length > 0 ? `(${processedIds.join(',')})` : '(0)';
+
+      // Only apply the processed IDs filter if we have processed items
+      if (processedIds.length > 0) {
+        countQuery.not('id', 'in', processedFilterExpr);
+      }
+
+      const { count: totalCount, error: countError } = await countQuery;
 
       if (countError) {
         await sendProgress(writer, {
@@ -153,10 +193,15 @@ export async function streamProcessUnprocessedItems(
       let exifCompatibleCount = 0;
       let largeFilesSkipped = 0;
 
+      // Variable to track if we've started processing items
+      // This helps prevent false abort detection at the beginning
+      const processingStarted = false;
+
       // Process in pages
       for (let page = 0; page * pageSize < (totalCount || 0); page++) {
-        // Check for abort signal
-        if (abortToken) {
+        // Only check for abort after we've processed some items
+        // This prevents false abort detection at the beginning
+        if (processingStarted && abortToken) {
           const isAbortedResult = await isAborted(abortToken);
           if (isAbortedResult) {
             await sendProgress(writer, {
@@ -171,23 +216,26 @@ export async function streamProcessUnprocessedItems(
         // Calculate how many items to fetch for this page
         const currentPageSize = pageSize;
 
-        // Get a chunk of unprocessed items based on processing_states table
+        // Get a chunk of unprocessed items
+        const unprocessedQuery = supabase
+          .from('media_items')
+          .select('id, file_path, file_type_id, file_name')
+          .in('file_type_id', exifSupportedIds)
+          .not('file_type_id', 'in', ignoreFilterExpr);
+
+        // Only apply the processed IDs filter if we have processed items
+        if (processedIds.length > 0) {
+          unprocessedQuery.not('id', 'in', processedFilterExpr);
+        }
+
+        // Add range for pagination
+        unprocessedQuery.range(
+          page * pageSize,
+          page * pageSize + currentPageSize - 1,
+        );
+
         const { data: unprocessedItems, error: unprocessedError } =
-          await supabase
-            .from('media_items')
-            .select('id, file_path, file_type_id, file_name')
-            .in('file_type_id', exifSupportedIds)
-            .not('file_type_id', 'in', ignoreFilterExpr)
-            .not(
-              'id',
-              'in',
-              supabase
-                .from('processing_states')
-                .select('media_item_id')
-                .eq('type', 'exif')
-                .in('status', ['success', 'skipped']),
-            )
-            .range(page * pageSize, page * pageSize + currentPageSize - 1);
+          await unprocessedQuery;
 
         if (unprocessedError) {
           await sendProgress(writer, {
@@ -418,11 +466,14 @@ export async function streamProcessUnprocessedItems(
       });
     } finally {
       // Close the stream if it hasn't been closed yet
-      await writer.close();
-
-      // Revalidate paths to update UI
-      revalidatePath('/browse');
-      revalidatePath('/admin');
+      try {
+        if (!writer.closed) {
+          await writer.close();
+        }
+      } catch (error) {
+        console.error('Error closing stream writer:', error);
+        // Don't rethrow - we're in finally block
+      }
     }
   }
 

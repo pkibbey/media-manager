@@ -140,28 +140,34 @@ export type Database = {
       };
       processing_states: {
         Row: {
+          created_at: string;
           error_message: string | null;
           id: number;
           media_item_id: string | null;
           processed_at: string | null;
           status: string;
           type: string;
+          updated_at: string;
         };
         Insert: {
+          created_at?: string;
           error_message?: string | null;
           id?: number;
           media_item_id?: string | null;
           processed_at?: string | null;
           status: string;
           type: string;
+          updated_at?: string;
         };
         Update: {
+          created_at?: string;
           error_message?: string | null;
           id?: number;
           media_item_id?: string | null;
           processed_at?: string | null;
           status?: string;
           type?: string;
+          updated_at?: string;
         };
         Relationships: [
           {

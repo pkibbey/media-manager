@@ -43,28 +43,64 @@ export async function regenerateMissingThumbnails(): Promise<{
       .map((ext) => fileTypeInfo.extensionToId.get(ext))
       .filter((id) => id !== undefined) as number[];
 
-    // Get items that need thumbnails using processing_states table
-    const { data: items, error } = await supabase
+    // Get IDs of media items with success or skipped thumbnail processing
+    const { data: successOrSkippedItems, error: successSkippedError } =
+      await supabase
+        .from('processing_states')
+        .select('media_item_id')
+        .eq('type', 'thumbnail')
+        .in('status', ['success', 'skipped']);
+
+    if (successSkippedError) {
+      throw new Error(
+        `Error fetching successful thumbnails: ${successSkippedError.message}`,
+      );
+    }
+
+    // Get IDs of media items with error thumbnail processing that we want to retry
+    const { data: errorItems, error: errorItemsError } = await supabase
+      .from('processing_states')
+      .select('media_item_id')
+      .eq('type', 'thumbnail')
+      .eq('status', 'error');
+
+    if (errorItemsError) {
+      throw new Error(
+        `Error fetching error thumbnails: ${errorItemsError.message}`,
+      );
+    }
+
+    // Extract the IDs
+    const successOrSkippedIds = (successOrSkippedItems || []).map(
+      (item) => item.media_item_id,
+    );
+    const errorIds = (errorItems || []).map((item) => item.media_item_id);
+
+    // Define our query
+    let query = supabase
       .from('media_items')
       .select('id')
-      .in('file_type_id', supportedImageIds)
-      .not(
-        'id',
-        'in',
-        supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'thumbnail')
-          .in('status', ['success', 'skipped']),
-      )
-      .or(
-        `id.in.(${supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'thumbnail')
-          .eq('status', 'error')})`,
-      )
-      .limit(100); // Limit to a reasonable batch size
+      .in('file_type_id', supportedImageIds);
+
+    // Generate the NOT IN filter expression for ignored IDs
+    const filterExpr =
+      successOrSkippedIds.length > 0
+        ? `(${successOrSkippedIds.join(',')})`
+        : '(0)';
+
+    // If we have successful/skipped IDs, add the filter to exclude them
+    if (successOrSkippedIds.length > 0) {
+      query = query.not('id', 'in', filterExpr);
+    }
+
+    // If we have error IDs, add the OR condition to include them
+    if (errorIds.length > 0) {
+      // We need to use the .or() method with a filter using .in()
+      query = query.or(`id.in.(${errorIds.join(',')})`);
+    }
+
+    // Execute the query (removed limit)
+    const { data: items, error } = await query;
 
     if (error) {
       throw new Error(`Error fetching media items: ${error.message}`);

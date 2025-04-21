@@ -56,7 +56,6 @@ export async function processExifData({
         status: 'error',
         processed_at: new Date().toISOString(),
         error_message: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
-        metadata: { method },
       });
 
       return {
@@ -79,7 +78,6 @@ export async function processExifData({
         type: 'exif',
         status: 'success', // Still mark as success, just no EXIF found
         processed_at: new Date().toISOString(),
-        metadata: { method },
       });
 
       return {
@@ -111,7 +109,6 @@ export async function processExifData({
           type: 'exif',
           status: 'success',
           processed_at: new Date().toISOString(),
-          metadata: { method },
         });
       if (stateError) throw stateError; // Throw error to be caught below
 
@@ -125,7 +122,6 @@ export async function processExifData({
             type: 'dateCorrection',
             status: 'success',
             processed_at: new Date().toISOString(),
-            metadata: { source: 'exif' },
           });
         if (dateStateError) throw dateStateError; // Throw error
       }
@@ -160,7 +156,6 @@ export async function processExifData({
           status: 'error',
           processed_at: new Date().toISOString(),
           error_message: `Database update error: ${txError instanceof Error ? txError.message : 'Unknown error'}`,
-          metadata: { method },
         });
       } catch (stateUpdateError) {
         console.error(

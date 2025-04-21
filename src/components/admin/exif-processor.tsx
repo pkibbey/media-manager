@@ -254,6 +254,7 @@ export default function ExifProcessor() {
               if (line.startsWith('data: ')) {
                 try {
                   const data = JSON.parse(line.substring(6)) as ExifProgress;
+
                   setProgress(data);
 
                   // Store progress in worker to persist across navigation
@@ -326,6 +327,7 @@ export default function ExifProcessor() {
           }
         } catch (error) {
           console.error('Error reading stream:', error);
+
           setIsStreaming(false);
           setAbortController(null);
           setHasError(true);
@@ -346,6 +348,7 @@ export default function ExifProcessor() {
       setAbortController(null);
       setHasError(true);
       toast.error('Failed to start EXIF processing');
+
       console.error('Error starting EXIF processing:', error);
 
       // Update worker status

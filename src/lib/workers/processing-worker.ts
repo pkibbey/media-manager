@@ -120,4 +120,4 @@ setInterval(() => {
 }, 10000); // Check every 10 seconds
 
 // Log when the worker is loaded
-console.log('Processing worker initialized');
+console.info('Processing worker initialized');

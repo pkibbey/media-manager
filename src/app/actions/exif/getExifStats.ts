@@ -43,7 +43,7 @@ export async function getExifStats() {
       return { success: false, message: totalCompatibleError.message };
     }
 
-    // Get items with successful EXIF data using the new processing_states table
+    // Get items with successful EXIF data using the processing_states table
     const { count: withExifCount, error: withExifError } = await supabase
       .from('processing_states')
       .select('media_item_id', { count: 'exact' })
@@ -71,30 +71,52 @@ export async function getExifStats() {
       return { success: false, message: processedNoExifError.message };
     }
 
-    // Get count of unprocessed items (no processing state entry for exif)
-    const { count: unprocessedCount, error: unprocessedError } = await supabase
-      .from('media_items')
-      .select('id', { count: 'exact' })
-      .in('file_type_id', exifSupportedIds)
-      .not('file_type_id', 'in', ignoreFilterExpr)
-      .not(
-        'id',
-        'in',
-        supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'exif'),
-      );
+    // Get all media item IDs that have any processing state for EXIF
+    const { data: processedMediaIds, error: processedMediaIdsError } =
+      await supabase
+        .from('processing_states')
+        .select('media_item_id')
+        .eq('type', 'exif');
 
-    if (unprocessedError) {
-      console.error('Error with unprocessed count:', unprocessedError);
-      return { success: false, message: unprocessedError.message };
+    if (processedMediaIdsError) {
+      console.error(
+        'Error getting processed media IDs:',
+        processedMediaIdsError,
+      );
+      return { success: false, message: processedMediaIdsError.message };
+    }
+
+    // Extract the IDs
+    const processedIds = processedMediaIds.map((item) => item.media_item_id);
+    const processedIdsExpr = `(${processedIds.join(',')})`;
+
+    // If there are no processed IDs yet (like after recreating the table),
+    // all compatible files are considered unprocessed
+    let unprocessedCount = 0;
+
+    if (processedIds.length === 0) {
+      unprocessedCount = totalCompatibleCount || 0;
+    } else {
+      // Otherwise, get the actual unprocessed count - files that are compatible but don't have a processing state
+      const { count: countUnprocessed, error: unprocessedError } =
+        await supabase
+          .from('media_items')
+          .select('id', { count: 'exact' })
+          .in('file_type_id', exifSupportedIds)
+          .not('file_type_id', 'in', ignoreFilterExpr)
+          .not('id', 'in', processedIdsExpr);
+
+      if (unprocessedError) {
+        console.error('Error with unprocessed count:', unprocessedError);
+        return { success: false, message: unprocessedError.message };
+      }
+
+      unprocessedCount = countUnprocessed || 0;
     }
 
     // Calculate statistics
     const withExif = withExifCount || 0;
     const processedNoExif = processedNoExifCount || 0;
-    const unprocessedCount2 = unprocessedCount || 0;
     const totalExifCompatibleCount = totalCompatibleCount || 0;
 
     return {
@@ -103,7 +125,7 @@ export async function getExifStats() {
         with_exif: withExif,
         processed_no_exif: processedNoExif,
         total_processed: withExif + processedNoExif,
-        unprocessed: unprocessedCount2,
+        unprocessed: unprocessedCount,
         total: totalExifCompatibleCount,
       },
     };

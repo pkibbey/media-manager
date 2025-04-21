@@ -1,4 +1,3 @@
-import type { ExifProgress } from '@/types/exif';
 import { createServerSupabaseClient } from './supabase';
 
 /**
@@ -9,7 +8,6 @@ export async function updateProcessingState({
   type,
   status,
   errorMessage = null,
-  metadata = null,
 }: {
   mediaItemId: string;
   type: string;
@@ -21,7 +19,6 @@ export async function updateProcessingState({
     | 'outdated'
     | 'unsupported';
   errorMessage?: string | null;
-  metadata?: Record<string, any> | null;
 }) {
   const supabase = createServerSupabaseClient();
 
@@ -31,19 +28,7 @@ export async function updateProcessingState({
     status,
     processed_at: new Date().toISOString(),
     error_message: errorMessage,
-    metadata,
   });
-}
-
-/**
- * Send a progress update through a writer stream
- */
-export async function sendProgress(
-  writer: WritableStreamDefaultWriter,
-  progress: ExifProgress,
-  encoder: TextEncoder,
-) {
-  await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
 }
 
 /**
@@ -55,7 +40,6 @@ export async function handleLargeFile({
   size,
   type,
   threshold,
-  metadata = null,
 }: {
   mediaId: string;
   filePath: string;
@@ -63,7 +47,6 @@ export async function handleLargeFile({
   size: number;
   type: string;
   threshold: number;
-  metadata?: Record<string, any> | null;
 }): Promise<boolean> {
   if (size > threshold) {
     // File is too large, mark as skipped
@@ -72,7 +55,6 @@ export async function handleLargeFile({
       type,
       status: 'skipped',
       errorMessage: `Large file (over ${Math.round(size / (1024 * 1024))}MB)`,
-      metadata,
     });
 
     return true; // File was skipped
@@ -88,12 +70,10 @@ export async function handleProcessingError({
   mediaItemId,
   type,
   error,
-  metadata = null,
 }: {
   mediaItemId: string;
   type: string;
   error: unknown;
-  metadata?: Record<string, any> | null;
 }) {
   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -103,7 +83,6 @@ export async function handleProcessingError({
       type,
       status: 'error',
       errorMessage,
-      metadata,
     });
   } catch (updateError) {
     console.error(`Failed to update processing state to 'error':`, updateError);

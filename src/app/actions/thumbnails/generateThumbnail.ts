@@ -271,38 +271,74 @@ export async function generateThumbnail(
 
     const thumbnailUrl = publicUrlData.publicUrl;
 
-    // Update the processing state in processing_states table with success status and path
-    const { error: updateError } = await supabase
+    // Update the media_items table with the thumbnail path FIRST
+    const { error: updateMediaItemError } = await supabase
+      .from('media_items')
+      .update({ thumbnail_path: thumbnailUrl })
+      .eq('id', mediaId);
+
+    if (updateMediaItemError) {
+      console.error(
+        `[Thumbnail] Error updating media_items table for ${mediaId}:`,
+        updateMediaItemError,
+      );
+      // Attempt to delete the potentially orphaned thumbnail from storage
+      await supabase.storage.from('thumbnails').remove([fileName]);
+
+      // Mark as error in processing_states table
+      await supabase.from('processing_states').upsert({
+        media_item_id: mediaId,
+        type: 'thumbnail',
+        status: 'error',
+        processed_at: new Date().toISOString(),
+        error_message: 'Failed to update media_items table',
+      });
+
+      return {
+        success: false,
+        message: `Failed to update media item record: ${updateMediaItemError.message}`,
+        filePath: mediaItem.file_path,
+        fileName: mediaItem.file_name,
+      };
+    }
+
+    // Update the processing state in processing_states table with success status
+    const { error: updateProcessingStateError } = await supabase
       .from('processing_states')
       .upsert({
         media_item_id: mediaId,
         type: 'thumbnail',
         status: 'success',
         processed_at: new Date().toISOString(),
-        metadata: { path: thumbnailUrl },
+        // Clear any previous error message on success
+        error_message: null,
       });
 
-    if (updateError) {
+    if (updateProcessingStateError) {
       console.error(
-        `[Thumbnail] Error updating media item ${mediaId}:`,
-        updateError,
+        `[Thumbnail] Error updating processing_states for ${mediaId}:`,
+        updateProcessingStateError,
       );
 
-      // Even though we successfully generated and uploaded the thumbnail,
-      // we couldn't update the record, so mark it with an error
+      // Even though we successfully generated, uploaded, and updated media_items,
+      // we couldn't update the processing state. Mark it with an error.
+      // Note: The thumbnail_path IS set correctly in media_items.
       await supabase.from('processing_states').upsert({
         media_item_id: mediaId,
         type: 'thumbnail',
         status: 'error',
         processed_at: new Date().toISOString(),
-        error_message: 'Record update failed',
+        error_message: 'Processing state update failed',
       });
 
+      // Return success=true because the thumbnail IS available, despite the state tracking issue.
       return {
-        success: false,
-        message: `Failed to update media item: ${updateError.message}`,
+        success: true, // Thumbnail is generated and linked
+        message: 'Thumbnail generated, but failed to update processing state.',
+        thumbnailUrl,
         filePath: mediaItem.file_path,
         fileName: mediaItem.file_name,
+        fileType: extension,
       };
     }
 

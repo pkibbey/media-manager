@@ -56,7 +56,6 @@ export async function retryFailedExifFiles(
           status: 'pending', // Set to pending to mark it for reprocessing
           processed_at: new Date().toISOString(),
           error_message: null, // Clear any previous errors
-          metadata: { method },
         });
 
         // Get file info if we need to check file size
@@ -87,7 +86,6 @@ export async function retryFailedExifFiles(
               status: 'skipped',
               processed_at: new Date().toISOString(),
               error_message: `Skipped large file (${Math.round(mediaItem.size_bytes / 1024 / 1024)}MB)`,
-              metadata: { method },
             });
 
             continue;
@@ -140,7 +138,6 @@ export async function retryFailedExifFiles(
             processed_at: new Date().toISOString(),
             error_message:
               error instanceof Error ? error.message : 'Unknown error',
-            metadata: { method },
           });
         } catch (updateError) {
           console.error('Error updating processing state:', updateError);

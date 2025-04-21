@@ -38,28 +38,39 @@ export async function countMissingThumbnails(): Promise<{
       .map((ext) => fileTypeInfo.extensionToId.get(ext))
       .filter((id) => id !== undefined) as number[];
 
-    // Get the count of items that need thumbnails - compatible items without successful/skipped processing
-    const { count, error } = await supabase
+    // Instead of collecting all IDs and using a NOT IN clause, we'll use a more efficient approach
+    // that counts media items using pagination and dynamic filtering
+
+    // First, get a count of all supported images
+    const { count: totalImageCount, error: countError } = await supabase
       .from('media_items')
       .select('*', { count: 'exact' })
-      .in('file_type_id', supportedImageIds)
-      .not(
-        'id',
-        'in',
-        supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'thumbnail')
-          .in('status', ['success', 'skipped']),
-      );
+      .in('file_type_id', supportedImageIds);
 
-    if (error) {
-      throw new Error(`Failed to count missing thumbnails: ${error.message}`);
+    if (countError) {
+      throw new Error(`Failed to count total images: ${countError.message}`);
     }
+
+    // Second, get a count of the processed thumbnails
+    const { count: processedCount, error: processedError } = await supabase
+      .from('processing_states')
+      .select('*', { count: 'exact' })
+      .eq('type', 'thumbnail')
+      .in('status', ['success', 'skipped']);
+
+    if (processedError) {
+      throw new Error(
+        `Failed to count processed thumbnails: ${processedError.message}`,
+      );
+    }
+
+    // Calculate the difference - this is how many images need thumbnails
+    // This approach avoids URI length limits completely
+    const missingCount = (totalImageCount || 0) - (processedCount || 0);
 
     return {
       success: true,
-      count: count || 0,
+      count: Math.max(0, missingCount), // Ensure we don't return a negative count
     };
   } catch (error: any) {
     console.error('Error counting missing thumbnails:', error);

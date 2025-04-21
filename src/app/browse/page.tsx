@@ -142,7 +142,6 @@ export default function BrowsePage() {
 
       try {
         const result = await browseMedia(filters, currentPage, PAGE_SIZE);
-        console.log('result: ', result);
 
         if (result.success && result.data) {
           setMediaItems(result.data as MediaItem[]);
