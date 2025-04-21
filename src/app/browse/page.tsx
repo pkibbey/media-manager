@@ -1,6 +1,5 @@
 'use client';
 
-import { browseMedia } from '@/app/actions/browse';
 import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/media/media-list';
 import { Pagination } from '@/components/ui/pagination';
@@ -9,6 +8,7 @@ import type { MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { browseMedia } from '../actions/browse';
 
 // Define the default filter values
 const defaultFilters: MediaFilters = {
@@ -142,6 +142,7 @@ export default function BrowsePage() {
 
       try {
         const result = await browseMedia(filters, currentPage, PAGE_SIZE);
+        console.log('result: ', result);
 
         if (result.success && result.data) {
           setMediaItems(result.data as MediaItem[]);
@@ -199,20 +200,11 @@ export default function BrowsePage() {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Browse Media</h1>
-
-      <div className="grid gap-4 min-h-[200px]">
+    <div className="container mx-auto py-6">
+      <div className="grid gap-8 min-h-60 items-start">
         {!loading && error && (
           <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-md text-destructive">
             {error}
-          </div>
-        )}
-        {initialLoad && loading && (
-          <div className="flex items-center justify-center h-60">
-            <div className="animate-pulse text-muted-foreground">
-              Loading media...
-            </div>
           </div>
         )}
 
@@ -222,6 +214,14 @@ export default function BrowsePage() {
           availableCameras={availableCameras}
           onFiltersChange={handleFiltersChange}
         />
+
+        {initialLoad && loading && (
+          <div className="flex items-center justify-center h-60">
+            <div className="animate-pulse text-muted-foreground">
+              Loading media...
+            </div>
+          </div>
+        )}
 
         {!loading && (
           <div className="relative">

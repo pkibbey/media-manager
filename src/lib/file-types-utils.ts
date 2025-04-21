@@ -168,33 +168,6 @@ export async function getFileTypeById(
 }
 
 /**
- * Get file type ID from extension
- * @param extension - The file extension to look up
- * @returns The file type ID if found, or null if not found
- */
-export async function getFileTypeIdFromExtension(
-  extension: string,
-): Promise<number | null> {
-  const supabase = createServerSupabaseClient();
-
-  const { data, error } = await supabase
-    .from('file_types')
-    .select('id')
-    .eq('extension', extension.toLowerCase())
-    .single();
-
-  if (error || !data) {
-    console.error(
-      `Error fetching file type ID for extension ${extension}:`,
-      error,
-    );
-    return null;
-  }
-
-  return data.id;
-}
-
-/**
  * Helper functions that replace direct extension checks
  */
 

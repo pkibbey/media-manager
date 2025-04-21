@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../ui/card';
+import { FolderScanButton } from './folder-scan-button';
 
 interface FolderListDisplayProps {
   folders: ScanFolder[];
@@ -58,8 +59,10 @@ export default function FolderListDisplay({ folders }: FolderListDisplayProps) {
                 </div>
               </div>
 
-              {/* Client component for the remove button */}
-              <FolderRemoveButton folderId={folder.id} />
+              <div className="flex gap-2">
+                <FolderScanButton folderId={folder.id} />
+                <FolderRemoveButton folderId={folder.id} />
+              </div>
             </li>
           ))}
         </ul>

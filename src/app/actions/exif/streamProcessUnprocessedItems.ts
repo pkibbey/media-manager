@@ -87,6 +87,9 @@ export async function streamProcessUnprocessedItems(
       // Get ignored file type IDs
       const ignoredIds = await getIgnoredFileTypeIds();
 
+      const ignoreFilterExpr =
+        ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '(0)';
+
       // Define EXIF compatible extensions and get their IDs
       const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
       const exifSupportedIds = exifSupportedExtensions
@@ -100,7 +103,7 @@ export async function streamProcessUnprocessedItems(
         .from('media_items')
         .select('*', { count: 'exact' })
         .in('file_type_id', exifSupportedIds)
-        .not('file_type_id', 'in', ignoredIds)
+        .not('file_type_id', 'in', ignoreFilterExpr)
         .not(
           'id',
           'in',
@@ -174,7 +177,7 @@ export async function streamProcessUnprocessedItems(
             .from('media_items')
             .select('id, file_path, file_type_id, file_name')
             .in('file_type_id', exifSupportedIds)
-            .not('file_type_id', 'in', ignoredIds)
+            .not('file_type_id', 'in', ignoreFilterExpr)
             .not(
               'id',
               'in',

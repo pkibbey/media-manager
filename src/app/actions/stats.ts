@@ -16,13 +16,17 @@ export async function getMediaStats(): Promise<{
     const supabase = createServerSupabaseClient();
 
     // Get ignored file type IDs for consistent filtering
-    const ignoredTypeIds = await getIgnoredFileTypeIds();
+    const ignoredIds = await getIgnoredFileTypeIds();
+
+    // Generate the NOT IN filter expression for ignored IDs
+    const ignoreFilterExpr =
+      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '(0)';
 
     // Get total count of non-ignored media items
     const { count: totalCount, error: countError } = await supabase
       .from('media_items')
       .select('*', { count: 'exact' })
-      .not('file_type_id', 'in', `(${ignoredTypeIds.join(',')})`);
+      .not('file_type_id', 'in', ignoreFilterExpr);
 
     if (countError) {
       console.error('GET: Error counting media items:', countError);
@@ -57,7 +61,7 @@ export async function getMediaStats(): Promise<{
         .from('media_items')
         .select('id', { count: 'exact' })
         .is('media_date', null)
-        .not('file_type_id', 'in', `(${ignoredTypeIds.join(',')})`);
+        .not('file_type_id', 'in', ignoreFilterExpr);
 
     if (timestampError) {
       console.error(
@@ -71,7 +75,7 @@ export async function getMediaStats(): Promise<{
     const { count: ignoredCount, error: ignoredError } = await supabase
       .from('media_items')
       .select('*', { count: 'exact' })
-      .not('file_type_id', 'in', `(${ignoredTypeIds.join(',')})`);
+      .not('file_type_id', 'in', ignoreFilterExpr);
 
     if (ignoredError) {
       console.error('Error counting ignored items:', ignoredError);

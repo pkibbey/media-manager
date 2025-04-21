@@ -12,7 +12,7 @@ import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
 import { TimestampCorrector } from '@/components/admin/timestamp-corrector';
 import { Suspense } from 'react';
-import { getFileTypes } from '../actions/file-types';
+import { getAllFileTypes } from '../actions/file-types';
 
 export default async function AdminPage() {
   // We only need to fetch file types now, as other data is fetched by the server components
@@ -20,7 +20,7 @@ export default async function AdminPage() {
     success: fileTypesSuccess,
     data: fileTypes,
     error: fileTypesError,
-  } = await getFileTypes();
+  } = await getAllFileTypes();
 
   const tabOptions = [
     {
@@ -40,7 +40,10 @@ export default async function AdminPage() {
       label: 'Scan',
       content: (
         <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
-          <ScanFoldersTrigger />
+          <div className="space-y-6">
+            <ScanFoldersTrigger />
+            <FolderList />
+          </div>
           <ResetScan />
         </div>
       ),

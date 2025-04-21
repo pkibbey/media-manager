@@ -1,308 +1,219 @@
 'use server';
 
-import { PAGE_SIZE } from '@/lib/consts';
-import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
+import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
 
 /**
- * Browse media items with filters
+ * Browse media items with filtering and pagination
  */
 export async function browseMedia(
   filters: MediaFilters,
   page = 1,
-  pageSize = PAGE_SIZE,
-) {
+  pageSize = 20
+): Promise<{
+  success: boolean;
+  data?: MediaItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    pageCount: number;
+    total: number;
+  };
+  maxFileSize: number;
+  error?: string;
+}> {
   try {
     const supabase = createServerSupabaseClient();
-    const offset = (page - 1) * pageSize;
-
-    // Use the detailed file type info to get mapping of file type IDs by category
-    const fileTypeInfo = await getDetailedFileTypeInfo();
-
-    if (!fileTypeInfo) {
-      return { success: false, error: 'Failed to fetch file type information' };
-    }
-
-    const { categoryToIds, allFileTypes } = fileTypeInfo;
-
-    // Build query with filters
-    let query = supabase.from('media_items').select('*', { count: 'exact' });
-
-    // Exclude ignored file types
-    if (fileTypeInfo.ignoredIds && fileTypeInfo.ignoredIds.length > 0) {
-      query = query.not('file_type_id', 'in', fileTypeInfo.ignoredIds);
-    }
-
+    
+    // Calculate pagination range
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    
+    // Get ignored file type IDs for filtering out ignored files
+    const ignoredFileTypeIds = await getIgnoredFileTypeIds();
+    
+    // Start building the query
+    let query = supabase
+      .from('media_items')
+      .select('*, file_types!inner(*)', { count: 'exact' });
+    
     // Apply filters
+    
+    // Filter out ignored file types
+    if (ignoredFileTypeIds.length > 0) {
+      query = query.not('file_type_id', 'in', `(${ignoredFileTypeIds.join(',')})`);
+    }
+    
+    // Text search
     if (filters.search) {
       query = query.ilike('file_name', `%${filters.search}%`);
     }
-
-    if (filters.type !== 'all') {
-      // Use file_type_id for category filtering
-      const categoryIds = categoryToIds[filters.type];
-      if (categoryIds && categoryIds.length > 0) {
-        // Primary approach: Filter using file_type_id
-        query = query.in('file_type_id', categoryIds);
-      }
+    
+    // Media type filter
+    if (filters.type && filters.type !== 'all') {
+      query = query.eq('file_types.category', filters.type);
     }
-
+    
+    // Date range filters
     if (filters.dateFrom) {
-      // Convert to ISO string and format for Postgres date comparison
-      const dateFrom = new Date(filters.dateFrom).toISOString().split('T')[0];
-      query = query.gte('media_date', dateFrom);
+      query = query.gte('media_date', filters.dateFrom.toISOString());
     }
-
+    
     if (filters.dateTo) {
-      // Convert to ISO string and format for Postgres date comparison
-      const dateTo = new Date(filters.dateTo);
-      dateTo.setDate(dateTo.getDate() + 1); // Add 1 day to include the end date
-      const dateToStr = dateTo.toISOString().split('T')[0];
-      query = query.lt('media_date', dateToStr);
+      // Add one day to include the end date fully
+      const endDate = new Date(filters.dateTo);
+      endDate.setDate(endDate.getDate() + 1);
+      query = query.lt('media_date', endDate.toISOString());
     }
-
+    
+    // File size filters (convert MB to bytes)
     if (filters.minSize > 0) {
-      // Convert MB to bytes
-      const minSizeBytes = filters.minSize * 1024 * 1024;
-      query = query.gte('size_bytes', minSizeBytes);
+      query = query.gte('size_bytes', filters.minSize * 1024 * 1024);
     }
-
-    if (filters.maxSize < Number.POSITIVE_INFINITY) {
-      // Convert MB to bytes
-      const maxSizeBytes = filters.maxSize * 1024 * 1024;
-      query = query.lte('size_bytes', maxSizeBytes);
+    
+    if (filters.maxSize < Number.MAX_SAFE_INTEGER) {
+      query = query.lte('size_bytes', filters.maxSize * 1024 * 1024);
     }
-
-    if (filters.processed !== 'all') {
-      // We need to use subqueries or exists conditions to filter based on processing_states table
-      if (filters.processed === 'yes') {
-        // Items are considered processed if EXIF processing is success, skipped, or unsupported
-        const processedIds = await supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'exif')
-          .in('status', ['success', 'skipped', 'unsupported']);
-
-        if (processedIds.error) {
-          return { success: false, error: processedIds.error.message };
-        }
-
-        // Filter items that have successful processing records
-        if (processedIds.data && processedIds.data.length > 0) {
-          const ids = processedIds.data
-            .map((item) => item.media_item_id || '')
-            .filter(Boolean);
-          query = query.in('id', ids);
-        } else {
-          // If no items are processed, return empty result
-          return {
-            success: true,
-            data: [],
-            pagination: { page, pageSize, pageCount: 0, total: 0 },
-            maxFileSize: 100,
-            availableExtensions: [],
-          };
-        }
+    
+    // Processing status filter
+    if (filters.processed && filters.processed !== 'all') {
+      // We need to join with processing_states table for this filter
+      const hasExif = filters.processed === 'yes';
+      
+      // For processed items, check if there's a successful exif processing state
+      if (hasExif) {
+        query = query.not('exif_data', 'is', null);
       } else {
-        // For items not processed, we need to find media items that either:
-        // 1. Have no entry in processing_states for exif
-        // 2. Have entries but with status pending, error, or outdated
-        const nonProcessedIds = await supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'exif')
-          .in('status', ['pending', 'error', 'outdated']);
-
-        // Also get all media items to find those missing from processing_states
-        const allMediaIds = await supabase.from('media_items').select('id');
-
-        if (nonProcessedIds.error || allMediaIds.error) {
-          console.error(
-            'Error fetching unprocessed items:',
-            nonProcessedIds.error || allMediaIds.error,
-          );
-          return {
-            success: false,
-            error: (nonProcessedIds.error || allMediaIds.error)?.message,
-          };
-        }
-
-        // Get IDs with problematic processing status
-        const problematicIds =
-          nonProcessedIds.data
-            ?.map((item) => item.media_item_id || '')
-            .filter(Boolean) || [];
-
-        // Find IDs that don't have an exif processing entry
-        const allIds = allMediaIds.data?.map((item) => item.id) || [];
-        const processedExifIds = await supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'exif');
-
-        const processedIds =
-          processedExifIds.data
-            ?.map((item) => item.media_item_id)
-            .filter(Boolean) || [];
-        const missingProcessingIds = allIds.filter(
-          (id) => !processedIds.includes(id),
-        );
-
-        // Combine problematic and missing processing IDs
-        const unprocessedIds = [
-          ...new Set([...problematicIds, ...missingProcessingIds]),
-        ];
-
-        if (unprocessedIds.length > 0) {
-          query = query.in('id', unprocessedIds);
-        } else {
-          // If all items are processed, return empty result for "not processed" filter
-          return {
-            success: true,
-            data: [],
-            pagination: { page, pageSize, pageCount: 0, total: 0 },
-            maxFileSize: 100,
-            availableExtensions: [],
-          };
-        }
+        // For unprocessed items, check if exif_data is null
+        query = query.is('exif_data', null);
       }
     }
-
-    // Update hasThumbnail filter to use processing_states table
+    
+    // Camera filter (from EXIF data)
+    if (filters.camera && filters.camera !== 'all' && filters.camera !== '') {
+      // Filter by camera model in EXIF data
+      // We use PostgreSQL's JSONB query functionality
+      query = query.contains('exif_data', { Image: { Model: filters.camera } });
+    }
+    
+    // Location data filter
+    if (filters.hasLocation && filters.hasLocation !== 'all') {
+      const hasLocation = filters.hasLocation === 'yes';
+      
+      if (hasLocation) {
+        // Filter items with GPS data in EXIF
+        query = query.or('exif_data->GPS->GPSLatitude.neq.null,exif_data->GPS->GPSLatitudeRef.neq.null');
+      } else {
+        // Filter items without GPS data
+        query = query.or('exif_data->GPS->GPSLatitude.is.null,exif_data->GPS->GPSLatitudeRef.is.null,exif_data->GPS.is.null');
+      }
+    }
+    
+    // Thumbnail filter
     if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
-      if (filters.hasThumbnail === 'yes') {
-        // Check for successful thumbnail processing
-        const thumbnailIds = await supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'thumbnail')
-          .eq('status', 'success');
-
-        if (thumbnailIds.error) {
-          console.error(
-            'Error fetching items with thumbnails:',
-            thumbnailIds.error,
-          );
-          return { success: false, error: thumbnailIds.error.message };
-        }
-
-        if (thumbnailIds.data && thumbnailIds.data.length > 0) {
-          const ids = thumbnailIds.data
-            .map((item) => item.media_item_id || '')
-            .filter(Boolean);
-          query = query.in('id', ids);
-        } else {
-          // If no items have thumbnails, return empty result
-          return {
-            success: true,
-            data: [],
-            pagination: { page, pageSize, pageCount: 0, total: 0 },
-            maxFileSize: 100,
-            availableExtensions: [],
-          };
-        }
-      } else {
-        // Find items without successful thumbnail processing
-        const allMediaIds = await supabase.from('media_items').select('id');
-        const successThumbnailIds = await supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'thumbnail')
-          .eq('status', 'success');
-
-        if (allMediaIds.error || successThumbnailIds.error) {
-          return { success: false, error: 'Failed to query thumbnail status' };
-        }
-
-        const allIds = allMediaIds.data?.map((item) => item.id) || [];
-        const withThumbnailIds =
-          successThumbnailIds.data
-            ?.map((item) => item.media_item_id)
-            .filter(Boolean) || [];
-        const withoutThumbnailIds = allIds.filter(
-          (id) => !withThumbnailIds.includes(id),
-        );
-
-        if (withoutThumbnailIds.length > 0) {
-          query = query.in('id', withoutThumbnailIds);
-        } else {
-          // If all items have thumbnails, return empty result for "no thumbnail" filter
-          return {
-            success: true,
-            data: [],
-            pagination: { page, pageSize, pageCount: 0, total: 0 },
-            maxFileSize: 100,
-            availableExtensions: [],
-          };
-        }
+      // This will involve a separate query to processing_states
+      const thumbQuery = supabase
+        .from('processing_states')
+        .select('media_item_id')
+        .eq('type', 'thumbnail')
+        .eq('status', 'success');
+      
+      const { data: thumbData } = await thumbQuery;
+      const thumbnailMediaIds = thumbData
+        ? thumbData.map((item) => item.media_item_id)
+        : [];
+      
+      if (filters.hasThumbnail === 'yes' && thumbnailMediaIds.length > 0) {
+        query = query.in('id', thumbnailMediaIds);
+      } else if (filters.hasThumbnail === 'no') {
+        query = query.not('id', 'in', thumbnailMediaIds);
       }
     }
-
+    
     // Apply sorting
-    const sortColumn = {
-      date: 'media_date',
-      name: 'file_name',
-      size: 'size_bytes',
-      type: 'file_type_id',
-    }[filters.sortBy];
-
-    if (sortColumn) {
-      query = query.order(sortColumn, {
-        ascending: filters.sortOrder === 'asc',
-        nullsFirst: filters.sortOrder === 'asc',
-      });
+    let sortColumn: string;
+    switch (filters.sortBy) {
+      case 'name':
+        sortColumn = 'file_name';
+        break;
+      case 'size':
+        sortColumn = 'size_bytes';
+        break;
+      case 'type':
+        sortColumn = 'file_types.category';
+        break;
+      case 'date':
+      default:
+        sortColumn = 'media_date';
+        break;
     }
-
-    // Secondary sort by id to ensure consistent ordering
-    query = query.order('id', { ascending: true });
-
-    // Add pagination
-    const { data, error, count } = await query.range(
-      offset,
-      offset + pageSize - 1,
-    );
-
+    
+    query = query.order(sortColumn, {
+      ascending: filters.sortOrder === 'asc',
+      nullsFirst: filters.sortOrder === 'asc',
+    });
+    
+    // Add secondary sort by file name to ensure consistent ordering
+    if (filters.sortBy !== 'name') {
+      query = query.order('file_name', { ascending: true });
+    }
+    
+    // Apply pagination
+    query = query.range(from, to);
+    
+    // Execute the query
+    const { data, error, count } = await query;
+    
     if (error) {
-      return { success: false, error: error.message };
+      console.error('Error fetching media items:', error);
+      return {
+        success: false,
+        pagination: { page, pageSize, pageCount: 0, total: 0 },
+        maxFileSize: 100,
+        error: error.message,
+      };
     }
-
-    // Calculate pagination info
-    const pagination = {
-      page,
-      pageSize,
-      pageCount: Math.ceil((count || 0) / pageSize),
-      total: count || 0,
-    };
-
-    // Get max file size using aggregation (convert to MB)
-    let maxFileSize = 100; // Default 100MB
-    const { data: sizeData, error: sizeError } = await supabase
-      .from('media_items')
-      .select('size_bytes.max()')
-      .single();
-
-    if (!sizeError && sizeData && sizeData.max) {
-      // Convert to MB and round up to nearest 10
-      maxFileSize = Math.ceil(sizeData.max / (1024 * 1024) / 10) * 10;
-      if (maxFileSize < 100) maxFileSize = 100; // Minimum of 100MB
-    }
-
-    // Get all available extensions from the file_types table (use data from utility)
-    const availableExtensions =
-      allFileTypes
-        ?.filter((type) => !type.ignore) // Filter out ignored types
-        .map((type) => type.extension)
-        .sort() || [];
-
+    
+    // Calculate max file size in MB - assuming we want the largest file size + some buffer
+    // Default to 100MB if no files found
+    const maxFileSize = data && data.length > 0
+      ? Math.max(...data.map(item => (item.size_bytes || 0))) / (1024 * 1024) * 1.2
+      : 100;
+    
+    // Calculate page count
+    const totalCount = count || 0;
+    const pageCount = Math.ceil(totalCount / pageSize);
+    
+    // Format the data before returning
+    const mediaItems = data as MediaItem[];
+    
+    // Clean up nested file_types data - you might want to keep this if needed in UI
+    const cleanedItems = mediaItems.map(item => {
+      // Preserve the file_type_id but remove the nested file_types object
+      const { file_types, ...rest } = item;
+      return rest;
+    });
+    
     return {
       success: true,
-      data,
-      pagination,
-      maxFileSize,
-      availableExtensions,
+      data: cleanedItems,
+      pagination: {
+        page,
+        pageSize,
+        pageCount,
+        total: totalCount,
+      },
+      maxFileSize: Math.ceil(maxFileSize), // Round up to nearest MB
     };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error('Exception fetching media items:', error);
+    return {
+      success: false,
+      pagination: { page, pageSize, pageCount: 0, total: 0 },
+      maxFileSize: 100,
+      error: error.message || 'An unexpected error occurred',
+    };
   }
 }

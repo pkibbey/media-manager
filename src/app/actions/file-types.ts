@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 /**
  * Get all file types
  */
-export async function getFileTypes() {
+export async function getAllFileTypes() {
   try {
     const supabase = createServerSupabaseClient();
 
@@ -108,9 +108,9 @@ export async function getNativelySupportedFormats() {
 
     const { data, error } = await supabase
       .from('file_types')
-      .select('id, extension')
+      .select('id')
       .eq('can_display_natively', true)
-      .order('extension');
+      .order('category');
 
     if (error) {
       console.error('Error fetching natively supported formats:', error);
@@ -120,7 +120,6 @@ export async function getNativelySupportedFormats() {
     // Return both IDs and extensions for backward compatibility during transition
     const formats = {
       ids: data.map((item) => item.id),
-      extensions: data.map((item) => item.extension.toLowerCase()),
     };
 
     return { success: true, formats };

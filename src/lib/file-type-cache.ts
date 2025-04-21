@@ -54,14 +54,6 @@ class FileTypeCache {
   }
 
   /**
-   * Get file type ID from extension
-   */
-  async getFileTypeIdFromExtension(extension: string): Promise<number | null> {
-    const info = await this.getDetailedInfo();
-    return info?.extensionToId.get(extension.toLowerCase()) || null;
-  }
-
-  /**
    * Check if a file is an image based on file type ID
    */
   async isImageById(fileTypeId: number | null): Promise<boolean> {

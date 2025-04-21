@@ -47,4 +47,10 @@ export type ScanOptions = {
    * Small files are often configuration files, metadata or thumbnails and not actual media
    */
   ignoreSmallFiles?: boolean;
+
+  /**
+   * Optional ID of a specific folder to scan
+   * If not provided, all folders will be scanned
+   */
+  folderId?: number;
 };

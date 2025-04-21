@@ -250,403 +250,401 @@ export default function MediaFilterView({
   }, [form, router, onFiltersChange, maxFileSize]);
 
   return (
-    <div className="bg-card rounded-lg px-6 py-5">
-      <Form {...form}>
-        <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
-          <div className="flex flex-col items-end sm:flex-row gap-4 flex-wrap">
-            {/* Search */}
-            <FormField
-              control={form.control}
-              name="search"
-              render={({ field }) => (
-                <FormItem className="flex-1">
-                  <FormLabel>Search</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Search media..."
-                      {...field}
-                      className="w-full min-w-32"
-                      onChange={(e) => {
-                        field.onChange(e);
-                        debouncedApplyFilters(form.getValues());
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+    <Form {...form}>
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+        <div className="flex flex-col items-end sm:flex-row gap-4 flex-wrap">
+          {/* Search */}
+          <FormField
+            control={form.control}
+            name="search"
+            render={({ field }) => (
+              <FormItem className="flex-1">
+                <FormLabel>Search</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Search media..."
+                    {...field}
+                    className="w-full min-w-32"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      debouncedApplyFilters(form.getValues());
+                    }}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
-            {/* EXIF Processing Status */}
+          {/* EXIF Processing Status */}
+          <FormField
+            control={form.control}
+            name="processed"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Exif</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="ExifData status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All files</SelectItem>
+                    <SelectItem value="yes">Processed</SelectItem>
+                    <SelectItem value="no">Not processed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+
+          {/* Thumbnail Status */}
+          <FormField
+            control={form.control}
+            name="hasThumbnail"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Thumbnail</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Thumbnail status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any file</SelectItem>
+                    <SelectItem value="yes">Has thumbnail</SelectItem>
+                    <SelectItem value="no">No thumbnail</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+
+          {/* Advanced Filters Toggle */}
+          <div>
+            <Button
+              type="button"
+              variant={isAdvancedOpen ? 'default' : 'secondary'}
+              className="w-full"
+              onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+            >
+              {isAdvancedOpen ? (
+                <ArrowUpCircleIcon className="h-4 w-4" />
+              ) : (
+                <ArrowDownCircleIcon className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Advanced Filters */}
+        {isAdvancedOpen && (
+          <div className="grid grid-cols-2 gap-4 auto-rows-max content-start pt-4 border-t mt-4">
+            {/* Media Type */}
             <FormField
               control={form.control}
-              name="processed"
+              name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Exif</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="ExifData status" />
+                  <Select
+                    value={field.value || 'all'}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue>
+                        {field.value === 'all' && 'All types'}
+                        {field.value === 'image' && 'Images'}
+                        {field.value === 'video' && 'Videos'}
+                        {field.value === 'data' && 'Data files'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All files</SelectItem>
-                      <SelectItem value="yes">Processed</SelectItem>
-                      <SelectItem value="no">Not processed</SelectItem>
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="image">Images</SelectItem>
+                      <SelectItem value="video">Videos</SelectItem>
+                      <SelectItem value="data">Data files</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
               )}
             />
 
-            {/* Thumbnail Status */}
+            {/* Sort By */}
             <FormField
               control={form.control}
-              name="hasThumbnail"
+              name="sortBy"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Thumbnail</FormLabel>
+                  <FormLabel>Sort By</FormLabel>
+                  <Select
+                    value={field.value || 'date'}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue>
+                        {field.value === 'date' && 'Date'}
+                        {field.value === 'name' && 'Name'}
+                        {field.value === 'size' && 'Size'}
+                        {field.value === 'type' && 'Type'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="name">Name</SelectItem>
+                      <SelectItem value="size">Size</SelectItem>
+                      <SelectItem value="type">Type</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+
+            {/* Sort Order */}
+            <FormField
+              control={form.control}
+              name="sortOrder"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sort Order</FormLabel>
+                  <Select
+                    value={field.value || 'desc'}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue>
+                        {field.value === 'asc' && 'Ascending'}
+                        {field.value === 'desc' && 'Descending'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">Ascending</SelectItem>
+                      <SelectItem value="desc">Descending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+
+            {/* Date Range - From */}
+            <FormField
+              control={form.control}
+              name="dateFrom"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>From Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={`w-full pl-3 text-left font-normal ${
+                            !field.value && 'text-muted-foreground'
+                          }`}
+                        >
+                          {field.value ? (
+                            format(field.value, 'PPP')
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value || undefined}
+                        onSelect={(date) => {
+                          field.onChange(date);
+                          applyFilters(form.getValues());
+                        }}
+                        disabled={(date) =>
+                          form.getValues('dateTo')
+                            ? date > form.getValues('dateTo')!
+                            : false
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {field.value && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1 text-xs h-auto py-1"
+                      onClick={() => {
+                        field.onChange(null);
+                        applyFilters(form.getValues());
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </FormItem>
+              )}
+            />
+
+            {/* Date Range - To */}
+            <FormField
+              control={form.control}
+              name="dateTo"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>To Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={`w-full pl-3 text-left font-normal ${
+                            !field.value && 'text-muted-foreground'
+                          }`}
+                        >
+                          {field.value ? (
+                            format(field.value, 'PPP')
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value || undefined}
+                        onSelect={(date) => {
+                          field.onChange(date);
+                          applyFilters(form.getValues());
+                        }}
+                        disabled={(date) =>
+                          form.getValues('dateFrom')
+                            ? date < form.getValues('dateFrom')!
+                            : false
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {field.value && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1 text-xs h-auto py-1"
+                      onClick={() => {
+                        field.onChange(null);
+                        applyFilters(form.getValues());
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </FormItem>
+              )}
+            />
+
+            {/* Camera Selection */}
+            <FormField
+              control={form.control}
+              name="camera"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Camera</FormLabel>
+                  <Select
+                    value={field.value || 'all'}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any Camera" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any Camera</SelectItem>
+                      {availableCameras.map((camera) => (
+                        <SelectItem key={camera} value={camera}>
+                          {camera}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+
+            {/* Location Data */}
+            <FormField
+              control={form.control}
+              name="hasLocation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Location Data</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Thumbnail status" />
+                      <SelectValue placeholder="Location data" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Any file</SelectItem>
-                      <SelectItem value="yes">Has thumbnail</SelectItem>
-                      <SelectItem value="no">No thumbnail</SelectItem>
+                      <SelectItem value="yes">Has location</SelectItem>
+                      <SelectItem value="no">No location</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
               )}
             />
 
-            {/* Advanced Filters Toggle */}
-            <div>
+            {/* File Size Range */}
+            <FormField
+              control={form.control}
+              name="minSize"
+              render={() => (
+                <FormItem className="col-span-full">
+                  <div className="flex justify-between">
+                    <FormLabel>File Size Range</FormLabel>
+                    <span className="text-xs text-muted-foreground">
+                      {form.getValues('minSize')}MB -{' '}
+                      {form.getValues('maxSize')}MB
+                    </span>
+                  </div>
+                  <Slider
+                    min={0}
+                    max={maxFileSize}
+                    step={1}
+                    value={[
+                      form.getValues('minSize'),
+                      form.getValues('maxSize'),
+                    ]}
+                    onValueChange={(values) => {
+                      form.setValue('minSize', values[0]);
+                      form.setValue('maxSize', values[1]);
+                    }}
+                    onValueCommit={(values) => {
+                      form.setValue('minSize', values[0]);
+                      form.setValue('maxSize', values[1]);
+                      applyFilters(form.getValues());
+                    }}
+                    className="py-4"
+                  />
+                </FormItem>
+              )}
+            />
+
+            {/* Summary and Actions */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="text-sm text-muted-foreground">
+                {totalCount > 0 ? (
+                  <>Showing {totalCount} items</>
+                ) : (
+                  <>No items match your criteria</>
+                )}
+              </div>
               <Button
                 type="button"
-                variant={isAdvancedOpen ? 'default' : 'secondary'}
-                className="w-full"
-                onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                variant="ghost"
+                size="sm"
+                onClick={handleReset}
               >
-                {isAdvancedOpen ? (
-                  <ArrowUpCircleIcon className="h-4 w-4" />
-                ) : (
-                  <ArrowDownCircleIcon className="h-4 w-4" />
-                )}
+                Reset Filters
               </Button>
             </div>
           </div>
-
-          {/* Advanced Filters */}
-          {isAdvancedOpen && (
-            <div className="grid grid-cols-2 gap-4 auto-rows-max content-start pt-4 border-t mt-4">
-              {/* Media Type */}
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <Select
-                      value={field.value || 'all'}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger className="w-[150px]">
-                        <SelectValue>
-                          {field.value === 'all' && 'All types'}
-                          {field.value === 'image' && 'Images'}
-                          {field.value === 'video' && 'Videos'}
-                          {field.value === 'data' && 'Data files'}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All types</SelectItem>
-                        <SelectItem value="image">Images</SelectItem>
-                        <SelectItem value="video">Videos</SelectItem>
-                        <SelectItem value="data">Data files</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
-              {/* Sort By */}
-              <FormField
-                control={form.control}
-                name="sortBy"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sort By</FormLabel>
-                    <Select
-                      value={field.value || 'date'}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue>
-                          {field.value === 'date' && 'Date'}
-                          {field.value === 'name' && 'Name'}
-                          {field.value === 'size' && 'Size'}
-                          {field.value === 'type' && 'Type'}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="date">Date</SelectItem>
-                        <SelectItem value="name">Name</SelectItem>
-                        <SelectItem value="size">Size</SelectItem>
-                        <SelectItem value="type">Type</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
-              {/* Sort Order */}
-              <FormField
-                control={form.control}
-                name="sortOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sort Order</FormLabel>
-                    <Select
-                      value={field.value || 'desc'}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue>
-                          {field.value === 'asc' && 'Ascending'}
-                          {field.value === 'desc' && 'Descending'}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="asc">Ascending</SelectItem>
-                        <SelectItem value="desc">Descending</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
-              {/* Date Range - From */}
-              <FormField
-                control={form.control}
-                name="dateFrom"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>From Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={`w-full pl-3 text-left font-normal ${
-                              !field.value && 'text-muted-foreground'
-                            }`}
-                          >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value || undefined}
-                          onSelect={(date) => {
-                            field.onChange(date);
-                            applyFilters(form.getValues());
-                          }}
-                          disabled={(date) =>
-                            form.getValues('dateTo')
-                              ? date > form.getValues('dateTo')!
-                              : false
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {field.value && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-1 text-xs h-auto py-1"
-                        onClick={() => {
-                          field.onChange(null);
-                          applyFilters(form.getValues());
-                        }}
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </FormItem>
-                )}
-              />
-
-              {/* Date Range - To */}
-              <FormField
-                control={form.control}
-                name="dateTo"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>To Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={`w-full pl-3 text-left font-normal ${
-                              !field.value && 'text-muted-foreground'
-                            }`}
-                          >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value || undefined}
-                          onSelect={(date) => {
-                            field.onChange(date);
-                            applyFilters(form.getValues());
-                          }}
-                          disabled={(date) =>
-                            form.getValues('dateFrom')
-                              ? date < form.getValues('dateFrom')!
-                              : false
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {field.value && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-1 text-xs h-auto py-1"
-                        onClick={() => {
-                          field.onChange(null);
-                          applyFilters(form.getValues());
-                        }}
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </FormItem>
-                )}
-              />
-
-              {/* Camera Selection */}
-              <FormField
-                control={form.control}
-                name="camera"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Camera</FormLabel>
-                    <Select
-                      value={field.value || 'all'}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any Camera" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Any Camera</SelectItem>
-                        {availableCameras.map((camera) => (
-                          <SelectItem key={camera} value={camera}>
-                            {camera}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
-              {/* Location Data */}
-              <FormField
-                control={form.control}
-                name="hasLocation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location Data</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Location data" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Any file</SelectItem>
-                        <SelectItem value="yes">Has location</SelectItem>
-                        <SelectItem value="no">No location</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
-              {/* File Size Range */}
-              <FormField
-                control={form.control}
-                name="minSize"
-                render={() => (
-                  <FormItem className="col-span-full">
-                    <div className="flex justify-between">
-                      <FormLabel>File Size Range</FormLabel>
-                      <span className="text-xs text-muted-foreground">
-                        {form.getValues('minSize')}MB -{' '}
-                        {form.getValues('maxSize')}MB
-                      </span>
-                    </div>
-                    <Slider
-                      min={0}
-                      max={maxFileSize}
-                      step={1}
-                      value={[
-                        form.getValues('minSize'),
-                        form.getValues('maxSize'),
-                      ]}
-                      onValueChange={(values) => {
-                        form.setValue('minSize', values[0]);
-                        form.setValue('maxSize', values[1]);
-                      }}
-                      onValueCommit={(values) => {
-                        form.setValue('minSize', values[0]);
-                        form.setValue('maxSize', values[1]);
-                        applyFilters(form.getValues());
-                      }}
-                      className="py-4"
-                    />
-                  </FormItem>
-                )}
-              />
-
-              {/* Summary and Actions */}
-              <div className="flex items-center justify-between pt-2 border-t">
-                <div className="text-sm text-muted-foreground">
-                  {totalCount > 0 ? (
-                    <>Showing {totalCount} items</>
-                  ) : (
-                    <>No items match your criteria</>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleReset}
-                >
-                  Reset Filters
-                </Button>
-              </div>
-            </div>
-          )}
-        </form>
-      </Form>
-    </div>
+        )}
+      </form>
+    </Form>
   );
 }

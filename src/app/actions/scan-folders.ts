@@ -2,7 +2,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getDetailedFileTypeInfo } from '@/lib/file-types-utils'; // Import the new utility
+import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ScanOptions, ScanProgress } from '@/types/progress-types';
 import { revalidatePath } from 'next/cache';
@@ -121,7 +121,7 @@ export async function getScanFolders() {
 /**
  * Scan folders for media files and insert them into the database
  * This function uses a streaming approach to provide progress updates
- * @param options Optional scan options like ignoring small files
+ * @param options Optional scan options like ignoring small files and specifying a single folder ID to scan
  */
 export async function scanFolders(options: ScanOptions = {}) {
   const encoder = new TextEncoder();
@@ -142,12 +142,18 @@ export async function scanFolders(options: ScanOptions = {}) {
   ) {
     try {
       const supabase = createServerSupabaseClient();
-      const { ignoreSmallFiles = false } = options;
+      const { ignoreSmallFiles = false, folderId = null } = options;
 
-      // Get all folders to scan
-      const { data: folders, error: foldersError } = await supabase
-        .from('scan_folders')
-        .select('*');
+      // Get folders to scan - either a specific one by ID or all of them
+      let foldersQuery = supabase.from('scan_folders').select('*');
+
+      // If a specific folder ID is provided, filter to just that folder
+      if (folderId) {
+        foldersQuery = foldersQuery.eq('id', folderId);
+      }
+
+      // Execute the query and get the folders
+      const { data: folders, error: foldersError } = await foldersQuery;
 
       if (foldersError || !folders) {
         const error = 'Error fetching scan folders';
@@ -165,7 +171,9 @@ export async function scanFolders(options: ScanOptions = {}) {
       if (folders.length === 0) {
         await sendProgress(writer, {
           status: 'error',
-          message: 'No folders configured for scanning',
+          message: folderId
+            ? 'Folder not found'
+            : 'No folders configured for scanning',
         });
         await writer.close();
         return;
@@ -173,9 +181,9 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       await sendProgress(writer, {
         status: 'started',
-        message: `Starting scan of ${folders.length} folders${
-          ignoreSmallFiles ? ' (ignoring files under 10kb)' : ''
-        }`,
+        message: folderId
+          ? `Starting scan of folder: ${folders[0].path}${ignoreSmallFiles ? ' (ignoring files under 10kb)' : ''}`
+          : `Starting scan of ${folders.length} folders${ignoreSmallFiles ? ' (ignoring files under 10kb)' : ''}`,
       });
 
       // Use the detailed file type info to get access to extension-to-id mapping
@@ -399,7 +407,6 @@ export async function scanFolders(options: ScanOptions = {}) {
               newMediaItems.push({
                 file_path: file.path,
                 file_name: path.basename(file.path),
-                extension: extension, // Add the required extension field
                 folder_path: path.dirname(file.path),
                 size_bytes: fileSize,
                 modified_date: stats.mtime.toISOString(),
@@ -714,20 +721,46 @@ export async function scanFolders(options: ScanOptions = {}) {
   ): Promise<{ path: string }[]> {
     const files: { path: string }[] = [];
 
+    // If we don't need to include subfolders, just scan the top directory
+    if (!includeSubfolders) {
+      try {
+        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isFile()) {
+            const fullPath = path.join(dirPath, entry.name);
+            files.push({ path: fullPath });
+          }
+        }
+      } catch (error) {
+        console.error(`Error reading directory ${dirPath}:`, error);
+      }
+      return files;
+    }
+
+    // For recursive scanning, use a queue-based approach to avoid stack overflow
+    const directories: string[] = [dirPath];
+
     try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      // Process directories in a queue to avoid deep recursion
+      while (directories.length > 0) {
+        const currentDir = directories.shift();
+        if (!currentDir) continue;
 
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
+        const entries = await fs.readdir(currentDir, { withFileTypes: true });
 
-        if (entry.isDirectory() && includeSubfolders) {
-          files.push(...(await getAllFiles(fullPath, true)));
-        } else if (entry.isFile()) {
-          files.push({ path: fullPath });
+        for (const entry of entries) {
+          const fullPath = path.join(currentDir, entry.name);
+
+          if (entry.isDirectory()) {
+            // Add to the queue instead of recursive call
+            directories.push(fullPath);
+          } else if (entry.isFile()) {
+            files.push({ path: fullPath });
+          }
         }
       }
     } catch (error) {
-      console.error(`Error reading directory ${dirPath}:`, error);
+      console.error('Error during directory scanning:', error);
     }
 
     return files;
