@@ -2,14 +2,14 @@
 
 import { isAborted, removeAbortToken } from '@/lib/abort-tokens';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { ThumbnailOptions } from '@/types/thumbnail-types';
+import type { ThumbnailGenerationOptions } from '@/types/thumbnail-types';
 import { generateThumbnail } from './generateThumbnail';
 
 /**
  * Stream process missing thumbnails with progress updates
  */
 export async function streamProcessMissingThumbnails(
-  options: ThumbnailOptions = {},
+  options: ThumbnailGenerationOptions = {},
 ) {
   const encoder = new TextEncoder();
 
@@ -53,31 +53,10 @@ export async function streamProcessMissingThumbnails(
         message: 'Starting thumbnail generation',
       });
 
-      const { data: fileTypes, error: fileTypeError } = await supabase
-        .from('file_types')
-        .select('id')
-        .eq('category', 'image')
-        .not('ignore', 'eq', true);
-
-      if (fileTypeError) {
-        console.error(
-          '[StreamThumbnails] Error fetching file types:',
-          fileTypeError,
-        );
-        await sendProgress(writer, {
-          status: 'error',
-          message: `Error fetching file types: ${fileTypeError.message}`,
-          error: fileTypeError.message,
-        });
-        await writer.close();
-        return;
-      }
-      const supportedFileTypeIds = fileTypes?.map((fileType) => fileType.id);
-
+      // Get count of all media items regardless of type
       const { count: totalCount, error: countError } = await supabase
         .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .in('file_type_id', supportedFileTypeIds);
+        .select('*', { count: 'exact', head: true });
 
       if (countError) {
         console.error(
@@ -96,7 +75,7 @@ export async function streamProcessMissingThumbnails(
 
       await sendProgress(writer, {
         status: 'generating',
-        message: `Found approximately ${totalItems} potential items to process`,
+        message: `Found ${totalItems} items to process`,
         totalItems,
         processed: 0,
       });
@@ -122,11 +101,10 @@ export async function streamProcessMissingThumbnails(
           return;
         }
 
-        // 1. Fetch CANDIDATE batch based on type and pagination
+        // 1. Fetch next batch of items without file type filtering
         let query = supabase
           .from('media_items')
           .select('id, file_path, file_name, file_type_id, size_bytes') // Select necessary fields
-          .in('file_type_id', supportedFileTypeIds)
           .order('id')
           .limit(MAX_BATCH_SIZE);
 

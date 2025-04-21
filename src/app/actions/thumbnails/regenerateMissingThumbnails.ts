@@ -1,6 +1,5 @@
 'use server';
 
-import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { generateThumbnail } from './generateThumbnail';
 
@@ -18,30 +17,6 @@ export async function regenerateMissingThumbnails(): Promise<{
     let successCount = 0;
     let failedCount = 0;
     let skippedCount = 0;
-
-    // Get file type IDs for supported image formats
-    const fileTypeInfo = await getDetailedFileTypeInfo();
-    if (!fileTypeInfo) {
-      throw new Error('Failed to load file type information');
-    }
-
-    // Define supported image formats and get their IDs
-    const supportedImageFormats = [
-      'jpg',
-      'jpeg',
-      'png',
-      'webp',
-      'gif',
-      'tiff',
-      'tif',
-      'heic',
-      'avif',
-      'bmp',
-    ];
-
-    const supportedImageIds = supportedImageFormats
-      .map((ext) => fileTypeInfo.extensionToId.get(ext))
-      .filter((id) => id !== undefined) as number[];
 
     // Get IDs of media items with success or skipped thumbnail processing
     const { data: successOrSkippedItems, error: successSkippedError } =
@@ -76,11 +51,9 @@ export async function regenerateMissingThumbnails(): Promise<{
     );
     const errorIds = (errorItems || []).map((item) => item.media_item_id);
 
-    // Define our query
-    let query = supabase
-      .from('media_items')
-      .select('id')
-      .in('file_type_id', supportedImageIds);
+    // Define our query to get media items without thumbnails
+    // First get items that don't have a successful or skipped state
+    let query = supabase.from('media_items').select('id');
 
     // Generate the NOT IN filter expression for ignored IDs
     const filterExpr =
@@ -99,7 +72,7 @@ export async function regenerateMissingThumbnails(): Promise<{
       query = query.or(`id.in.(${errorIds.join(',')})`);
     }
 
-    // Execute the query (removed limit)
+    // Execute the query
     const { data: items, error } = await query;
 
     if (error) {

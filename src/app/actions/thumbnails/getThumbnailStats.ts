@@ -1,6 +1,5 @@
 'use server';
 
-import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
 /**
@@ -20,40 +19,13 @@ export async function getThumbnailStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get file type IDs for supported image formats
-    const fileTypeInfo = await getDetailedFileTypeInfo();
-    if (!fileTypeInfo) {
-      throw new Error('Failed to load file type information');
-    }
-
-    // Define supported image formats and get their IDs
-    const supportedImageFormats = [
-      'jpg',
-      'jpeg',
-      'png',
-      'webp',
-      'gif',
-      'tiff',
-      'tif',
-      'heic',
-      'avif',
-      'bmp',
-    ];
-
-    const supportedImageIds = supportedImageFormats
-      .map((ext) => fileTypeInfo.extensionToId.get(ext))
-      .filter((id) => id !== undefined) as number[];
-
-    // Get total count of compatible files
+    // Get total count of all files
     const { count: totalCount, error: totalError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact' })
-      .in('file_type_id', supportedImageIds);
+      .select('*', { count: 'exact' });
 
     if (totalError) {
-      throw new Error(
-        `Failed to get total compatible files: ${totalError.message}`,
-      );
+      throw new Error(`Failed to get total file count: ${totalError.message}`);
     }
 
     // Get count of files with successful thumbnails
