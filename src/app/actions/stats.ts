@@ -20,7 +20,7 @@ export async function getMediaStats(): Promise<{
 
     // Generate the NOT IN filter expression for ignored IDs
     const ignoreFilterExpr =
-      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '(0)';
+      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '()';
 
     // Get total count of non-ignored media items
     const { count: totalCount, error: countError } = await supabase
@@ -44,7 +44,7 @@ export async function getMediaStats(): Promise<{
     }
 
     // Get count of processed items (with exif_data)
-    const { count: processedCount, error: processedError } = await supabase
+    const { count: successfulExifCount, error: processedError } = await supabase
       .from('processing_states')
       .select('media_item_id', { count: 'exact' })
       .eq('type', 'exif')
@@ -55,13 +55,52 @@ export async function getMediaStats(): Promise<{
       return { success: false, error: processedError.message };
     }
 
-    // Get count of items with successful EXIF processing but no media_date
+    // Get count of items that were processed but don't have EXIF data (skipped or unsupported)
+    const { count: processedNoExifCount, error: processedNoExifError } =
+      await supabase
+        .from('processing_states')
+        .select('media_item_id', { count: 'exact' })
+        .eq('type', 'exif')
+        .in('status', ['skipped', 'unsupported']);
+
+    if (processedNoExifError) {
+      console.error('Error counting items with no EXIF:', processedNoExifError);
+      return { success: false, error: processedNoExifError.message };
+    }
+
+    // Calculate total processed count - both successful and no-exif items
+    const processedCount =
+      (successfulExifCount || 0) + (processedNoExifCount || 0);
+
+    // Define the processing type constant used for timestamp correction
+    const PROCESSING_TYPE_TIMESTAMP_CORRECTION = 'timestamp_correction';
+
+    // Subquery to find IDs that have failed timestamp correction
+    const { data: failedTimeStampCorrectionIds } = await supabase
+      .from('processing_states')
+      .select('media_item_id')
+      .eq('type', PROCESSING_TYPE_TIMESTAMP_CORRECTION)
+      .eq('status', 'failed');
+
+    // Extract IDs from the subquery result
+    const failedTimestampCorrectionIdsQuery =
+      failedTimeStampCorrectionIds?.map((item) => item.media_item_id) || [];
+    // Generate the NOT IN filter expression for failed timestamp correction IDs
+    const failedTimestampCorrectionIdsExpr =
+      failedTimestampCorrectionIdsQuery.length > 0
+        ? `(${failedTimestampCorrectionIdsQuery.join(',')})`
+        : '()';
+
+    // Get count of items needing timestamp correction
+    // (media_date is null AND not ignored AND not already failed timestamp correction)
     const { count: needsTimestampCorrectionCount, error: timestampError } =
       await supabase
         .from('media_items')
         .select('id', { count: 'exact' })
         .is('media_date', null)
-        .not('file_type_id', 'in', ignoreFilterExpr);
+        .not('file_type_id', 'in', ignoreFilterExpr)
+        // Exclude items that have already failed timestamp correction
+        .not('id', 'in', failedTimestampCorrectionIdsExpr);
 
     if (timestampError) {
       console.error(

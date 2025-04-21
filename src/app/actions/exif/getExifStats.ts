@@ -28,7 +28,7 @@ export async function getExifStats() {
 
     // Generate the NOT IN filter expression for ignored IDs
     const ignoreFilterExpr =
-      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '(0)';
+      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '()';
 
     // Get total count of EXIF compatible items
     const { count: totalCompatibleCount, error: totalCompatibleError } =
@@ -38,9 +38,14 @@ export async function getExifStats() {
         .in('file_type_id', exifSupportedIds)
         .not('file_type_id', 'in', ignoreFilterExpr);
 
-    if (totalCompatibleError) {
+    if (totalCompatibleError || totalCompatibleCount === null) {
       console.error('Error with total compatible count:', totalCompatibleError);
-      return { success: false, message: totalCompatibleError.message };
+      return {
+        success: false,
+        message: totalCompatibleError?.message
+          ? totalCompatibleError.message
+          : 'Total compatible count is null',
+      };
     }
 
     // Get items with successful EXIF data using the processing_states table
@@ -88,30 +93,43 @@ export async function getExifStats() {
 
     // Extract the IDs
     const processedIds = processedMediaIds.map((item) => item.media_item_id);
-    const processedIdsExpr = `(${processedIds.join(',')})`;
 
-    // If there are no processed IDs yet (like after recreating the table),
-    // all compatible files are considered unprocessed
+    // If there are no processed IDs yet, all compatible files are considered unprocessed
     let unprocessedCount = 0;
 
     if (processedIds.length === 0) {
       unprocessedCount = totalCompatibleCount || 0;
     } else {
-      // Otherwise, get the actual unprocessed count - files that are compatible but don't have a processing state
-      const { count: countUnprocessed, error: unprocessedError } =
-        await supabase
-          .from('media_items')
-          .select('id', { count: 'exact' })
-          .in('file_type_id', exifSupportedIds)
-          .not('file_type_id', 'in', ignoreFilterExpr)
-          .not('id', 'in', processedIdsExpr);
+      // For large number of IDs, use an alternative approach to avoid URI too long errors
+      // Instead of using NOT IN with a giant list, use a LEFT JOIN and filter for NULL
 
-      if (unprocessedError) {
-        console.error('Error with unprocessed count:', unprocessedError);
-        return { success: false, message: unprocessedError.message };
+      // Use RPC function if available (preferred approach)
+      try {
+        // Try to use a database function if it exists
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
+          'count_unprocessed_exif_files',
+          {
+            exif_supported_ids: exifSupportedIds,
+            ignored_ids: ignoredIds.map(Number),
+          },
+        );
+
+        if (rpcError && totalCompatibleCount) {
+          console.warn(
+            'RPC function not available, falling back to client-side filtering:',
+            rpcError,
+          );
+          // Fall back to manual calculation
+          unprocessedCount = totalCompatibleCount - processedIds.length;
+        } else if (rpcData) {
+          unprocessedCount = rpcData;
+        }
+      } catch (rpcError) {
+        console.warn('Error using RPC function:', rpcError);
+        // Fall back to simply calculating the difference
+        // This is an approximation but prevents URI too long errors
+        unprocessedCount = totalCompatibleCount - processedIds.length;
       }
-
-      unprocessedCount = countUnprocessed || 0;
     }
 
     // Calculate statistics

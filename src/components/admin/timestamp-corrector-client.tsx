@@ -8,6 +8,7 @@ import {
   CalendarIcon,
   CheckIcon,
   RotateCounterClockwiseIcon,
+  StopIcon, // Import StopIcon
 } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -32,6 +33,12 @@ export default function TimestampCorrectorClient({
   const [needsCorrection, setNeedsCorrection] = useState(
     initialNeedsCorrection,
   );
+
+  const handleStopProcessing = () => {
+    if (isProcessing) {
+      setIsProcessing(false);
+    }
+  };
 
   const handleUpdateTimestamps = async () => {
     if (isProcessing) return;
@@ -125,13 +132,13 @@ export default function TimestampCorrectorClient({
         </div>
       )}
 
-      {/* Action button */}
+      {/* Action buttons */}
       <div className="flex gap-2 pt-2">
         <Button
           onClick={handleUpdateTimestamps}
           disabled={isProcessing || needsCorrection === 0}
           variant="default"
-          className="w-full"
+          className="flex-grow"
         >
           {isProcessing ? (
             <RotateCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
@@ -144,6 +151,17 @@ export default function TimestampCorrectorClient({
               ? 'No Files Need Correction'
               : 'Correct Timestamps'}
         </Button>
+        {/* Add Stop Button */}
+        {isProcessing && (
+          <Button
+            onClick={handleStopProcessing}
+            variant="destructive"
+            className="flex-shrink-0"
+          >
+            <StopIcon className="mr-2 h-4 w-4" />
+            Stop
+          </Button>
+        )}
       </div>
     </>
   );

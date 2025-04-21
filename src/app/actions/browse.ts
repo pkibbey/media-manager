@@ -41,7 +41,7 @@ export async function browseMedia(
 
     // Apply filters
     const ignoreFilterExpr =
-      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '(0)';
+      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '()';
 
     // Filter out ignored file types
     if (ignoredIds.length > 0) {
@@ -132,7 +132,7 @@ export async function browseMedia(
         : [];
 
       const ignoreFilterExpr =
-        ignoredIds.length > 0 ? `(${thumbnailMediaIds.join(',')})` : '(0)';
+        ignoredIds.length > 0 ? `(${thumbnailMediaIds.join(',')})` : '()';
 
       if (filters.hasThumbnail === 'yes' && thumbnailMediaIds.length > 0) {
         query = query.in('id', thumbnailMediaIds);

@@ -88,9 +88,24 @@ export default function ExifProcessor() {
         const active = await isProcessActive(EXIF_PROCESS_ID);
         if (active) {
           const status = await getProcessStatus(EXIF_PROCESS_ID);
-          if (status) {
+          if (status?.progress) {
             setIsStreaming(true);
-            setProgress(status.progress || null);
+
+            // Convert WorkerProcessStatus.progress to ExifProgress by ensuring required fields exist
+            const exifProgress: ExifProgress = {
+              status: status.progress.detailProgress?.status || 'processing',
+              message:
+                status.progress.detailProgress?.message ||
+                'Processing EXIF data...',
+              filesDiscovered: status.progress.total,
+              filesProcessed: status.progress.processed,
+              successCount: status.progress.successCount,
+              failedCount: status.progress.failedCount,
+              largeFilesSkipped: status.progress.skippedLargeFiles,
+              // Add other fields as needed
+            };
+
+            setProgress(exifProgress);
 
             // Create a new abort controller to allow cancelling
             const controller = new AbortController();
@@ -107,17 +122,27 @@ export default function ExifProcessor() {
     checkExistingProcess();
 
     // Set up listener for progress updates from worker
-    const cleanup = addWorkerListener('EXIF_PROGRESS_UPDATE', (data) => {
+    const cleanup = addWorkerListener('EXIF_PROGRESS_UPDATE', (data: any) => {
       if (data.progress) {
-        setProgress(data.progress);
-
-        // Update local state based on progress
-        if (
-          data.progress.status === 'completed' ||
-          data.progress.status === 'error'
-        ) {
-          setIsStreaming(false);
-          setAbortController(null);
+        // Convert WorkerProcessStatus.progress to ExifProgress if needed
+        if (data.progress.detailProgress) {
+          // If it has detailProgress structure, convert to ExifProgress
+          const exifProgress: ExifProgress = {
+            status: data.progress.detailProgress.status || 'processing',
+            message:
+              data.progress.detailProgress.message || 'Processing EXIF data...',
+            filesDiscovered: data.progress.total,
+            filesProcessed: data.progress.processed,
+            successCount: data.progress.successCount,
+            failedCount: data.progress.failedCount,
+            largeFilesSkipped: data.progress.skippedLargeFiles,
+            currentFilePath: data.progress.detailProgress.currentFilePath,
+            error: data.progress.detailProgress.error,
+          };
+          setProgress(exifProgress);
+        } else {
+          // Fall back to assuming it's already an ExifProgress
+          setProgress(data.progress as ExifProgress);
         }
       }
     });
@@ -233,7 +258,7 @@ export default function ExifProcessor() {
           while (true) {
             const { done, value } = await reader.read();
 
-            if (done) {
+            if (done && progress) {
               setIsStreaming(false);
               setAbortController(null);
 
@@ -310,13 +335,17 @@ export default function ExifProcessor() {
                     setIsStreaming(false);
                     setAbortController(null);
                     setHasError(true);
-                    toast.error(`Error processing EXIF data: ${data.error}`);
+
+                    // Ensure there's always a meaningful error message
+                    const errorMessage =
+                      data.error || 'Unknown error occurred during processing';
+                    toast.error(`Error processing EXIF data: ${errorMessage}`);
 
                     // Update worker status
                     storeProcessStatus(EXIF_PROCESS_ID, {
                       active: false,
                       progress: data,
-                      error: data.error,
+                      error: errorMessage,
                     });
                   }
                 } catch (error) {

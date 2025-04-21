@@ -215,6 +215,10 @@ export type Database = {
           subfolder_count: number;
         }[];
       };
+      count_unprocessed_exif_files: {
+        Args: { exif_supported_ids: number[]; ignored_ids?: number[] };
+        Returns: number;
+      };
       get_exif_statistics: {
         Args: { exif_compatible_extensions?: string[] };
         Returns: {
@@ -241,6 +245,20 @@ export type Database = {
           unprocessed_count: number;
           organized_count: number;
           unorganized_count: number;
+        }[];
+      };
+      get_unprocessed_exif_files: {
+        Args: {
+          exif_supported_ids: number[];
+          ignored_ids?: number[];
+          page_number?: number;
+          page_size?: number;
+        };
+        Returns: {
+          id: string;
+          file_path: string;
+          file_type_id: number;
+          file_name: string;
         }[];
       };
       reset_all_thumbnails: {

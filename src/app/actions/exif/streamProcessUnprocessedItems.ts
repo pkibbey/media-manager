@@ -7,11 +7,13 @@ import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
+import type { MediaItem } from '@/types/db-types';
 import type {
   ExifProcessingOptions,
   ExifProgress,
   ExtractionMethod,
 } from '@/types/exif';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { processExifData } from './processExifData';
 
 /**
@@ -98,7 +100,7 @@ export async function streamProcessUnprocessedItems(
       const ignoredIds = await getIgnoredFileTypeIds();
 
       const ignoreFilterExpr =
-        ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '(0)';
+        ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '()';
 
       // Define EXIF compatible extensions and get their IDs
       const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
@@ -136,25 +138,48 @@ export async function streamProcessUnprocessedItems(
       );
 
       // First, count the total number of unprocessed items
-      // If no items have been processed yet, don't use the NOT IN filter
-      const countQuery = supabase
-        .from('media_items')
-        .select('*', { count: 'exact' })
-        .in('file_type_id', exifSupportedIds)
-        .not('file_type_id', 'in', ignoreFilterExpr);
+      let totalCount: number | null = 0;
 
-      // Generate the NOT IN filter expression for ignored IDs
-      const processedFilterExpr =
-        processedIds.length > 0 ? `(${processedIds.join(',')})` : '(0)';
+      try {
+        // Try to use the count_unprocessed_exif_files function first
+        const { data: countData, error: countRpcError } = await supabase.rpc(
+          'count_unprocessed_exif_files',
+          {
+            exif_supported_ids: exifSupportedIds,
+            ignored_ids: ignoredIds.map(Number),
+          },
+        );
 
-      // Only apply the processed IDs filter if we have processed items
-      if (processedIds.length > 0) {
-        countQuery.not('id', 'in', processedFilterExpr);
-      }
+        if (countRpcError) {
+          console.warn(
+            'Falling back to regular query for counting:',
+            countRpcError,
+          );
+          // Fall back to regular query if RPC function isn't available
+          const countQuery = supabase
+            .from('media_items')
+            .select('*', { count: 'exact' })
+            .in('file_type_id', exifSupportedIds)
+            .not('file_type_id', 'in', ignoreFilterExpr);
 
-      const { count: totalCount, error: countError } = await countQuery;
+          // Only apply the processed IDs filter if we have processed items
+          // but be careful with the filter size to avoid URI too long error
+          if (processedIds.length > 0 && processedIds.length < 100) {
+            const processedFilterExpr = `(${processedIds.join(',')})`;
+            countQuery.not('id', 'in', processedFilterExpr);
+          }
 
-      if (countError) {
+          const { count, error: countError } = await countQuery;
+
+          if (countError) {
+            throw countError;
+          }
+
+          totalCount = count;
+        } else {
+          totalCount = countData;
+        }
+      } catch (countError: any) {
         await sendProgress(writer, {
           status: 'error',
           message: `Error counting unprocessed items: ${countError.message}`,
@@ -216,26 +241,56 @@ export async function streamProcessUnprocessedItems(
         // Calculate how many items to fetch for this page
         const currentPageSize = pageSize;
 
-        // Get a chunk of unprocessed items
-        const unprocessedQuery = supabase
-          .from('media_items')
-          .select('id, file_path, file_type_id, file_name')
-          .in('file_type_id', exifSupportedIds)
-          .not('file_type_id', 'in', ignoreFilterExpr);
+        // Get a chunk of unprocessed items using the database function
+        let unprocessedItems: Partial<MediaItem>[] | null = null;
+        let unprocessedError: PostgrestError | null = null;
 
-        // Only apply the processed IDs filter if we have processed items
-        if (processedIds.length > 0) {
-          unprocessedQuery.not('id', 'in', processedFilterExpr);
+        try {
+          // First try to use the database function (preferred approach)
+          const { data: rpcData, error: rpcError } = await supabase.rpc(
+            'get_unprocessed_exif_files',
+            {
+              exif_supported_ids: exifSupportedIds,
+              ignored_ids: ignoredIds.map(Number),
+              page_number: page,
+              page_size: currentPageSize,
+            },
+          );
+
+          if (rpcError) {
+            console.warn(
+              'Falling back to regular query for fetching unprocessed items:',
+              rpcError,
+            );
+            // Fall back to the old approach if the function isn't available
+            const unprocessedQuery = supabase
+              .from('media_items')
+              .select('id, file_path, file_type_id, file_name')
+              .in('file_type_id', exifSupportedIds)
+              .not('file_type_id', 'in', ignoreFilterExpr);
+
+            // Only apply the processed IDs filter if it's safe to do so (not too many IDs)
+            if (processedIds.length > 0 && processedIds.length < 100) {
+              const processedFilterExpr = `(${processedIds.join(',')})`;
+              unprocessedQuery.not('id', 'in', processedFilterExpr);
+            }
+
+            // Add range for pagination
+            unprocessedQuery.range(
+              page * pageSize,
+              page * pageSize + currentPageSize - 1,
+            );
+
+            const result = await unprocessedQuery;
+            unprocessedItems = result.data;
+            unprocessedError = result.error;
+          } else {
+            unprocessedItems = rpcData;
+            unprocessedError = null;
+          }
+        } catch (error: any) {
+          unprocessedError = error;
         }
-
-        // Add range for pagination
-        unprocessedQuery.range(
-          page * pageSize,
-          page * pageSize + currentPageSize - 1,
-        );
-
-        const { data: unprocessedItems, error: unprocessedError } =
-          await unprocessedQuery;
 
         if (unprocessedError) {
           await sendProgress(writer, {
@@ -296,7 +351,7 @@ export async function streamProcessUnprocessedItems(
               }
 
               // Check if we should skip this file due to size
-              if (skipLargeFiles) {
+              if (skipLargeFiles && media.file_path) {
                 try {
                   const stats = await fs.stat(media.file_path);
                   if (isSkippedLargeFile(stats.size)) {
@@ -349,31 +404,33 @@ export async function streamProcessUnprocessedItems(
                 currentFilePath: media.file_path,
               });
 
-              const result = await processExifData({
-                mediaId: media.id,
-                method: extractionMethod || 'default',
-                progressCallback: async (message) => {
-                  // Send granular progress updates
-                  await sendProgress(writer, {
-                    status: 'processing',
-                    message: `${message} - ${media.file_name}`,
-                    filesDiscovered: effectiveTotal,
-                    filesProcessed: itemsProcessed,
-                    successCount: successCount,
-                    failedCount: failedCount,
-                    largeFilesSkipped: largeFilesSkipped,
-                    currentFilePath: media.file_path,
-                  });
-                },
-              });
+              if (media.id) {
+                const result = await processExifData({
+                  mediaId: media.id,
+                  method: extractionMethod || 'default',
+                  progressCallback: async (message) => {
+                    // Send granular progress updates
+                    await sendProgress(writer, {
+                      status: 'processing',
+                      message: `${message} - ${media.file_name}`,
+                      filesDiscovered: effectiveTotal,
+                      filesProcessed: itemsProcessed,
+                      successCount: successCount,
+                      failedCount: failedCount,
+                      largeFilesSkipped: largeFilesSkipped,
+                      currentFilePath: media.file_path,
+                    });
+                  },
+                });
 
-              // Update counters
-              processedCount++;
-              itemsProcessed++;
-              if (result.success) {
-                successCount++;
-              } else {
-                failedCount++;
+                // Update counters
+                processedCount++;
+                itemsProcessed++;
+                if (result.success) {
+                  successCount++;
+                } else {
+                  failedCount++;
+                }
               }
 
               // Send regular progress updates
@@ -456,7 +513,8 @@ export async function streamProcessUnprocessedItems(
       await sendProgress(writer, {
         status: 'error',
         message: 'Error during EXIF processing',
-        error: error.message,
+        error:
+          error?.message || 'An unknown error occurred during EXIF processing',
         largeFilesSkipped: 0,
         filesDiscovered: 0,
         filesProcessed: 0,

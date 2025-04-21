@@ -1,153 +1,84 @@
 /**
- * Worker Manager
+ * Process Manager
  *
- * Manages communication with Web Workers for background processing tasks.
- * Ensures workers are only created in browser environments and handles
- * communication gracefully.
+ * Manages process statuses for background processing tasks.
+ * Uses in-memory storage instead of web workers for simplicity.
  */
 
-import type { WorkerMessage } from './workers/processing-worker';
+import type { WorkerProcessStatus } from '@/types/progress-types';
 
-// Singleton worker instance
-let worker: Worker | null = null;
+// Process status storage
+const processStorage: Map<
+  string,
+  WorkerProcessStatus & { lastChecked?: number }
+> = new Map();
 
-// Event listeners for worker messages
-const listeners: Map<string, Set<(data: any) => void>> = new Map();
+// Event listeners for status updates
+const listeners: Map<string, Set<(data: unknown) => void>> = new Map();
 
 // Track active processes
 const activeProcesses: Set<string> = new Set();
 
 /**
- * Initialize the processing worker
- */
-export function initWorker(): Worker | null {
-  if (typeof window === 'undefined') {
-    // Server-side - workers not supported
-    return null;
-  }
-
-  if (worker) return worker;
-
-  try {
-    // Create a new worker
-    worker = new Worker(
-      new URL('./workers/processing-worker.ts', import.meta.url),
-    );
-
-    // Set up global message handler
-    worker.onmessage = (event) => {
-      const { type, payload } = event.data;
-
-      // Find and call all registered listeners for this message type
-      const typeListeners = listeners.get(type);
-      if (typeListeners) {
-        typeListeners.forEach((callback) => {
-          try {
-            callback(payload);
-          } catch (error) {
-            console.error(`Error in worker listener for ${type}:`, error);
-          }
-        });
-      }
-    };
-
-    worker.onerror = (error) => {
-      console.error('Worker error:', error);
-
-      // Notify error listeners
-      const errorListeners = listeners.get('ERROR');
-      if (errorListeners) {
-        errorListeners.forEach((callback) => {
-          try {
-            callback(error);
-          } catch (e) {
-            console.error('Error in error handler:', e);
-          }
-        });
-      }
-    };
-
-    // Initialize by requesting current status of all processes
-    worker.postMessage({ type: 'GET_ALL_PROCESSES' });
-
-    return worker;
-  } catch (error) {
-    console.error('Failed to create worker:', error);
-    return null;
-  }
-}
-
-/**
- * Send a message to the worker
- * @param type Message type
- * @param payload Message payload
- */
-export function sendToWorker(type: string, payload: any): void {
-  const workerInstance = initWorker();
-  if (!workerInstance) {
-    console.warn('Cannot send message - worker not available');
-    return;
-  }
-
-  const message: WorkerMessage = { type, payload };
-  workerInstance.postMessage(message);
-}
-
-/**
- * Register a listener for specific worker message types
+ * Register a listener for specific message types
  * @param type Message type to listen for
  * @param callback Function to call when message is received
  * @returns Function to remove the listener
  */
-export function addWorkerListener(
+export function addWorkerListener<T = unknown>(
   type: string,
-  callback: (data: any) => void,
+  callback: (data: T) => void,
 ): () => void {
-  // Initialize the worker if not already done
-  initWorker();
-
   // Add listener to the appropriate set
   if (!listeners.has(type)) {
     listeners.set(type, new Set());
   }
 
   const typeListeners = listeners.get(type)!;
-  typeListeners.add(callback);
+  typeListeners.add(callback as (data: unknown) => void);
 
   // Return function to remove the listener
   return () => {
     const listenerSet = listeners.get(type);
     if (listenerSet) {
-      listenerSet.delete(callback);
+      listenerSet.delete(callback as (data: unknown) => void);
     }
   };
 }
 
 /**
- * Store process status in the worker's persistent storage
+ * Store process status in persistent storage
  * This allows status to be retrieved even after page navigation
  */
-export function storeProcessStatus(processType: string, status: any): void {
+export function storeProcessStatus(
+  processType: string,
+  status: WorkerProcessStatus,
+): void {
+  // Update active processes tracking
   if (status.active) {
     activeProcesses.add(processType);
   } else {
     activeProcesses.delete(processType);
   }
 
-  sendToWorker('PROCESS_STATUS_UPDATE', {
-    id: processType,
+  // Add a timestamp to track staleness
+  const updatedStatus = {
     ...status,
     lastUpdated: Date.now(),
-  });
+    lastChecked: Date.now(),
+  };
+
+  // Store in our Map
+  processStorage.set(processType, updatedStatus);
 
   // Broadcast status update to all components
-  const listeners = getAllProcessListeners();
-  if (listeners) {
-    listeners.forEach((callback) => {
+  const processListeners = getAllProcessListeners();
+  if (processListeners) {
+    processListeners.forEach((callback) => {
       try {
         callback({
           processType,
-          status: { ...status, lastUpdated: Date.now() },
+          status: updatedStatus,
         });
       } catch (error) {
         console.error('Error in process update listener:', error);
@@ -157,26 +88,23 @@ export function storeProcessStatus(processType: string, status: any): void {
 }
 
 /**
- * Get the current status of a process from worker storage
- * @returns Promise that resolves with the status or null if not found
+ * Get the current status of a process from storage
  */
-export async function getProcessStatus(processType: string): Promise<any> {
-  return new Promise((resolve) => {
-    const cleanup = addWorkerListener('PROCESS_STATUS', (data) => {
-      if (data.id === processType) {
-        cleanup(); // Remove listener
-        resolve(data);
-      }
+export async function getProcessStatus(
+  processType: string,
+): Promise<WorkerProcessStatus | null> {
+  // Get directly from memory
+  const status = processStorage.get(processType) || null;
+
+  // Update the last checked time
+  if (status) {
+    processStorage.set(processType, {
+      ...status,
+      lastChecked: Date.now(),
     });
+  }
 
-    sendToWorker('GET_PROCESS_STATUS', { id: processType });
-
-    // Set timeout in case worker doesn't respond
-    setTimeout(() => {
-      cleanup();
-      resolve(null);
-    }, 2000);
-  });
+  return status;
 }
 
 /**
@@ -188,12 +116,12 @@ export async function isProcessActive(processType: string): Promise<boolean> {
     return true;
   }
 
-  // Then verify with the worker
+  // Get status from storage
   const status = await getProcessStatus(processType);
   if (!status) return false;
 
   // Consider stale if last update was more than 30 seconds ago
-  const isStale = Date.now() - status.lastUpdated > 30000;
+  const isStale = Date.now() - (status.lastUpdated ?? 0) > 30000;
 
   const isActive = status.active === true && !isStale;
 
@@ -202,6 +130,14 @@ export async function isProcessActive(processType: string): Promise<boolean> {
     activeProcesses.add(processType);
   } else {
     activeProcesses.delete(processType);
+    // Mark stale process as inactive
+    if (isStale && status.active) {
+      storeProcessStatus(processType, {
+        ...status,
+        active: false,
+        error: 'Process became stale',
+      });
+    }
   }
 
   return isActive;
@@ -210,37 +146,34 @@ export async function isProcessActive(processType: string): Promise<boolean> {
 /**
  * Get status of all active processes
  */
-export async function getAllProcesses(): Promise<{ [key: string]: any }> {
-  return new Promise((resolve) => {
-    const cleanup = addWorkerListener('ALL_PROCESSES', (data) => {
-      cleanup(); // Remove listener
-
-      // Update our local cache
-      activeProcesses.clear();
-      Object.entries(data).forEach(([id, status]: [string, any]) => {
-        if (status.active) {
-          activeProcesses.add(id);
-        }
-      });
-
-      resolve(data);
-    });
-
-    sendToWorker('GET_ALL_PROCESSES', {});
-
-    // Set timeout in case worker doesn't respond
-    setTimeout(() => {
-      cleanup();
-      resolve({});
-    }, 2000);
+export async function getAllProcesses(): Promise<
+  Record<string, WorkerProcessStatus>
+> {
+  // Convert Map to Record object
+  const allProcesses: Record<string, WorkerProcessStatus> = {};
+  processStorage.forEach((value, key) => {
+    allProcesses[key] = value;
   });
+
+  // Update active processes cache
+  activeProcesses.clear();
+  processStorage.forEach((status, id) => {
+    if (status.active) {
+      activeProcesses.add(id);
+    }
+  });
+
+  return allProcesses;
 }
 
 /**
  * Register a listener for any process status update
  */
 export function addProcessUpdateListener(
-  callback: (data: { processType: string; status: any }) => void,
+  callback: (data: {
+    processType: string;
+    status: WorkerProcessStatus;
+  }) => void,
 ): () => void {
   return addWorkerListener('PROCESS_UPDATE', callback);
 }
@@ -248,11 +181,75 @@ export function addProcessUpdateListener(
 /**
  * Get all listeners for process updates
  */
-function getAllProcessListeners(): Set<(data: any) => void> | undefined {
+function getAllProcessListeners(): Set<(data: unknown) => void> | undefined {
   return listeners.get('PROCESS_UPDATE');
 }
 
-// Initialize the worker immediately in client environments
+/**
+ * For backward compatibility - no longer needed but kept for API compatibility
+ */
+export function sendToWorker<T>(type: string, payload: T): void {
+  if (
+    type === 'PROCESS_STATUS_UPDATE' &&
+    typeof payload === 'object' &&
+    payload &&
+    'id' in payload
+  ) {
+    const typedPayload = payload as any;
+    storeProcessStatus(typedPayload.id, typedPayload);
+  } else if (
+    type === 'GET_PROCESS_STATUS' &&
+    typeof payload === 'object' &&
+    payload &&
+    'id' in payload
+  ) {
+    const typedPayload = payload as any;
+    getProcessStatus(typedPayload.id).then((status) => {
+      const typeListeners = listeners.get('PROCESS_STATUS');
+      if (typeListeners) {
+        typeListeners.forEach((callback) => {
+          try {
+            callback({
+              ...status,
+              id: typedPayload.id,
+            });
+          } catch (error) {
+            console.error('Error in listener:', error);
+          }
+        });
+      }
+    });
+  } else if (type === 'GET_ALL_PROCESSES') {
+    getAllProcesses().then((processes) => {
+      const typeListeners = listeners.get('ALL_PROCESSES');
+      if (typeListeners) {
+        typeListeners.forEach((callback) => {
+          try {
+            callback(processes);
+          } catch (error) {
+            console.error('Error in listener:', error);
+          }
+        });
+      }
+    });
+  }
+}
+
+// Run staleness check periodically
 if (typeof window !== 'undefined') {
-  initWorker();
+  setInterval(() => {
+    const now = Date.now();
+    const staleThreshold = 30000; // 30 seconds
+
+    processStorage.forEach((value, key) => {
+      if (value.active && now - (value.lastUpdated ?? 0) > staleThreshold) {
+        // Mark as inactive due to staleness
+        storeProcessStatus(key, {
+          ...value,
+          active: false,
+          error: 'Process became stale',
+        });
+      }
+    });
+  }, 10000); // Check every 10 seconds
 }

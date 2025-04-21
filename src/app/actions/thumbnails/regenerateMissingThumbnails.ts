@@ -86,7 +86,7 @@ export async function regenerateMissingThumbnails(): Promise<{
     const filterExpr =
       successOrSkippedIds.length > 0
         ? `(${successOrSkippedIds.join(',')})`
-        : '(0)';
+        : '()';
 
     // If we have successful/skipped IDs, add the filter to exclude them
     if (successOrSkippedIds.length > 0) {

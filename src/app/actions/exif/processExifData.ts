@@ -179,7 +179,7 @@ export async function processExifData({
     };
   } catch (error) {
     progressCallback?.(
-      `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      `Error: ${error instanceof Error ? error.message : 'Unknown error processing EXIF data'}`,
     );
     console.error('Error processing EXIF data:', error);
 
@@ -191,7 +191,10 @@ export async function processExifData({
         type: 'exif',
         status: 'error',
         processed_at: new Date().toISOString(),
-        error_message: error instanceof Error ? error.message : 'Unknown error',
+        error_message:
+          error instanceof Error
+            ? error.message
+            : 'Unknown error processing EXIF data',
       });
     } catch (updateError) {
       console.error('Error updating processed state:', updateError);
@@ -200,7 +203,9 @@ export async function processExifData({
     return {
       success: false,
       message:
-        error instanceof Error ? error.message : 'Unknown error occurred',
+        error instanceof Error
+          ? error.message
+          : 'Unknown error processing EXIF data',
     };
   }
 }
