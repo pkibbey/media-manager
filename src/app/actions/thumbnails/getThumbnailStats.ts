@@ -1,5 +1,6 @@
 'use server';
 
+import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
 /**
@@ -19,7 +20,13 @@ export async function getThumbnailStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Define supported formats for thumbnails
+    // Get file type IDs for supported image formats
+    const fileTypeInfo = await getDetailedFileTypeInfo();
+    if (!fileTypeInfo) {
+      throw new Error('Failed to load file type information');
+    }
+
+    // Define supported image formats and get their IDs
     const supportedImageFormats = [
       'jpg',
       'jpeg',
@@ -33,11 +40,15 @@ export async function getThumbnailStats(): Promise<{
       'bmp',
     ];
 
+    const supportedImageIds = supportedImageFormats
+      .map((ext) => fileTypeInfo.extensionToId.get(ext))
+      .filter((id) => id !== undefined) as number[];
+
     // Get total count of compatible files
     const { count: totalCount, error: totalError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .in('extension', supportedImageFormats);
+      .select('*', { count: 'exact' })
+      .in('file_type_id', supportedImageIds);
 
     if (totalError) {
       throw new Error(
@@ -49,7 +60,7 @@ export async function getThumbnailStats(): Promise<{
     const { count: withThumbnailsCount, error: withThumbnailsError } =
       await supabase
         .from('processing_states')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'exact' })
         .eq('type', 'thumbnail')
         .eq('status', 'success');
 
@@ -63,7 +74,7 @@ export async function getThumbnailStats(): Promise<{
     const { count: skippedLargeFilesCount, error: skippedLargeFilesError } =
       await supabase
         .from('processing_states')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'exact' })
         .eq('type', 'thumbnail')
         .eq('status', 'skipped');
 
@@ -77,7 +88,7 @@ export async function getThumbnailStats(): Promise<{
     const { count: filesSkippedCount, error: filesSkippedError } =
       await supabase
         .from('processing_states')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'exact' })
         .eq('type', 'thumbnail')
         .eq('status', 'unsupported');
 

@@ -1,12 +1,11 @@
 'use server';
-
-import { getFileTypeInfo } from '@/lib/file-types-utils'; // Import the new utility
+import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { MediaStats } from '@/types/media-types';
 import { revalidatePath } from 'next/cache';
 
 /**
- * Get media statistics
+ * Get comprehensive statistics about media items in the system
  */
 export async function getMediaStats(): Promise<{
   success: boolean;
@@ -16,149 +15,119 @@ export async function getMediaStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Use the utility function to get file type info
-    const fileTypeInfo = await getFileTypeInfo();
+    // Get ignored file type IDs for consistent filtering
+    const ignoredTypeIds = await getIgnoredFileTypeIds();
 
-    if (!fileTypeInfo) {
-      return { success: false, error: 'Failed to fetch file type information' };
+    // Get total count of non-ignored media items
+    const { count: totalCount, error: countError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact' })
+      .not('file_type_id', 'in', `(${ignoredTypeIds.join(',')})`);
+
+    if (countError) {
+      console.error('GET: Error counting media items:', countError);
+      return { success: false, error: countError.message };
     }
 
-    const { ignoredExtensions, extensionToCategory } = fileTypeInfo;
+    // Get total size of all media
+    const { data: sizeData, error: sizeError } = await supabase
+      .rpc('sum_file_sizes')
+      .single();
 
-    // Call the database function to get core statistics
-    const { data: statsData, error: statsError } = await supabase.rpc(
-      'get_media_statistics',
-      {
-        ignore_extensions: ignoredExtensions,
-      },
+    if (sizeError) {
+      console.error('Error calculating total size:', sizeError);
+      return { success: false, error: sizeError.message };
+    }
+
+    // Get count of processed items (with exif_data)
+    const { count: processedCount, error: processedError } = await supabase
+      .from('processing_states')
+      .select('media_item_id', { count: 'exact' })
+      .eq('type', 'exif')
+      .eq('status', 'success');
+
+    if (processedError) {
+      console.error('Error counting processed items:', processedError);
+      return { success: false, error: processedError.message };
+    }
+
+    // Get count of items with successful EXIF processing but no media_date
+    const { count: needsTimestampCorrectionCount, error: timestampError } =
+      await supabase
+        .from('media_items')
+        .select('id', { count: 'exact' })
+        .is('media_date', null)
+        .not('file_type_id', 'in', `(${ignoredTypeIds.join(',')})`);
+
+    if (timestampError) {
+      console.error(
+        'Error counting items needing timestamp correction:',
+        timestampError,
+      );
+      return { success: false, error: timestampError.message };
+    }
+
+    // Get count of ignored files
+    const { count: ignoredCount, error: ignoredError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact' })
+      .not('file_type_id', 'in', `(${ignoredTypeIds.join(',')})`);
+
+    if (ignoredError) {
+      console.error('Error counting ignored items:', ignoredError);
+      return { success: false, error: ignoredError.message };
+    }
+
+    // Get items grouped by category
+    const { data: categoryData, error: categoryError } = await supabase
+      .from('media_items')
+      .select('file_types(category)')
+      .not('file_type_id', 'is', null);
+
+    if (categoryError) {
+      console.error('Error getting category data:', categoryError);
+      return { success: false, error: categoryError.message };
+    }
+
+    // Build category count map
+    const itemsByCategory: Record<string, number> = {};
+    categoryData?.forEach((item) => {
+      const category = (item.file_types as any)?.category || 'unknown';
+      itemsByCategory[category] = (itemsByCategory[category] || 0) + 1;
+    });
+
+    // Get items grouped by extension - using the RPC function instead of direct query
+    const { data: extensionStats, error: extensionError } = await supabase.rpc(
+      'get_extension_statistics',
     );
 
-    if (statsError) {
-      console.error('Error calling get_media_statistics:', statsError);
-      return { success: false, error: statsError.message };
-    }
-    if (!statsData || statsData.length === 0) {
-      console.error('No data returned from get_media_statistics');
-      return { success: false, error: 'Failed to retrieve core statistics' };
-    }
-
-    // The function returns an array with one object
-    const statsResult = statsData[0];
-
-    // Call the database function to get extension statistics
-    const { data: extensionResults, error: extensionError } =
-      await supabase.rpc('get_extension_statistics', {
-        ignore_extensions: ignoredExtensions,
-      });
-
     if (extensionError) {
-      console.error('Error calling get_extension_statistics:', extensionError);
+      console.error('Error getting extension data:', extensionError);
       return { success: false, error: extensionError.message };
     }
 
-    // Process extension counts and build category counts
-    const itemsByCategory: Record<string, number> = {};
+    // Build extension count map from the results
     const itemsByExtension: Record<string, number> = {};
-
-    extensionResults?.forEach((item) => {
-      const ext = item.extension.toLowerCase();
-      const count = Number(item.count); // Ensure count is a number
-
-      // Add to extension counts
-      itemsByExtension[ext] = count;
-
-      // Add to category counts using category from function result or fallback
-      const category = item.category || extensionToCategory[ext] || 'other';
-      itemsByCategory[category] = (itemsByCategory[category] || 0) + count;
+    extensionStats?.forEach((item) => {
+      itemsByExtension[item.extension] = item.count;
     });
 
-    // Count ignored items if relevant (Keep this separate as the function excludes them)
-    let ignoredCount = 0;
-    if (ignoredExtensions.length > 0) {
-      const { count, error: ignoredError } = await supabase
-        .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .in('extension', ignoredExtensions);
-
-      if (ignoredError) {
-        console.error('Error counting ignored items:', ignoredError);
-        // Decide if this error should halt the process or just log
-      } else {
-        ignoredCount = count || 0;
-      }
-    }
-
-    // Count files needing timestamp correction using the processing_states table
-    let needsTimestampCorrectionCount = 0;
-    {
-      const exifCompatibleExtensions = Object.entries(extensionToCategory)
-        .filter(
-          ([, category]) => category === 'image' || category === 'raw_image',
-        )
-        .map(([ext]) => ext); // Dynamically get EXIF compatible extensions based on category
-
-      try {
-        // First get media items with successful EXIF extraction
-        const { data: successfulExif } = await supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'exif')
-          .eq('status', 'success');
-
-        // Get media items with error or outdated date correction
-        const { data: failedDateCorrection } = await supabase
-          .from('processing_states')
-          .select('media_item_id')
-          .eq('type', 'dateCorrection')
-          .eq('status', 'error');
-
-        if (successfulExif?.length && failedDateCorrection?.length) {
-          // Create Sets for efficient intersection
-          const exifSuccessIds = new Set(
-            successfulExif.map((item) => item.media_item_id),
-          );
-          const dateFailIds = new Set(
-            failedDateCorrection.map((item) => item.media_item_id),
-          );
-
-          // Find IDs in both sets (items that need timestamp correction)
-          const needsCorrectionIds = Array.from(exifSuccessIds)
-            .filter((id) => dateFailIds.has(id))
-            .filter((id) => id !== null) as string[];
-
-          if (needsCorrectionIds.length > 0) {
-            // Filter by extension if needed
-            const { count } = await supabase
-              .from('media_items')
-              .select('*', { count: 'exact', head: true })
-              .in('id', needsCorrectionIds)
-              .in('extension', exifCompatibleExtensions)
-              .not('extension', 'in', ignoredExtensions);
-
-            needsTimestampCorrectionCount = count || 0;
-          }
-        }
-      } catch (countError) {
-        console.error('Error counting timestamp correction needs:', countError);
-      }
-    }
-
-    const mediaStats: MediaStats = {
-      totalMediaItems: statsResult.total_count,
-      totalSizeBytes: Number(statsResult.total_size_bytes),
-      itemsByCategory,
-      itemsByExtension,
-      // Use counts directly from the function result
-      processedCount: statsResult.processed_count,
-      unprocessedCount: statsResult.unprocessed_count,
-      ignoredCount, // From the separate query
-      needsTimestampCorrectionCount, // From the separate query
+    return {
+      success: true,
+      data: {
+        totalMediaItems: totalCount || 0,
+        totalSizeBytes: sizeData?.sum || 0,
+        processedCount: processedCount || 0,
+        unprocessedCount: (totalCount || 0) - (processedCount || 0),
+        ignoredCount: ignoredCount || 0,
+        needsTimestampCorrectionCount: needsTimestampCorrectionCount || 0,
+        itemsByCategory,
+        itemsByExtension,
+      },
     };
-
-    return { success: true, data: mediaStats };
   } catch (error: any) {
-    console.error('Error getting media stats:', error);
-    return { success: false, error: error.message || 'Unknown error occurred' };
+    console.error('Error fetching media stats:', error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -176,10 +145,10 @@ export async function clearAllMediaItems(): Promise<{
     // Get total count for confirmation message
     const { count, error: countError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact' });
 
     if (countError) {
-      console.error('Error counting media items:', countError);
+      console.error('CLEAR: Error counting media items:', countError);
       return { success: false, error: countError.message };
     }
 
@@ -219,10 +188,10 @@ export async function resetAllMediaItems(): Promise<{
     // Get total count for confirmation message
     const { count, error: countError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact' });
 
     if (countError) {
-      console.error('Error counting media items:', countError);
+      console.error('RESET: Error counting media items:', countError);
       return { success: false, error: countError.message };
     }
 

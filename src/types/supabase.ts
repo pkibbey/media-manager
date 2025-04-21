@@ -202,34 +202,15 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      calculate_average_duration: {
-        Args: Record<PropertyKey, never>;
-        Returns: number;
-      };
-      calculate_average_duration_by_method: {
-        Args: { method_name: string };
-        Returns: number;
-      };
-      calculate_success_rate_by_method: {
-        Args: { method_name: string };
-        Returns: number;
-      };
       count_folder_media: {
-        Args: {
-          target_folder: string;
-          include_subfolders: boolean;
-          ignore_extensions?: string[];
-        };
+        Args: { target_folder: string; include_subfolders: boolean };
         Returns: {
           current_folder_count: number;
           subfolder_count: number;
         }[];
       };
       get_exif_statistics: {
-        Args: {
-          ignore_extensions?: string[];
-          exif_compatible_extensions?: string[];
-        };
+        Args: { exif_compatible_extensions?: string[] };
         Returns: {
           with_exif: number;
           processed_no_exif: number;
@@ -238,7 +219,7 @@ export type Database = {
         }[];
       };
       get_extension_statistics: {
-        Args: { ignore_extensions?: string[] };
+        Args: Record<PropertyKey, never>;
         Returns: {
           extension: string;
           count: number;
@@ -246,7 +227,7 @@ export type Database = {
         }[];
       };
       get_media_statistics: {
-        Args: { ignore_extensions?: string[] };
+        Args: Record<PropertyKey, never>;
         Returns: {
           total_count: number;
           total_size_bytes: number;
@@ -259,6 +240,12 @@ export type Database = {
       reset_all_thumbnails: {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
+      };
+      sum_file_sizes: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          sum: number;
+        }[];
       };
     };
     Enums: {

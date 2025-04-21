@@ -1,5 +1,6 @@
 'use server';
 
+import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { generateThumbnail } from './generateThumbnail';
 
@@ -18,7 +19,13 @@ export async function regenerateMissingThumbnails(): Promise<{
     let failedCount = 0;
     let skippedCount = 0;
 
-    // Define supported image formats
+    // Get file type IDs for supported image formats
+    const fileTypeInfo = await getDetailedFileTypeInfo();
+    if (!fileTypeInfo) {
+      throw new Error('Failed to load file type information');
+    }
+
+    // Define supported image formats and get their IDs
     const supportedImageFormats = [
       'jpg',
       'jpeg',
@@ -32,11 +39,15 @@ export async function regenerateMissingThumbnails(): Promise<{
       'bmp',
     ];
 
+    const supportedImageIds = supportedImageFormats
+      .map((ext) => fileTypeInfo.extensionToId.get(ext))
+      .filter((id) => id !== undefined) as number[];
+
     // Get items that need thumbnails using processing_states table
     const { data: items, error } = await supabase
       .from('media_items')
       .select('id')
-      .in('extension', supportedImageFormats)
+      .in('file_type_id', supportedImageIds)
       .not(
         'id',
         'in',

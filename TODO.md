@@ -5,6 +5,6 @@
 
 -- Enabled images to be marked for deletion
 
--- deprecate using extension to figure out file types, just link them to the media-item by id
+-- remove extension from media-item completely and always use file_type_id to fetch the file type info
 
 -- remove legacy fallbacks

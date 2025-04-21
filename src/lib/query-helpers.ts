@@ -11,7 +11,7 @@ export async function getIgnoredFileTypeIds() {
     .select('id')
     .eq('ignore', true);
 
-  return data?.map((ft) => ft.id) || [];
+  return data?.map((ft) => ft.id.toString()) || [];
 }
 
 /**

@@ -3,7 +3,8 @@
 import fs from 'node:fs/promises';
 import { isAborted } from '@/lib/abort-tokens';
 import { BATCH_SIZE } from '@/lib/consts';
-import { getIgnoredExtensions } from '@/lib/query-helpers';
+import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
+import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
 import type {
@@ -65,20 +66,41 @@ export async function streamProcessUnprocessedItems(
         method: extractionMethod,
       });
 
-      // Get all media files that don't have EXIF data yet and are not ignored file types
-      const ignoredTypes = await getIgnoredExtensions();
+      // Get file type IDs for EXIF supported formats
+      const fileTypeInfo = await getDetailedFileTypeInfo();
+      if (!fileTypeInfo) {
+        await sendProgress(writer, {
+          status: 'error',
+          message: 'Failed to load file type information',
+          error: 'Failed to load file type information',
+          largeFilesSkipped: 0,
+          filesDiscovered: 0,
+          filesProcessed: 0,
+          successCount: 0,
+          failedCount: 0,
+          method: extractionMethod,
+        });
+        await writer.close();
+        return;
+      }
 
-      // Define list of supported extensions - same as in getExifStats
+      // Get ignored file type IDs
+      const ignoredIds = await getIgnoredFileTypeIds();
+
+      // Define EXIF compatible extensions and get their IDs
       const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
+      const exifSupportedIds = exifSupportedExtensions
+        .map((ext) => fileTypeInfo.extensionToId.get(ext))
+        .filter((id) => id !== undefined) as number[];
 
       // First, count the total number of unprocessed items
       // Count media items that don't have a corresponding processing_states entry for exif
       // or have an entry with status other than 'success' or 'skipped'
       const { count: totalCount, error: countError } = await supabase
         .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .in('extension', exifSupportedExtensions)
-        .not('extension', 'in', ignoredTypes)
+        .select('*', { count: 'exact' })
+        .in('file_type_id', exifSupportedIds)
+        .not('file_type_id', 'in', ignoredIds)
         .not(
           'id',
           'in',
@@ -150,9 +172,9 @@ export async function streamProcessUnprocessedItems(
         const { data: unprocessedItems, error: unprocessedError } =
           await supabase
             .from('media_items')
-            .select('id, file_path, extension, file_name')
-            .in('extension', exifSupportedExtensions)
-            .not('extension', 'in', ignoredTypes)
+            .select('id, file_path, file_type_id, file_name')
+            .in('file_type_id', exifSupportedIds)
+            .not('file_type_id', 'in', ignoredIds)
             .not(
               'id',
               'in',
@@ -188,7 +210,7 @@ export async function streamProcessUnprocessedItems(
           break; // No more items to process
         }
 
-        // Since we've already filtered for EXIF-compatible extensions in the query,
+        // Since we've already filtered for EXIF-compatible file types in the query,
         // we can process all these items directly
         const itemsToProcess = unprocessedItems;
         exifCompatibleCount = totalCount || 0; // They're all compatible

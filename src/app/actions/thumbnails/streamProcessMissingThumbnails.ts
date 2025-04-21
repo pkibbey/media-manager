@@ -31,20 +31,6 @@ export async function streamProcessMissingThumbnails(
       const supabase = createServerSupabaseClient();
       const { skipLargeFiles = true, abortToken } = options;
 
-      // Define supported image formats
-      const supportedImageFormats = [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'gif',
-        'tiff',
-        'tif',
-        'heic',
-        'avif',
-        'bmp',
-      ];
-
       // Add abort token to active tokens
       if (abortToken) {
         await addAbortToken(abortToken);
@@ -57,10 +43,27 @@ export async function streamProcessMissingThumbnails(
       });
 
       // Query to get items that need thumbnails using processing_states table
+      const { data: fileTypes, error: fileTypeError } = await supabase
+        .from('file_types')
+        .select('id')
+        .eq('needs_thumbnail', true)
+        .not('ignore', 'eq', true);
+      if (fileTypeError) {
+        await sendProgress(writer, {
+          status: 'error',
+          message: `Error fetching file types: ${fileTypeError.message}`,
+          error: fileTypeError.message,
+        });
+        await writer.close();
+        return;
+      }
+
+      const supportedFileTypeIds = fileTypes?.map((fileType) => fileType.id);
+
       const { data: items, error } = await supabase
         .from('media_items')
-        .select('id, file_path, file_name, extension, size_bytes')
-        .in('extension', supportedImageFormats)
+        .select('id, file_path, file_name, file_type_id, size_bytes')
+        .in('file_type_id', supportedFileTypeIds)
         .not(
           'id',
           'in',
@@ -128,7 +131,7 @@ export async function streamProcessMissingThumbnails(
             message: `Generating thumbnail for file ${processed + 1} of ${items.length}`,
             currentFilePath: item.file_path,
             currentFileName: item.file_name,
-            fileType: item.extension,
+            fileType: item,
             totalItems: items.length,
             processed,
             successCount,
@@ -173,7 +176,7 @@ export async function streamProcessMissingThumbnails(
             error: itemError.message,
             currentFilePath: item.file_path,
             currentFileName: item.file_name,
-            fileType: item.extension,
+            fileType: item.file_type_id,
             totalItems: items.length,
             processed,
             successCount,

@@ -673,18 +673,6 @@ export async function scanFolders(options: ScanOptions = {}) {
             newFileTypeIds.set(extension.toLowerCase(), newFileType.id);
           }
         }
-
-        // If we have new file types, update any media items that weren't assigned a file_type_id
-        if (newFileTypeIds.size > 0) {
-          // Get all media items without file_type_id but with extension that matches new types
-          for (const [extension, typeId] of newFileTypeIds.entries()) {
-            await supabase
-              .from('media_items')
-              .update({ file_type_id: typeId })
-              .is('file_type_id', null)
-              .eq('extension', extension);
-          }
-        }
       }
 
       // Send final progress update

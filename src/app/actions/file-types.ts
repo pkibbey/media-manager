@@ -72,9 +72,7 @@ export async function updateFileType(
 export async function clearIgnoredFileTypes() {
   try {
     const supabase = createServerSupabaseClient();
-
-    // First, get the list of ignored file type IDs
-    const ignoredTypeIds = await getIgnoredFileTypeIds();
+    const ignoredIds = await getIgnoredFileTypeIds();
 
     // Delete the ignored file types
     const { error: deleteError } = await supabase
@@ -92,7 +90,7 @@ export async function clearIgnoredFileTypes() {
 
     return {
       success: true,
-      message: `Removed ${ignoredTypeIds.length} ignored file types`,
+      message: `Removed ${ignoredIds.length} ignored file types`,
     };
   } catch (error: any) {
     console.error('Error clearing ignored file types:', error);
@@ -149,7 +147,7 @@ export async function getMissingFileTypeIdCount(): Promise<{
 
     const { count, error } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact', head: true })
+      .select('*', { count: 'exact' })
       .is('file_type_id', null);
 
     if (error) {

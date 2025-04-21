@@ -1,5 +1,6 @@
 'use server';
 
+import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
 /**
@@ -13,7 +14,13 @@ export async function countMissingThumbnails(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get supported image formats
+    // Get file type IDs for supported image formats
+    const fileTypeInfo = await getDetailedFileTypeInfo();
+    if (!fileTypeInfo) {
+      throw new Error('Failed to load file type information');
+    }
+
+    // Define supported image formats and get their IDs
     const supportedImageFormats = [
       'jpg',
       'jpeg',
@@ -27,11 +34,15 @@ export async function countMissingThumbnails(): Promise<{
       'bmp',
     ];
 
+    const supportedImageIds = supportedImageFormats
+      .map((ext) => fileTypeInfo.extensionToId.get(ext))
+      .filter((id) => id !== undefined) as number[];
+
     // Get the count of items that need thumbnails - compatible items without successful/skipped processing
     const { count, error } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact', head: true })
-      .in('extension', supportedImageFormats)
+      .select('*', { count: 'exact' })
+      .in('file_type_id', supportedImageIds)
       .not(
         'id',
         'in',

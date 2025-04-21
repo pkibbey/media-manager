@@ -1,31 +1,42 @@
 'use server';
 
-import { getIgnoredExtensions } from '@/lib/query-helpers';
+import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
+import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
 export async function getExifStats() {
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get ignored file types first for consistent filtering
-    const ignoredTypes = await getIgnoredExtensions();
+    // Get ignored file type IDs first for consistent filtering
+    const ignoredIds = await getIgnoredFileTypeIds();
 
-    // Define list of supported extensions
+    // Get detailed file type info which includes extension-to-id mappings
+    const fileTypeInfo = await getDetailedFileTypeInfo();
+    if (!fileTypeInfo) {
+      return {
+        success: false,
+        message: 'Failed to load file type information',
+      };
+    }
+
+    // Find file type IDs for EXIF supported formats
     const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
+    const exifSupportedIds = exifSupportedExtensions
+      .map((ext) => fileTypeInfo.extensionToId.get(ext))
+      .filter((id) => id !== undefined) as number[];
 
-    // Generate the NOT IN filter expression for ignored extensions
+    // Generate the NOT IN filter expression for ignored IDs
     const ignoreFilterExpr =
-      ignoredTypes.length > 0
-        ? `(${ignoredTypes.map((ext) => `"${ext}"`).join(',')})`
-        : '("")';
+      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '(0)';
 
     // Get total count of EXIF compatible items
     const { count: totalCompatibleCount, error: totalCompatibleError } =
       await supabase
         .from('media_items')
-        .select('*', { count: 'exact', head: true })
-        .in('extension', exifSupportedExtensions)
-        .not('extension', 'in', ignoreFilterExpr);
+        .select('*', { count: 'exact' })
+        .in('file_type_id', exifSupportedIds)
+        .not('file_type_id', 'in', ignoreFilterExpr);
 
     if (totalCompatibleError) {
       console.error('Error with total compatible count:', totalCompatibleError);
@@ -35,7 +46,7 @@ export async function getExifStats() {
     // Get items with successful EXIF data using the new processing_states table
     const { count: withExifCount, error: withExifError } = await supabase
       .from('processing_states')
-      .select('media_item_id', { count: 'exact', head: true })
+      .select('media_item_id', { count: 'exact' })
       .eq('type', 'exif')
       .eq('status', 'success');
 
@@ -48,7 +59,7 @@ export async function getExifStats() {
     const { count: processedNoExifCount, error: processedNoExifError } =
       await supabase
         .from('processing_states')
-        .select('media_item_id', { count: 'exact', head: true })
+        .select('media_item_id', { count: 'exact' })
         .eq('type', 'exif')
         .in('status', ['skipped', 'unsupported']);
 
@@ -63,9 +74,9 @@ export async function getExifStats() {
     // Get count of unprocessed items (no processing state entry for exif)
     const { count: unprocessedCount, error: unprocessedError } = await supabase
       .from('media_items')
-      .select('id', { count: 'exact', head: true })
-      .in('extension', exifSupportedExtensions)
-      .not('extension', 'in', ignoreFilterExpr)
+      .select('id', { count: 'exact' })
+      .in('file_type_id', exifSupportedIds)
+      .not('file_type_id', 'in', ignoreFilterExpr)
       .not(
         'id',
         'in',

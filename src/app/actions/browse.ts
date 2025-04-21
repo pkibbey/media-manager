@@ -24,29 +24,14 @@ export async function browseMedia(
       return { success: false, error: 'Failed to fetch file type information' };
     }
 
-    const {
-      ignoredExtensions,
-      categorizedExtensions,
-      categoryToIds,
-      allFileTypes,
-    } = fileTypeInfo;
-
-    // Build ignore filter condition
-    const ignoreFilter =
-      ignoredExtensions.length > 0
-        ? `(${ignoredExtensions.map((ext) => `"${ext}"`).join(',')})`
-        : null;
+    const { categoryToIds, allFileTypes } = fileTypeInfo;
 
     // Build query with filters
     let query = supabase.from('media_items').select('*', { count: 'exact' });
 
-    // Exclude ignored file types - use file_type_id if available, fallback to extension
+    // Exclude ignored file types
     if (fileTypeInfo.ignoredIds && fileTypeInfo.ignoredIds.length > 0) {
-      // Primary approach: Filter using file_type_id (if we have IDs of ignored types)
       query = query.not('file_type_id', 'in', fileTypeInfo.ignoredIds);
-    } else if (ignoreFilter) {
-      // Fallback: Filter using extension
-      query = query.not('extension', 'in', ignoreFilter);
     }
 
     // Apply filters
@@ -60,12 +45,6 @@ export async function browseMedia(
       if (categoryIds && categoryIds.length > 0) {
         // Primary approach: Filter using file_type_id
         query = query.in('file_type_id', categoryIds);
-      } else {
-        // Fallback: Use extension-based filtering if we don't have category IDs
-        const extensions = categorizedExtensions[filters.type];
-        if (extensions && extensions.length > 0) {
-          query = query.in('extension', extensions);
-        }
       }
     }
 
@@ -106,7 +85,6 @@ export async function browseMedia(
           .in('status', ['success', 'skipped', 'unsupported']);
 
         if (processedIds.error) {
-          console.error('Error fetching processed items:', processedIds.error);
           return { success: false, error: processedIds.error.message };
         }
 
@@ -234,7 +212,6 @@ export async function browseMedia(
           .eq('status', 'success');
 
         if (allMediaIds.error || successThumbnailIds.error) {
-          console.error('Error fetching items without thumbnails');
           return { success: false, error: 'Failed to query thumbnail status' };
         }
 
@@ -267,7 +244,7 @@ export async function browseMedia(
       date: 'media_date',
       name: 'file_name',
       size: 'size_bytes',
-      type: 'extension', // Keep using extension for sorting as it's more user-friendly
+      type: 'file_type_id',
     }[filters.sortBy];
 
     if (sortColumn) {
@@ -287,7 +264,6 @@ export async function browseMedia(
     );
 
     if (error) {
-      console.error('Error fetching media items:', error);
       return { success: false, error: error.message };
     }
 
@@ -327,7 +303,6 @@ export async function browseMedia(
       availableExtensions,
     };
   } catch (error: any) {
-    console.error('Error browsing media items:', error);
     return { success: false, error: error.message };
   }
 }

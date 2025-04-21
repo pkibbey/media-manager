@@ -4,7 +4,6 @@ import { createServerSupabaseClient } from './supabase';
 export interface FileTypeInfo {
   ignoredExtensions: string[];
   extensionToCategory: Record<string, string>;
-  categorizedExtensions: Record<string, string[]>;
   allFileTypes: {
     extension: string;
     category: string;
@@ -42,7 +41,6 @@ export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
   // Build maps and arrays of file type information
   const ignoredExtensions: string[] = [];
   const extensionToCategory: Record<string, string> = {};
-  const categorizedExtensions: Record<string, string[]> = {};
   const allFileTypes: {
     extension: string;
     category: string;
@@ -64,17 +62,11 @@ export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
     }
 
     extensionToCategory[ext] = category;
-
-    if (!categorizedExtensions[category]) {
-      categorizedExtensions[category] = [];
-    }
-    categorizedExtensions[category].push(ext);
   });
 
   return {
     ignoredExtensions,
     extensionToCategory,
-    categorizedExtensions,
     allFileTypes, // Include the raw data if needed elsewhere
   };
 }
@@ -99,7 +91,6 @@ export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | 
   // Build basic FileTypeInfo first
   const ignoredExtensions: string[] = [];
   const extensionToCategory: Record<string, string> = {};
-  const categorizedExtensions: Record<string, string[]> = {};
   const allFileTypes: {
     extension: string;
     category: string;
@@ -130,11 +121,6 @@ export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | 
 
     extensionToCategory[ext] = category;
 
-    if (!categorizedExtensions[category]) {
-      categorizedExtensions[category] = [];
-    }
-    categorizedExtensions[category].push(ext);
-
     // Add to the ID maps
     idToFileType.set(fileType.id, fileType);
     extensionToId.set(ext, fileType.id);
@@ -149,7 +135,6 @@ export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | 
   return {
     ignoredExtensions,
     extensionToCategory,
-    categorizedExtensions,
     allFileTypes,
     idToFileType,
     extensionToId,
