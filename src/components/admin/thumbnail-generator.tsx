@@ -36,7 +36,7 @@ type ErrorSummary = {
 };
 
 type ThumbnailProgress = {
-  status: 'started' | 'generating' | 'completed' | 'error';
+  status: 'started' | 'generating' | 'processing' | 'completed' | 'error';
   message: string;
   currentFilePath?: string;
   fileType?: string;
@@ -230,32 +230,40 @@ export default function ThumbnailGenerator() {
     });
 
     // Set up specific listener for thumbnail updates
-    const thumbnailUpdateCleanup = addWorkerListener(
-      'THUMBNAIL_PROGRESS_UPDATE',
-      (data) => {
-        if (data.progress) {
-          setProgress(data.progress.progress || 0);
-          setTotal(data.progress.total || 0);
-          setProcessed(data.progress.processed || 0);
-          setSuccessCount(data.progress.successCount || 0);
-          setFailedCount(data.progress.failedCount || 0);
-          setLargeFilesSkipped(data.progress.skippedLargeFiles || 0);
-          setDetailProgress(data.progress.detailProgress || null);
+    const thumbnailUpdateCleanup = addWorkerListener<{
+      progress: {
+        progress: number;
+        total: number;
+        processed: number;
+        successCount: number;
+        failedCount: number;
+        skippedLargeFiles: number;
+        detailProgress: ThumbnailProgress | null;
+        status: 'started' | 'generating' | 'processing' | 'completed' | 'error';
+      };
+    }>('THUMBNAIL_PROGRESS_UPDATE', (data) => {
+      if (data.progress) {
+        setProgress(data.progress.progress || 0);
+        setTotal(data.progress.total || 0);
+        setProcessed(data.progress.processed || 0);
+        setSuccessCount(data.progress.successCount || 0);
+        setFailedCount(data.progress.failedCount || 0);
+        setLargeFilesSkipped(data.progress.skippedLargeFiles || 0);
+        setDetailProgress(data.progress.detailProgress || null);
 
-          if (
-            data.progress.status === 'completed' ||
-            data.progress.status === 'error'
-          ) {
-            setIsGenerating(false);
-            setAbortController(null);
-            currentAbortToken.current = null;
+        if (
+          data.progress.status === 'completed' ||
+          data.progress.status === 'error'
+        ) {
+          setIsGenerating(false);
+          setAbortController(null);
+          currentAbortToken.current = null;
 
-            // Refresh stats after completion
-            fetchThumbnailStats();
-          }
+          // Refresh stats after completion
+          fetchThumbnailStats();
         }
-      },
-    );
+      }
+    });
 
     return () => {
       processUpdateCleanup();

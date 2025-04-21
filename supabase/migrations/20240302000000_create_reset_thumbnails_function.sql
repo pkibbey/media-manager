@@ -2,19 +2,16 @@
 CREATE OR REPLACE FUNCTION reset_all_thumbnails()
 RETURNS void AS $$
 BEGIN
-  -- Update all media items to clear both the legacy thumbnail_path field
-  -- and the thumbnail portion of the processing_state JSON
+  -- Clear thumbnail_path in all media_items where it exists
   UPDATE media_items
-  SET 
-    thumbnail_path = NULL,
-    processing_state = CASE
-      WHEN processing_state IS NULL THEN NULL
-      ELSE 
-        -- Remove the thumbnail object from the processing state if it exists
-        processing_state - 'thumbnail'
-    END;
+  SET thumbnail_path = NULL
+  WHERE thumbnail_path IS NOT NULL;
+  
+  -- Delete all thumbnail-related entries from the processing_states table
+  DELETE FROM processing_states
+  WHERE type = 'thumbnail';
 END;
 $$ LANGUAGE plpgsql;
 
 -- Add comment to explain the function
-COMMENT ON FUNCTION reset_all_thumbnails() IS 'Resets all thumbnails by clearing thumbnail paths both in the legacy field and the processing_state JSON field.';
+COMMENT ON FUNCTION reset_all_thumbnails() IS 'Resets all thumbnails by clearing thumbnail paths in the media_items table and removing thumbnail entries from the processing_states table.';
