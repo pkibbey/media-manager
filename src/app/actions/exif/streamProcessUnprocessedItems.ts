@@ -1,7 +1,6 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import { addAbortToken, isAborted, removeAbortToken } from '@/lib/abort-tokens';
 import { BATCH_SIZE } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
@@ -24,7 +23,6 @@ export async function streamProcessUnprocessedItems(
   const encoder = new TextEncoder();
   const {
     skipLargeFiles = false,
-    abortToken,
     extractionMethod,
     batchSize = BATCH_SIZE,
   } = options;
@@ -37,9 +35,18 @@ export async function streamProcessUnprocessedItems(
   processUnprocessedItemsInternal({
     writer,
     skipLargeFiles,
-    abortToken,
     extractionMethod,
     batchSize,
+  }).catch((error) => {
+    console.error('Error in processUnprocessedItemsInternal:', error);
+    sendProgress(writer, {
+      status: 'error',
+      message: 'Error during EXIF processing',
+      error:
+        error?.message || 'An unknown error occurred during EXIF processing',
+    }).finally(() => {
+      writer.close().catch(console.error);
+    });
   });
 
   // Return the readable stream
@@ -48,29 +55,16 @@ export async function streamProcessUnprocessedItems(
   async function processUnprocessedItemsInternal({
     writer,
     skipLargeFiles,
-    abortToken,
     extractionMethod,
     batchSize,
   }: {
     writer: WritableStreamDefaultWriter;
     skipLargeFiles: boolean;
-    abortToken?: string;
     extractionMethod?: ExtractionMethod;
     batchSize: number;
   }) {
     try {
       const supabase = createServerSupabaseClient();
-
-      // First, make sure any existing token with the same name is removed
-      // This ensures we don't accidentally detect an old abort signal
-      if (abortToken) {
-        await removeAbortToken(abortToken);
-      }
-
-      // Add abort token to active tokens if provided
-      if (abortToken) {
-        await addAbortToken(abortToken);
-      }
 
       // Send initial progress update with options info
       const methodInfo =
@@ -104,7 +98,6 @@ export async function streamProcessUnprocessedItems(
           failedCount: 0,
           method: extractionMethod,
         });
-        await writer.close();
         return;
       }
 
@@ -139,7 +132,6 @@ export async function streamProcessUnprocessedItems(
           failedCount: 0,
           method: extractionMethod,
         });
-        await writer.close();
         return;
       }
 
@@ -165,33 +157,14 @@ export async function streamProcessUnprocessedItems(
       let itemsProcessed = 0;
       let largeFilesSkipped = 0;
 
-      // Variable to track if we've started processing items
-      // This helps prevent false abort detection at the beginning
-      const processingStarted = false;
-
       // Process in pages
       for (let page = 0; page * pageSize < (totalCount || 0); page++) {
-        // Only check for abort after we've processed some items
-        // This prevents false abort detection at the beginning
-        if (processingStarted && abortToken) {
-          const isAbortedResult = await isAborted(abortToken);
-          if (isAbortedResult) {
-            await sendProgress(writer, {
-              status: 'error',
-              message: 'Processing cancelled by user',
-            });
-            await writer.close();
-            return;
-          }
-        }
-
         // Calculate how many items to fetch for this page
         const currentPageSize = pageSize;
 
         // Get a chunk of unprocessed items
         let unprocessedItems: Partial<MediaItem>[] | null = null;
         let unprocessedError: PostgrestError | null = null;
-
         try {
           // Get the next batch of media items that haven't been processed yet
           const unprocessedQuery = supabase
@@ -223,7 +196,6 @@ export async function streamProcessUnprocessedItems(
             message: `Error fetching unprocessed items: ${unprocessedError.message}`,
             error: unprocessedError.message,
           });
-          await writer.close();
           return;
         }
 
@@ -246,32 +218,12 @@ export async function streamProcessUnprocessedItems(
 
         // Process each media file in this batch
         for (let i = 0; i < itemsToProcess.length; i += batchSize) {
-          // Check for abort signal
-          if (abortToken && (await isAborted(abortToken))) {
-            await sendProgress(writer, {
-              status: 'error',
-              message: 'Processing cancelled by user',
-            });
-            await writer.close();
-            return;
-          }
-
           // Get the current batch
           const batch = itemsToProcess.slice(i, i + batchSize);
 
           // Process each media file in the batch
           for (const media of batch) {
             try {
-              // Check for abort signal - checking frequently for responsive cancellation
-              if (abortToken && (await isAborted(abortToken))) {
-                await sendProgress(writer, {
-                  status: 'error',
-                  message: 'Processing cancelled by user',
-                });
-                await writer.close();
-                return;
-              }
-
               // Check if we should skip this file due to size
               if (skipLargeFiles && media.file_path) {
                 try {
@@ -360,16 +312,6 @@ export async function streamProcessUnprocessedItems(
                 processedCount % 5 === 0 ||
                 processedCount === effectiveTotal
               ) {
-                // Check for abort signal
-                if (abortToken && (await isAborted(abortToken))) {
-                  await sendProgress(writer, {
-                    status: 'error',
-                    message: 'Processing cancelled by user',
-                  });
-                  await writer.close();
-                  return;
-                }
-
                 await sendProgress(writer, {
                   status: 'processing',
                   message: `Processed ${processedCount} of ${effectiveTotal} files (${successCount} successful, ${failedCount} failed)`,
@@ -400,16 +342,6 @@ export async function streamProcessUnprocessedItems(
             }
           }
         }
-      }
-
-      // Final check for abort signal before completing
-      if (abortToken && (await isAborted(abortToken))) {
-        await sendProgress(writer, {
-          status: 'error',
-          message: 'Processing cancelled by user',
-        });
-        await writer.close();
-        return;
       }
 
       // Prepare final message
@@ -445,7 +377,7 @@ export async function streamProcessUnprocessedItems(
         method: extractionMethod,
       });
     } finally {
-      // Close the stream if it hasn't been closed yet
+      // Close the stream to signal completion to the client
       try {
         if (!writer.closed) {
           await writer.close();
@@ -461,6 +393,11 @@ export async function streamProcessUnprocessedItems(
     writer: WritableStreamDefaultWriter,
     progress: ExifProgress,
   ) {
-    await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
+    // Only write if the stream is not closed
+    if (!writer.closed) {
+      await writer.write(
+        encoder.encode(`data: ${JSON.stringify(progress)}\n\n`),
+      );
+    }
   }
 }

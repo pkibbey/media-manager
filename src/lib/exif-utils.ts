@@ -1,6 +1,7 @@
 'use server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ExtractionMethod } from '@/types/exif';
 import exifReader, { type Exif } from 'exif-reader';
 import sharp from 'sharp';
@@ -191,4 +192,72 @@ export async function extractMetadata({
     console.error('Error extracting EXIF data:', error);
     return null;
   }
+}
+
+export async function extractAndSanitizeExifData(
+  filePath: string,
+  method: ExtractionMethod,
+  progressCallback?: (message: string) => void,
+): Promise<{
+  success: boolean;
+  exifData: Exif | null;
+  sanitizedExifData: Exif | null;
+  mediaDate: string | null;
+  message: string;
+}> {
+  progressCallback?.(`Extracting metadata using ${method} method`);
+  const exifData = await extractMetadata({
+    filePath,
+    method,
+  });
+
+  if (!exifData) {
+    return {
+      success: false,
+      exifData: null,
+      sanitizedExifData: null,
+      mediaDate: null,
+      message: 'No EXIF data found',
+    };
+  }
+
+  // Import sanitizeExifData function
+  progressCallback?.('Sanitizing EXIF data');
+  const { sanitizeExifData } = await import('@/lib/utils');
+
+  // Sanitize EXIF data before storing it
+  const sanitizedExifData = sanitizeExifData(exifData);
+
+  // Get media date from EXIF
+  const mediaDate =
+    exifData.Photo?.DateTimeOriginal?.toISOString() ||
+    exifData.Image?.DateTime?.toISOString() ||
+    null;
+
+  return {
+    success: true,
+    exifData,
+    sanitizedExifData,
+    mediaDate,
+    message: 'EXIF data extracted and sanitized successfully',
+  };
+}
+
+export async function updateProcessingState(
+  mediaId: string,
+  status: 'success' | 'error',
+  type = 'exif',
+  errorMessage?: string,
+  progressCallback?: (message: string) => void,
+) {
+  const supabase = createServerSupabaseClient();
+  progressCallback?.(`Updating ${type} processing state to ${status}`);
+
+  return supabase.from('processing_states').upsert({
+    media_item_id: mediaId,
+    type,
+    status,
+    processed_at: new Date().toISOString(),
+    ...(errorMessage && { error_message: errorMessage }),
+  });
 }

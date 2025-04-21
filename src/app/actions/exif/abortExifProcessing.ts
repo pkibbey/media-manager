@@ -1,25 +1,19 @@
 'use server';
 
-import { addAbortToken } from '@/lib/abort-tokens';
-
 /**
- * Abort EXIF processing by token
+ * Abort EXIF processing
+ *
+ * This is now a placeholder function since we handle cancellation
+ * directly through AbortController on the client side.
+ * The streamProcessUnprocessedItems function now detects when the client
+ * cancels the stream and terminates processing.
  */
-export async function abortExifProcessing(token: string): Promise<{
+export async function abortExifProcessing(): Promise<{
   success: boolean;
   message: string;
 }> {
-  try {
-    await addAbortToken(token);
-    return {
-      success: true,
-      message: 'Processing aborted successfully',
-    };
-  } catch (error: any) {
-    console.error('Error aborting EXIF processing:', error);
-    return {
-      success: false,
-      message: `Error aborting processing: ${error.message || 'Unknown error'}`,
-    };
-  }
+  return {
+    success: true,
+    message: 'Processing aborted successfully',
+  };
 }

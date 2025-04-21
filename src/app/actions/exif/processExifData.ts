@@ -1,9 +1,12 @@
 'use server';
 
-import fs from 'node:fs/promises';
-import { extractMetadata } from '@/lib/exif-utils';
+import {
+  extractAndSanitizeExifData,
+  updateProcessingState,
+} from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ExtractionMethod } from '@/types/exif';
+import type { Json } from '@/types/supabase';
 
 /**
  * Process EXIF data for a single media item by ID
@@ -24,11 +27,12 @@ export async function processExifData({
 
     progressCallback?.('Fetching media item details');
 
-    // First get the media item to access its file path
+    // First get the to access its file path
     const { data: mediaItem, error: fetchError } = await supabase
       .from('media_items')
-      .select('file_path, file_name')
+      .select('file_path, file_name, file_types(category)')
       .eq('id', mediaId)
+      .eq('file_types.category', 'image') // Exif data is only for images
       .single();
 
     if (fetchError || !mediaItem) {
@@ -39,127 +43,64 @@ export async function processExifData({
       };
     }
 
-    const filePath = mediaItem.file_path;
-    progressCallback?.(`Processing ${mediaItem.file_name}`);
-
-    // Check if file exists
-    try {
-      progressCallback?.('Checking file access');
-      await fs.access(filePath);
-    } catch (fileError) {
-      progressCallback?.('File not found');
-
-      // Insert error state into processing_states table
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'exif',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
-      });
-
-      return {
-        success: false,
-        message: `File not found: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`,
-      };
-    }
-
-    // Extract EXIF data from the file
-    progressCallback?.(`Extracting metadata using ${method} method`);
-    const exifData = await extractMetadata({ filePath, method });
+    // Extract EXIF data
+    const extraction = await extractAndSanitizeExifData(
+      mediaItem.file_path,
+      method,
+      progressCallback,
+    );
 
     // If no EXIF data found, update processing state accordingly
-    if (!exifData) {
+    if (!extraction.success || !extraction.exifData) {
       progressCallback?.('No EXIF data found in file');
-
-      // Insert skipped state into processing_states table
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'exif',
-        status: 'success', // Still mark as success, just no EXIF found
-        processed_at: new Date().toISOString(),
-      });
+      await updateProcessingState(
+        mediaId,
+        'success',
+        'exif',
+        extraction.message,
+        progressCallback,
+      );
 
       return {
         success: false,
         message:
+          extraction.message ||
           'No EXIF data could be extracted, but item marked as processed',
       };
     }
 
-    // Import sanitizeExifData function
-    progressCallback?.('Sanitizing EXIF data');
-    const { sanitizeExifData } = await import('@/lib/utils');
-
-    // Sanitize EXIF data before storing it
-    const sanitizedExifData = sanitizeExifData(exifData);
-
-    // Get media date from EXIF
-    const mediaDate =
-      exifData.Photo?.DateTimeOriginal?.toISOString() ||
-      exifData.Image?.DateTime?.toISOString();
-
     try {
       // Update the exif processing state
-      progressCallback?.('Updating processing state');
-      const { error: stateError } = await supabase
-        .from('processing_states')
-        .upsert({
-          media_item_id: mediaId,
-          type: 'exif',
-          status: 'success',
-          processed_at: new Date().toISOString(),
-        });
-      if (stateError) throw stateError; // Throw error to be caught below
-
-      // If we have a date from EXIF, also update dateCorrection state
-      if (mediaDate) {
-        progressCallback?.('Updating date correction state');
-        const { error: dateStateError } = await supabase
-          .from('processing_states')
-          .upsert({
-            media_item_id: mediaId,
-            type: 'dateCorrection',
-            status: 'success',
-            processed_at: new Date().toISOString(),
-          });
-        if (dateStateError) throw dateStateError; // Throw error
-      }
+      const { error: stateError } = await updateProcessingState(
+        mediaId,
+        'success',
+        'exif',
+        'EXIF data extracted successfully',
+        progressCallback,
+      );
+      if (stateError) throw stateError;
 
       // Update the media record with the actual EXIF data
       progressCallback?.('Updating media item with EXIF data');
       const { error: updateError } = await supabase
         .from('media_items')
         .update({
-          exif_data: sanitizedExifData,
-          media_date: mediaDate,
+          exif_data: extraction.sanitizedExifData as Json,
+          media_date: extraction.mediaDate,
         })
         .eq('id', mediaId);
 
-      if (updateError) {
-        throw updateError; // This will trigger the catch block
-      }
+      if (updateError) throw updateError;
     } catch (txError) {
-      progressCallback?.(
-        `Database update error: ${txError instanceof Error ? txError.message : 'Unknown error'}`,
-      );
-      console.error(
-        'Error updating media or processing state with EXIF data:',
-        txError,
-      );
+      const errorMessage = `Database update error: ${txError instanceof Error ? txError.message : 'Unknown error'}`;
+      progressCallback?.(errorMessage);
 
       // Attempt to mark the processing state as error
       try {
-        await supabase.from('processing_states').upsert({
-          media_item_id: mediaId,
-          type: 'exif',
-          status: 'error',
-          processed_at: new Date().toISOString(),
-          error_message: `Database update error: ${txError instanceof Error ? txError.message : 'Unknown error'}`,
-        });
+        await updateProcessingState(mediaId, 'error', 'exif', errorMessage);
       } catch (stateUpdateError) {
         console.error(
-          "Failed to update processing state to 'error' after initial update failure:",
+          "Failed to update processing state to 'error':",
           stateUpdateError,
         );
       }
@@ -175,37 +116,26 @@ export async function processExifData({
     return {
       success: true,
       message: 'EXIF data extracted and stored successfully',
-      exifData,
+      exifData: extraction.exifData,
     };
   } catch (error) {
-    progressCallback?.(
-      `Error: ${error instanceof Error ? error.message : 'Unknown error processing EXIF data'}`,
-    );
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : 'Unknown error processing EXIF data';
+    progressCallback?.(`Error: ${errorMessage}`);
     console.error('Error processing EXIF data:', error);
 
-    // Even on error, record the error in processing_states table
+    // Record the error in processing_states table
     try {
-      const supabase = createServerSupabaseClient();
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'exif',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message:
-          error instanceof Error
-            ? error.message
-            : 'Unknown error processing EXIF data',
-      });
+      await updateProcessingState(mediaId, 'error', 'exif', errorMessage);
     } catch (updateError) {
       console.error('Error updating processed state:', updateError);
     }
 
     return {
       success: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : 'Unknown error processing EXIF data',
+      message: errorMessage,
     };
   }
 }

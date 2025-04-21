@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  abortThumbnailGeneration,
   countMissingThumbnails,
   getThumbnailStats,
   streamProcessMissingThumbnails,
@@ -17,7 +16,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ProcessingTimeEstimator } from './processing-time-estimator';
 
@@ -59,7 +58,6 @@ export default function ThumbnailGenerator() {
     filesPending: number;
     skippedLargeFiles: number;
   } | null>(null);
-  const currentAbortToken = useRef<string | null>(null);
   const [processingStartTime, setProcessingStartTime] = useState<
     number | undefined
   >(undefined);
@@ -138,9 +136,6 @@ export default function ThumbnailGenerator() {
       const controller = new AbortController();
       setAbortController(controller);
 
-      const abortToken = `${Date.now()}-${Math.random()}`;
-      currentAbortToken.current = abortToken;
-
       const startTime = Date.now();
       setProcessingStartTime(startTime);
 
@@ -173,7 +168,6 @@ export default function ThumbnailGenerator() {
 
       const stream = await streamProcessMissingThumbnails({
         skipLargeFiles,
-        abortToken,
       });
 
       if (!stream) {
@@ -185,6 +179,7 @@ export default function ThumbnailGenerator() {
 
       try {
         while (true) {
+          // Check if the user has aborted the operation
           if (controller.signal.aborted) {
             reader.cancel('Operation cancelled by user');
             setDetailProgress({
@@ -197,6 +192,17 @@ export default function ThumbnailGenerator() {
           const { done, value } = await reader.read();
 
           if (done) {
+            // Stream has completed - either successfully or was aborted
+            setIsGenerating(false);
+            setAbortController(null);
+
+            // If we have a completed status in our progress, show success
+            if (detailProgress?.status === 'completed') {
+              toast.success('Thumbnail generation completed successfully');
+            }
+
+            // Refresh stats after completion
+            fetchThumbnailStats();
             break;
           }
 
@@ -269,10 +275,10 @@ export default function ThumbnailGenerator() {
               }
 
               if (data.status === 'completed') {
-                setIsGenerating(false);
-                setAbortController(null);
-                currentAbortToken.current = null;
-                fetchThumbnailStats();
+                setDetailProgress((prev) => ({
+                  ...prev!,
+                  status: 'completed',
+                }));
               }
             } catch (parseError) {
               console.error('Error parsing stream data:', parseError);
@@ -313,7 +319,6 @@ export default function ThumbnailGenerator() {
     } finally {
       setIsGenerating(false);
       setAbortController(null);
-      currentAbortToken.current = null;
       fetchThumbnailStats();
     }
   };
@@ -325,35 +330,20 @@ export default function ThumbnailGenerator() {
         duration: 3000,
       });
 
-      // First abort the client-side controller
+      // Abort the controller to stop the client-side processing
       abortController.abort();
 
-      // Then abort the server-side process
-      if (currentAbortToken.current) {
-        try {
-          const result = await abortThumbnailGeneration(
-            currentAbortToken.current,
-          );
+      // Update UI immediately
+      setIsGenerating(false);
+      setAbortController(null);
 
-          if (result.success) {
-            toast.success('Thumbnail generation cancelled successfully');
-            setDetailProgress({
-              status: 'error',
-              message: 'Thumbnail generation cancelled by user',
-            });
+      setDetailProgress({
+        status: 'error',
+        message: 'Thumbnail generation cancelled by user',
+      });
 
-            // Only reset the state after confirming cancellation success
-            setIsGenerating(false);
-            setAbortController(null);
-            currentAbortToken.current = null;
-          } else {
-            toast.error(`Failed to cancel: ${result.message}`);
-          }
-        } catch (error) {
-          console.error('Error during cancellation:', error);
-          toast.error('Error during cancellation process');
-        }
-      }
+      // Refresh stats after cancellation
+      fetchThumbnailStats();
     }
   };
 

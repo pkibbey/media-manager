@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  abortExifProcessing,
   getExifStats,
   streamProcessUnprocessedItems,
 } from '@/app/actions/exif';
@@ -22,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { BATCH_SIZE } from '@/lib/consts';
 import type { ExtractionMethod } from '@/types/exif';
 import type { ExifProgress } from '@/types/exif';
 import { InfoCircledIcon } from '@radix-ui/react-icons';
@@ -62,7 +62,7 @@ export default function ExifProcessor() {
     useState<AbortController | null>(null);
   const [extractionMethod, setExtractionMethod] =
     useState<ExtractionMethod>('default');
-  const [batchSize, setBatchSize] = useState<number>(500); // Add batch size state
+  const [batchSize, setBatchSize] = useState<number>(BATCH_SIZE); // Add batch size state
   const [processingStartTime, setProcessingStartTime] = useState<
     number | undefined
   >(undefined);
@@ -110,52 +110,45 @@ export default function ExifProcessor() {
       const controller = new AbortController();
       setAbortController(controller);
 
-      // Generate an abort token
-      const abortToken = `${Date.now()}-${Math.random()}`;
-
       // Call the server action to get a ReadableStream
       const stream = await streamProcessUnprocessedItems({
         skipLargeFiles,
-        abortToken,
         extractionMethod,
         batchSize, // Pass batch size to server action
       });
+
+      if (!stream) {
+        throw new Error('Failed to start EXIF processing stream');
+      }
 
       // Create a new ReadableStream and TextDecoder to handle the response
       const reader = stream.getReader();
       const decoder = new TextDecoder();
 
-      // Add a listener for abort events
-      controller.signal.addEventListener('abort', async () => {
-        try {
-          reader.cancel(); // Cancel the stream reading
-          await abortExifProcessing(abortToken);
-        } catch (err) {
-          console.error('Error sending abort signal:', err);
-        }
-
-        // Update UI state
-        setIsStreaming(false);
-        setProgress((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: 'error',
-                message: 'Processing cancelled by user',
-              }
-            : null,
-        );
-      });
-
       // Process stream data
       const processStreamData = async () => {
         try {
           while (true) {
+            // Check if we should abort
+            if (controller.signal.aborted) {
+              reader.cancel('Operation cancelled by user');
+              break;
+            }
+
             const { done, value } = await reader.read();
 
-            if (done && progress) {
+            if (done) {
+              // Stream is complete - update UI
               setIsStreaming(false);
               setAbortController(null);
+
+              // If we have a successful completion status in progress, show a toast
+              if (progress?.status === 'completed') {
+                toast.success('EXIF processing completed successfully');
+              }
+
+              // Refresh stats after completion
+              fetchStats();
               break;
             }
 
@@ -167,7 +160,6 @@ export default function ExifProcessor() {
               if (line.startsWith('data: ')) {
                 try {
                   const data = JSON.parse(line.substring(6)) as ExifProgress;
-
                   setProgress(data);
 
                   // Track error information when available
@@ -200,15 +192,25 @@ export default function ExifProcessor() {
                   }
 
                   if (data.status === 'completed') {
-                    setIsStreaming(false);
-                    setAbortController(null);
                     toast.success('EXIF processing completed successfully');
-
-                    fetchStats(); // Refresh stats after completion
+                    setProgress((progress) => ({
+                      ...progress,
+                      status: 'completed',
+                      message: 'Comleted EXIF processing...',
+                      successCount: (progress?.successCount || 0) + 1,
+                      method: extractionMethod,
+                    }));
                   } else if (data.status === 'error') {
                     setIsStreaming(false);
                     setAbortController(null);
                     setHasError(true);
+                    setProgress((progress) => ({
+                      ...progress,
+                      status: 'completed',
+                      message: 'Comleted EXIF processing...',
+                      failedCount: (progress?.successCount || 0) + 1,
+                      method: extractionMethod,
+                    }));
 
                     // Ensure there's always a meaningful error message
                     const errorMessage =
@@ -228,6 +230,9 @@ export default function ExifProcessor() {
           setAbortController(null);
           setHasError(true);
           toast.error('Error processing EXIF data stream');
+        } finally {
+          // Ensure we release the reader lock
+          reader.releaseLock();
         }
       };
 
@@ -247,7 +252,23 @@ export default function ExifProcessor() {
   const handleCancel = () => {
     if (abortController) {
       toast.info('Cancelling EXIF processing...');
+
+      // Simply abort the controller which will trigger client-side cleanup
       abortController.abort();
+
+      setIsStreaming(false);
+      setAbortController(null);
+
+      // Update UI state
+      setProgress((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'error',
+              message: 'Processing cancelled by user',
+            }
+          : null,
+      );
     }
   };
 
@@ -444,9 +465,9 @@ export default function ExifProcessor() {
                 <SelectValue placeholder="Select batch size" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="100">100</SelectItem>
-                <SelectItem value="500">500</SelectItem>
-                <SelectItem value="1000">1000</SelectItem>
+                <SelectItem value="100">25</SelectItem>
+                <SelectItem value="500">50</SelectItem>
+                <SelectItem value="1000">100</SelectItem>
               </SelectContent>
             </Select>
           </div>

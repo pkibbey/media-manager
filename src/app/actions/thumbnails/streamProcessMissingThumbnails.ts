@@ -1,6 +1,5 @@
 'use server';
 
-import { isAborted, removeAbortToken } from '@/lib/abort-tokens';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ThumbnailGenerationOptions } from '@/types/thumbnail-types';
 import { generateThumbnail } from './generateThumbnail';
@@ -27,7 +26,9 @@ export async function streamProcessMissingThumbnails(
     } catch (error) {
       console.error('[StreamThumbnails] Error writing to stream:', error);
       try {
-        await writer.close();
+        if (!writer.closed) {
+          await writer.close();
+        }
       } catch (closeError) {
         console.error(
           '[StreamThumbnails] Error closing stream after write error:',
@@ -42,11 +43,7 @@ export async function streamProcessMissingThumbnails(
   (async () => {
     try {
       const supabase = createServerSupabaseClient();
-      const { skipLargeFiles = true, abortToken } = options;
-
-      if (abortToken) {
-        await removeAbortToken(abortToken);
-      }
+      const { skipLargeFiles = true } = options;
 
       await sendProgress(writer, {
         status: 'started',
@@ -92,15 +89,6 @@ export async function streamProcessMissingThumbnails(
       while (hasMoreItems) {
         batchNumber++;
 
-        if (abortToken && (await isAborted(abortToken))) {
-          await sendProgress(writer, {
-            status: 'error',
-            message: 'Thumbnail generation aborted by user',
-          });
-          await writer.close();
-          return;
-        }
-
         // 1. Fetch next batch of items without file type filtering
         let query = supabase
           .from('media_items')
@@ -125,7 +113,7 @@ export async function streamProcessMissingThumbnails(
             message: `Error fetching candidate media items batch: ${candidateError.message}`,
             error: candidateError.message,
           });
-          await writer.close();
+          if (!writer.closed) await writer.close();
           return;
         }
 
@@ -178,11 +166,6 @@ export async function streamProcessMissingThumbnails(
 
         // 4. Process the filtered items
         for (const item of itemsToProcess) {
-          if (abortToken && (await isAborted(abortToken))) {
-            await writer.close();
-            return;
-          }
-
           try {
             const fileExtension = item.file_name
               ? item.file_name.split('.').pop() || 'unknown'
@@ -266,10 +249,6 @@ export async function streamProcessMissingThumbnails(
         }
       }
 
-      if (abortToken) {
-        await removeAbortToken(abortToken);
-      }
-
       await sendProgress(writer, {
         status: 'completed',
         message: `Thumbnail generation completed: ${processed} processed, ${successCount} successful, ${failedCount} failed, ${skippedLargeFiles} skipped`,
@@ -280,7 +259,9 @@ export async function streamProcessMissingThumbnails(
         skippedLargeFiles,
       });
 
-      await writer.close();
+      if (!writer.closed) {
+        await writer.close();
+      }
     } catch (error: any) {
       console.error(
         '[StreamThumbnails] UNHANDLED EXCEPTION in processAllMissingThumbnails:',
@@ -292,7 +273,9 @@ export async function streamProcessMissingThumbnails(
           message: `Unhandled exception during thumbnail processing: ${error.message}`,
           error: error.message,
         });
-        await writer.close();
+        if (!writer.closed) {
+          await writer.close();
+        }
       } catch (writeError) {
         console.error(
           '[StreamThumbnails] Failed to send final error progress or close stream:',
