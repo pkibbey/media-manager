@@ -59,32 +59,3 @@ export type ScanOptions = {
    */
   abortToken?: string;
 };
-
-/**
- * Type for worker process status tracking
- */
-export type WorkerProcessStatus = {
-  active: boolean;
-  startTime?: number;
-  lastUpdated?: number;
-  completed?: boolean;
-  cancelled?: boolean;
-  error?: string | null;
-  abortToken?: string;
-  progress?: {
-    progress?: number;
-    total?: number;
-    processed?: number;
-    successCount?: number;
-    failedCount?: number;
-    skippedLargeFiles?: number;
-    detailProgress?: {
-      status: 'started' | 'generating' | 'processing' | 'completed' | 'error';
-      message: string;
-      currentFilePath?: string;
-      fileType?: string;
-      error?: string;
-    };
-    [key: string]: unknown;
-  };
-};

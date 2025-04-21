@@ -17,12 +17,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
-import {
-  addProcessUpdateListener,
-  addWorkerListener,
-  getAllProcesses,
-  storeProcessStatus,
-} from '@/lib/worker-manager';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ProcessingTimeEstimator } from './processing-time-estimator';
@@ -42,9 +36,6 @@ type ThumbnailProgress = {
   fileType?: string;
   error?: string;
 };
-
-// Process type identifier for thumbnail generation
-const THUMBNAIL_PROCESS_ID = 'thumbnail-generation';
 
 export default function ThumbnailGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -129,148 +120,6 @@ export default function ThumbnailGenerator() {
     return 'Other Errors';
   };
 
-  useEffect(() => {
-    const checkExistingProcess = async () => {
-      try {
-        // Get all processes first to avoid race conditions
-        const allProcesses = await getAllProcesses();
-        const processInfo = allProcesses[THUMBNAIL_PROCESS_ID];
-
-        const active =
-          processInfo?.active === true &&
-          Date.now() - (processInfo.lastUpdated || 0) <= 30000;
-
-        if (active && processInfo.progress) {
-          setIsGenerating(true);
-
-          // Update all relevant UI state from the stored progress
-          setProgress(processInfo.progress.progress || 0);
-          setTotal(processInfo.progress.total || 0);
-          setProcessed(processInfo.progress.processed || 0);
-          setSuccessCount(processInfo.progress.successCount || 0);
-          setFailedCount(processInfo.progress.failedCount || 0);
-          setLargeFilesSkipped(processInfo.progress.skippedLargeFiles || 0);
-          setDetailProgress(processInfo.progress.detailProgress || null);
-
-          // Create a new abort controller to allow cancelling
-          const controller = new AbortController();
-          setAbortController(controller);
-
-          // Store the current abort token
-          if (processInfo.abortToken) {
-            currentAbortToken.current = processInfo.abortToken;
-          }
-
-          // Set the processing start time for time estimation
-          setProcessingStartTime(processInfo.startTime || Date.now());
-
-          toast.info('Thumbnail generation is running in the background', {
-            id: 'thumbnail-resume-toast',
-            duration: 3000,
-          });
-        }
-      } catch (error) {
-        console.error('Error checking for existing process:', error);
-      }
-    };
-
-    checkExistingProcess();
-
-    // Add a general process update listener
-    const processUpdateCleanup = addProcessUpdateListener((data) => {
-      if (data.processType === THUMBNAIL_PROCESS_ID) {
-        const processInfo = data.status;
-
-        // If the process is active, update the UI
-        if (processInfo.active && processInfo.progress) {
-          setIsGenerating(true);
-          setProgress(processInfo.progress.progress || 0);
-          setTotal(processInfo.progress.total || 0);
-          setProcessed(processInfo.progress.processed || 0);
-          setSuccessCount(processInfo.progress.successCount || 0);
-          setFailedCount(processInfo.progress.failedCount || 0);
-          setLargeFilesSkipped(processInfo.progress.skippedLargeFiles || 0);
-          setDetailProgress(processInfo.progress.detailProgress || null);
-
-          // Ensure we have an abort controller
-          if (!abortController) {
-            const controller = new AbortController();
-            setAbortController(controller);
-          }
-
-          // Update the abort token if needed
-          if (processInfo.abortToken && !currentAbortToken.current) {
-            currentAbortToken.current = processInfo.abortToken;
-          }
-        }
-        // If the process completed or errored while we were away
-        else if (!processInfo.active) {
-          setIsGenerating(false);
-          setAbortController(null);
-          currentAbortToken.current = null;
-
-          // Only show completion toast if we were previously generating
-          if (isGenerating) {
-            if (processInfo.error) {
-              toast.error(`Thumbnail generation failed: ${processInfo.error}`, {
-                id: 'thumbnail-complete-toast',
-              });
-              setHasError(true);
-            } else {
-              toast.success('Thumbnail generation completed successfully', {
-                id: 'thumbnail-complete-toast',
-              });
-            }
-
-            // Refresh stats after completion
-            fetchThumbnailStats();
-          }
-        }
-      }
-    });
-
-    // Set up specific listener for thumbnail updates
-    const thumbnailUpdateCleanup = addWorkerListener<{
-      progress: {
-        progress: number;
-        total: number;
-        processed: number;
-        successCount: number;
-        failedCount: number;
-        skippedLargeFiles: number;
-        detailProgress: ThumbnailProgress | null;
-        status: 'started' | 'generating' | 'processing' | 'completed' | 'error';
-      };
-    }>('THUMBNAIL_PROGRESS_UPDATE', (data) => {
-      if (data.progress) {
-        setProgress(data.progress.progress || 0);
-        setTotal(data.progress.total || 0);
-        setProcessed(data.progress.processed || 0);
-        setSuccessCount(data.progress.successCount || 0);
-        setFailedCount(data.progress.failedCount || 0);
-        setLargeFilesSkipped(data.progress.skippedLargeFiles || 0);
-        setDetailProgress(data.progress.detailProgress || null);
-
-        if (
-          data.progress.status === 'completed' ||
-          data.progress.status === 'error'
-        ) {
-          setIsGenerating(false);
-          setAbortController(null);
-          currentAbortToken.current = null;
-
-          // Refresh stats after completion
-          fetchThumbnailStats();
-        }
-      }
-    });
-
-    return () => {
-      processUpdateCleanup();
-      thumbnailUpdateCleanup();
-    };
-  }, [fetchThumbnailStats, isGenerating, abortController]);
-
   const handleGenerateThumbnails = async () => {
     try {
       setIsGenerating(true);
@@ -295,24 +144,6 @@ export default function ThumbnailGenerator() {
       const startTime = Date.now();
       setProcessingStartTime(startTime);
 
-      storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-        active: true,
-        startTime,
-        abortToken,
-        progress: {
-          progress: 0,
-          total: 0,
-          processed: 0,
-          successCount: 0,
-          failedCount: 0,
-          skippedLargeFiles: 0,
-          detailProgress: {
-            status: 'started',
-            message: 'Starting thumbnail generation...',
-          },
-        },
-      });
-
       const countResult = await countMissingThumbnails();
       if (!countResult.success) {
         throw new Error(
@@ -323,24 +154,6 @@ export default function ThumbnailGenerator() {
       const totalToProcess = countResult.count || 0;
       setTotal(totalToProcess);
 
-      storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-        active: true,
-        startTime,
-        abortToken,
-        progress: {
-          progress: 0,
-          total: totalToProcess,
-          processed: 0,
-          successCount: 0,
-          failedCount: 0,
-          skippedLargeFiles: 0,
-          detailProgress: {
-            status: 'started',
-            message: `Found ${totalToProcess} files to process`,
-          },
-        },
-      });
-
       if (totalToProcess === 0) {
         toast.success('No thumbnails to generate');
         setIsGenerating(false);
@@ -349,24 +162,6 @@ export default function ThumbnailGenerator() {
           status: 'completed',
           message: 'All thumbnails already generated.',
         });
-
-        storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-          active: false,
-          completed: true,
-          progress: {
-            progress: 100,
-            total: 0,
-            processed: 0,
-            successCount: 0,
-            failedCount: 0,
-            skippedLargeFiles: 0,
-            detailProgress: {
-              status: 'completed',
-              message: 'All thumbnails already generated.',
-            },
-          },
-        });
-
         return;
       }
 
@@ -396,18 +191,6 @@ export default function ThumbnailGenerator() {
               status: 'error',
               message: 'Thumbnail generation cancelled by user',
             });
-
-            storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-              active: false,
-              cancelled: true,
-              progress: {
-                detailProgress: {
-                  status: 'error',
-                  message: 'Thumbnail generation cancelled by user',
-                },
-              },
-            });
-
             break;
           }
 
@@ -455,26 +238,6 @@ export default function ThumbnailGenerator() {
                     (data.processed / data.totalItems) * 100,
                   );
                   setProgress(progressPercent);
-
-                  storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-                    active: true,
-                    startTime,
-                    abortToken,
-                    progress: {
-                      progress: progressPercent,
-                      total: data.totalItems,
-                      processed: data.processed,
-                      successCount: data.successCount || 0,
-                      failedCount: data.failedCount || 0,
-                      skippedLargeFiles: data.skippedLargeFiles || 0,
-                      detailProgress: {
-                        status: data.status || 'processing',
-                        message: data.message || 'Processing thumbnails...',
-                        currentFilePath: data.currentFilePath,
-                        fileType: data.fileType,
-                      },
-                    },
-                  });
                 }
               }
 
@@ -506,23 +269,10 @@ export default function ThumbnailGenerator() {
               }
 
               if (data.status === 'completed') {
-                storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-                  active: false,
-                  completed: true,
-                  progress: {
-                    progress: 100,
-                    total: data.totalItems || total,
-                    processed: data.processed || processed,
-                    successCount: data.successCount || successCount,
-                    failedCount: data.failedCount || failedCount,
-                    skippedLargeFiles:
-                      data.skippedLargeFiles || largeFilesSkipped,
-                    detailProgress: {
-                      status: 'completed',
-                      message: data.message || 'Thumbnail generation completed',
-                    },
-                  },
-                });
+                setIsGenerating(false);
+                setAbortController(null);
+                currentAbortToken.current = null;
+                fetchThumbnailStats();
               }
             } catch (parseError) {
               console.error('Error parsing stream data:', parseError);
@@ -532,15 +282,6 @@ export default function ThumbnailGenerator() {
       } catch (streamError) {
         console.error('Error reading from stream:', streamError);
         setHasError(true);
-
-        storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-          active: false,
-          error:
-            streamError instanceof Error
-              ? streamError.message
-              : 'Error reading from stream',
-        });
-
         throw streamError;
       } finally {
         reader.releaseLock();
@@ -569,23 +310,10 @@ export default function ThumbnailGenerator() {
         }
         return newSummary;
       });
-
-      storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-        active: false,
-        error: errorMessage,
-        progress: {
-          detailProgress: {
-            status: 'error',
-            message: `Error: ${errorMessage}`,
-            error: errorMessage,
-          },
-        },
-      });
     } finally {
       setIsGenerating(false);
       setAbortController(null);
       currentAbortToken.current = null;
-
       fetchThumbnailStats();
     }
   };
@@ -612,24 +340,6 @@ export default function ThumbnailGenerator() {
             setDetailProgress({
               status: 'error',
               message: 'Thumbnail generation cancelled by user',
-            });
-
-            // Store process status after successful cancellation
-            storeProcessStatus(THUMBNAIL_PROCESS_ID, {
-              active: false,
-              cancelled: true,
-              progress: {
-                progress,
-                total,
-                processed,
-                successCount,
-                failedCount,
-                skippedLargeFiles: largeFilesSkipped,
-                detailProgress: {
-                  status: 'error',
-                  message: 'Thumbnail generation cancelled by user',
-                },
-              },
             });
 
             // Only reset the state after confirming cancellation success

@@ -3,8 +3,6 @@
 import fs from 'node:fs/promises';
 import { addAbortToken, isAborted, removeAbortToken } from '@/lib/abort-tokens';
 import { BATCH_SIZE } from '@/lib/consts';
-import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
-import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
@@ -24,7 +22,12 @@ export async function streamProcessUnprocessedItems(
   options: ExifProcessingOptions,
 ) {
   const encoder = new TextEncoder();
-  const { skipLargeFiles = false, abortToken, extractionMethod } = options;
+  const {
+    skipLargeFiles = false,
+    abortToken,
+    extractionMethod,
+    batchSize = BATCH_SIZE,
+  } = options;
 
   // Create a transform stream to send progress updates
   const stream = new TransformStream();
@@ -36,6 +39,7 @@ export async function streamProcessUnprocessedItems(
     skipLargeFiles,
     abortToken,
     extractionMethod,
+    batchSize,
   });
 
   // Return the readable stream
@@ -46,11 +50,13 @@ export async function streamProcessUnprocessedItems(
     skipLargeFiles,
     abortToken,
     extractionMethod,
+    batchSize,
   }: {
     writer: WritableStreamDefaultWriter;
     skipLargeFiles: boolean;
     abortToken?: string;
     extractionMethod?: ExtractionMethod;
+    batchSize: number;
   }) {
     try {
       const supabase = createServerSupabaseClient();
@@ -74,39 +80,9 @@ export async function streamProcessUnprocessedItems(
 
       await sendProgress(writer, {
         status: 'started',
-        message: `Starting EXIF processing${methodInfo}${skipLargeFiles ? ' (skipping files over 100MB)' : ''}`,
+        message: `Starting EXIF processing${methodInfo}${skipLargeFiles ? ' (skipping files over 100MB)' : ''} with batch size ${batchSize}`,
         method: extractionMethod,
       });
-
-      // Get file type IDs for EXIF supported formats
-      const fileTypeInfo = await getDetailedFileTypeInfo();
-      if (!fileTypeInfo) {
-        await sendProgress(writer, {
-          status: 'error',
-          message: 'Failed to load file type information',
-          error: 'Failed to load file type information',
-          largeFilesSkipped: 0,
-          filesDiscovered: 0,
-          filesProcessed: 0,
-          successCount: 0,
-          failedCount: 0,
-          method: extractionMethod,
-        });
-        await writer.close();
-        return;
-      }
-
-      // Get ignored file type IDs
-      const ignoredIds = await getIgnoredFileTypeIds();
-
-      const ignoreFilterExpr =
-        ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '()';
-
-      // Define EXIF compatible extensions and get their IDs
-      const exifSupportedExtensions = ['jpg', 'jpeg', 'tiff', 'heic'];
-      const exifSupportedIds = exifSupportedExtensions
-        .map((ext) => fileTypeInfo.extensionToId.get(ext))
-        .filter((id) => id !== undefined) as number[];
 
       // Create a subquery to get all media IDs that have been successfully processed or skipped
       const { data: processedItems, error: processedItemsError } =
@@ -142,43 +118,15 @@ export async function streamProcessUnprocessedItems(
 
       try {
         // Try to use the count_unprocessed_exif_files function first
-        const { data: countData, error: countRpcError } = await supabase.rpc(
-          'count_unprocessed_exif_files',
-          {
-            exif_supported_ids: exifSupportedIds,
-            ignored_ids: ignoredIds.map(Number),
-          },
-        );
+        const { count, error: countError } = await supabase
+          .from('media_items')
+          .select('*', { count: 'exact', head: true });
 
-        if (countRpcError) {
-          console.warn(
-            'Falling back to regular query for counting:',
-            countRpcError,
-          );
-          // Fall back to regular query if RPC function isn't available
-          const countQuery = supabase
-            .from('media_items')
-            .select('*', { count: 'exact' })
-            .in('file_type_id', exifSupportedIds)
-            .not('file_type_id', 'in', ignoreFilterExpr);
-
-          // Only apply the processed IDs filter if we have processed items
-          // but be careful with the filter size to avoid URI too long error
-          if (processedIds.length > 0 && processedIds.length < 100) {
-            const processedFilterExpr = `(${processedIds.join(',')})`;
-            countQuery.not('id', 'in', processedFilterExpr);
-          }
-
-          const { count, error: countError } = await countQuery;
-
-          if (countError) {
-            throw countError;
-          }
-
-          totalCount = count;
-        } else {
-          totalCount = countData;
+        if (countError) {
+          throw countError;
         }
+
+        totalCount = count;
       } catch (countError: any) {
         await sendProgress(writer, {
           status: 'error',
@@ -200,7 +148,7 @@ export async function streamProcessUnprocessedItems(
 
       await sendProgress(writer, {
         status: 'processing',
-        message: `Found ${totalCount} total unprocessed items to check`,
+        message: `Found ${totalCount} total items to check`,
         filesDiscovered: effectiveTotal,
         largeFilesSkipped: 0,
         filesProcessed: 0,
@@ -215,7 +163,6 @@ export async function streamProcessUnprocessedItems(
       let successCount = 0;
       let failedCount = 0;
       let itemsProcessed = 0;
-      let exifCompatibleCount = 0;
       let largeFilesSkipped = 0;
 
       // Variable to track if we've started processing items
@@ -241,53 +188,31 @@ export async function streamProcessUnprocessedItems(
         // Calculate how many items to fetch for this page
         const currentPageSize = pageSize;
 
-        // Get a chunk of unprocessed items using the database function
+        // Get a chunk of unprocessed items
         let unprocessedItems: Partial<MediaItem>[] | null = null;
         let unprocessedError: PostgrestError | null = null;
 
         try {
-          // First try to use the database function (preferred approach)
-          const { data: rpcData, error: rpcError } = await supabase.rpc(
-            'get_unprocessed_exif_files',
-            {
-              exif_supported_ids: exifSupportedIds,
-              ignored_ids: ignoredIds.map(Number),
-              page_number: page,
-              page_size: currentPageSize,
-            },
+          // Get the next batch of media items that haven't been processed yet
+          const unprocessedQuery = supabase
+            .from('media_items')
+            .select('id, file_path, file_type_id, file_name');
+
+          // Only apply the processed IDs filter if it's safe to do so (not too many IDs)
+          if (processedIds.length > 0 && processedIds.length < 100) {
+            const processedFilterExpr = `(${processedIds.join(',')})`;
+            unprocessedQuery.not('id', 'in', processedFilterExpr);
+          }
+
+          // Add range for pagination
+          unprocessedQuery.range(
+            page * pageSize,
+            page * pageSize + currentPageSize - 1,
           );
 
-          if (rpcError) {
-            console.warn(
-              'Falling back to regular query for fetching unprocessed items:',
-              rpcError,
-            );
-            // Fall back to the old approach if the function isn't available
-            const unprocessedQuery = supabase
-              .from('media_items')
-              .select('id, file_path, file_type_id, file_name')
-              .in('file_type_id', exifSupportedIds)
-              .not('file_type_id', 'in', ignoreFilterExpr);
-
-            // Only apply the processed IDs filter if it's safe to do so (not too many IDs)
-            if (processedIds.length > 0 && processedIds.length < 100) {
-              const processedFilterExpr = `(${processedIds.join(',')})`;
-              unprocessedQuery.not('id', 'in', processedFilterExpr);
-            }
-
-            // Add range for pagination
-            unprocessedQuery.range(
-              page * pageSize,
-              page * pageSize + currentPageSize - 1,
-            );
-
-            const result = await unprocessedQuery;
-            unprocessedItems = result.data;
-            unprocessedError = result.error;
-          } else {
-            unprocessedItems = rpcData;
-            unprocessedError = null;
-          }
+          const result = await unprocessedQuery;
+          unprocessedItems = result.data;
+          unprocessedError = result.error;
         } catch (error: any) {
           unprocessedError = error;
         }
@@ -316,13 +241,10 @@ export async function streamProcessUnprocessedItems(
           break; // No more items to process
         }
 
-        // Since we've already filtered for EXIF-compatible file types in the query,
-        // we can process all these items directly
+        // Process all items without filtering by file type
         const itemsToProcess = unprocessedItems;
-        exifCompatibleCount = totalCount || 0; // They're all compatible
 
         // Process each media file in this batch
-        const batchSize = BATCH_SIZE;
         for (let i = 0; i < itemsToProcess.length; i += batchSize) {
           // Check for abort signal
           if (abortToken && (await isAborted(abortToken))) {
@@ -395,7 +317,7 @@ export async function streamProcessUnprocessedItems(
               // Send update before processing each file
               await sendProgress(writer, {
                 status: 'processing',
-                message: `Processing ${processedCount + 1} of ${exifCompatibleCount} EXIF-compatible files: ${media.file_name}`,
+                message: `Processing ${processedCount + 1}: ${media.file_name}`,
                 filesDiscovered: effectiveTotal,
                 filesProcessed: itemsProcessed,
                 successCount: successCount,
@@ -436,7 +358,7 @@ export async function streamProcessUnprocessedItems(
               // Send regular progress updates
               if (
                 processedCount % 5 === 0 ||
-                processedCount === exifCompatibleCount
+                processedCount === effectiveTotal
               ) {
                 // Check for abort signal
                 if (abortToken && (await isAborted(abortToken))) {
@@ -450,7 +372,7 @@ export async function streamProcessUnprocessedItems(
 
                 await sendProgress(writer, {
                   status: 'processing',
-                  message: `Processed ${processedCount} of ${exifCompatibleCount} files (${successCount} successful, ${failedCount} failed)`,
+                  message: `Processed ${processedCount} of ${effectiveTotal} files (${successCount} successful, ${failedCount} failed)`,
                   filesDiscovered: effectiveTotal,
                   filesProcessed: itemsProcessed,
                   successCount: successCount,
@@ -491,7 +413,7 @@ export async function streamProcessUnprocessedItems(
       }
 
       // Prepare final message
-      let finalMessage = `EXIF processing completed. Found ${totalCount} total items, processed ${processedCount} EXIF-compatible files: ${successCount} successful, ${failedCount} failed`;
+      let finalMessage = `EXIF processing completed. Found ${totalCount} total items, processed ${processedCount} files: ${successCount} successful, ${failedCount} failed`;
 
       if (largeFilesSkipped) {
         finalMessage += `, ${largeFilesSkipped} large files skipped`;
