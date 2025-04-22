@@ -132,9 +132,6 @@ export async function browseMedia(
 
     // Execute the query
     const { data, error, count } = await query;
-    console.log('count: ', count);
-    console.log('error: ', error);
-    console.log('data: ', data);
 
     if (error) {
       console.error('Error fetching media items:', error);

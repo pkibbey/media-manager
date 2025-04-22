@@ -413,9 +413,6 @@ export async function scanFolders(options: ScanOptions = {}) {
                     );
                   } else if (insertedItem) {
                     newFilesAdded++;
-                    console.log(
-                      `Successfully added media item: ${fileName} (ID: ${insertedItem.id})`,
-                    );
                   } else {
                     console.error(
                       `Failed to insert media item with no error: ${file.path}`,

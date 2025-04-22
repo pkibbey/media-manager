@@ -209,7 +209,6 @@ export async function streamUnprocessedThumbnails({
         }
       }
 
-      console.log('processedCount: ', processedCount);
       // Send final progress update
       const finalMessage =
         processedCount < totalItems
@@ -268,8 +267,6 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
     console.error('Error fetching files with no thumbnails:', noThumbError);
     throw new Error('Failed to fetch files with no thumbnails');
   }
-
-  console.log('filesWithNoThumbnail: ', filesWithNoThumbnail);
 
   // If we already have enough items, return them
   if (filesWithNoThumbnail && filesWithNoThumbnail.length >= limit) {

@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { BATCH_SIZE } from '@/lib/consts';
 import type { ExifStatsResult } from '@/types/db-types';
 import type { ExtractionMethod } from '@/types/exif';
 import type { ExifProgress } from '@/types/exif';
@@ -55,7 +56,7 @@ export default function ExifProcessor() {
     useState<AbortController | null>(null);
   const [extractionMethod, setExtractionMethod] =
     useState<ExtractionMethod>('default');
-  const [batchSize, setBatchSize] = useState<number>(1); // Add batch size state
+  const [batchSize, setBatchSize] = useState<number>(BATCH_SIZE);
   const [processingStartTime, setProcessingStartTime] = useState<
     number | undefined
   >(undefined);

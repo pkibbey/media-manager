@@ -10,46 +10,48 @@ export async function getExifStats(): Promise<{
 }> {
   try {
     const supabase = createServerSupabaseClient();
-    // Calculate total processed (those with any processing state)
-    const { count: mediaItemCount } = await supabase
+    // Get the true total of all image files
+    const { count: totalImageCount } = await supabase
       .from('media_items')
-      .select('id, processing_states(*), file_types(*)', {
+      .select('id', {
         count: 'exact',
         head: true,
       })
-      .eq('file_types.category', 'image')
-      .eq('processing_states.type', 'exif')
-      .not('processing_states.status', 'eq', 'success')
-      .not('processing_states.status', 'eq', 'error')
-      .not('processing_states.status', 'eq', 'skipped')
-      .is('exif_data', null);
+      .eq('file_types.category', 'image');
 
-    console.log('mediaItemCount: ', mediaItemCount);
     // Get counts for all possible processing states
     const { count: successCount } = await supabase
-      .from('processing_states')
-      .select('id', { count: 'exact', head: true })
-      .eq('type', 'exif')
-      .eq('status', 'success');
+      .from('media_items')
+      .select('id, file_types!inner(*), processing_states(*)', {
+        count: 'exact',
+      })
+      .eq('file_types.category', 'image')
+      .eq('processing_states.type', 'exif')
+      .eq('processing_states.status', 'success');
 
     const { count: errorCount } = await supabase
       .from('processing_states')
       .select('id', { count: 'exact', head: true })
       .eq('type', 'exif')
-      .eq('status', 'error');
+      .eq('status', 'error')
+      .eq('media_items.file_types.category', 'image');
 
     const { count: skippedCount } = await supabase
       .from('processing_states')
       .select('id', { count: 'exact', head: true })
       .eq('type', 'exif')
-      .eq('status', 'skipped');
+      .eq('status', 'skipped')
+      .eq('media_items.file_types.category', 'image');
 
-    const total = mediaItemCount || 0;
     const with_exif = successCount || 0;
     const no_exif = errorCount || 0;
     const skipped = skippedCount || 0;
-    const totalProcessed = with_exif + no_exif + skipped;
-    const unprocessed = total - totalProcessed;
+    const total = totalImageCount || 0;
+    const unprocessed = total - with_exif - no_exif - skipped;
+    console.log('skipped: ', skipped);
+    console.log('no_exif: ', no_exif);
+    console.log('with_exif: ', with_exif);
+    console.log('total: ', total);
 
     return {
       success: true,

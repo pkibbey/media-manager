@@ -22,3 +22,9 @@
 -- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder
 
 -- review the site and clean up where possible
+
+-- update the UI to be able to quick process the selected photos
+
+-- add ability to change UI scale (grid column sizes)
+
+-- The UI elements can start to become more compact, as the app evolves

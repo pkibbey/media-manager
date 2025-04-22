@@ -13,14 +13,11 @@ export async function countMissingThumbnails(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    const {
-      data,
-      count: totalImageCount,
-      error: countError,
-    } = await supabase
+    const { count: totalImageCount, error: countError } = await supabase
       .from('media_items')
       .select('*, processing_states(*), file_types!inner(*)', {
         count: 'exact',
+        head: true,
       })
       .eq('file_types.category', 'image')
       .eq('processing_states.type', 'thumbnail')
@@ -28,9 +25,6 @@ export async function countMissingThumbnails(): Promise<{
       .not('processing_states.status', 'eq', 'error')
       .not('processing_states.status', 'eq', 'skipped')
       .is('thumbnail_path', null);
-
-    console.log('data: ', data?.[0]);
-    console.log('totalImageCount: ', totalImageCount);
 
     if (countError) {
       throw new Error(`Failed to count total images: ${countError.message}`);
