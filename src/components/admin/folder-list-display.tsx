@@ -1,13 +1,13 @@
 import { FolderRemoveButton } from '@/components/admin/folder-remove-button';
-import type { ScanFolder } from '@/types/db-types';
-import { formatDistanceToNow } from 'date-fns';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../ui/card';
+} from '@/components/ui/card';
+import type { ScanFolder } from '@/types/db-types';
+import { formatDistanceToNow } from 'date-fns';
 import { FolderScanButton } from './folder-scan-button';
 
 interface FolderListDisplayProps {

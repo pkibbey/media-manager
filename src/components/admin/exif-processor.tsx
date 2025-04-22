@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { BATCH_SIZE } from '@/lib/consts';
+import { categorizeError } from '@/lib/errors';
 import type { ExifStatsResult } from '@/types/db-types';
 import type { ExtractionMethod } from '@/types/exif';
 import type { ExifProgress } from '@/types/exif';
@@ -270,27 +271,6 @@ export default function ExifProcessor() {
     }
   };
 
-  // Function to categorize errors into common types for better grouping
-  const categorizeError = (errorMessage: string): string => {
-    const lowerCaseError = errorMessage.toLowerCase();
-
-    if (lowerCaseError.includes('no such file')) return 'File Not Found';
-    if (lowerCaseError.includes('permission denied'))
-      return 'Permission Denied';
-    if (
-      lowerCaseError.includes('corrupt') ||
-      lowerCaseError.includes('invalid')
-    )
-      return 'Corrupt/Invalid File';
-    if (lowerCaseError.includes('unsupported')) return 'Unsupported Format';
-    if (lowerCaseError.includes('metadata') || lowerCaseError.includes('exif'))
-      return 'Metadata Extraction Error';
-    if (lowerCaseError.includes('timeout')) return 'Processing Timeout';
-
-    // Default category for uncategorized errors
-    return 'Other Errors';
-  };
-
   const totalProcessed = stats.no_exif + stats.with_exif + stats.skipped;
   const totalUnprocessed = stats.total - totalProcessed;
   const processedPercentage =
@@ -468,11 +448,21 @@ export default function ExifProcessor() {
               Batch Size:
             </Label>
             <Select
-              value={batchSize.toString()}
-              onValueChange={(value) => setBatchSize(Number(value))}
+              value={
+                batchSize === Number.POSITIVE_INFINITY
+                  ? 'Infinity'
+                  : batchSize.toString()
+              }
+              onValueChange={(value) =>
+                setBatchSize(
+                  value === 'Infinity'
+                    ? Number.POSITIVE_INFINITY
+                    : Number(value),
+                )
+              }
               disabled={isStreaming || totalUnprocessed === 0}
             >
-              <SelectTrigger className="text-sm">
+              <SelectTrigger className="text-sm w-full">
                 <SelectValue placeholder="Select batch size" />
               </SelectTrigger>
               <SelectContent>
@@ -481,6 +471,7 @@ export default function ExifProcessor() {
                 <SelectItem value="100">100</SelectItem>
                 <SelectItem value="500">500</SelectItem>
                 <SelectItem value="1000">1000</SelectItem>
+                <SelectItem value="Infinity">All Files</SelectItem>
               </SelectContent>
             </Select>
           </div>

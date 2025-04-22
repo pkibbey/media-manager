@@ -23,6 +23,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { BATCH_SIZE, LARGE_FILE_THRESHOLD } from '@/lib/consts';
+import { categorizeError } from '@/lib/errors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ProcessingTimeEstimator } from './processing-time-estimator';
@@ -111,30 +112,6 @@ export default function ThumbnailGenerator() {
       fetchThumbnailStats();
     }
   }, [isGenerating, fetchThumbnailStats]);
-
-  const categorizeError = (errorMessage: string): string => {
-    const lowerCaseError = errorMessage.toLowerCase();
-
-    if (lowerCaseError.includes('no such file')) return 'File Not Found';
-    if (lowerCaseError.includes('permission denied'))
-      return 'Permission Denied';
-    if (
-      lowerCaseError.includes('corrupt') ||
-      lowerCaseError.includes('invalid')
-    )
-      return 'Corrupt/Invalid File';
-    if (lowerCaseError.includes('timeout')) return 'Processing Timeout';
-    if (
-      lowerCaseError.includes('format') ||
-      lowerCaseError.includes('unsupported')
-    )
-      return 'Unsupported Format';
-    if (lowerCaseError.includes('memory')) return 'Out of Memory';
-    if (lowerCaseError.includes('large file')) return 'File Too Large';
-    if (lowerCaseError.includes('storage')) return 'Storage Error';
-
-    return 'Other Errors';
-  };
 
   const handleGenerateThumbnails = async (processAll = false) => {
     try {
@@ -642,25 +619,34 @@ export default function ThumbnailGenerator() {
         </Label>
       </div>
 
-      <div className="flex space-y-2 gap-2 items-center">
+      <div className="flex flex-col space-y-2 gap-2 items-start">
         <Label htmlFor="batchSize" className="text-sm font-medium mb-0">
           Batch Size:
         </Label>
         <Select
-          value={batchSize.toString()}
-          onValueChange={(value) => setBatchSize(Number(value))}
+          value={
+            batchSize === Number.POSITIVE_INFINITY
+              ? 'Infinity'
+              : batchSize.toString()
+          }
+          onValueChange={(value) =>
+            setBatchSize(
+              value === 'Infinity' ? Number.POSITIVE_INFINITY : Number(value),
+            )
+          }
           disabled={isGenerating}
         >
           <SelectTrigger className="w-full text-sm">
             <SelectValue placeholder="Select batch size" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="10">10</SelectItem>
             <SelectItem value="25">25</SelectItem>
             <SelectItem value="50">50</SelectItem>
             <SelectItem value="100">100</SelectItem>
             <SelectItem value="500">500</SelectItem>
             <SelectItem value="1000">1000</SelectItem>
-            <SelectItem value="5000">5000</SelectItem>
+            <SelectItem value="Infinity">All Files</SelectItem>
           </SelectContent>
         </Select>
       </div>

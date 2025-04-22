@@ -4,17 +4,14 @@ import {
   regenerateMissingThumbnails,
   resetAllThumbnails,
 } from '@/app/actions/thumbnails';
-import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { Button } from '../ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../ui/card';
+} from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +19,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../ui/dialog';
+} from '@/components/ui/dialog';
+import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function ResetThumbnails() {
   const [isLoading, setIsLoading] = useState(false);

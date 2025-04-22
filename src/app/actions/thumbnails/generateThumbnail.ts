@@ -164,7 +164,6 @@ export async function generateThumbnail(
 
     // Upload to Supabase Storage
     const fileName = `${mediaId}_thumb.webp`;
-    console.log('fileName: ', fileName);
 
     try {
       const { error: storageError } = await supabase.storage
@@ -181,17 +180,13 @@ export async function generateThumbnail(
         );
 
         // Mark as error in processing_states table
-        const { error: storageUploadError } = await supabase
-          .from('processing_states')
-          .upsert({
-            media_item_id: mediaId,
-            type: 'thumbnail',
-            status: 'error',
-            processed_at: new Date().toISOString(),
-            error_message: 'Storage upload failed',
-          });
-
-        console.log('storageUploadError: ', storageUploadError);
+        await supabase.from('processing_states').upsert({
+          media_item_id: mediaId,
+          type: 'thumbnail',
+          status: 'error',
+          processed_at: new Date().toISOString(),
+          error_message: 'Storage upload failed',
+        });
 
         return {
           success: false,
@@ -227,14 +222,12 @@ export async function generateThumbnail(
       .getPublicUrl(fileName);
 
     const thumbnailUrl = publicUrlData.publicUrl;
-    console.log('thumbnailUrl: ', thumbnailUrl);
 
     // Update the media_items table with the thumbnail path FIRST
     const { error: updateMediaItemError } = await supabase
       .from('media_items')
       .update({ thumbnail_path: thumbnailUrl })
       .eq('id', mediaId);
-    console.log('updateMediaItemError: ', updateMediaItemError);
 
     if (updateMediaItemError) {
       console.error(
@@ -271,7 +264,6 @@ export async function generateThumbnail(
         // Clear any previous error message on success
         error_message: null,
       });
-    console.log('updateProcessingStateError: ', updateProcessingStateError);
 
     if (updateProcessingStateError) {
       console.error(
@@ -307,7 +299,6 @@ export async function generateThumbnail(
       processed_at: new Date().toISOString(),
       error_message: null,
     });
-    console.log('Thumbnail generation completed successfully.');
 
     return {
       success: true,
