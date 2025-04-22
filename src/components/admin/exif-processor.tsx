@@ -80,7 +80,6 @@ export default function ExifProcessor() {
 
     if (success && exifStats) {
       setStats(exifStats);
-      console.log('exifStats: ', exifStats);
     }
   };
 
@@ -293,11 +292,7 @@ export default function ExifProcessor() {
   };
 
   const totalProcessed = stats.no_exif + stats.with_exif + stats.skipped;
-  console.log('totalProcessed: ', totalProcessed);
   const totalUnprocessed = stats.total - totalProcessed;
-  console.log('totalUnprocessed: ', totalUnprocessed);
-
-  // Calculate processed percentage of processed files for progress bar
   const processedPercentage =
     stats.total > 0 ? (totalProcessed / stats.total) * 100 : 0;
 
@@ -468,7 +463,7 @@ export default function ExifProcessor() {
             </Select>
           </div>
 
-          <div className="flex space-y-2 gap-2 justify-center">
+          <div className="flex flex-col space-y-2 gap-2 items-start">
             <Label htmlFor="batchSize" className="text-sm font-medium mb-0">
               Batch Size:
             </Label>
@@ -477,7 +472,7 @@ export default function ExifProcessor() {
               onValueChange={(value) => setBatchSize(Number(value))}
               disabled={isStreaming || totalUnprocessed === 0}
             >
-              <SelectTrigger className="w-full text-sm">
+              <SelectTrigger className="text-sm">
                 <SelectValue placeholder="Select batch size" />
               </SelectTrigger>
               <SelectContent>

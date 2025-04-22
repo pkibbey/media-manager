@@ -54,10 +54,6 @@ export async function getExifStats(): Promise<{
     const no_exif = errorCount || 0;
     const skipped = skippedCount || 0;
     const total = totalImageCount || 0;
-    console.log('skipped: ', skipped);
-    console.log('no_exif: ', no_exif);
-    console.log('with_exif: ', with_exif);
-    console.log('total: ', total);
 
     return {
       success: true,

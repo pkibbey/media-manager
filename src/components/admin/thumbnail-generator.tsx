@@ -23,7 +23,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { BATCH_SIZE, LARGE_FILE_THRESHOLD } from '@/lib/consts';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ProcessingTimeEstimator } from './processing-time-estimator';
 
@@ -45,6 +45,7 @@ type ThumbnailProgress = {
 
 export default function ThumbnailGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isProcessingAll, setIsProcessingAll] = useState(false);
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(0);
   const [processed, setProcessed] = useState(0);
@@ -68,13 +69,22 @@ export default function ThumbnailGenerator() {
     number | undefined
   >(undefined);
   const [batchSize, setBatchSize] = useState<number>(BATCH_SIZE);
-  const [isBatchComplete, setIsBatchComplete] = useState(false);
+  const [totalProcessed, setTotalProcessed] = useState(0);
+
+  const shouldContinueProcessingRef = useRef(false);
+  const overallProgressRef = useRef({
+    totalProcessed: 0,
+    totalSuccess: 0,
+    totalFailed: 0,
+    totalSkipped: 0,
+  });
 
   useEffect(() => {
     return () => {
       if (abortController) {
         abortController.abort();
       }
+      shouldContinueProcessingRef.current = false;
     };
   }, [abortController]);
 
@@ -126,8 +136,21 @@ export default function ThumbnailGenerator() {
     return 'Other Errors';
   };
 
-  const handleGenerateThumbnails = async () => {
+  const handleGenerateThumbnails = async (processAll = false) => {
     try {
+      setIsProcessingAll(processAll);
+
+      if (processAll) {
+        overallProgressRef.current = {
+          totalProcessed: 0,
+          totalSuccess: 0,
+          totalFailed: 0,
+          totalSkipped: 0,
+        };
+        shouldContinueProcessingRef.current = true;
+        setTotalProcessed(0);
+      }
+
       setIsGenerating(true);
       setProgress(0);
       setProcessed(0);
@@ -136,10 +159,11 @@ export default function ThumbnailGenerator() {
       setFailedCount(0);
       setErrorSummary({});
       setHasError(false);
-      setIsBatchComplete(false);
       setDetailProgress({
         status: 'processing',
-        message: 'Starting thumbnail generation...',
+        message: processAll
+          ? 'Starting thumbnail generation for all files...'
+          : 'Starting thumbnail generation...',
       });
 
       const controller = new AbortController();
@@ -161,6 +185,7 @@ export default function ThumbnailGenerator() {
       if (totalToProcess === 0) {
         toast.success('No thumbnails to generate');
         setIsGenerating(false);
+        setIsProcessingAll(false);
         setAbortController(null);
         setDetailProgress({
           status: 'completed',
@@ -169,15 +194,54 @@ export default function ThumbnailGenerator() {
         return;
       }
 
-      // Determine batch count for the message
-      const currentBatchSize = Math.min(batchSize, totalToProcess);
+      const currentBatchSize = processAll
+        ? batchSize
+        : Math.min(batchSize, totalToProcess);
 
-      toast.success(
-        `Generating thumbnails for ${currentBatchSize} of ${totalToProcess} media items${
-          skipLargeFiles ? ' (skipping large files)' : ''
-        }.`,
-      );
+      const toastMessage = processAll
+        ? `Starting to generate all ${totalToProcess} thumbnails in batches of ${batchSize}`
+        : `Generating thumbnails for ${currentBatchSize} of ${totalToProcess} media items${
+            skipLargeFiles ? ' (skipping large files)' : ''
+          }.`;
 
+      toast.success(toastMessage);
+
+      await processBatch();
+    } catch (error: any) {
+      const errorMessage = error.message || 'An unknown error occurred';
+      toast.error(`Error generating thumbnails: ${errorMessage}`);
+      console.error('Error generating thumbnails:', error);
+      setHasError(true);
+
+      setDetailProgress({
+        status: 'error',
+        message: `Error: ${errorMessage}`,
+        error: errorMessage,
+      });
+
+      const errorType = categorizeError(errorMessage);
+      setErrorSummary((prev) => {
+        const newSummary = { ...prev };
+        if (!newSummary[errorType]) {
+          newSummary[errorType] = { count: 0, examples: [] };
+        }
+        newSummary[errorType].count += 1;
+        if (newSummary[errorType].examples.length < 3) {
+          newSummary[errorType].examples.push('General processing error');
+        }
+        return newSummary;
+      });
+    } finally {
+      if (!isProcessingAll) {
+        setIsGenerating(false);
+        setAbortController(null);
+        fetchThumbnailStats();
+      }
+    }
+  };
+
+  const processBatch = async () => {
+    try {
       const stream = await streamUnprocessedThumbnails({
         skipLargeFiles,
         batchSize,
@@ -190,10 +254,15 @@ export default function ThumbnailGenerator() {
       const reader = stream.getReader();
       const decoder = new TextDecoder();
 
+      let batchProcessed = 0;
+      let batchSuccess = 0;
+      let batchFailed = 0;
+      let batchSkipped = 0;
+      let batchComplete = false;
+
       try {
         while (true) {
-          // Check if the user has aborted the operation
-          if (controller.signal.aborted) {
+          if (abortController?.signal.aborted) {
             reader.cancel('Operation cancelled by user');
             setDetailProgress({
               status: 'error',
@@ -205,19 +274,72 @@ export default function ThumbnailGenerator() {
           const { done, value } = await reader.read();
 
           if (done) {
-            // Stream has completed - either successfully or was aborted
-            setIsGenerating(false);
-            setAbortController(null);
+            batchComplete = true;
 
-            // If we have a completed status in our progress, show success
-            if (detailProgress?.status === 'completed') {
-              const completionMessage = isBatchComplete
-                ? `Batch complete: Generated ${processed} thumbnails`
-                : 'All pending thumbnails have been generated';
-              toast.success(completionMessage);
+            if (isProcessingAll) {
+              overallProgressRef.current.totalProcessed += batchProcessed;
+              overallProgressRef.current.totalSuccess += batchSuccess;
+              overallProgressRef.current.totalFailed += batchFailed;
+              overallProgressRef.current.totalSkipped += batchSkipped;
+              setTotalProcessed(overallProgressRef.current.totalProcessed);
+
+              await fetchThumbnailStats();
+
+              const statsResult = await getThumbnailStats();
+              if (statsResult.success && statsResult.stats) {
+                setThumbnailStats(statsResult.stats);
+
+                const remainingFiles = statsResult.stats.filesPending;
+
+                if (remainingFiles > 0 && shouldContinueProcessingRef.current) {
+                  setDetailProgress({
+                    status: 'processing',
+                    message: `Processed ${overallProgressRef.current.totalProcessed} files so far. Starting next batch...`,
+                  });
+
+                  setProgress(0);
+                  setProcessed(0);
+                  setLargeFilesSkipped(0);
+                  setSuccessCount(0);
+                  setFailedCount(0);
+
+                  setTimeout(() => {
+                    processBatch().catch((error) => {
+                      console.error('Error in batch processing:', error);
+                      setIsGenerating(false);
+                      setIsProcessingAll(false);
+                      setAbortController(null);
+                    });
+                  }, 1000);
+                } else {
+                  const completionMessage = `All processing complete! Generated ${overallProgressRef.current.totalSuccess} thumbnails (${overallProgressRef.current.totalFailed} failed, ${overallProgressRef.current.totalSkipped} skipped)`;
+                  toast.success(completionMessage);
+
+                  setDetailProgress({
+                    status: 'completed',
+                    message: completionMessage,
+                  });
+
+                  setIsGenerating(false);
+                  setIsProcessingAll(false);
+                  setAbortController(null);
+                  shouldContinueProcessingRef.current = false;
+                }
+              } else {
+                setIsGenerating(false);
+                setIsProcessingAll(false);
+                setAbortController(null);
+              }
+            } else {
+              setIsGenerating(false);
+              setAbortController(null);
+
+              if (detailProgress?.status === 'completed') {
+                const completionMessage = `Batch complete: Generated ${batchProcessed} thumbnails`;
+                toast.success(completionMessage);
+              }
             }
 
-            // Refresh stats after completion
             fetchThumbnailStats();
             break;
           }
@@ -255,8 +377,9 @@ export default function ThumbnailGenerator() {
 
               if (data.processed !== undefined) {
                 setProcessed(data.processed);
+                batchProcessed = data.processed;
+
                 if (data.totalItems) {
-                  // For batch processing, calculate progress based on current batch size instead of total
                   const progressPercent = Math.round(
                     (data.processed / Math.min(batchSize, data.totalItems)) *
                       100,
@@ -267,20 +390,29 @@ export default function ThumbnailGenerator() {
 
               if (data.successCount !== undefined) {
                 setSuccessCount(data.successCount);
+                batchSuccess = data.successCount;
               }
 
               if (data.failedCount !== undefined) {
                 setFailedCount(data.failedCount);
+                batchFailed = data.failedCount;
               }
 
               if (data.skippedLargeFiles !== undefined) {
                 setLargeFilesSkipped(data.skippedLargeFiles);
+                batchSkipped = data.skippedLargeFiles;
               }
 
               if (data.currentFilePath || data.currentFileName) {
                 setDetailProgress((prev) => ({
                   ...prev!,
-                  message: data.message || prev?.message,
+                  message: isProcessingAll
+                    ? `Processing batch ${Math.ceil(
+                        (overallProgressRef.current.totalProcessed +
+                          (data.processed || 0)) /
+                          batchSize,
+                      )}: ${data.message || prev?.message}`
+                    : data.message || prev?.message,
                   currentFilePath:
                     data.currentFilePath || prev?.currentFilePath,
                   fileType: data.fileType || prev?.fileType,
@@ -288,7 +420,13 @@ export default function ThumbnailGenerator() {
               } else if (data.message) {
                 setDetailProgress((prev) => ({
                   ...prev!,
-                  message: data.message,
+                  message: isProcessingAll
+                    ? `Processing batch ${Math.ceil(
+                        (overallProgressRef.current.totalProcessed +
+                          (data.processed || 0)) /
+                          batchSize,
+                      )}: ${data.message}`
+                    : data.message,
                 }));
               }
 
@@ -309,35 +447,21 @@ export default function ThumbnailGenerator() {
         throw streamError;
       } finally {
         reader.releaseLock();
+
+        if (!batchComplete) {
+          setIsGenerating(false);
+          setIsProcessingAll(false);
+          setAbortController(null);
+          shouldContinueProcessingRef.current = false;
+        }
       }
-    } catch (error: any) {
-      const errorMessage = error.message || 'An unknown error occurred';
-      toast.error(`Error generating thumbnails: ${errorMessage}`);
-      console.error('Error generating thumbnails:', error);
-      setHasError(true);
-
-      setDetailProgress({
-        status: 'error',
-        message: `Error: ${errorMessage}`,
-        error: errorMessage,
-      });
-
-      const errorType = categorizeError(errorMessage);
-      setErrorSummary((prev) => {
-        const newSummary = { ...prev };
-        if (!newSummary[errorType]) {
-          newSummary[errorType] = { count: 0, examples: [] };
-        }
-        newSummary[errorType].count += 1;
-        if (newSummary[errorType].examples.length < 3) {
-          newSummary[errorType].examples.push('General processing error');
-        }
-        return newSummary;
-      });
-    } finally {
+    } catch (error) {
+      console.error('Error processing batch:', error);
       setIsGenerating(false);
+      setIsProcessingAll(false);
       setAbortController(null);
-      fetchThumbnailStats();
+      shouldContinueProcessingRef.current = false;
+      throw error;
     }
   };
 
@@ -348,11 +472,12 @@ export default function ThumbnailGenerator() {
         duration: 3000,
       });
 
-      // Abort the controller to stop the client-side processing
+      shouldContinueProcessingRef.current = false;
+
       abortController.abort();
 
-      // Update UI immediately
       setIsGenerating(false);
+      setIsProcessingAll(false);
       setAbortController(null);
 
       setDetailProgress({
@@ -360,7 +485,6 @@ export default function ThumbnailGenerator() {
         message: 'Thumbnail generation cancelled by user',
       });
 
-      // Refresh stats after cancellation
       fetchThumbnailStats();
     }
   };
@@ -449,6 +573,9 @@ export default function ThumbnailGenerator() {
             <span className="truncate">{detailProgress?.message}</span>
             <span className="shrink-0">
               {processed} / {Math.min(batchSize, total)} files
+              {isProcessingAll &&
+                totalProcessed > 0 &&
+                ` (${totalProcessed} total)`}
             </span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -538,9 +665,9 @@ export default function ThumbnailGenerator() {
         </Select>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button
-          onClick={handleGenerateThumbnails}
+          onClick={() => handleGenerateThumbnails(false)}
           disabled={
             isGenerating ||
             !thumbnailStats ||
@@ -552,9 +679,28 @@ export default function ThumbnailGenerator() {
             ? 'Loading...'
             : thumbnailStats.filesPending === 0 && !isGenerating
               ? 'All Thumbnails Generated'
-              : isGenerating
+              : isGenerating && !isProcessingAll
                 ? 'Generating...'
                 : `Generate ${Math.min(batchSize, thumbnailStats?.filesPending || 0)} Thumbnails`}
+        </Button>
+
+        <Button
+          onClick={() => handleGenerateThumbnails(true)}
+          disabled={
+            isGenerating ||
+            !thumbnailStats ||
+            (thumbnailStats && thumbnailStats.filesPending === 0) ||
+            false
+          }
+          variant="secondary"
+        >
+          {!thumbnailStats
+            ? 'Loading...'
+            : thumbnailStats.filesPending === 0
+              ? 'All Thumbnails Generated'
+              : isGenerating && isProcessingAll
+                ? 'Processing All...'
+                : `Process All (${thumbnailStats?.filesPending || 0} Remaining)`}
         </Button>
 
         {isGenerating && (

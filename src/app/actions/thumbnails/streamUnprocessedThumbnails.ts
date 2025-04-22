@@ -193,6 +193,16 @@ export async function streamUnprocessedThumbnails({
           processedCount++;
           failedCount++;
 
+          // Add this code to update the processing state
+          await supabase.from('processing_states').upsert({
+            media_item_id: media.id,
+            type: 'thumbnail',
+            status: 'error',
+            processed_at: new Date().toISOString(),
+            error_message:
+              error.message || 'Unknown error during thumbnail generation',
+          });
+
           // Send error update
           await sendProgress(writer, {
             status: 'processing',
