@@ -1,9 +1,11 @@
 'use client';
 
 import { addScanFolder } from '@/app/actions/scan-folders';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function AddFolderForm() {
+  const router = useRouter();
   const [folderPath, setFolderPath] = useState('');
   const [includeSubfolders, setIncludeSubfolders] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,6 +30,7 @@ export default function AddFolderForm() {
       setError(error.message || 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
+      router.refresh();
     }
   };
 

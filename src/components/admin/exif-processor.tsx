@@ -186,7 +186,8 @@ export default function ExifProcessor() {
                   }
 
                   if (data.status === 'completed') {
-                    const processedCount = progress?.filesProcessed || 0;
+                    // Use the count from the current data event rather than the stale progress state
+                    const processedCount = data.filesProcessed || 0;
                     toast.success(
                       `Batch complete: ${processedCount} files processed`,
                     );
@@ -204,8 +205,8 @@ export default function ExifProcessor() {
                     setProgress((progress) => ({
                       ...progress,
                       status: 'completed',
-                      message: 'Comleted EXIF processing...',
-                      failedCount: (progress?.successCount || 0) + 1,
+                      message: 'Completed EXIF processing...',
+                      failedCount: (progress?.failedCount || 0) + 1,
                       method: extractionMethod,
                     }));
 

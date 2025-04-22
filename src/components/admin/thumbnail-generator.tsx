@@ -3,19 +3,26 @@
 import {
   countMissingThumbnails,
   getThumbnailStats,
-  streamProcessMissingThumbnails,
+  streamUnprocessedThumbnails,
 } from '@/app/actions/thumbnails';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
+import { BATCH_SIZE, LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ProcessingTimeEstimator } from './processing-time-estimator';
@@ -60,6 +67,8 @@ export default function ThumbnailGenerator() {
   const [processingStartTime, setProcessingStartTime] = useState<
     number | undefined
   >(undefined);
+  const [batchSize, setBatchSize] = useState<number>(BATCH_SIZE);
+  const [isBatchComplete, setIsBatchComplete] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -127,6 +136,7 @@ export default function ThumbnailGenerator() {
       setFailedCount(0);
       setErrorSummary({});
       setHasError(false);
+      setIsBatchComplete(false);
       setDetailProgress({
         status: 'processing',
         message: 'Starting thumbnail generation...',
@@ -159,14 +169,18 @@ export default function ThumbnailGenerator() {
         return;
       }
 
+      // Determine batch count for the message
+      const currentBatchSize = Math.min(batchSize, totalToProcess);
+
       toast.success(
-        `Generating thumbnails for ${totalToProcess} media items${
+        `Generating thumbnails for ${currentBatchSize} of ${totalToProcess} media items${
           skipLargeFiles ? ' (skipping large files)' : ''
         }.`,
       );
 
-      const stream = await streamProcessMissingThumbnails({
+      const stream = await streamUnprocessedThumbnails({
         skipLargeFiles,
+        batchSize,
       });
 
       if (!stream) {
@@ -197,7 +211,10 @@ export default function ThumbnailGenerator() {
 
             // If we have a completed status in our progress, show success
             if (detailProgress?.status === 'completed') {
-              toast.success('Thumbnail generation completed successfully');
+              const completionMessage = isBatchComplete
+                ? `Batch complete: Generated ${processed} thumbnails`
+                : 'All pending thumbnails have been generated';
+              toast.success(completionMessage);
             }
 
             // Refresh stats after completion
@@ -239,8 +256,10 @@ export default function ThumbnailGenerator() {
               if (data.processed !== undefined) {
                 setProcessed(data.processed);
                 if (data.totalItems) {
+                  // For batch processing, calculate progress based on current batch size instead of total
                   const progressPercent = Math.round(
-                    (data.processed / data.totalItems) * 100,
+                    (data.processed / Math.min(batchSize, data.totalItems)) *
+                      100,
                   );
                   setProgress(progressPercent);
                 }
@@ -429,7 +448,7 @@ export default function ThumbnailGenerator() {
           <div className="flex justify-between text-sm gap-4">
             <span className="truncate">{detailProgress?.message}</span>
             <span className="shrink-0">
-              {processed} / {total} files
+              {processed} / {Math.min(batchSize, total)} files
             </span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -442,7 +461,7 @@ export default function ThumbnailGenerator() {
           <ProcessingTimeEstimator
             isProcessing={isGenerating}
             processed={processed}
-            remaining={total - processed}
+            remaining={Math.min(batchSize, total) - processed}
             startTime={processingStartTime}
             rateUnit="thumbnails/sec"
           />
@@ -496,6 +515,29 @@ export default function ThumbnailGenerator() {
         </Label>
       </div>
 
+      <div className="flex space-y-2 gap-2 items-center">
+        <Label htmlFor="batchSize" className="text-sm font-medium mb-0">
+          Batch Size:
+        </Label>
+        <Select
+          value={batchSize.toString()}
+          onValueChange={(value) => setBatchSize(Number(value))}
+          disabled={isGenerating}
+        >
+          <SelectTrigger className="w-full text-sm">
+            <SelectValue placeholder="Select batch size" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="25">25</SelectItem>
+            <SelectItem value="50">50</SelectItem>
+            <SelectItem value="100">100</SelectItem>
+            <SelectItem value="500">500</SelectItem>
+            <SelectItem value="1000">1000</SelectItem>
+            <SelectItem value="5000">5000</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex gap-2">
         <Button
           onClick={handleGenerateThumbnails}
@@ -512,7 +554,7 @@ export default function ThumbnailGenerator() {
               ? 'All Thumbnails Generated'
               : isGenerating
                 ? 'Generating...'
-                : 'Generate Thumbnails'}
+                : `Generate ${Math.min(batchSize, thumbnailStats?.filesPending || 0)} Thumbnails`}
         </Button>
 
         {isGenerating && (

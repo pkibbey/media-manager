@@ -6,8 +6,8 @@ import { LARGE_FILE_THRESHOLD, THUMBNAIL_SIZE } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
 import type {
-  ThumbnailOptions,
-  ThumbnailResult,
+  ThumbnailGenerationOptions,
+  ThumbnailGenerationResponse,
 } from '@/types/thumbnail-types';
 import sharp from 'sharp';
 import { convertHeicToJpeg } from './convertHeicToJpeg';
@@ -17,9 +17,9 @@ import { convertHeicToJpeg } from './convertHeicToJpeg';
  */
 export async function generateThumbnail(
   mediaId: string,
-  options: ThumbnailOptions = {},
+  options: ThumbnailGenerationOptions = {},
 ): Promise<
-  ThumbnailResult & {
+  ThumbnailGenerationResponse & {
     thumbnailUrl?: string;
     skipped?: boolean;
     skippedReason?: string;
@@ -35,8 +35,9 @@ export async function generateThumbnail(
     // Get the media item details
     const { data: mediaItem, error } = await supabase
       .from('media_items')
-      .select('*')
+      .select('*, file_types!inner(*)')
       .eq('id', mediaId)
+      .eq('file_types.category', 'image')
       .single();
 
     if (error || !mediaItem) {
@@ -44,7 +45,6 @@ export async function generateThumbnail(
       return {
         success: false,
         message: `Failed to fetch media item: ${error?.message || 'Not found'}`,
-        filePath: mediaId, // At least return the media ID for error tracking
       };
     }
 
@@ -68,7 +68,6 @@ export async function generateThumbnail(
       return {
         success: false,
         message: `File not found: ${mediaItem.file_path}`,
-        filePath: mediaItem.file_path,
       };
     }
 
@@ -92,7 +91,6 @@ export async function generateThumbnail(
             skipped: true,
             skippedReason: 'large_file',
             message: `Skipped large file (over ${LARGE_FILE_THRESHOLD / (1024 * 1024)}MB): ${mediaItem.file_name}`,
-            filePath: mediaItem.file_path,
             fileName: mediaItem.file_name,
           };
         }
@@ -101,57 +99,14 @@ export async function generateThumbnail(
           `[Thumbnail] Error checking file size for ${mediaItem.file_path}:`,
           statError,
         );
-        // Continue with processing if we can't get the file stats
       }
-    }
-
-    // Only process images for now
-    const extension = path
-      .extname(mediaItem.file_path)
-      .substring(1)
-      .toLowerCase();
-
-    const supportedImageFormats = [
-      'jpg',
-      'jpeg',
-      'png',
-      'webp',
-      'gif',
-      'tiff',
-      'tif',
-      'heic',
-      'avif',
-      'bmp',
-    ];
-
-    if (!supportedImageFormats.includes(extension)) {
-      // Mark as unsupported in processing_states table
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'thumbnail',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message: `Unsupported format: ${extension}`,
-      });
-
-      return {
-        success: false,
-        message: `File type not supported for thumbnails: ${extension}`,
-        filePath: mediaItem.file_path,
-        fileName: mediaItem.file_name,
-        fileType: extension,
-      };
     }
 
     let thumbnailBuffer: Buffer;
 
     try {
-      if (extension === 'heic') {
-        // Special handling for HEIC images using our new multi-method approach
-        console.error(
-          `[Thumbnail] Processing HEIC image: ${mediaItem.file_path}`,
-        );
-
+      // Special handling for HEIC images using our new multi-method approach
+      if (mediaItem.file_types?.extension === 'heic') {
         // Create a temporary file path for the converted JPEG
         const tempDir = path.dirname(mediaItem.file_path);
         const tempFileName = `${path.basename(mediaItem.file_path, '.heic')}_temp.jpg`;
@@ -203,7 +158,6 @@ export async function generateThumbnail(
       return {
         success: false,
         message: `Error generating thumbnail: ${errorMessage}`,
-        filePath: mediaItem.file_path,
         fileName: mediaItem.file_name,
       };
     }
@@ -237,7 +191,6 @@ export async function generateThumbnail(
         return {
           success: false,
           message: `Failed to upload thumbnail: ${storageError.message}`,
-          filePath: mediaItem.file_path,
           fileName: mediaItem.file_name,
         };
       }
@@ -259,7 +212,6 @@ export async function generateThumbnail(
       return {
         success: false,
         message: `Exception during upload: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`,
-        filePath: mediaItem.file_path,
         fileName: mediaItem.file_name,
       };
     }
@@ -297,7 +249,6 @@ export async function generateThumbnail(
       return {
         success: false,
         message: `Failed to update media item record: ${updateMediaItemError.message}`,
-        filePath: mediaItem.file_path,
         fileName: mediaItem.file_name,
       };
     }
@@ -336,9 +287,7 @@ export async function generateThumbnail(
         success: true, // Thumbnail is generated and linked
         message: 'Thumbnail generated, but failed to update processing state.',
         thumbnailUrl,
-        filePath: mediaItem.file_path,
         fileName: mediaItem.file_name,
-        fileType: extension,
       };
     }
 
@@ -346,9 +295,7 @@ export async function generateThumbnail(
       success: true,
       message: 'Thumbnail generated and stored successfully',
       thumbnailUrl,
-      filePath: mediaItem.file_path,
       fileName: mediaItem.file_name,
-      fileType: extension,
     };
   } catch (error: any) {
     console.error('[Thumbnail] Error generating thumbnail:', error);
@@ -372,7 +319,6 @@ export async function generateThumbnail(
     return {
       success: false,
       message: `Error generating thumbnail: ${error.message}`,
-      filePath: '',
     };
   }
 }

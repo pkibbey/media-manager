@@ -144,7 +144,7 @@ export async function updateMediaDatesFromFilenames({
       }
     }
 
-    // No need for Promise.allSettled or processing results afterwards
+    revalidatePath('/admin');
 
     return {
       success: true, // The overall batch operation succeeded in running
@@ -162,9 +162,5 @@ export async function updateMediaDatesFromFilenames({
       updated: 0,
       failedExtraction: 0, // Ensure failed count is 0 on catch
     };
-  } finally {
-    // Revalidate paths after all operations
-    revalidatePath('/browse');
-    revalidatePath('/admin');
   }
 }

@@ -1,47 +1,55 @@
 /**
  * Options for thumbnail generation
  */
-export interface ThumbnailGenerationOptions {
+export type ThumbnailGenerationOptions = {
   /**
-   * Skip files larger than the large file threshold
+   * Whether to skip large files over the threshold
+   * Large files can take a long time to process and may cause timeouts
    */
   skipLargeFiles?: boolean;
 
   /**
-   * Optional abort token to cancel the operation
+   * Maximum number of thumbnails to generate in a single batch
+   * Default is 100
+   */
+  batchSize?: number;
+
+  /**
+   * Token to abort the thumbnail generation operation
    */
   abortToken?: string;
-}
+};
 
 /**
- * Result of a thumbnail generation operation
+ * Response from thumbnail generation operations
  */
-export interface ThumbnailGenerationResult {
-  /**
-   * Whether the operation was successful
-   */
+export type ThumbnailGenerationResponse = {
   success: boolean;
-
-  /**
-   * Message describing the result
-   */
   message: string;
-
-  /**
-   * Path to the generated thumbnail
-   */
-  thumbnailPath?: string;
-
-  /**
-   * Whether the file was skipped (e.g., too large)
-   */
+  filePath?: string;
+  fileName?: string;
+  fileType?: string;
   skipped?: boolean;
-
-  /**
-   * Error message if the operation failed
-   */
   error?: string;
-}
+};
+
+/**
+ * Type for tracking progress during thumbnail generation
+ */
+export type ThumbnailProgress = {
+  status: 'processing' | 'completed' | 'error';
+  message: string;
+  totalItems?: number;
+  processed?: number;
+  successCount?: number;
+  failedCount?: number;
+  skippedLargeFiles?: number;
+  currentFilePath?: string;
+  currentFileName?: string;
+  fileType?: string;
+  error?: string;
+  isBatchComplete?: boolean;
+};
 
 /**
  * Statistics about thumbnail generation

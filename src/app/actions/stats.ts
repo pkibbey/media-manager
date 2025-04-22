@@ -17,7 +17,7 @@ export async function getMediaStats(): Promise<{
     // Get total count of non-ignored media items
     const { count: totalCount, error: countError } = await supabase
       .from('media_items')
-      .select('*, file_types(*)', { count: 'exact', head: true });
+      .select('*, file_types!inner(*)', { count: 'exact', head: true });
 
     if (countError) {
       console.error('GET: Error counting media items:', countError);
@@ -176,11 +176,11 @@ export async function clearAllMediaItems(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Delete all media items
+    // Change all exif data to
     const { error: deleteError, count } = await supabase
-      .from('media_items')
+      .from('processing_states')
       .delete()
-      .filter('id', 'not.is', null); // Select all non-null IDs (all rows)
+      .eq('type', 'exif');
 
     if (deleteError) {
       console.error('Error deleting media items:', deleteError);
@@ -252,8 +252,7 @@ export async function resetEverything(): Promise<{
       return { success: false, error: deleteFileTypesError.message };
     }
 
-    // Revalidate paths after all operations
-    await revalidatePath('/admin');
+    revalidatePath('/admin');
 
     return {
       success: true,
@@ -263,7 +262,5 @@ export async function resetEverything(): Promise<{
     console.error('Error resetting media items:', error);
 
     return { success: false, error: error.message };
-  } finally {
-    // Revalidate paths after all operations
   }
 }

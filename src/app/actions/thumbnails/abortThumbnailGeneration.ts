@@ -5,7 +5,7 @@
  *
  * This is now a placeholder function since we handle cancellation
  * directly through AbortController on the client side.
- * The streamProcessMissingThumbnails function now detects when the client
+ * The streamUnprocessedThumbnails function now detects when the client
  * cancels the stream and terminates processing.
  */
 export async function abortThumbnailGeneration(): Promise<{

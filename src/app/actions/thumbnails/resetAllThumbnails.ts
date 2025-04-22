@@ -6,7 +6,6 @@ import { createServerSupabaseClient } from '@/lib/supabase';
  * Reset all thumbnails by:
  * 1. Clearing the thumbnail_path in the media_items table.
  * 2. Clearing any thumbnail processing states.
- * 3. The storage files will be cleaned up later when new thumbnails are generated.
  */
 export async function resetAllThumbnails(): Promise<{
   success: boolean;
@@ -15,11 +14,25 @@ export async function resetAllThumbnails(): Promise<{
   const supabase = createServerSupabaseClient();
 
   try {
-    // Call the database function to reset all thumbnails in a single operation
-    const { error } = await supabase.rpc('reset_all_thumbnails');
+    // 1. Call the database function to reset all thumbnails in a single operation
+    const { error } = await supabase.from('media_items').update({
+      thumbnail_path: null,
+    });
 
     if (error) {
       throw new Error(`Failed to reset thumbnails: ${error.message}`);
+    }
+
+    // 2. Clear processing states related to thumbnails
+    const { error: processingStatesError } = await supabase
+      .from('processing_states')
+      .delete()
+      .eq('type', 'thumbnail');
+
+    if (processingStatesError) {
+      throw new Error(
+        `Failed to clear processing states: ${processingStatesError.message}`,
+      );
     }
 
     return {

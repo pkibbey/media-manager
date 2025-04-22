@@ -18,3 +18,5 @@
 -- check that all the descrutive admin actions only remove the content they are supposed to
 
 -- remove all rpc functions, except for counting stats
+
+-- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder
