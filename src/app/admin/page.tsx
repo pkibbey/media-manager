@@ -4,6 +4,7 @@ import FileTypeManager from '@/components/admin/file-type-manager';
 import FolderList from '@/components/admin/folder-list';
 import MediaStats from '@/components/admin/media-stats';
 import PersistentTabs from '@/components/admin/persistent-tabs';
+import ResetEverything from '@/components/admin/reset-everything';
 import ResetMedia from '@/components/admin/reset-media';
 import ResetScan from '@/components/admin/reset-scan';
 import ResetThumbnails from '@/components/admin/reset-thumbnails';
@@ -27,11 +28,14 @@ export default async function AdminPage() {
       value: 'folders',
       label: 'Folders',
       content: (
-        <div className="border-t pt-6 grid items-start gap-6">
-          <AddFolderForm />
-          <Suspense fallback={<div>Loading folders...</div>}>
-            <FolderList />
-          </Suspense>
+        <div className="border-t pt-6 grid md:grid-cols-2 lg:grid-cols-[2fr_1fr] items-start gap-6">
+          <div className="space-y-6">
+            <AddFolderForm />
+            <Suspense fallback={<div>Loading folders...</div>}>
+              <FolderList />
+            </Suspense>
+          </div>
+          <ResetEverything />
         </div>
       ),
     },

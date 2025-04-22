@@ -20,3 +20,8 @@ export type ScanFolder = Database['public']['Tables']['scan_folders']['Row'];
  */
 export type ProcessingState =
   Database['public']['Tables']['processing_states']['Row'];
+
+export type ExifStatsResult = Omit<
+  Database['public']['Functions']['get_exif_statistics']['Returns'][0],
+  'unprocessed'
+>;

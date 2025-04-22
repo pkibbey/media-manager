@@ -116,13 +116,13 @@ BEGIN
       )
     ) AS with_exif,
     
-    -- Count media items processed but no EXIF found (skipped or unsupported)
+    -- Count media items processed but no EXIF found (skipped, unsupported, or error)
     COUNT(DISTINCT mi.id) FILTER (
       WHERE EXISTS (
         SELECT 1 FROM processing_states ps
         WHERE ps.media_item_id = mi.id
         AND ps.type = 'exif'
-        AND ps.status IN ('skipped', 'unsupported')
+        AND ps.status IN ('skipped', 'unsupported', 'error')
       )
     ) AS processed_no_exif,
     

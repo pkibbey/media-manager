@@ -1,6 +1,6 @@
 'use client';
 
-import { clearAllMediaItems } from '@/app/actions/stats';
+import { resetEverything } from '@/app/actions/stats';
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -21,22 +21,22 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 
-export default function ResetScan() {
+export default function ResetEverything() {
   const [isLoading, setIsLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleResetScan = async () => {
+  const handleReset = async () => {
     try {
       setIsLoading(true);
 
       // Use the direct server action instead of fetch
-      const result = await clearAllMediaItems();
+      const result = await resetEverything();
 
       if (result.success) {
         toast.success(result.message);
         setDialogOpen(false);
       } else {
-        toast.error(result.error || 'Failed to reset Scan');
+        toast.error(result.error || 'Failed to reset Everything');
       }
     } catch (error) {
       toast.error(
@@ -52,11 +52,12 @@ export default function ResetScan() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Reset Scan</CardTitle>
+          <CardTitle>Reset Everything</CardTitle>
           <CardDescription>
-            This will delete all media items and file types from the database.
-            Scan folders configuration will be preserved. You'll need to scan
-            your folders again to rebuild the database.
+            Reset the media database. This will delete all media items and file
+            types from the database. Your scan folder configuration will be
+            preserved, but you'll need to scan your folders again to rebuild the
+            database.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -71,7 +72,7 @@ export default function ResetScan() {
                 Resetting...
               </>
             ) : (
-              'Reset Scan'
+              'Reset Everything'
             )}
           </Button>
         </CardContent>
@@ -80,12 +81,11 @@ export default function ResetScan() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reset Scan</DialogTitle>
+            <DialogTitle>Reset Everything</DialogTitle>
             <DialogDescription>
               This action will delete all media items and file types from the
               database. Your scan folder configuration will be preserved, but
               you'll need to scan your folders again to rebuild the database.
-              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -98,7 +98,7 @@ export default function ResetScan() {
             </Button>
             <Button
               variant="destructive"
-              onClick={handleResetScan}
+              onClick={handleReset}
               disabled={isLoading}
             >
               {isLoading ? 'Resetting...' : 'Yes, Reset Database'}

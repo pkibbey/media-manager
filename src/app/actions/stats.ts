@@ -1,5 +1,4 @@
 'use server';
-import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { MediaStats } from '@/types/media-types';
 import { revalidatePath } from 'next/cache';
@@ -15,18 +14,10 @@ export async function getMediaStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get ignored file type IDs for consistent filtering
-    const ignoredIds = await getIgnoredFileTypeIds();
-
-    // Generate the NOT IN filter expression for ignored IDs
-    const ignoreFilterExpr =
-      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '()';
-
     // Get total count of non-ignored media items
     const { count: totalCount, error: countError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact' })
-      .not('file_type_id', 'in', ignoreFilterExpr);
+      .select('*, file_types(*)', { count: 'exact', head: true });
 
     if (countError) {
       console.error('GET: Error counting media items:', countError);
@@ -46,7 +37,7 @@ export async function getMediaStats(): Promise<{
     // Get count of processed items (with exif_data)
     const { count: successfulExifCount, error: processedError } = await supabase
       .from('processing_states')
-      .select('media_item_id', { count: 'exact' })
+      .select('media_item_id', { count: 'exact', head: true })
       .eq('type', 'exif')
       .eq('status', 'success');
 
@@ -59,7 +50,7 @@ export async function getMediaStats(): Promise<{
     const { count: processedNoExifCount, error: processedNoExifError } =
       await supabase
         .from('processing_states')
-        .select('media_item_id', { count: 'exact' })
+        .select('media_item_id', { count: 'exact', head: true })
         .eq('type', 'exif')
         .in('status', ['skipped', 'unsupported']);
 
@@ -96,9 +87,9 @@ export async function getMediaStats(): Promise<{
     const { count: needsTimestampCorrectionCount, error: timestampError } =
       await supabase
         .from('media_items')
-        .select('id', { count: 'exact' })
+        .select('id', { count: 'exact', head: true })
         .is('media_date', null)
-        .not('file_type_id', 'in', ignoreFilterExpr)
+        // .not('file_type_id', 'in', ignoreFilterExpr)
         // Exclude items that have already failed timestamp correction
         .not('id', 'in', failedTimestampCorrectionIdsExpr);
 
@@ -113,8 +104,8 @@ export async function getMediaStats(): Promise<{
     // Get count of ignored files
     const { count: ignoredCount, error: ignoredError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact' })
-      .not('file_type_id', 'in', ignoreFilterExpr);
+      .select('*', { count: 'exact', head: true });
+    // .not('file_type_id', 'in', ignoreFilterExpr);
 
     if (ignoredError) {
       console.error('Error counting ignored items:', ignoredError);
@@ -185,18 +176,8 @@ export async function clearAllMediaItems(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get total count for confirmation message
-    const { count, error: countError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact' });
-
-    if (countError) {
-      console.error('CLEAR: Error counting media items:', countError);
-      return { success: false, error: countError.message };
-    }
-
     // Delete all media items
-    const { error: deleteError } = await supabase
+    const { error: deleteError, count } = await supabase
       .from('media_items')
       .delete()
       .filter('id', 'not.is', null); // Select all non-null IDs (all rows)
@@ -220,7 +201,7 @@ export async function clearAllMediaItems(): Promise<{
  * Reset the processing state of all media items
  * This will mark all items as unprocessed so they can be re-processed
  */
-export async function resetAllMediaItems(): Promise<{
+export async function resetEverything(): Promise<{
   success: boolean;
   message?: string;
   error?: string;
@@ -231,25 +212,22 @@ export async function resetAllMediaItems(): Promise<{
     // Get total count for confirmation message
     const { count, error: countError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact' });
+      .select('*', { count: 'exact', head: true });
 
     if (countError) {
       console.error('RESET: Error counting media items:', countError);
       return { success: false, error: countError.message };
     }
 
-    // First, clear the exif_data and media_date fields in media_items
-    const { error: updateMediaError } = await supabase
+    // First, delete all media items
+    const { error: deleteMediaError } = await supabase
       .from('media_items')
-      .update({
-        exif_data: null,
-        media_date: null,
-      })
+      .delete()
       .filter('id', 'not.is', null);
 
-    if (updateMediaError) {
-      console.error('Error updating media items:', updateMediaError);
-      return { success: false, error: updateMediaError.message };
+    if (deleteMediaError) {
+      console.error('Error updating media items:', deleteMediaError);
+      return { success: false, error: deleteMediaError.message };
     }
 
     // Then reset all processing states to pending/outdated
@@ -263,16 +241,29 @@ export async function resetAllMediaItems(): Promise<{
       return { success: false, error: deleteError.message };
     }
 
+    // Then delete all file types
+    const { error: deleteFileTypesError } = await supabase
+      .from('file_types')
+      .delete()
+      .neq('id', 0); // Delete all file types
+
+    if (deleteFileTypesError) {
+      console.error('Error deleting file types:', deleteFileTypesError);
+      return { success: false, error: deleteFileTypesError.message };
+    }
+
+    // Revalidate paths after all operations
+    await revalidatePath('/admin');
+
     return {
       success: true,
       message: `Successfully reset ${count} media items to unprocessed state.`,
     };
   } catch (error: any) {
     console.error('Error resetting media items:', error);
+
     return { success: false, error: error.message };
   } finally {
     // Revalidate paths after all operations
-    revalidatePath('/browse');
-    revalidatePath('/admin');
   }
 }

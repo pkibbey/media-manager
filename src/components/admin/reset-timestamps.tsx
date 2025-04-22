@@ -1,6 +1,4 @@
 'use client';
-
-import { resetAllMediaItems } from '@/app/actions/stats';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -37,7 +35,7 @@ export default function ResetTimestamps() {
 
     try {
       // We can reuse the same resetAllMediaItems function or create a more specific one if needed
-      const result = await resetAllMediaItems();
+      // const result = await resetAllMediaItems();
       setResult(result);
 
       if (result.success) {

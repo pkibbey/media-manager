@@ -22,7 +22,7 @@ export async function getThumbnailStats(): Promise<{
     // Get total count of all files
     const { count: totalCount, error: totalError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact' });
+      .select('*', { count: 'exact', head: true });
 
     if (totalError) {
       throw new Error(`Failed to get total file count: ${totalError.message}`);
@@ -32,7 +32,7 @@ export async function getThumbnailStats(): Promise<{
     const { count: withThumbnailsCount, error: withThumbnailsError } =
       await supabase
         .from('processing_states')
-        .select('*', { count: 'exact' })
+        .select('*', { count: 'exact', head: true })
         .eq('type', 'thumbnail')
         .eq('status', 'success');
 
@@ -46,7 +46,7 @@ export async function getThumbnailStats(): Promise<{
     const { count: skippedLargeFilesCount, error: skippedLargeFilesError } =
       await supabase
         .from('processing_states')
-        .select('*', { count: 'exact' })
+        .select('*', { count: 'exact', head: true })
         .eq('type', 'thumbnail')
         .eq('status', 'skipped');
 
@@ -60,7 +60,7 @@ export async function getThumbnailStats(): Promise<{
     const { count: filesSkippedCount, error: filesSkippedError } =
       await supabase
         .from('processing_states')
-        .select('*', { count: 'exact' })
+        .select('*', { count: 'exact', head: true })
         .eq('type', 'thumbnail')
         .eq('status', 'unsupported');
 

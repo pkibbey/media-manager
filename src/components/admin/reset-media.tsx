@@ -1,6 +1,6 @@
 'use client';
 
-import { resetAllMediaItems } from '@/app/actions/stats';
+import { clearAllMediaItems } from '@/app/actions/stats';
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -30,7 +30,7 @@ export function ResetMedia() {
     setShowConfirmDialog(false);
 
     try {
-      const result = await resetAllMediaItems();
+      const result = await clearAllMediaItems();
 
       if (result.success) {
         toast.success(result.message);
@@ -92,7 +92,7 @@ export function ResetMedia() {
             </Button>
             <Button
               variant="destructive"
-              onClick={handleReset}
+              onClick={async () => await handleReset()}
               disabled={isResetting}
             >
               {isResetting ? 'Resetting...' : 'Yes, Reset All Items'}

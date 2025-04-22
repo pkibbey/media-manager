@@ -208,6 +208,13 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      count_compatible_media_items: {
+        Args: { compatible_extensions?: string[] };
+        Returns: {
+          total_count: number;
+          by_extension: Json;
+        }[];
+      };
       count_folder_media: {
         Args: { target_folder: string; include_subfolders: boolean };
         Returns: {

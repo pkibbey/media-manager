@@ -44,7 +44,7 @@ export async function countMissingThumbnails(): Promise<{
     // First, get a count of all supported images
     const { count: totalImageCount, error: countError } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact', head: true })
       .in('file_type_id', supportedImageIds);
 
     if (countError) {
@@ -54,7 +54,7 @@ export async function countMissingThumbnails(): Promise<{
     // Second, get a count of the processed thumbnails
     const { count: processedCount, error: processedError } = await supabase
       .from('processing_states')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact', head: true })
       .eq('type', 'thumbnail')
       .in('status', ['success', 'skipped']);
 

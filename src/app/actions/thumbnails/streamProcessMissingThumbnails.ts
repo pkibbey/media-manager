@@ -26,9 +26,7 @@ export async function streamProcessMissingThumbnails(
     } catch (error) {
       console.error('[StreamThumbnails] Error writing to stream:', error);
       try {
-        if (!writer.closed) {
-          await writer.close();
-        }
+        await writer.close();
       } catch (closeError) {
         console.error(
           '[StreamThumbnails] Error closing stream after write error:',
@@ -113,7 +111,7 @@ export async function streamProcessMissingThumbnails(
             message: `Error fetching candidate media items batch: ${candidateError.message}`,
             error: candidateError.message,
           });
-          if (!writer.closed) await writer.close();
+          await writer.close();
           return;
         }
 
@@ -259,9 +257,7 @@ export async function streamProcessMissingThumbnails(
         skippedLargeFiles,
       });
 
-      if (!writer.closed) {
-        await writer.close();
-      }
+      await writer.close();
     } catch (error: any) {
       console.error(
         '[StreamThumbnails] UNHANDLED EXCEPTION in processAllMissingThumbnails:',
@@ -273,9 +269,7 @@ export async function streamProcessMissingThumbnails(
           message: `Unhandled exception during thumbnail processing: ${error.message}`,
           error: error.message,
         });
-        if (!writer.closed) {
-          await writer.close();
-        }
+        await writer.close();
       } catch (writeError) {
         console.error(
           '[StreamThumbnails] Failed to send final error progress or close stream:',

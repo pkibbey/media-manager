@@ -146,7 +146,7 @@ export async function getMissingFileTypeIdCount(): Promise<{
 
     const { count, error } = await supabase
       .from('media_items')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact', head: true })
       .is('file_type_id', null);
 
     if (error) {

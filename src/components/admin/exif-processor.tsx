@@ -21,21 +21,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { BATCH_SIZE } from '@/lib/consts';
+import type { ExifStatsResult } from '@/types/db-types';
 import type { ExtractionMethod } from '@/types/exif';
 import type { ExifProgress } from '@/types/exif';
 import { InfoCircledIcon } from '@radix-ui/react-icons';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ProcessingTimeEstimator } from './processing-time-estimator';
-
-type EnhancedExifStats = {
-  with_exif: number;
-  processed_no_exif: number;
-  total_processed: number;
-  unprocessed: number;
-  total: number;
-};
 
 // Type for tracking error frequencies
 type ErrorSummary = {
@@ -46,13 +38,14 @@ type ErrorSummary = {
 };
 
 export default function ExifProcessor() {
-  const [stats, setStats] = useState<EnhancedExifStats>({
+  const [stats, setStats] = useState<ExifStatsResult>({
     with_exif: 0,
     processed_no_exif: 0,
-    total_processed: 0,
-    unprocessed: 0,
-    total: 0,
+    total_compatible: 0,
   });
+  const unprocessed =
+    stats.total_compatible - stats.with_exif - stats.processed_no_exif;
+
   const [isStreaming, setIsStreaming] = useState(false);
   const [progress, setProgress] = useState<ExifProgress | null>(null);
   const [hasError, setHasError] = useState(false);
@@ -62,7 +55,7 @@ export default function ExifProcessor() {
     useState<AbortController | null>(null);
   const [extractionMethod, setExtractionMethod] =
     useState<ExtractionMethod>('default');
-  const [batchSize, setBatchSize] = useState<number>(BATCH_SIZE); // Add batch size state
+  const [batchSize, setBatchSize] = useState<number>(1); // Add batch size state
   const [processingStartTime, setProcessingStartTime] = useState<
     number | undefined
   >(undefined);
@@ -82,10 +75,11 @@ export default function ExifProcessor() {
   }, [abortController]);
 
   const fetchStats = async () => {
-    const { success, stats: exifStats } = await getExifStats();
+    const response = await getExifStats();
+    const { success, stats: exifStats } = response;
 
     if (success && exifStats) {
-      setStats(exifStats as EnhancedExifStats);
+      setStats(exifStats);
     }
   };
 
@@ -97,7 +91,7 @@ export default function ExifProcessor() {
       setProcessingStartTime(Date.now()); // Set the start time for estimation
       setProgress({
         status: 'started',
-        message: 'Starting EXIF processing...',
+        message: `Starting EXIF processing (max ${batchSize} files)...`,
         largeFilesSkipped: 0,
         filesDiscovered: 0,
         filesProcessed: 0,
@@ -192,11 +186,14 @@ export default function ExifProcessor() {
                   }
 
                   if (data.status === 'completed') {
-                    toast.success('EXIF processing completed successfully');
+                    const processedCount = progress?.filesProcessed || 0;
+                    toast.success(
+                      `Batch complete: ${processedCount} files processed`,
+                    );
                     setProgress((progress) => ({
                       ...progress,
                       status: 'completed',
-                      message: 'Comleted EXIF processing...',
+                      message: `Completed processing batch of ${processedCount} files`,
                       successCount: (progress?.successCount || 0) + 1,
                       method: extractionMethod,
                     }));
@@ -293,9 +290,13 @@ export default function ExifProcessor() {
     return 'Other Errors';
   };
 
+  const totalProcessed = stats.total_compatible - unprocessed;
+
   // Calculate processed percentage of processed files for progress bar
   const processedPercentage =
-    stats.total > 0 ? (stats.total_processed / stats.total) * 100 : 0;
+    stats.total_compatible > 0
+      ? (totalProcessed / stats.total_compatible) * 100
+      : 0;
 
   // Calculate streaming progress percentage
   const streamingProgressPercentage =
@@ -308,7 +309,7 @@ export default function ExifProcessor() {
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">EXIF Processor</h2>
         <div className="text-sm text-muted-foreground">
-          {stats.total_processed} / {stats.total} files processed
+          {totalProcessed} / {stats.total_compatible} files processed
         </div>
       </div>
 
@@ -323,7 +324,7 @@ export default function ExifProcessor() {
         </div>
 
         <div className="flex justify-between">
-          <span>{stats.unprocessed} files waiting to be processed</span>
+          <span>{unprocessed} files waiting to be processed</span>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -340,17 +341,33 @@ export default function ExifProcessor() {
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">
+      <div className="text-sm text-muted-foreground">
         Extract EXIF data from image and video files. This helps organize your
         media by date, location, and camera information.
-        {stats.unprocessed === 0 && stats.total_processed < stats.total && (
-          <span className="block mt-1 text-amber-600 dark:text-amber-500">
-            Note: The remaining files either have extensions marked as ignored
-            in file settings or are file types that don't typically contain EXIF
-            data.
+        {unprocessed === 0 && stats.total_compatible === 0 ? (
+          <span className="block mt-2 text-amber-600 dark:text-amber-500">
+            No compatible media files found. This could be due to one of the
+            following reasons:
+            <ul className="list-disc pl-5 space-y-1 mt-1 text-xs">
+              <li>No media items have been added to the database yet</li>
+              <li>Media items don't have proper file type associations</li>
+              <li>
+                No compatible file types (jpg, jpeg, tiff, heic) exist in your
+                library
+              </li>
+            </ul>
           </span>
+        ) : (
+          unprocessed === 0 &&
+          totalProcessed < stats.total_compatible && (
+            <span className="block mt-1 text-amber-600 dark:text-amber-500">
+              Note: The remaining files either have extensions marked as ignored
+              in file settings or are file types that don't typically contain
+              EXIF data.
+            </span>
+          )
         )}
-      </p>
+      </div>
 
       {isStreaming && (
         <div className="mt-4 space-y-2">
@@ -439,16 +456,11 @@ export default function ExifProcessor() {
                 <SelectValue placeholder="Select extraction method" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="default">
-                  Default (Multiple Fallbacks)
-                </SelectItem>
-                <SelectItem value="direct-only">
-                  Direct Extraction Only
-                </SelectItem>
+                <SelectItem value="default">Default (Sharp Library)</SelectItem>
+                <SelectItem value="direct-only">Direct Extraction</SelectItem>
                 <SelectItem value="marker-only">
-                  Marker-based Extraction Only
+                  Marker-based Extraction
                 </SelectItem>
-                <SelectItem value="sharp-only">Sharp Library Only</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -465,9 +477,11 @@ export default function ExifProcessor() {
                 <SelectValue placeholder="Select batch size" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="100">25</SelectItem>
-                <SelectItem value="500">50</SelectItem>
-                <SelectItem value="1000">100</SelectItem>
+                <SelectItem value="1">1</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="500">500</SelectItem>
+                <SelectItem value="1000">1000</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -475,14 +489,14 @@ export default function ExifProcessor() {
           <div className="flex flex-col gap-2">
             <Button
               onClick={handleProcess}
-              disabled={isStreaming || stats.unprocessed === 0}
+              disabled={isStreaming || unprocessed === 0}
               className="w-full"
             >
-              {stats.unprocessed === 0
+              {unprocessed === 0
                 ? 'No Files To Process'
                 : isStreaming
-                  ? `Processing (${extractionMethod})...`
-                  : `Process EXIF Data (${extractionMethod})`}
+                  ? `Processing Batch (${extractionMethod})...`
+                  : `Process Next ${batchSize} Files (${extractionMethod})`}
             </Button>
 
             {/* Cancel button if processing */}

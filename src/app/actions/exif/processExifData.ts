@@ -30,7 +30,7 @@ export async function processExifData({
     // First get the to access its file path
     const { data: mediaItem, error: fetchError } = await supabase
       .from('media_items')
-      .select('file_path, file_name, file_types(category)')
+      .select('file_path, file_name, file_types(category)', { count: 'exact' })
       .eq('id', mediaId)
       .eq('file_types.category', 'image') // Exif data is only for images
       .single();
@@ -55,7 +55,7 @@ export async function processExifData({
       progressCallback?.('No EXIF data found in file');
       await updateProcessingState(
         mediaId,
-        'success',
+        'error',
         'exif',
         extraction.message,
         progressCallback,
