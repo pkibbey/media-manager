@@ -9,6 +9,9 @@
 
 -- remove legacy fallbacks
 
-- when scanning folders, we should give an initial count as we find folders - more UI feedback
+-- when scanning folders, we should give an initial count as we find folders - more UI feedback
 
-- consider migrating away from processing_states into seperate state tables
+-- consider migrating away from processing_states into seperate state tables
+
+
+-- fix reset media items - this should only clear the exif data, not clear the items as it does now

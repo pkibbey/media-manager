@@ -2,7 +2,10 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getDetailedFileTypeInfo } from '@/lib/file-types-utils';
+import {
+  getDetailedFileTypeInfo,
+  getMimeTypeByExtension,
+} from '@/lib/file-types-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ScanOptions, ScanProgress } from '@/types/progress-types';
 import { revalidatePath } from 'next/cache';
@@ -651,6 +654,7 @@ export async function scanFolders(options: ScanOptions = {}) {
             .insert({
               extension,
               category,
+              mime_type: getMimeTypeByExtension(extension), // Use our utility function to determine MIME type
               can_display_natively: [
                 'jpg',
                 'jpeg',

@@ -222,3 +222,70 @@ export async function getMimeTypeById(
   const fileType = await getFileTypeById(fileTypeId);
   return fileType?.mime_type || null;
 }
+
+/**
+ * Determine the appropriate MIME type from a file extension
+ * @param extension - The file extension (without the dot)
+ * @returns The appropriate MIME type for the extension
+ */
+export function getMimeTypeByExtension(extension: string): string {
+  const ext = extension.toLowerCase();
+
+  // Common image formats
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'avif') return 'image/avif';
+  if (ext === 'bmp') return 'image/bmp';
+  if (ext === 'svg') return 'image/svg+xml';
+
+  // Raw image formats
+  if (ext === 'heic') return 'image/heic';
+  if (ext === 'heif') return 'image/heif';
+  if (ext === 'tiff' || ext === 'tif') return 'image/tiff';
+  if (['raw', 'arw', 'cr2', 'nef', 'orf', 'rw2', 'dng'].includes(ext))
+    return `image/x-${ext}`;
+
+  // Video formats
+  if (ext === 'mp4') return 'video/mp4';
+  if (ext === 'webm') return 'video/webm';
+  if (ext === 'mov') return 'video/quicktime';
+  if (ext === 'avi') return 'video/x-msvideo';
+  if (ext === 'mkv') return 'video/x-matroska';
+  if (ext === 'mpg' || ext === 'mpeg') return 'video/mpeg';
+  if (ext === 'm4v') return 'video/x-m4v';
+  if (ext === 'wmv') return 'video/x-ms-wmv';
+  if (ext === 'flv') return 'video/x-flv';
+
+  // Audio formats
+  if (ext === 'mp3') return 'audio/mpeg';
+  if (ext === 'wav') return 'audio/wav';
+  if (ext === 'ogg') return 'audio/ogg';
+  if (ext === 'flac') return 'audio/flac';
+  if (ext === 'aac') return 'audio/aac';
+  if (ext === 'wma') return 'audio/x-ms-wma';
+  if (ext === 'm4a') return 'audio/mp4';
+
+  // Document formats
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'doc') return 'application/msword';
+  if (ext === 'docx')
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (ext === 'xls') return 'application/vnd.ms-excel';
+  if (ext === 'xlsx')
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  if (ext === 'ppt') return 'application/vnd.ms-powerpoint';
+  if (ext === 'pptx')
+    return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  if (ext === 'txt') return 'text/plain';
+
+  // Data formats
+  if (ext === 'json') return 'application/json';
+  if (ext === 'xml') return 'application/xml';
+  if (ext === 'csv') return 'text/csv';
+  if (ext === 'yaml' || ext === 'yml') return 'application/yaml';
+
+  // Default fallback
+  return 'application/octet-stream';
+}

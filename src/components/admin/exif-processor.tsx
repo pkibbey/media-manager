@@ -43,8 +43,6 @@ export default function ExifProcessor() {
     processed_no_exif: 0,
     total_compatible: 0,
   });
-  const unprocessed =
-    stats.total_compatible - stats.with_exif - stats.processed_no_exif;
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [progress, setProgress] = useState<ExifProgress | null>(null);
@@ -290,12 +288,16 @@ export default function ExifProcessor() {
     return 'Other Errors';
   };
 
-  const totalProcessed = stats.total_compatible - unprocessed;
+  const totalProcessed = stats.processed_no_exif + stats.with_exif;
+  const totalUnprocessed = stats.total_compatible - totalProcessed;
+  console.log('stats: ', stats);
+  console.log('totalUnprocessed: ', totalUnprocessed);
+  const totalForAll = totalProcessed + totalUnprocessed;
 
   // Calculate processed percentage of processed files for progress bar
   const processedPercentage =
     stats.total_compatible > 0
-      ? (totalProcessed / stats.total_compatible) * 100
+      ? (totalForAll / stats.total_compatible) * 100
       : 0;
 
   // Calculate streaming progress percentage
@@ -309,7 +311,7 @@ export default function ExifProcessor() {
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">EXIF Processor</h2>
         <div className="text-sm text-muted-foreground">
-          {totalProcessed} / {stats.total_compatible} files processed
+          {totalForAll} / {stats.total_compatible} files processed
         </div>
       </div>
 
@@ -324,7 +326,7 @@ export default function ExifProcessor() {
         </div>
 
         <div className="flex justify-between">
-          <span>{unprocessed} files waiting to be processed</span>
+          <span>{totalUnprocessed} files waiting to be processed</span>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -344,7 +346,7 @@ export default function ExifProcessor() {
       <div className="text-sm text-muted-foreground">
         Extract EXIF data from image and video files. This helps organize your
         media by date, location, and camera information.
-        {unprocessed === 0 && stats.total_compatible === 0 ? (
+        {totalForAll === 0 && stats.total_compatible === 0 ? (
           <span className="block mt-2 text-amber-600 dark:text-amber-500">
             No compatible media files found. This could be due to one of the
             following reasons:
@@ -358,8 +360,8 @@ export default function ExifProcessor() {
             </ul>
           </span>
         ) : (
-          unprocessed === 0 &&
-          totalProcessed < stats.total_compatible && (
+          totalUnprocessed === 0 &&
+          totalForAll < stats.total_compatible && (
             <span className="block mt-1 text-amber-600 dark:text-amber-500">
               Note: The remaining files either have extensions marked as ignored
               in file settings or are file types that don't typically contain
@@ -489,10 +491,10 @@ export default function ExifProcessor() {
           <div className="flex flex-col gap-2">
             <Button
               onClick={handleProcess}
-              disabled={isStreaming || unprocessed === 0}
+              disabled={isStreaming || totalUnprocessed === 0}
               className="w-full"
             >
-              {unprocessed === 0
+              {totalUnprocessed === 0
                 ? 'No Files To Process'
                 : isStreaming
                   ? `Processing Batch (${extractionMethod})...`
