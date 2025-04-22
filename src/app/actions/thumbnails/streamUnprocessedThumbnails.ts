@@ -124,13 +124,19 @@ export async function streamUnprocessedThumbnails({
             if (skipLargeFiles && media.file_path && media.size_bytes) {
               if (isSkippedLargeFile(media.size_bytes)) {
                 // Mark as skipped in processing_states table
-                await supabase.from('processing_states').upsert({
-                  media_item_id: media.id,
-                  type: 'thumbnail',
-                  status: 'skipped',
-                  processed_at: new Date().toISOString(),
-                  error_message: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
-                });
+                await supabase.from('processing_states').upsert(
+                  {
+                    media_item_id: media.id,
+                    type: 'thumbnail',
+                    status: 'skipped',
+                    processed_at: new Date().toISOString(),
+                    error_message: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
+                  },
+                  {
+                    onConflict: 'media_item_id,type',
+                    ignoreDuplicates: false,
+                  },
+                );
 
                 // Update counters
                 batchProcessedCount++;
@@ -242,14 +248,20 @@ export async function streamUnprocessedThumbnails({
             totalFailedCount++;
 
             // Add this code to update the processing state
-            await supabase.from('processing_states').upsert({
-              media_item_id: media.id,
-              type: 'thumbnail',
-              status: 'error',
-              processed_at: new Date().toISOString(),
-              error_message:
-                error.message || 'Unknown error during thumbnail generation',
-            });
+            await supabase.from('processing_states').upsert(
+              {
+                media_item_id: media.id,
+                type: 'thumbnail',
+                status: 'error',
+                processed_at: new Date().toISOString(),
+                error_message:
+                  error.message || 'Unknown error during thumbnail generation',
+              },
+              {
+                onConflict: 'media_item_id,type',
+                ignoreDuplicates: false,
+              },
+            );
 
             // Send error update
             await sendProgress(writer, {

@@ -20,10 +20,16 @@ export async function addServerAbortToken(token: string): Promise<boolean> {
       .lt('created_at', oneHourAgo.toISOString());
 
     // Store token in database
-    const { error } = await supabase.from('abort_tokens').upsert({
-      token,
-      created_at: new Date().toISOString(),
-    });
+    const { error } = await supabase.from('abort_tokens').upsert(
+      {
+        token,
+        created_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'token,created_at',
+        ignoreDuplicates: false,
+      },
+    );
 
     return !error;
   } catch (error) {

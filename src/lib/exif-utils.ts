@@ -170,11 +170,17 @@ export async function updateProcessingState(
   const supabase = createServerSupabaseClient();
   progressCallback?.(`Updating ${type} processing state to ${status}`);
 
-  return supabase.from('processing_states').upsert({
-    media_item_id: mediaId,
-    type,
-    status,
-    processed_at: new Date().toISOString(),
-    ...(errorMessage && { error_message: errorMessage }),
-  });
+  return supabase.from('processing_states').upsert(
+    {
+      media_item_id: mediaId,
+      type,
+      status,
+      processed_at: new Date().toISOString(),
+      errorMessage,
+    },
+    {
+      onConflict: 'media_item_id,type',
+      ignoreDuplicates: false,
+    },
+  );
 }

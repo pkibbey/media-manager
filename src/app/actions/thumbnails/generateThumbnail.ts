@@ -57,13 +57,19 @@ export async function generateThumbnail(
       );
 
       // Update processing state in processing_states table
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'thumbnail',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message: 'File not found',
-      });
+      await supabase.from('processing_states').upsert(
+        {
+          media_item_id: mediaId,
+          type: 'thumbnail',
+          status: 'error',
+          processed_at: new Date().toISOString(),
+          error_message: 'File not found',
+        },
+        {
+          onConflict: 'media_item_id,type',
+          ignoreDuplicates: false,
+        },
+      );
 
       return {
         success: false,
@@ -78,13 +84,19 @@ export async function generateThumbnail(
 
         if (isSkippedLargeFile(stats.size)) {
           // Mark as skipped in processing_states table
-          await supabase.from('processing_states').upsert({
-            media_item_id: mediaId,
-            type: 'thumbnail',
-            status: 'skipped',
-            processed_at: new Date().toISOString(),
-            error_message: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
-          });
+          await supabase.from('processing_states').upsert(
+            {
+              media_item_id: mediaId,
+              type: 'thumbnail',
+              status: 'skipped',
+              processed_at: new Date().toISOString(),
+              error_message: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
+            },
+            {
+              onConflict: 'media_item_id,type',
+              ignoreDuplicates: false,
+            },
+          );
 
           return {
             success: true,
@@ -147,13 +159,19 @@ export async function generateThumbnail(
       const errorMessage =
         sharpError instanceof Error ? sharpError.message : 'Processing error';
 
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'thumbnail',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message: errorMessage,
-      });
+      await supabase.from('processing_states').upsert(
+        {
+          media_item_id: mediaId,
+          type: 'thumbnail',
+          status: 'error',
+          processed_at: new Date().toISOString(),
+          error_message: errorMessage,
+        },
+        {
+          onConflict: 'media_item_id,type',
+          ignoreDuplicates: false,
+        },
+      );
 
       return {
         success: false,
@@ -180,13 +198,19 @@ export async function generateThumbnail(
         );
 
         // Mark as error in processing_states table
-        await supabase.from('processing_states').upsert({
-          media_item_id: mediaId,
-          type: 'thumbnail',
-          status: 'error',
-          processed_at: new Date().toISOString(),
-          error_message: 'Storage upload failed',
-        });
+        await supabase.from('processing_states').upsert(
+          {
+            media_item_id: mediaId,
+            type: 'thumbnail',
+            status: 'error',
+            processed_at: new Date().toISOString(),
+            error_message: 'Storage upload failed',
+          },
+          {
+            onConflict: 'media_item_id,type',
+            ignoreDuplicates: false,
+          },
+        );
 
         return {
           success: false,
@@ -201,13 +225,19 @@ export async function generateThumbnail(
       );
 
       // Mark as upload error in processing_states table
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'thumbnail',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message: 'Upload exception',
-      });
+      await supabase.from('processing_states').upsert(
+        {
+          media_item_id: mediaId,
+          type: 'thumbnail',
+          status: 'error',
+          processed_at: new Date().toISOString(),
+          error_message: 'Upload exception',
+        },
+        {
+          onConflict: 'media_item_id,type',
+          ignoreDuplicates: false,
+        },
+      );
 
       return {
         success: false,
@@ -238,13 +268,19 @@ export async function generateThumbnail(
       await supabase.storage.from('thumbnails').remove([fileName]);
 
       // Mark as error in processing_states table
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'thumbnail',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message: 'Failed to update media_items table',
-      });
+      await supabase.from('processing_states').upsert(
+        {
+          media_item_id: mediaId,
+          type: 'thumbnail',
+          status: 'error',
+          processed_at: new Date().toISOString(),
+          error_message: 'Failed to update media_items table',
+        },
+        {
+          onConflict: 'media_item_id,type',
+          ignoreDuplicates: false,
+        },
+      );
 
       return {
         success: false,
@@ -256,14 +292,20 @@ export async function generateThumbnail(
     // Update the processing state in processing_states table with success status
     const { error: updateProcessingStateError } = await supabase
       .from('processing_states')
-      .upsert({
-        media_item_id: mediaId,
-        type: 'thumbnail',
-        status: 'success',
-        processed_at: new Date().toISOString(),
-        // Clear any previous error message on success
-        error_message: null,
-      });
+      .upsert(
+        {
+          media_item_id: mediaId,
+          type: 'thumbnail',
+          status: 'success',
+          processed_at: new Date().toISOString(),
+          // Clear any previous error message on success
+          error_message: null,
+        },
+        {
+          onConflict: 'media_item_id,type',
+          ignoreDuplicates: false,
+        },
+      );
 
     if (updateProcessingStateError) {
       console.error(
@@ -271,16 +313,8 @@ export async function generateThumbnail(
         updateProcessingStateError,
       );
 
-      // Even though we successfully generated, uploaded, and updated media_items,
-      // we couldn't update the processing state. Mark it with an error.
-      // Note: The thumbnail_path IS set correctly in media_items.
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'thumbnail',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message: 'Processing state update failed',
-      });
+      // Don't try to upsert again - that would cause another unique constraint violation
+      // Instead, just log the error and return
 
       // Return success=true because the thumbnail IS available, despite the state tracking issue.
       return {
@@ -290,15 +324,6 @@ export async function generateThumbnail(
         fileName: mediaItem.file_name,
       };
     }
-
-    // Update the processing_states table with success status
-    await supabase.from('processing_states').upsert({
-      media_item_id: mediaId,
-      type: 'thumbnail',
-      status: 'success',
-      processed_at: new Date().toISOString(),
-      error_message: null,
-    });
 
     return {
       success: true,
@@ -311,13 +336,19 @@ export async function generateThumbnail(
     // Try to mark as error in processing_states table
     try {
       const supabase = createServerSupabaseClient();
-      await supabase.from('processing_states').upsert({
-        media_item_id: mediaId,
-        type: 'thumbnail',
-        status: 'error',
-        processed_at: new Date().toISOString(),
-        error_message: 'Unhandled exception',
-      });
+      await supabase.from('processing_states').upsert(
+        {
+          media_item_id: mediaId,
+          type: 'thumbnail',
+          status: 'error',
+          processed_at: new Date().toISOString(),
+          error_message: 'Unhandled exception',
+        },
+        {
+          onConflict: 'media_item_id,type',
+          ignoreDuplicates: false,
+        },
+      );
     } catch (dbError) {
       console.error(
         '[Thumbnail] Failed to mark item as error after exception:',

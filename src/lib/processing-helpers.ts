@@ -16,13 +16,19 @@ export async function updateProcessingState({
 }) {
   const supabase = createServerSupabaseClient();
 
-  return await supabase.from('processing_states').upsert({
-    media_item_id: mediaItemId,
-    type,
-    status,
-    processed_at: new Date().toISOString(),
-    error_message: errorMessage,
-  });
+  return await supabase.from('processing_states').upsert(
+    {
+      media_item_id: mediaItemId,
+      type,
+      status,
+      processed_at: new Date().toISOString(),
+      error_message: errorMessage,
+    },
+    {
+      onConflict: 'media_item_id,type',
+      ignoreDuplicates: false,
+    },
+  );
 }
 
 /**

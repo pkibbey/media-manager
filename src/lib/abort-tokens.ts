@@ -18,10 +18,16 @@ export async function addAbortToken(token: string): Promise<void> {
     .lt('created_at', oneHourAgo.toISOString());
 
   // Add the new token
-  await supabase.from('abort_tokens').upsert({
-    token,
-    created_at: new Date().toISOString(),
-  });
+  await supabase.from('abort_tokens').upsert(
+    {
+      token,
+      created_at: new Date().toISOString(),
+    },
+    {
+      onConflict: 'token,created_at',
+      ignoreDuplicates: false,
+    },
+  );
 }
 
 /**

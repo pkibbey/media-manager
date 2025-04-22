@@ -229,11 +229,17 @@ export async function scanFolders(options: ScanOptions = {}) {
                   // Add to database
                   const { data: newType, error: typeError } = await supabase
                     .from('file_types')
-                    .upsert({
-                      extension: fileExt,
-                      category: category, // Use automatically determined category
-                      mime_type: mimeType, // Use automatically determined mime type
-                    })
+                    .upsert(
+                      {
+                        extension: fileExt,
+                        category: category, // Use automatically determined category
+                        mime_type: mimeType, // Use automatically determined mime type
+                      },
+                      {
+                        onConflict: 'extension',
+                        ignoreDuplicates: false,
+                      },
+                    )
                     .select('id')
                     .single();
 
@@ -263,6 +269,13 @@ export async function scanFolders(options: ScanOptions = {}) {
                   } else if (existingType) {
                     fileTypeId = existingType.id;
                   }
+                }
+
+                if (fileTypeId === null) {
+                  // If we couldn't get a file type ID, skip this file
+                  totalFilesProcessed++;
+                  totalIgnoredFiles++;
+                  continue;
                 }
 
                 // Insert or update media item

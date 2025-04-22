@@ -130,13 +130,19 @@ export async function streamProcessUnprocessedItems({
                 const stats = await fs.stat(media.file_path);
                 if (isSkippedLargeFile(stats.size)) {
                   // Insert skipped state into processing_states table
-                  await supabase.from('processing_states').upsert({
-                    media_item_id: media.id,
-                    type: 'exif',
-                    status: 'skipped',
-                    processed_at: new Date().toISOString(),
-                    error_message: `Large file (over ${Math.round(stats.size / (1024 * 1024))}MB)`,
-                  });
+                  await supabase.from('processing_states').upsert(
+                    {
+                      media_item_id: media.id,
+                      type: 'exif',
+                      status: 'skipped',
+                      processed_at: new Date().toISOString(),
+                      error_message: `Large file (over ${Math.round(stats.size / (1024 * 1024))}MB)`,
+                    },
+                    {
+                      onConflict: 'media_item_id,type',
+                      ignoreDuplicates: false,
+                    },
+                  );
 
                   // Update counters
                   batchProcessedCount++;

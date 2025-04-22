@@ -133,6 +133,7 @@ export async function updateMediaDatesFromFilenames({
             },
             {
               onConflict: 'media_item_id,type',
+              ignoreDuplicates: false,
             },
           );
         } catch (markFailedError: any) {
