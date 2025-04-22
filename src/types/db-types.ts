@@ -28,6 +28,5 @@ export interface ExifStatsResult {
   with_exif: number; // Files with successfully extracted EXIF data
   no_exif: number; // Files processed but no EXIF data found
   skipped: number; // Files intentionally skipped during processing
-  unprocessed: number; // Files that haven't entered the processing pipeline yet
   total: number; // Total number of media items
 }

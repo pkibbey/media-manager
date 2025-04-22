@@ -43,7 +43,6 @@ export default function ExifProcessor() {
     with_exif: 0,
     no_exif: 0,
     total: 0,
-    unprocessed: 0,
     skipped: 0,
   });
 
@@ -81,6 +80,7 @@ export default function ExifProcessor() {
 
     if (success && exifStats) {
       setStats(exifStats);
+      console.log('exifStats: ', exifStats);
     }
   };
 
@@ -292,7 +292,10 @@ export default function ExifProcessor() {
     return 'Other Errors';
   };
 
-  const totalProcessed = stats.no_exif + stats.with_exif;
+  const totalProcessed = stats.no_exif + stats.with_exif + stats.skipped;
+  console.log('totalProcessed: ', totalProcessed);
+  const totalUnprocessed = stats.total - totalProcessed;
+  console.log('totalUnprocessed: ', totalUnprocessed);
 
   // Calculate processed percentage of processed files for progress bar
   const processedPercentage =
@@ -322,7 +325,7 @@ export default function ExifProcessor() {
         </div>
 
         <div className="flex justify-between">
-          <span>{stats.unprocessed} files waiting to be processed</span>
+          <span>{totalUnprocessed} files waiting to be processed</span>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -356,7 +359,7 @@ export default function ExifProcessor() {
             </ul>
           </span>
         ) : (
-          stats.unprocessed === 0 &&
+          totalUnprocessed === 0 &&
           totalProcessed < stats.total && (
             <span className="block mt-1 text-amber-600 dark:text-amber-500">
               Note: The remaining files either have extensions marked as ignored
@@ -416,7 +419,7 @@ export default function ExifProcessor() {
             id="skipLargeFiles"
             checked={skipLargeFiles}
             onCheckedChange={(checked) => setSkipLargeFiles(checked as boolean)}
-            disabled={isStreaming || stats.unprocessed === 0}
+            disabled={isStreaming || totalUnprocessed === 0}
           />
           <Label htmlFor="skipLargeFiles" className="text-sm">
             <TooltipProvider>
@@ -450,7 +453,7 @@ export default function ExifProcessor() {
               onValueChange={(value) =>
                 setExtractionMethod(value as ExtractionMethod)
               }
-              disabled={isStreaming || stats.unprocessed === 0}
+              disabled={isStreaming || totalUnprocessed === 0}
             >
               <SelectTrigger className="w-full text-sm">
                 <SelectValue placeholder="Select extraction method" />
@@ -472,7 +475,7 @@ export default function ExifProcessor() {
             <Select
               value={batchSize.toString()}
               onValueChange={(value) => setBatchSize(Number(value))}
-              disabled={isStreaming || stats.unprocessed === 0}
+              disabled={isStreaming || totalUnprocessed === 0}
             >
               <SelectTrigger className="w-full text-sm">
                 <SelectValue placeholder="Select batch size" />
@@ -490,7 +493,7 @@ export default function ExifProcessor() {
           <div className="flex flex-col gap-2">
             <Button
               onClick={handleProcess}
-              disabled={isStreaming || stats.unprocessed === 0}
+              disabled={isStreaming || totalUnprocessed === 0}
               className="w-full"
             >
               {stats.total === 0

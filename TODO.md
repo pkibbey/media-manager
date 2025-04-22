@@ -28,3 +28,7 @@
 -- add ability to change UI scale (grid column sizes)
 
 -- The UI elements can start to become more compact, as the app evolves
+
+-- condense the EXIF Processor diplay to only show one progress bar
+
+-- compare to see how graphql would work with this
