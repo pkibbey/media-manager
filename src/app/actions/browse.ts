@@ -1,6 +1,5 @@
 'use server';
 
-import { getIgnoredFileTypeIds } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
@@ -31,22 +30,12 @@ export async function browseMedia(
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    // Get ignored file type IDs for filtering out ignored files
-    const ignoredIds = await getIgnoredFileTypeIds();
-
     // Start building the query
     let query = supabase
       .from('media_items')
-      .select('*, file_types!inner(*)', { count: 'exact' });
-
-    // Apply filters
-    const ignoreFilterExpr =
-      ignoredIds.length > 0 ? `(${ignoredIds.join(',')})` : '()';
-
-    // Filter out ignored file types
-    if (ignoredIds.length > 0) {
-      query = query.not('file_type_id', 'in', ignoreFilterExpr);
-    }
+      .select('*, file_types!inner(*), processing_states(*)', {
+        count: 'exact',
+      });
 
     // Text search
     if (filters.search) {
@@ -100,44 +89,14 @@ export async function browseMedia(
       query = query.contains('exif_data', { Image: { Model: filters.camera } });
     }
 
-    // Location data filter
-    if (filters.hasLocation && filters.hasLocation !== 'all') {
-      const hasLocation = filters.hasLocation === 'yes';
-
-      if (hasLocation) {
-        // Filter items with GPS data in EXIF
-        query = query.or(
-          'exif_data->GPS->GPSLatitude.neq.null,exif_data->GPS->GPSLatitudeRef.neq.null',
-        );
-      } else {
-        // Filter items without GPS data
-        query = query.or(
-          'exif_data->GPS->GPSLatitude.is.null,exif_data->GPS->GPSLatitudeRef.is.null,exif_data->GPS.is.null',
-        );
-      }
-    }
-
     // Thumbnail filter
     if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
-      // This will involve a separate query to processing_states
-      const thumbQuery = supabase
-        .from('processing_states')
-        .select('media_item_id')
-        .eq('type', 'thumbnail')
-        .eq('status', 'success');
-
-      const { data: thumbData } = await thumbQuery;
-      const thumbnailMediaIds = thumbData
-        ? thumbData.map((item) => item.media_item_id || '0')
-        : [];
-
-      const ignoreFilterExpr =
-        ignoredIds.length > 0 ? `(${thumbnailMediaIds.join(',')})` : '()';
-
-      if (filters.hasThumbnail === 'yes' && thumbnailMediaIds.length > 0) {
-        query = query.in('id', thumbnailMediaIds);
-      } else if (filters.hasThumbnail === 'no') {
-        query = query.not('id', 'in', ignoreFilterExpr);
+      if (filters.hasThumbnail === 'yes') {
+        // Filter for items with a thumbnail
+        query = query.not('thumbnail_path', 'is', null);
+      } else {
+        // Filter for items without a thumbnail
+        query = query.is('thumbnail_path', null);
       }
     }
 
@@ -173,6 +132,9 @@ export async function browseMedia(
 
     // Execute the query
     const { data, error, count } = await query;
+    console.log('count: ', count);
+    console.log('error: ', error);
+    console.log('data: ', data);
 
     if (error) {
       console.error('Error fetching media items:', error);

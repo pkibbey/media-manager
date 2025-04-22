@@ -20,3 +20,5 @@
 -- remove all rpc functions, except for counting stats
 
 -- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder
+
+-- review the site and clean up where possible
