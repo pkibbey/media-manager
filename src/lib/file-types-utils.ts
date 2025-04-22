@@ -289,3 +289,143 @@ export function getMimeTypeByExtension(extension: string): string {
   // Default fallback
   return 'application/octet-stream';
 }
+
+/**
+ * Determine the appropriate category for a file extension
+ * @param extension - The file extension (without the dot)
+ * @returns The appropriate category for the extension
+ */
+export function getCategoryByExtension(extension: string): string {
+  const ext = extension.toLowerCase();
+
+  // Image formats
+  if (
+    ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'svg', 'ico'].includes(
+      ext,
+    )
+  ) {
+    return 'image';
+  }
+
+  // Raw image formats
+  if (
+    [
+      'heic',
+      'heif',
+      'tiff',
+      'tif',
+      'raw',
+      'arw',
+      'cr2',
+      'nef',
+      'orf',
+      'rw2',
+      'dng',
+    ].includes(ext)
+  ) {
+    return 'raw_image';
+  }
+
+  // Video formats
+  if (
+    [
+      'mp4',
+      'webm',
+      'mov',
+      'avi',
+      'mkv',
+      'mpg',
+      'mpeg',
+      'm4v',
+      'wmv',
+      'flv',
+      '3gp',
+      'ogv',
+    ].includes(ext)
+  ) {
+    return 'video';
+  }
+
+  // Audio formats
+  if (
+    ['mp3', 'wav', 'ogg', 'flac', 'aac', 'wma', 'm4a', 'opus', 'aiff'].includes(
+      ext,
+    )
+  ) {
+    return 'audio';
+  }
+
+  // Document formats
+  if (
+    [
+      'pdf',
+      'doc',
+      'docx',
+      'xls',
+      'xlsx',
+      'ppt',
+      'pptx',
+      'txt',
+      'rtf',
+      'odt',
+      'ods',
+      'odp',
+    ].includes(ext)
+  ) {
+    return 'document';
+  }
+
+  // Archive formats
+  if (['zip', 'rar', 'tar', 'gz', '7z', 'bz2', 'xz'].includes(ext)) {
+    return 'archive';
+  }
+
+  // Data formats
+  if (['json', 'xml', 'csv', 'yaml', 'yml'].includes(ext)) {
+    return 'data';
+  }
+
+  // Code/text formats
+  if (
+    [
+      'html',
+      'css',
+      'js',
+      'ts',
+      'jsx',
+      'tsx',
+      'php',
+      'py',
+      'java',
+      'c',
+      'cpp',
+      'h',
+      'rb',
+      'go',
+      'rs',
+      'sh',
+    ].includes(ext)
+  ) {
+    return 'code';
+  }
+
+  // Executable formats
+  if (['exe', 'dll', 'bat', 'cmd', 'app', 'dmg', 'deb', 'rpm'].includes(ext)) {
+    return 'executable';
+  }
+
+  // Font formats
+  if (['ttf', 'otf', 'woff', 'woff2', 'eot'].includes(ext)) {
+    return 'font';
+  }
+
+  // 3D model formats
+  if (
+    ['obj', 'fbx', 'dae', 'blend', 'stl', '3ds', 'glb', 'gltf'].includes(ext)
+  ) {
+    return '3d_model';
+  }
+
+  // Default fallback
+  return 'unknown';
+}

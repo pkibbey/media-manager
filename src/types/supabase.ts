@@ -259,10 +259,6 @@ export type Database = {
           file_name: string;
         }[];
       };
-      reset_all_thumbnails: {
-        Args: Record<PropertyKey, never>;
-        Returns: undefined;
-      };
       sum_file_sizes: {
         Args: Record<PropertyKey, never>;
         Returns: {

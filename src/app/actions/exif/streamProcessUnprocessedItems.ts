@@ -243,7 +243,7 @@ async function getUnprocessedFiles({ limit }: { limit: number }) {
   // Query your database to get only up to 'limit' number of unprocessed files
   const { data: files, error } = await supabase
     .from('media_items')
-    .select('*, processing_states()')
+    .select('*, processing_states(*)')
     // Filter out processing states that are an empty length
     .is('processing_states', null)
     .lte('size_bytes', LARGE_FILE_THRESHOLD)
