@@ -164,13 +164,12 @@ export default function ScanFoldersTrigger() {
                 progress.status === 'error' ? 'text-destructive' : ''
               }`}
             >
-              {progress.status === 'started' && 'Starting scan...'}
-              {progress.status === 'scanning' && 'Scanning folders...'}
+              {progress.status === 'processing' && 'Scanning folders...'}
               {progress.status === 'completed' && 'Scan complete'}
               {progress.status === 'error' && 'Scan error'}
             </h4>
             <span className="text-xs text-muted-foreground">
-              {progress.status === 'scanning' &&
+              {progress.status === 'processing' &&
                 progress.filesDiscovered &&
                 progress.filesProcessed &&
                 `${progress.filesProcessed}/${progress.filesDiscovered} files`}
@@ -180,7 +179,7 @@ export default function ScanFoldersTrigger() {
           <div className="text-sm mb-2">{progress.message}</div>
 
           {/* Progress bar */}
-          {progress.status === 'scanning' &&
+          {progress.status === 'processing' &&
             progress.filesDiscovered !== undefined &&
             progress.filesProcessed !== undefined && (
               <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
@@ -200,7 +199,6 @@ export default function ScanFoldersTrigger() {
           {/* Additional statistics in a grid layout for better organization */}
           {(progress.filesProcessed !== undefined ||
             progress.newFilesAdded !== undefined ||
-            progress.filesSkipped !== undefined ||
             progress.ignoredFilesSkipped !== undefined ||
             progress.smallFilesSkipped !== undefined) && (
             <div className="grid grid-cols-3 gap-2 mt-3 text-sm border-t border-border/30 pt-2">
@@ -217,13 +215,6 @@ export default function ScanFoldersTrigger() {
                     New/Updated
                   </div>
                   <div className="font-medium">{progress.newFilesAdded}</div>
-                </div>
-              )}
-
-              {progress.filesSkipped !== undefined && (
-                <div>
-                  <div className="text-xs text-muted-foreground">Skipped</div>
-                  <div className="font-medium">{progress.filesSkipped}</div>
                 </div>
               )}
 

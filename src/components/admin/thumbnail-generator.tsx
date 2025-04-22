@@ -29,7 +29,7 @@ type ErrorSummary = {
 };
 
 type ThumbnailProgress = {
-  status: 'started' | 'generating' | 'processing' | 'completed' | 'error';
+  status: 'processing' | 'completed' | 'error';
   message: string;
   currentFilePath?: string;
   fileType?: string;
@@ -54,7 +54,6 @@ export default function ThumbnailGenerator() {
   const [thumbnailStats, setThumbnailStats] = useState<{
     totalCompatibleFiles: number;
     filesWithThumbnails: number;
-    filesSkipped: number;
     filesPending: number;
     skippedLargeFiles: number;
   } | null>(null);
@@ -129,7 +128,7 @@ export default function ThumbnailGenerator() {
       setErrorSummary({});
       setHasError(false);
       setDetailProgress({
-        status: 'started',
+        status: 'processing',
         message: 'Starting thumbnail generation...',
       });
 
@@ -356,8 +355,8 @@ export default function ThumbnailGenerator() {
             <span>Loading stats...</span>
           ) : (
             <span>
-              {thumbnailStats.filesWithThumbnails + thumbnailStats.filesSkipped}{' '}
-              / {thumbnailStats.totalCompatibleFiles} files processed
+              {thumbnailStats.filesWithThumbnails} /{' '}
+              {thumbnailStats.totalCompatibleFiles} files processed
             </span>
           )}
         </div>

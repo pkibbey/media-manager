@@ -10,7 +10,6 @@ export async function getThumbnailStats(): Promise<{
   stats?: {
     totalCompatibleFiles: number;
     filesWithThumbnails: number;
-    filesSkipped: number;
     filesPending: number;
     skippedLargeFiles: number;
   };
@@ -56,25 +55,10 @@ export async function getThumbnailStats(): Promise<{
       );
     }
 
-    // Get count of files with unsupported formats
-    const { count: filesSkippedCount, error: filesSkippedError } =
-      await supabase
-        .from('processing_states')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'thumbnail')
-        .eq('status', 'unsupported');
-
-    if (filesSkippedError) {
-      throw new Error(
-        `Failed to get skipped files count: ${filesSkippedError.message}`,
-      );
-    }
-
     // Calculate pending files by subtracting thumbnail-having files from total
     const filesPending =
       (totalCount || 0) -
       (withThumbnailsCount || 0) -
-      (filesSkippedCount || 0) -
       (skippedLargeFilesCount || 0);
 
     return {
@@ -82,7 +66,6 @@ export async function getThumbnailStats(): Promise<{
       stats: {
         totalCompatibleFiles: totalCount || 0,
         filesWithThumbnails: withThumbnailsCount || 0,
-        filesSkipped: filesSkippedCount || 0,
         filesPending: filesPending > 0 ? filesPending : 0,
         skippedLargeFiles: skippedLargeFilesCount || 0,
       },

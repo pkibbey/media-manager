@@ -1,6 +1,7 @@
 /**
  * Type for generic batch operation progress
  */
+
 export type BatchProgress = {
   status: 'processing' | 'completed' | 'error';
   message: string;
@@ -25,13 +26,12 @@ export type BatchOperationResponse = {
  * Progress updates during scanning
  */
 export type ScanProgress = {
-  status: 'started' | 'scanning' | 'completed' | 'error';
+  status: 'processing' | 'completed' | 'error';
   message: string;
   folderPath?: string;
   filesDiscovered?: number;
   filesProcessed?: number;
   newFilesAdded?: number;
-  filesSkipped?: number;
   ignoredFilesSkipped?: number;
   smallFilesSkipped?: number;
   newFileTypes?: string[];

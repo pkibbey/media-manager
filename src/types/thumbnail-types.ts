@@ -58,11 +58,6 @@ export interface ThumbnailStats {
   filesWithThumbnails: number;
 
   /**
-   * Number of files skipped during thumbnail generation
-   */
-  filesSkipped: number;
-
-  /**
    * Number of files waiting to be processed
    */
   filesPending: number;

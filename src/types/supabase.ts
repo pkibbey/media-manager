@@ -226,15 +226,6 @@ export type Database = {
         Args: { exif_supported_ids: number[]; ignored_ids?: number[] };
         Returns: number;
       };
-      get_exif_statistics: {
-        Args: { exif_compatible_extensions?: string[] };
-        Returns: {
-          with_exif: number;
-          processed_no_exif: number;
-          unprocessed: number;
-          total_compatible: number;
-        }[];
-      };
       get_extension_statistics: {
         Args: Record<PropertyKey, never>;
         Returns: {

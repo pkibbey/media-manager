@@ -21,7 +21,7 @@ export type ExifProcessingOptions = {
  * Type for EXIF progress updates
  */
 export type ExifProgress = {
-  status: 'started' | 'generating' | 'processing' | 'completed' | 'error';
+  status: 'processing' | 'completed' | 'error';
   message: string;
   filesDiscovered?: number;
   filesProcessed?: number;

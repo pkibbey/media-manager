@@ -21,7 +21,13 @@ export type ScanFolder = Database['public']['Tables']['scan_folders']['Row'];
 export type ProcessingState =
   Database['public']['Tables']['processing_states']['Row'];
 
-export type ExifStatsResult = Omit<
-  Database['public']['Functions']['get_exif_statistics']['Returns'][0],
-  'unprocessed'
->;
+/**
+ * ExifStatsResult represents statistics about EXIF extraction processing
+ */
+export interface ExifStatsResult {
+  with_exif: number; // Files with successfully extracted EXIF data
+  no_exif: number; // Files processed but no EXIF data found
+  skipped: number; // Files intentionally skipped during processing
+  unprocessed: number; // Files that haven't entered the processing pipeline yet
+  total: number; // Total number of media items
+}

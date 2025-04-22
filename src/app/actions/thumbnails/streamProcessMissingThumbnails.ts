@@ -44,7 +44,7 @@ export async function streamProcessMissingThumbnails(
       const { skipLargeFiles = true } = options;
 
       await sendProgress(writer, {
-        status: 'started',
+        status: 'processing',
         message: 'Starting thumbnail generation',
       });
 
@@ -69,7 +69,7 @@ export async function streamProcessMissingThumbnails(
       const totalItems = totalCount || 0;
 
       await sendProgress(writer, {
-        status: 'generating',
+        status: 'processing',
         message: `Found ${totalItems} items to process`,
         totalItems,
         processed: 0,
@@ -170,7 +170,7 @@ export async function streamProcessMissingThumbnails(
               : 'unknown';
 
             await sendProgress(writer, {
-              status: 'generating',
+              status: 'processing',
               message: `Generating thumbnail for file ${processed + 1}`,
               currentFilePath: item.file_path,
               currentFileName: item.file_name,
@@ -205,7 +205,7 @@ export async function streamProcessMissingThumbnails(
                   : 'unknown';
 
             await sendProgress(writer, {
-              status: 'generating',
+              status: 'processing',
               message: `${processed} processed (${successCount} success, ${failedCount} failed, ${skippedLargeFiles} skipped)`,
               totalItems,
               processed,

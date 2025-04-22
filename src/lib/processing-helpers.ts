@@ -11,13 +11,7 @@ export async function updateProcessingState({
 }: {
   mediaItemId: string;
   type: string;
-  status:
-    | 'success'
-    | 'error'
-    | 'skipped'
-    | 'pending'
-    | 'outdated'
-    | 'unsupported';
+  status: 'success' | 'error' | 'skipped';
   errorMessage?: string | null;
 }) {
   const supabase = createServerSupabaseClient();

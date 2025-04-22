@@ -61,18 +61,6 @@ export async function streamProcessUnprocessedItems({
     try {
       const supabase = createServerSupabaseClient();
 
-      // Send initial progress update with options info
-      const methodInfo =
-        extractionMethod && extractionMethod !== 'default'
-          ? ` using ${extractionMethod} extraction method`
-          : '';
-
-      await sendProgress(writer, {
-        status: 'started',
-        message: `Starting EXIF processing${methodInfo}${skipLargeFiles ? ' (skipping files over 100MB)' : ''} with batch size ${batchSize}`,
-        method: extractionMethod,
-      });
-
       // Get only batchSize number of unprocessed files instead of all of them
       const unprocessedFiles = await getUnprocessedFiles({ limit: batchSize });
 

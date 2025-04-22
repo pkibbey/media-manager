@@ -129,7 +129,7 @@ export async function generateThumbnail(
       await supabase.from('processing_states').upsert({
         media_item_id: mediaId,
         type: 'thumbnail',
-        status: 'unsupported',
+        status: 'error',
         processed_at: new Date().toISOString(),
         error_message: `Unsupported format: ${extension}`,
       });

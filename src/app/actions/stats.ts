@@ -52,7 +52,7 @@ export async function getMediaStats(): Promise<{
         .from('processing_states')
         .select('media_item_id', { count: 'exact', head: true })
         .eq('type', 'exif')
-        .in('status', ['skipped', 'unsupported']);
+        .in('status', ['skipped', 'error']);
 
     if (processedNoExifError) {
       console.error('Error counting items with no EXIF:', processedNoExifError);
@@ -230,11 +230,11 @@ export async function resetEverything(): Promise<{
       return { success: false, error: deleteMediaError.message };
     }
 
-    // Then reset all processing states to pending/outdated
+    // Delete all processing states
     const { error: deleteError } = await supabase
       .from('processing_states')
       .delete()
-      .neq('id', 0); // Delete all processing states
+      .neq('id', 0);
 
     if (deleteError) {
       console.error('Error resetting processing states:', deleteError);

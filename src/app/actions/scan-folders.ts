@@ -183,7 +183,7 @@ export async function scanFolders(options: ScanOptions = {}) {
       }
 
       await sendProgress(writer, {
-        status: 'started',
+        status: 'processing',
         message: folderId
           ? `Starting scan of folder: ${folders[0].path}${ignoreSmallFiles ? ' (ignoring files under 10kb)' : ''}`
           : `Starting scan of ${folders.length} folders${ignoreSmallFiles ? ' (ignoring files under 10kb)' : ''}`,
@@ -212,7 +212,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       if (ignoredExtensions.length > 0) {
         await sendProgress(writer, {
-          status: 'scanning',
+          status: 'processing',
           message: `Will skip ${ignoredExtensions.length} ignored file types: ${ignoredExtensions.join(', ')}`,
         });
       }
@@ -221,7 +221,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       // Load existing files with their paths and modified dates for more effective duplicate checking
       await sendProgress(writer, {
-        status: 'scanning',
+        status: 'processing',
         message: 'Loading existing file information...',
       });
 
@@ -250,7 +250,7 @@ export async function scanFolders(options: ScanOptions = {}) {
           if (page % 5 === 0) {
             // Every 5 pages (5000 items)
             await sendProgress(writer, {
-              status: 'scanning',
+              status: 'processing',
               message: `Loading existing file information... (${allExistingFiles.length} items loaded)`,
             });
           }
@@ -283,7 +283,7 @@ export async function scanFolders(options: ScanOptions = {}) {
       // Process each folder
       for (const folder of folders) {
         await sendProgress(writer, {
-          status: 'scanning',
+          status: 'processing',
           message: `Scanning folder: ${folder.path}`,
           folderPath: folder.path,
         });
@@ -296,7 +296,7 @@ export async function scanFolders(options: ScanOptions = {}) {
         totalFilesDiscovered += files.length;
 
         await sendProgress(writer, {
-          status: 'scanning',
+          status: 'processing',
           message: `Found ${files.length} files in ${folder.path}`,
           folderPath: folder.path,
           filesDiscovered: totalFilesDiscovered,
@@ -325,13 +325,13 @@ export async function scanFolders(options: ScanOptions = {}) {
                 // Only send updates periodically to avoid flooding the stream
                 if (totalFilesProcessed % 100 === 0) {
                   await sendProgress(writer, {
-                    status: 'scanning',
+                    status: 'processing',
                     message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped, ${totalSmallFilesSkipped} small files skipped)`,
                     filesDiscovered: totalFilesDiscovered,
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
                     newFileTypes: Array.from(newFileTypes),
-                    filesSkipped: totalFilesSkipped,
+
                     ignoredFilesSkipped: totalIgnoredFiles,
                     smallFilesSkipped: totalSmallFilesSkipped,
                   });
@@ -353,13 +353,13 @@ export async function scanFolders(options: ScanOptions = {}) {
                 // Only send updates periodically to avoid flooding the stream
                 if (totalFilesProcessed % 100 === 0) {
                   await sendProgress(writer, {
-                    status: 'scanning',
+                    status: 'processing',
                     message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped, ${totalSmallFilesSkipped} small files skipped)`,
                     filesDiscovered: totalFilesDiscovered,
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
                     newFileTypes: Array.from(newFileTypes),
-                    filesSkipped: totalFilesSkipped,
+
                     ignoredFilesSkipped: totalIgnoredFiles,
                     smallFilesSkipped: totalSmallFilesSkipped,
                   });
@@ -379,13 +379,13 @@ export async function scanFolders(options: ScanOptions = {}) {
                 // Only send updates periodically to avoid flooding the stream
                 if (totalFilesProcessed % 100 === 0) {
                   await sendProgress(writer, {
-                    status: 'scanning',
+                    status: 'processing',
                     message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped, ${totalSmallFilesSkipped} small files skipped)`,
                     filesDiscovered: totalFilesDiscovered,
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
                     newFileTypes: Array.from(newFileTypes),
-                    filesSkipped: totalFilesSkipped,
+
                     ignoredFilesSkipped: totalIgnoredFiles,
                     smallFilesSkipped: totalSmallFilesSkipped,
                   });
@@ -426,13 +426,12 @@ export async function scanFolders(options: ScanOptions = {}) {
                 totalFilesProcessed === totalFilesDiscovered
               ) {
                 await sendProgress(writer, {
-                  status: 'scanning',
+                  status: 'processing',
                   message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files (${totalFilesSkipped} unchanged files skipped, ${totalIgnoredFiles} ignored files skipped, ${totalSmallFilesSkipped} small files skipped)`,
                   filesDiscovered: totalFilesDiscovered,
                   filesProcessed: totalFilesProcessed,
                   newFilesAdded,
                   newFileTypes: Array.from(newFileTypes),
-                  filesSkipped: totalFilesSkipped,
                   ignoredFilesSkipped: totalIgnoredFiles,
                   smallFilesSkipped: totalSmallFilesSkipped,
                 });
@@ -475,7 +474,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                   insertError.message.includes('violates')
                 ) {
                   await sendProgress(writer, {
-                    status: 'scanning',
+                    status: 'processing',
                     message:
                       'Trying to insert items individually due to validation error...',
                     filesDiscovered: totalFilesDiscovered,
@@ -514,7 +513,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                     newFilesAdded - (newMediaItems.length - successCount);
 
                   await sendProgress(writer, {
-                    status: 'scanning',
+                    status: 'processing',
                     message: `Individual insert: ${successCount} of ${newMediaItems.length} succeeded. Adjusted count from ${previouslyAdded} to ${newFilesAdded}.`,
                     filesDiscovered: totalFilesDiscovered,
                     filesProcessed: totalFilesProcessed,
@@ -547,7 +546,7 @@ export async function scanFolders(options: ScanOptions = {}) {
       // Add any new file types to the database and update extension-to-id mapping
       if (newFileTypes.size > 0) {
         await sendProgress(writer, {
-          status: 'scanning',
+          status: 'processing',
           message: `Adding ${newFileTypes.size} new file types to database...`,
           newFileTypes: Array.from(newFileTypes),
         });
@@ -694,7 +693,6 @@ export async function scanFolders(options: ScanOptions = {}) {
         filesProcessed: totalFilesProcessed,
         newFilesAdded,
         newFileTypes: Array.from(newFileTypes),
-        filesSkipped: totalFilesSkipped,
         ignoredFilesSkipped: totalIgnoredFiles,
         smallFilesSkipped: totalSmallFilesSkipped,
       });

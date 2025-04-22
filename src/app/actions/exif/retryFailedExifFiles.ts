@@ -53,7 +53,7 @@ export async function retryFailedExifFiles(
         await supabase.from('processing_states').upsert({
           media_item_id: fileId,
           type: 'exif',
-          status: 'pending', // Set to pending to mark it for reprocessing
+          status: 'error',
           processed_at: new Date().toISOString(),
           error_message: null, // Clear any previous errors
         });
