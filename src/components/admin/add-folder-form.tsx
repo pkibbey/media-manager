@@ -1,6 +1,6 @@
 'use client';
 
-import { addScanFolder } from '@/app/actions/scan-folders';
+import { addScanFolder } from '@/app/actions/scan';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 

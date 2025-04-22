@@ -1,6 +1,6 @@
 'use client';
 
-import { scanFolders } from '@/app/actions/scan-folders';
+import { scanFolders } from '@/app/actions/scan';
 import { ScanSearchIcon } from 'lucide-react';
 import { useState } from 'react';
 

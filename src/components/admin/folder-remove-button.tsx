@@ -1,6 +1,6 @@
 'use client';
 
-import { removeScanFolder } from '@/app/actions/scan-folders';
+import { removeScanFolder } from '@/app/actions/scan';
 import { TrashIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 

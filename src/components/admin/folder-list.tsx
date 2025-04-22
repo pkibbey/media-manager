@@ -1,4 +1,4 @@
-import { getScanFolders } from '@/app/actions/scan-folders';
+import { getScanFolders } from '@/app/actions/scan';
 import FolderListDisplay from './folder-list-display';
 
 export default async function FolderList() {
