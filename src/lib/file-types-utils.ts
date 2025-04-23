@@ -1,5 +1,8 @@
 import type { FileType } from '@/types/db-types';
-import { getAllFileTypes, getFileTypeById as getFileTypeByIdHelper } from './query-helpers';
+import {
+  getAllFileTypes,
+  getFileTypeById as getFileTypeByIdHelper,
+} from './query-helpers';
 
 export interface FileTypeInfo {
   ignoredExtensions: string[];
@@ -26,7 +29,7 @@ export interface DetailedFileTypeInfo extends FileTypeInfo {
  * @returns An object containing processed file type information or null if an error occurs.
  */
 export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
-  console.log('getFileTypeInfo: ')
+  console.log('getFileTypeInfo: ');
   // Use the query helper to get file types
   const { data: fileTypes, error } = await getAllFileTypes();
 
@@ -74,7 +77,9 @@ export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
  */
 export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | null> {
   // Use the query helper to get all file types with all fields
-  const { data: fileTypes, error } = await getAllFileTypes({ fullSelect: true });
+  const { data: fileTypes, error } = await getAllFileTypes({
+    fullSelect: true,
+  });
 
   if (error || !fileTypes) {
     console.error('Error fetching detailed file types:', error);

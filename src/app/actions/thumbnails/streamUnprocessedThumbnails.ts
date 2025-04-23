@@ -30,7 +30,6 @@ export async function streamUnprocessedThumbnails({
     skipLargeFiles,
     batchSize,
   }).catch((error) => {
-    console.error('Error in processUnprocessedThumbnailsInternal:', error);
     sendProgress(writer, {
       status: 'error',
       message: 'Error during thumbnail generation',
@@ -326,7 +325,6 @@ export async function streamUnprocessedThumbnails({
         isBatchComplete: true,
       });
     } catch (error: any) {
-      console.error('Error during thumbnail processing:', error);
       await sendProgress(writer, {
         status: 'error',
         message: 'Error during thumbnail generation',
@@ -368,7 +366,6 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
       `,
         { count: 'exact' },
       )
-      .or('file_types.category.eq.image, file_types.category.eq.video')
       .eq('processing_states.type', 'thumbnail')
       .not('processing_states.status', 'eq', 'success')
       .not('processing_states.status', 'eq', 'skipped')
@@ -377,7 +374,6 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   );
 
   if (noThumbError) {
-    console.error('Error fetching files with no thumbnails:', noThumbError);
     throw new Error('Failed to fetch files with no thumbnails');
   }
 
@@ -408,7 +404,6 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
         file_types!inner(*),
         processing_states!inner(*)
       `)
-        .or('file_types.category.eq.image, file_types.category.eq.video')
         .not('thumbnail_path', 'is', null)
         .eq('processing_states.type', 'thumbnail')
         .in('processing_states.status', ['error', 'pending'])

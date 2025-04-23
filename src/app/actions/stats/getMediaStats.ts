@@ -18,7 +18,7 @@ export async function getMediaStats(): Promise<{
     const { count: totalCount } = await includeMedia(
       supabase
         .from('media_items')
-        .select('*, file_types!inner(*)', { count: 'exact', head: true }),
+        .select('id, file_types!inner(*)', { count: 'exact', head: true }),
     );
 
     // Get total size of all media
@@ -63,10 +63,12 @@ export async function getMediaStats(): Promise<{
     );
 
     // Get ignored files count - this specifically counts files with ignored file types
-    const { count: ignoredCount } = await supabase
-      .from('media_items')
-      .select('*, file_types!inner(*)', { count: 'exact', head: true })
-      .eq('file_types.ignore', true);
+    const { count: ignoredCount } = await includeMedia(
+      supabase
+        .from('media_items')
+        .select('id, file_types!inner(*)', { count: 'exact', head: true })
+        .eq('file_types.ignore', true),
+    );
 
     // Get timestamp correction needs
     const { count: needsTimestampCorrectionCount } = await includeMedia(

@@ -49,25 +49,16 @@ export function createProcessingStateFilter({
 /**
  * Get a media item by ID with file type information and optional fields
  * @param id Media item ID
- * @param includeFields Additional fields to include beyond the defaults
  * @returns Query result with media item data
  */
-export async function getMediaItemById(
-  id: string,
-  includeFields = '',
-): Promise<{
+export async function getMediaItemById(id: string): Promise<{
   data: MediaItem | null;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
 
   return includeMedia(
-    supabase
-      .from('media_items')
-      .select(
-        `*, file_types!inner(*)${includeFields ? `, ${includeFields}` : ''}`,
-      )
-      .eq('id', id),
+    supabase.from('media_items').select('*, file_types!inner(*)').eq('id', id),
   ).single();
 }
 
@@ -366,11 +357,12 @@ export async function updateProcessingState(
  * @returns Query result with file types data
  */
 export async function getAllFileTypes(options: { fullSelect?: boolean } = {}) {
+  console.log('getAllFileTypes: ', options);
   const supabase = createServerSupabaseClient();
 
   try {
     // Apply filters
-    let query = supabase.from('file_types').select('*');
+    let query = supabase.from('file_types').select('*, file_types!inner(*)');
 
     if (!options.fullSelect) {
       // Exclude ignored file types

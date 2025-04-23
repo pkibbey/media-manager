@@ -1,15 +1,19 @@
 'use server';
 
-import { getAllFileTypes as getFileTypesHelper, updateFileType as updateFileTypeHelper } from '@/lib/query-helpers';
 import { revalidatePath } from 'next/cache';
+import {
+  getAllFileTypes as getFileTypesHelper,
+  updateFileType as updateFileTypeHelper,
+} from '@/lib/query-helpers';
 
 /**
  * Get all file types
  */
 export async function getAllFileTypes() {
+  console.log('getAllFileTypes: ');
   try {
     const result = await getFileTypesHelper();
-    
+
     if (result.error) {
       console.error('Error fetching file types:', result.error);
       return { success: false, error: result.error };
@@ -37,7 +41,7 @@ export async function updateFileType(
 ) {
   try {
     const result = await updateFileTypeHelper(id, updates);
-    
+
     if (!result.success) {
       console.error('Error updating file type:', result.error);
       return { success: false, error: result.error };
