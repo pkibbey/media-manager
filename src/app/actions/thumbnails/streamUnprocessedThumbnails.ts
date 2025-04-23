@@ -71,16 +71,16 @@ export async function streamUnprocessedThumbnails({
 
       while (hasMoreItems) {
         // Get this batch of unprocessed files
-        const unprocessedFiles = await getUnprocessedFilesForThumbnails({
+        const {unprocessedFiles, totalItems} = await getUnprocessedFilesForThumbnails({
           limit: fetchSize,
         });
 
         // If no files were returned and we're on batch 1, nothing to process at all
-        if (unprocessedFiles.length === 0 && currentBatch === 1) {
+        if (unprocessedFiles === undefined || unprocessedFiles.length === 0 && currentBatch === 1) {
           await sendProgress(writer, {
             status: 'completed',
             message: 'No files to process',
-            totalItems: 0,
+            totalItems,
             processed: 0,
             successCount: 0,
             failedCount: 0,
@@ -175,11 +175,9 @@ export async function streamUnprocessedThumbnails({
             await sendProgress(writer, {
               status: 'processing',
               message: isInfinityMode
-                ? `Batch ${currentBatch}: Generating thumbnail ${batchProcessedCount + 1}/${unprocessedFiles.length} (${totalItemsProcessed + 1} total): ${media.file_name}`
-                : `Generating thumbnail ${batchProcessedCount + 1}/${unprocessedFiles.length}: ${media.file_name}`,
-              totalItems: isInfinityMode
-                ? totalFilesDiscovered
-                : unprocessedFiles.length,
+                ? `Batch ${currentBatch}: Generating thumbnail: ${media.file_name}`
+                : `Generating thumbnail: ${media.file_name}`,
+              totalItems,
               processed: isInfinityMode
                 ? totalItemsProcessed
                 : batchProcessedCount,
@@ -350,15 +348,15 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
   // First, get media items with no thumbnail path
-  const { data: filesWithNoThumbnail, error: noThumbError } = await supabase
+  const { data: filesWithNoThumbnail, error: noThumbError, count: totalItems } = await supabase
     .from('media_items')
     .select(`
       *,
       file_types!inner(*),
-      processing_states(*)
-    `)
+      processing_states!inner(*)
+    `, { count: 'exact' })
     .eq('file_types.category', 'image')
-    // .is('thumbnail_path', null)
+    .is('thumbnail_path', null)
     .limit(limit);
 
   if (noThumbError) {
@@ -368,14 +366,20 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
 
   // If we already have enough items, return them
   if (filesWithNoThumbnail && filesWithNoThumbnail.length >= limit) {
-    return filesWithNoThumbnail;
+    return {
+      unprocessedFiles: filesWithNoThumbnail || [], 
+      totalItems: totalItems || 0
+    };
   }
 
   // Otherwise, also look for items with unsuccessful processing states
   const remainingLimit = limit - (filesWithNoThumbnail?.length || 0);
 
   if (remainingLimit <= 0) {
-    return filesWithNoThumbnail || [];
+    return {
+      unprocessedFiles: filesWithNoThumbnail || [], 
+      totalItems: totalItems || 0
+    };
   }
 
   const { data: filesWithUnsuccessfulStates, error: statesError } =
@@ -389,7 +393,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
       .eq('file_types.category', 'image')
       .not('thumbnail_path', 'is', null)
       .eq('processing_states.type', 'thumbnail')
-      // .not('processing_states.status', 'in', '("success","skipped")')
+      .in('processing_states.status', ['error', 'pending'])
       .limit(remainingLimit);
 
   if (statesError) {
@@ -398,12 +402,18 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
       statesError,
     );
     // We still return the files we found earlier
-    return filesWithNoThumbnail || [];
+    return {
+      unprocessedFiles: filesWithNoThumbnail || [],
+      totalItems: totalItems || 0,
+    };
   }
 
   // Combine the results
-  return [
-    ...(filesWithNoThumbnail || []),
-    ...(filesWithUnsuccessfulStates || []),
-  ];
+  return {
+    unprocessedFiles: [
+      ...(filesWithNoThumbnail || []),
+      ...(filesWithUnsuccessfulStates || []),
+    ], 
+    totalItems: totalItems || 0
+  };
 }

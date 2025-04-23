@@ -32,7 +32,7 @@ export default function ThumbnailGenerator() {
   } = useThumbnailGenerator();
 
   return (
-    <div className="grid overflow-hidden gap-4 space-y-4">
+    <div className="flex flex-col overflow-hidden gap-4 space-y-4">
       {!isGenerating && <ThumbnailStats thumbnailStats={thumbnailStats} />}
 
       {isGenerating && (
@@ -40,7 +40,7 @@ export default function ThumbnailGenerator() {
           isProcessingAll={isProcessingAll}
           progress={progress}
           processed={processed}
-          total={total}
+          total={total} // this total is incorrect
           batchSize={batchSize}
           totalProcessed={totalProcessed}
           successCount={successCount}

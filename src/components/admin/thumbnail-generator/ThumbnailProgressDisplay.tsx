@@ -40,7 +40,7 @@ export function ThumbnailProgressDisplay({
   hasError,
 }: ThumbnailProgressDisplayProps) {
   return (
-    <div className="grid overflow-hidden gap-4 space-y-4">
+    <div className="flex flex-col overflow-hidden gap-4 space-y-4">
       <div className="flex justify-between items-center gap-4 overflow-hidden">
         <h2 className="text-lg font-medium truncate">
           {detailProgress?.message}
