@@ -23,12 +23,4 @@
 
 -- condense the EXIF Processor diplay to only show one progress bar
 
--- compare to see how graphql would work with this
-
--- add buttons to generate all, now that things are working as expected
-
--- break up some of the larger tsx files into smaller components
-
--- add a lint rule to limit the lines in a file
-
---- find unused exports and unused variables
+-- compare to see how graphql would work with this - would it be much easier to work with?

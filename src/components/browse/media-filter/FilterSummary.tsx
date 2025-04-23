@@ -12,7 +12,7 @@ export function FilterSummary({ totalCount, onReset }: FilterSummaryProps) {
         {totalCount > 0 ? (
           <>Showing {totalCount} items</>
         ) : (
-          <>No items match your criteria</>
+          'No items match your criteria'
         )}
       </div>
       <Button type="button" variant="ghost" size="sm" onClick={onReset}>

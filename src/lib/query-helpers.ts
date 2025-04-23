@@ -31,7 +31,10 @@ export async function getIgnoredExtensions() {
 export function createProcessingStateFilter({
   type,
   statuses,
-}: { type: string; statuses: string[] }) {
+}: {
+  type: string;
+  statuses: string[];
+}) {
   const supabase = createServerSupabaseClient();
   return supabase
     .from('processing_states')

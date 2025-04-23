@@ -1,6 +1,6 @@
 import { getMediaStats } from '@/app/actions/stats';
-import { CorrectorClient } from './timestamp-corrector/CorrectorClient';
-import { CorrectorStats } from './timestamp-corrector/CorrectorStats';
+import { CorrectorClient } from './CorrectorClient';
+import { CorrectorStats } from './CorrectorStats';
 
 export async function TimestampCorrector() {
   // Fetch initial stats to pass to the client component

@@ -1,8 +1,8 @@
 'use client';
 
-import type { MediaItem } from '@/types/db-types';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import type { MediaItem } from '@/types/db-types';
 import MediaFullView from './media-full-view';
 
 interface RandomImageSlideshowProps {
@@ -16,6 +16,34 @@ export default function RandomImageSlideshow({
 }: RandomImageSlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fadeState, setFadeState] = useState<'fade-in' | 'fade-out'>('fade-in');
+
+  const currentImage = images[currentIndex];
+
+  // Set up the image rotation
+  useEffect(() => {
+    // Wait for at least two images to start the rotation
+    // This prevents the slideshow from starting if there are less than two images
+    if (images.length >= 2) return;
+
+    // Start the rotation timer
+    const timer = setInterval(() => {
+      // Start the fade-out animation
+      setFadeState('fade-out');
+
+      // After the fade-out is complete, change the image and fade back in
+      const changeTimeout = setTimeout(() => {
+        setCurrentIndex((prevIndex) =>
+          prevIndex === images.length - 1 ? 0 : prevIndex + 1,
+        );
+        setFadeState('fade-in');
+      }, 500); // Time should match the CSS transition duration
+
+      return () => clearTimeout(changeTimeout);
+    }, interval);
+
+    // Clean up
+    return () => clearInterval(timer);
+  }, [images.length, interval]);
 
   // Skip if no images provided
   if (!images || images.length === 0) {
@@ -41,30 +69,6 @@ export default function RandomImageSlideshow({
       </div>
     );
   }
-
-  // Set up the image rotation
-  useEffect(() => {
-    // Start the rotation timer
-    const timer = setInterval(() => {
-      // Start the fade-out animation
-      setFadeState('fade-out');
-
-      // After the fade-out is complete, change the image and fade back in
-      const changeTimeout = setTimeout(() => {
-        setCurrentIndex((prevIndex) =>
-          prevIndex === images.length - 1 ? 0 : prevIndex + 1,
-        );
-        setFadeState('fade-in');
-      }, 500); // Time should match the CSS transition duration
-
-      return () => clearTimeout(changeTimeout);
-    }, interval);
-
-    // Clean up
-    return () => clearInterval(timer);
-  }, [images.length, interval]);
-
-  const currentImage = images[currentIndex];
 
   return (
     <div className="w-full h-[400px] lg:h-[600px] rounded-lg overflow-hidden relative bg-black mb-8">

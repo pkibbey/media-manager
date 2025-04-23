@@ -114,7 +114,10 @@ export function Pagination({
   const PageButton = ({
     page: buttonPage,
     disabled = false,
-  }: { page: number; disabled?: boolean }) => {
+  }: {
+    page: number;
+    disabled?: boolean;
+  }) => {
     const isActive = buttonPage === page;
 
     if (urlPattern) {

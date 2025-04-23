@@ -14,7 +14,10 @@ const PROCESSING_TYPE_TIMESTAMP_CORRECTION = 'timestamp_correction';
 export async function updateMediaDatesFromFilenames({
   itemCount = 100,
   updateAll = false,
-}: { itemCount?: number; updateAll?: boolean } = {}): Promise<{
+}: {
+  itemCount?: number;
+  updateAll?: boolean;
+} = {}): Promise<{
   success: boolean;
   message?: string;
   error?: string;

@@ -1,0 +1,28 @@
+import { ReloadIcon } from '@radix-ui/react-icons';
+import { Button } from '@/components/ui/button';
+
+type ScanButtonProps = {
+  isScanning: boolean;
+  onScan: () => void;
+  onCancel: () => void;
+  canCancel: boolean;
+};
+
+export function ScanButton({
+  isScanning,
+  onScan,
+  onCancel,
+  canCancel,
+}: ScanButtonProps) {
+  return (
+    <Button
+      onClick={isScanning ? onCancel : onScan}
+      disabled={isScanning && !canCancel}
+      variant={isScanning ? 'destructive' : 'default'}
+      className="flex items-center gap-2"
+    >
+      {isScanning && <ReloadIcon className="h-4 w-4 animate-spin" />}
+      {isScanning ? 'Cancel Scan' : 'Start Scan'}
+    </Button>
+  );
+}

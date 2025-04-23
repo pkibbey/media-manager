@@ -1,9 +1,8 @@
-import type { MediaItem } from '@/types/db-types';
-import type {} from '@/types/thumbnail-types';
 import { type ClassValue, clsx } from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import { twMerge } from 'tailwind-merge';
+import type { MediaItem } from '@/types/db-types';
 import { LARGE_FILE_THRESHOLD } from './consts';
 import { fileTypeCache } from './file-type-cache';
 
@@ -434,7 +433,7 @@ export function sanitizeExifData(data: any): any {
 
     const result: Record<string, any> = {};
     for (const key in data) {
-      if (Object.prototype.hasOwnProperty.call(data, key)) {
+      if (Object.hasOwn(data, key)) {
         // Recursively sanitize nested objects
         result[key] = sanitizeExifData(data[key]);
       }
