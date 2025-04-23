@@ -131,7 +131,7 @@ export async function generateThumbnail(
         );
 
         // Use sharp to create thumbnail from the JPEG buffer
-        thumbnailBuffer = await sharp(jpegBuffer)
+        thumbnailBuffer = await sharp(jpegBuffer, { failOnError: false })
           .rotate()
           .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
           .webp({ quality: 80 })

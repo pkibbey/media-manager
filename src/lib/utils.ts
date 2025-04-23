@@ -41,35 +41,6 @@ export function formatRelativeTime(dateString: string) {
 }
 
 /**
- * Parse a date from a filename (assuming format like YYYYMMDD or YYYY-MM-DD)
- */
-export function parseDateFromFilename(filename: string): Date | null {
-  // Match YYYYMMDD or YYYY-MM-DD or YYYY_MM_DD patterns
-  const datePatterns = [
-    /(\d{4})(\d{2})(\d{2})/, // YYYYMMDD
-    /(\d{4})[_-](\d{2})[_-](\d{2})/, // YYYY-MM-DD or YYYY_MM_DD
-  ];
-
-  for (const pattern of datePatterns) {
-    const match = filename.match(pattern);
-    if (match) {
-      const year = Number.parseInt(match[1], 10);
-      const month = Number.parseInt(match[2], 10) - 1; // JS months are 0-indexed
-      const day = Number.parseInt(match[3], 10);
-
-      const date = new Date(year, month, day);
-
-      // Verify the date is valid
-      if (!Number.isNaN(date.getTime())) {
-        return date;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
  * Check if a file format can be natively displayed in most browsers
  * @param fileTypeId The file type ID to check
  */
