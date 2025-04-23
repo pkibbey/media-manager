@@ -1,4 +1,7 @@
 import { createServerSupabaseClient } from './supabase';
+import { excludeIgnoredFileTypes } from './utils';
+import type { MediaFilters } from '@/types/media-types';
+import type { FileType, MediaItem } from '@/types/db-types';
 
 /**
  * Get the IDs of file types marked as ignored
@@ -41,4 +44,773 @@ export function createProcessingStateFilter({
     .select('media_item_id, status')
     .eq('type', type)
     .in('status', statuses);
+}
+
+/**
+ * Get a media item by ID with file type information and optional fields
+ * @param id Media item ID
+ * @param includeFields Additional fields to include beyond the defaults
+ * @returns Query result with media item data
+ */
+export async function getMediaItemById(
+  id: string, 
+  includeFields: string = ''
+): Promise<{
+  data: MediaItem | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return excludeIgnoredFileTypes(
+    supabase
+      .from('media_items')
+      .select(`*, file_types!inner(*)${includeFields ? ', ' + includeFields : ''}`)
+      .eq('id', id)
+  ).single();
+}
+
+/**
+ * Get media items with pagination and filtering
+ * @param filters Media filters to apply
+ * @param page Current page number (1-based)
+ * @param pageSize Number of items per page
+ * @returns Query result with media items and count
+ */
+export async function getMediaItems(
+  filters: MediaFilters,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<{
+  data: MediaItem[] | null;
+  count: number | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  // Calculate pagination range
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  
+  // Start building the query
+  let query = supabase
+    .from('media_items')
+    .select('*, file_types!inner(*), processing_states(*)', {
+      count: 'exact',
+    });
+  
+  // Apply filter to exclude ignored file types
+  query = excludeIgnoredFileTypes(query);
+  
+  // Apply text search
+  if (filters.search) {
+    query = query.ilike('file_name', `%${filters.search}%`);
+  }
+  
+  // Apply media type filter
+  if (filters.type && filters.type !== 'all') {
+    query = query.eq('file_types.category', filters.type);
+  }
+  
+  // Apply date range filters
+  if (filters.dateFrom) {
+    query = query.gte('media_date', filters.dateFrom.toISOString());
+  }
+  
+  if (filters.dateTo) {
+    // Add one day to include the end date fully
+    const endDate = new Date(filters.dateTo);
+    endDate.setDate(endDate.getDate() + 1);
+    query = query.lt('media_date', endDate.toISOString());
+  }
+  
+  // Apply file size filters (convert MB to bytes)
+  if (filters.minSize > 0) {
+    query = query.gte('size_bytes', filters.minSize * 1024 * 1024);
+  }
+  
+  if (filters.maxSize < Number.MAX_SAFE_INTEGER) {
+    query = query.lte('size_bytes', filters.maxSize * 1024 * 1024);
+  }
+  
+  // Apply processing status filter
+  if (filters.processed && filters.processed !== 'all') {
+    const hasExif = filters.processed === 'yes';
+    
+    if (hasExif) {
+      query = query.not('exif_data', 'is', null);
+    } else {
+      query = query.is('exif_data', null);
+    }
+  }
+  
+  // Apply camera filter
+  if (filters.camera && filters.camera !== 'all' && filters.camera !== '') {
+    query = query.contains('exif_data', { Image: { Model: filters.camera } });
+  }
+  
+  // Apply thumbnail filter
+  if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
+    if (filters.hasThumbnail === 'yes') {
+      query = query.not('thumbnail_path', 'is', null);
+    } else {
+      query = query.is('thumbnail_path', null);
+    }
+  }
+  
+  // Apply location filter
+  if (filters.hasLocation && filters.hasLocation !== 'all') {
+    if (filters.hasLocation === 'yes') {
+      query = query.not('exif_data->GPS', 'is', null);
+    } else {
+      query = query.or('exif_data->GPS.is.null, exif_data.is.null');
+    }
+  }
+  
+  // Apply sorting
+  let sortColumn: string;
+  switch (filters.sortBy) {
+    case 'name':
+      sortColumn = 'file_name';
+      break;
+    case 'size':
+      sortColumn = 'size_bytes';
+      break;
+    case 'type':
+      sortColumn = 'file_types.category';
+      break;
+    default:
+      sortColumn = 'media_date';
+      break;
+  }
+  
+  query = query.order(sortColumn, {
+    ascending: filters.sortOrder === 'asc',
+    nullsFirst: filters.sortOrder === 'asc',
+  });
+  
+  // Add secondary sort by file name to ensure consistent ordering
+  if (filters.sortBy !== 'name') {
+    query = query.order('file_name', { ascending: true });
+  }
+  
+  // Apply pagination
+  query = query.range(from, to);
+  
+  // Execute the query
+  return await query;
+}
+
+/**
+ * Get random media items that have thumbnails
+ * @param limit Number of random items to fetch
+ * @returns Query result with media items
+ */
+export async function getRandomMediaItems(
+  limit: number = 5
+): Promise<{
+  data: MediaItem[] | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  // First, retrieve media_item IDs with successful thumbnail processing
+  const { data: thumbData, error: thumbError } = await supabase
+    .from('processing_states')
+    .select('media_item_id, status, type')
+    .eq('type', 'thumbnail')
+    .eq('status', 'success');
+    
+  if (thumbError || !thumbData) {
+    return { data: null, error: thumbError };
+  }
+  
+  const thumbnailMediaIds = thumbData.map((item) => item.media_item_id || '').filter(Boolean);
+  
+  // Query media_items using the retrieved IDs
+  return excludeIgnoredFileTypes(
+    supabase
+      .from('media_items')
+      .select('*, file_types!inner(*)')
+      .in('id', thumbnailMediaIds)
+      .gte('size_bytes', Math.floor(Math.random() * 50000 + 10000))
+      .order('size_bytes', { ascending: false })
+      .limit(limit)
+  );
+}
+
+/**
+ * Count media items with specific conditions
+ * @param options Filter options for the count
+ * @returns Count result
+ */
+export async function countMediaItems(options: {
+  category?: string;
+  fileTypeId?: number;
+  hasExif?: boolean;
+  hasThumbnail?: boolean;
+  includeIgnored?: boolean;
+} = {}): Promise<{
+  count: number | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  let query = supabase
+    .from('media_items')
+    .select('*, file_types!inner(*)', { count: 'exact', head: true });
+  
+  // Apply filter to exclude ignored file types, unless specifically including them
+  if (!options.includeIgnored) {
+    query = excludeIgnoredFileTypes(query);
+  }
+  
+  // Filter by category if specified
+  if (options.category) {
+    query = query.eq('file_types.category', options.category);
+  }
+  
+  // Filter by file type ID if specified
+  if (options.fileTypeId) {
+    query = query.eq('file_type_id', options.fileTypeId);
+  }
+  
+  // Filter by EXIF presence if specified
+  if (options.hasExif !== undefined) {
+    if (options.hasExif) {
+      query = query.not('exif_data', 'is', null);
+    } else {
+      query = query.is('exif_data', null);
+    }
+  }
+  
+  // Filter by thumbnail presence if specified
+  if (options.hasThumbnail !== undefined) {
+    if (options.hasThumbnail) {
+      query = query.not('thumbnail_path', 'is', null);
+    } else {
+      query = query.is('thumbnail_path', null);
+    }
+  }
+  
+  return query;
+}
+
+/**
+ * Update a media item with error handling
+ * @param id Media item ID
+ * @param updates Object containing fields to update
+ * @returns Update result
+ */
+export async function updateMediaItem(
+  id: string, 
+  updates: Partial<MediaItem>
+): Promise<{
+  success: boolean;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    const { error } = await supabase
+      .from('media_items')
+      .update(updates)
+      .eq('id', id);
+      
+    return {
+      success: !error,
+      error
+    };
+  } catch (error) {
+    console.error(`Error updating media item ${id}:`, error);
+    return {
+      success: false,
+      error
+    };
+  }
+}
+
+/**
+ * Update processing state for a media item
+ * @param mediaItemId Media item ID
+ * @param status Status to set
+ * @param type Processing type
+ * @param errorMessage Optional error message
+ * @returns Update result
+ */
+export async function updateProcessingState(
+  mediaItemId: string,
+  status: 'success' | 'error' | 'skipped' | 'pending',
+  type: string,
+  errorMessage?: string
+): Promise<{
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return supabase
+    .from('processing_states')
+    .upsert(
+      {
+        media_item_id: mediaItemId,
+        type,
+        status,
+        processed_at: new Date().toISOString(),
+        error_message: errorMessage || null,
+      },
+      {
+        onConflict: 'media_item_id,type',
+        ignoreDuplicates: false,
+      }
+    );
+}
+
+/**
+ * Get all file types with optional filtering
+ * @param options Query options for filtering file types
+ * @returns Query result with file types data
+ */
+export async function getAllFileTypes(options: {
+  fullSelect?: boolean;
+} = {}) {
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    // Apply filters
+    let query = supabase.from('file_types').select('*');
+    
+    if (!options.fullSelect) {
+      // Exclude ignored file types
+      query = excludeIgnoredFileTypes(query);
+    }
+    
+    // Always sort by extension for consistent results
+    query = query.order('extension');
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching file types:', error);
+      return { data: null, error };
+    }
+    
+    // Execute the query
+    return {
+      data: data || null,
+      error: null,
+    };
+  } catch (err) {
+    console.error('Error in getAllFileTypes:', err);
+    return { 
+      data: null, 
+      error: err instanceof Error ? err : new Error('Unknown error in getAllFileTypes') 
+    };
+  }
+}
+
+/**
+ * Get a file type by ID
+ * @param id File type ID
+ * @returns Query result with file type data
+ */
+export async function getFileTypeById(id: number): Promise<{
+  data: FileType | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return supabase
+    .from('file_types')
+    .select('*')
+    .eq('id', id)
+    .single();
+}
+
+/**
+ * Get a file type by extension
+ * @param extension File extension (without the dot)
+ * @returns Query result with file type data
+ */
+export async function getFileTypeByExtension(extension: string): Promise<{
+  data: FileType | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return supabase
+    .from('file_types')
+    .select('*')
+    .eq('extension', extension.toLowerCase())
+    .single();
+}
+
+/**
+ * Update a file type
+ * @param id File type ID
+ * @param updates Object containing fields to update
+ * @returns Update result
+ */
+export async function updateFileType(
+  id: number, 
+  updates: Partial<FileType>
+): Promise<{
+  success: boolean;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    const { error } = await supabase
+      .from('file_types')
+      .update(updates)
+      .eq('id', id);
+     
+      
+    return {
+      success: !error,
+      error
+    };
+  } catch (error) {
+    console.error(`Error updating file type ${id}:`, error);
+    return {
+      success: false,
+      error
+    };
+  }
+}
+
+/**
+ * Insert a new file type
+ * @param fileType File type data to insert
+ * @returns Insert result
+ */
+export async function insertFileType(
+  fileType: Omit<FileType, 'id'> & { id?: number }
+): Promise<{
+  data: FileType | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return supabase
+    .from('file_types')
+    .insert(fileType)
+    .select()
+    .single();
+}
+
+/**
+ * Abort Tokens Query Helpers
+ * These functions help manage abort tokens in a standardized way
+ */
+
+/**
+ * Add a new abort token to the database with automatic cleanup of expired tokens
+ * @param token Token string to add
+ * @returns Query result
+ */
+export async function addAbortToken(token: string): Promise<{
+  success: boolean;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    // First, clean up expired tokens (older than 1 hour)
+    const oneHourAgo = new Date();
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+    
+    await supabase
+      .from('abort_tokens')
+      .delete()
+      .lt('created_at', oneHourAgo.toISOString());
+    
+    // Add the new token
+    const { error } = await supabase
+      .from('abort_tokens')
+      .upsert(
+        {
+          token,
+          created_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'token,created_at',
+          ignoreDuplicates: false,
+        }
+      );
+    
+    return {
+      success: !error,
+      error
+    };
+  } catch (error) {
+    console.error(`Error adding abort token ${token}:`, error);
+    return {
+      success: false,
+      error
+    };
+  }
+}
+
+/**
+ * Check if a token exists in the database (meaning it's aborted)
+ * @param token Token string to check
+ * @returns Boolean indicating if the token is marked for abortion
+ */
+export async function isAborted(token: string): Promise<boolean> {
+  if (!token) return false;
+  
+  const supabase = createServerSupabaseClient();
+  
+  const { data, error } = await supabase
+    .from('abort_tokens')
+    .select('token')
+    .eq('token', token)
+    .single();
+  
+  // Return false if we got an error (token not found) or no data
+  // Only return true if we successfully found the token
+  return !error && !!data;
+}
+
+/**
+ * Remove a specific abort token from the database
+ * @param token Token string to remove
+ * @returns Query result
+ */
+export async function removeAbortToken(token: string): Promise<{
+  success: boolean;
+  error: any | null;
+}> {
+  if (!token) return { success: true, error: null };
+  
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    const { error } = await supabase
+      .from('abort_tokens')
+      .delete()
+      .eq('token', token);
+    
+    return {
+      success: !error,
+      error
+    };
+  } catch (error) {
+    console.error(`Error removing abort token ${token}:`, error);
+    return {
+      success: false,
+      error
+    };
+  }
+}
+
+/**
+ * Clear all abort tokens from the database
+ * @returns Query result
+ */
+export async function clearAllAbortTokens(): Promise<{
+  success: boolean;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    const { error } = await supabase
+      .from('abort_tokens')
+      .delete()
+      .neq('token', ''); // Delete all tokens
+    
+    return {
+      success: !error,
+      error
+    };
+  } catch (error) {
+    console.error('Error clearing all abort tokens:', error);
+    return {
+      success: false,
+      error
+    };
+  }
+}
+
+/**
+ * Get all active abort tokens
+ * @returns Query result with abort tokens
+ */
+export async function getActiveAbortTokens(): Promise<{
+  data: { token: string; created_at: string }[] | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return supabase
+    .from('abort_tokens')
+    .select('token, created_at')
+    .order('created_at', { ascending: false });
+}
+
+/**
+ * Delete all media items from the database
+ * @returns Delete operation result
+ */
+export async function deleteAllMediaItems(): Promise<{
+  success: boolean;
+  count?: number;
+  error?: string;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    // First get the count for confirmation
+    const { count, error: countError } = await supabase
+      .from('media_items')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('Error counting media items:', countError);
+      return { success: false, error: countError.message };
+    }
+
+    // Then delete all media items
+    const { error: deleteError } = await supabase
+      .from('media_items')
+      .delete()
+      .filter('id', 'not.is', null);
+
+    if (deleteError) {
+      console.error('Error deleting media items:', deleteError);
+      return { success: false, error: deleteError.message };
+    }
+
+    return { 
+      success: true, 
+      count: count || 0
+    };
+  } catch (error: any) {
+    console.error('Error deleting media items:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Delete all processing states from the database
+ * @returns Delete operation result
+ */
+export async function deleteAllProcessingStates(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    const { error } = await supabase
+      .from('processing_states')
+      .delete()
+      .neq('id', 0);
+
+    if (error) {
+      console.error('Error deleting processing states:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting processing states:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Delete all file types from the database
+ * @returns Delete operation result
+ */
+export async function deleteAllFileTypes(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  try {
+    const { error } = await supabase
+      .from('file_types')
+      .delete()
+      .neq('id', 0);
+
+    if (error) {
+      console.error('Error deleting file types:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting file types:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Get all scan folders from the database
+ * @returns Query result with scan folders data
+ */
+export async function getScanFolders(): Promise<{
+  data: any[] | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return supabase
+    .from('scan_folders')
+    .select('*')
+    .order('path');
+}
+
+/**
+ * Add a new scan folder to the database
+ * @param folderPath Path to the folder to scan
+ * @param includeSubfolders Whether to include subfolders in the scan
+ * @returns Operation result with created folder data
+ */
+export async function addScanFolder(
+  folderPath: string, 
+  includeSubfolders: boolean = true
+): Promise<{
+  data: any | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return supabase
+    .from('scan_folders')
+    .insert({
+      path: folderPath,
+      include_subfolders: includeSubfolders,
+    })
+    .select()
+    .single();
+}
+
+/**
+ * Remove a scan folder from the database
+ * @param folderId ID of the scan folder to remove
+ * @returns Operation result
+ */
+export async function removeScanFolder(
+  folderId: number
+): Promise<{
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+  
+  return supabase
+    .from('scan_folders')
+    .delete()
+    .eq('id', folderId);
 }

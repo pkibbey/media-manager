@@ -5,6 +5,7 @@ import {
   updateProcessingState,
 } from '@/lib/exif-utils';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import { excludeIgnoredFileTypes } from '@/lib/utils';
 import type { ExtractionMethod } from '@/types/exif';
 import type { Json } from '@/types/supabase';
 
@@ -28,12 +29,14 @@ export async function processExifData({
     progressCallback?.('Fetching media item details');
 
     // First get the to access its file path
-    const { data: mediaItem, error: fetchError } = await supabase
-      .from('media_items')
-      .select('file_path, file_name, file_types(category)', { count: 'exact' })
-      .eq('id', mediaId)
-      .eq('file_types.category', 'image') // Exif data is only for images
-      .single();
+    // Apply filter to exclude ignored file types
+    const { data: mediaItem, error: fetchError } = await excludeIgnoredFileTypes(
+      supabase
+        .from('media_items')
+        .select('file_path, file_name, file_types!inner(category)', { count: 'exact' })
+        .eq('id', mediaId)
+        .eq('file_types.category', 'image') // Exif data is only for images
+    ).single();
 
     if (fetchError || !mediaItem) {
       console.error('Error fetching media item:', fetchError);

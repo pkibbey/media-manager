@@ -1,5 +1,6 @@
 'use server';
-import { createServerSupabaseClient } from '@/lib/supabase';
+
+import { getAllFileTypes as getFileTypesHelper, updateFileType as updateFileTypeHelper } from '@/lib/query-helpers';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -7,19 +8,14 @@ import { revalidatePath } from 'next/cache';
  */
 export async function getAllFileTypes() {
   try {
-    const supabase = createServerSupabaseClient();
-
-    const { data, error } = await supabase
-      .from('file_types')
-      .select('*')
-      .order('extension');
-
-    if (error) {
-      console.error('Error fetching file types:', error);
-      return { success: false, error: error.message };
+    const result = await getFileTypesHelper();
+    
+    if (result.error) {
+      console.error('Error fetching file types:', result.error);
+      return { success: false, error: result.error };
     }
 
-    return { success: true, data };
+    return { success: true, data: result.data };
   } catch (error: any) {
     console.error('Error getting file types:', error);
     return { success: false, error: error.message };
@@ -40,26 +36,18 @@ export async function updateFileType(
   },
 ) {
   try {
-    const supabase = createServerSupabaseClient();
-
-    const { data, error } = await supabase
-      .from('file_types')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating file type:', error);
-      return { success: false, error: error.message };
+    const result = await updateFileTypeHelper(id, updates);
+    
+    if (!result.success) {
+      console.error('Error updating file type:', result.error);
+      return { success: false, error: result.error };
     }
 
     revalidatePath('/admin');
 
-    return { success: true, data };
+    return { success: true };
   } catch (error: any) {
     console.error('Error updating file type:', error);
     return { success: false, error: error.message };
-  } finally {
   }
 }

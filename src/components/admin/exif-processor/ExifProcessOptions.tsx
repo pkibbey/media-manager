@@ -79,7 +79,7 @@ export function ExifProcessOptions({
             }
             disabled={isStreaming || totalUnprocessed === 0}
           >
-            <SelectTrigger className="w-full text-sm">
+            <SelectTrigger className="w-full text-sm" id="extractionMethod">
               <SelectValue placeholder="Select extraction method" />
             </SelectTrigger>
             <SelectContent>
@@ -109,7 +109,7 @@ export function ExifProcessOptions({
             }
             disabled={isStreaming || totalUnprocessed === 0}
           >
-            <SelectTrigger className="text-sm w-full">
+            <SelectTrigger className="text-sm w-full" id="batchSize">
               <SelectValue placeholder="Select batch size" />
             </SelectTrigger>
             <SelectContent>

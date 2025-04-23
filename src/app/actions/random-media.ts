@@ -1,6 +1,6 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { getRandomMediaItems } from '@/lib/query-helpers';
 import type { MediaItem } from '@/types/db-types';
 
 /**
@@ -13,34 +13,8 @@ export async function getRandomMedia(limit = 5): Promise<{
   error?: string;
 }> {
   try {
-    const supabase = createServerSupabaseClient();
-
-    // First, retrieve media_item IDs with successful thumbnail processing
-    const { data: thumbData, error: thumbError } = await supabase
-      .from('processing_states')
-      .select('media_item_id, status, type')
-      .eq('type', 'thumbnail')
-      .eq('status', 'success');
-
-    if (thumbError) {
-      console.error('Error fetching processing states:', thumbError.message);
-      return { success: false, error: thumbError.message };
-    }
-    const thumbnailMediaIds = thumbData
-      ? thumbData.map((item) => item.media_item_id)
-      : [];
-
-    // Then, query media_items using the retrieved IDs
-    const { data, error } = await supabase
-      .from('media_items')
-      .select('*')
-      .in(
-        'id',
-        thumbnailMediaIds.filter((id) => id !== null),
-      )
-      .gte('size_bytes', Math.floor(Math.random() * 50000 + 10000))
-      .order('size_bytes', { ascending: false })
-      .limit(limit);
+    // Use the utility function to get random media items with thumbnails
+    const { data, error } = await getRandomMediaItems(limit);
 
     if (error) {
       console.error('Error fetching random media:', error.message);

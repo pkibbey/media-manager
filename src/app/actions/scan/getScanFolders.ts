@@ -1,18 +1,13 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { getScanFolders as getScanFoldersHelper } from '@/lib/query-helpers';
 
 /**
  * Get all folders configured for scanning
  */
 export async function getScanFolders() {
   try {
-    const supabase = createServerSupabaseClient();
-
-    const { data, error } = await supabase
-      .from('scan_folders')
-      .select('*')
-      .order('path');
+    const { data, error } = await getScanFoldersHelper();
 
     if (error) {
       console.error('Error getting scan folders:', error);

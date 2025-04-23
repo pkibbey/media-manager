@@ -48,7 +48,7 @@ export default function MediaFilterView({
 
   return (
     <Form {...form}>
-      <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+      <form id="media-filter-view" onSubmit={(e) => e.preventDefault()} className="space-y-4">
         <BasicFilters
           form={form}
           isAdvancedOpen={isAdvancedOpen}

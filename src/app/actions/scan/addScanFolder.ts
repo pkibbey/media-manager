@@ -1,7 +1,7 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { addScanFolder as addScanFolderHelper } from '@/lib/query-helpers';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -12,8 +12,6 @@ export async function addScanFolder(
   includeSubfolders = true,
 ) {
   try {
-    const supabase = createServerSupabaseClient();
-
     // Check if folder exists
     try {
       await fs.access(folderPath);
@@ -25,26 +23,8 @@ export async function addScanFolder(
       };
     }
 
-    // Check if folder is already in database
-    const { data: existingFolder } = await supabase
-      .from('scan_folders')
-      .select('id')
-      .eq('path', folderPath)
-      .maybeSingle();
-
-    if (existingFolder) {
-      return { success: false, error: 'Folder is already added to scan list' };
-    }
-
-    // Add folder to database
-    const { data, error } = await supabase
-      .from('scan_folders')
-      .insert({
-        path: folderPath,
-        include_subfolders: includeSubfolders,
-      })
-      .select()
-      .single();
+    // Add folder to database using the helper function
+    const { data, error } = await addScanFolderHelper(folderPath, includeSubfolders);
 
     if (error) {
       console.error('Error adding scan folder:', error);

@@ -357,7 +357,10 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
         processing_states!inner(*)
       `, { count: 'exact' })
       .or('file_types.category.eq.image, file_types.category.eq.video')
-      .is('thumbnail_path', null)
+      .eq('processing_states.type', 'thumbnail')
+      .not('processing_states.status', 'eq', 'success')
+      .not('processing_states.status', 'eq', 'skipped')
+      .not('processing_states.status', 'eq', 'error')
       .limit(limit)
   );
 

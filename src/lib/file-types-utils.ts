@@ -1,5 +1,5 @@
 import type { FileType } from '@/types/db-types';
-import { createServerSupabaseClient } from './supabase';
+import { getAllFileTypes, getFileTypeById as getFileTypeByIdHelper } from './query-helpers';
 
 export interface FileTypeInfo {
   ignoredExtensions: string[];
@@ -26,15 +26,11 @@ export interface DetailedFileTypeInfo extends FileTypeInfo {
  * @returns An object containing processed file type information or null if an error occurs.
  */
 export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
-  const supabase = createServerSupabaseClient();
+  // Use the query helper to get file types
+  const { data: fileTypes, error } = await getAllFileTypes();
 
-  // Fetch all file type information in a single query
-  const { data: fileTypes, error: fileTypesError } = await supabase
-    .from('file_types')
-    .select('extension, category, ignore');
-
-  if (fileTypesError || !fileTypes) {
-    console.error('Error fetching file types:', fileTypesError);
+  if (error || !fileTypes) {
+    console.error('Error fetching file types:', error);
     return null; // Return null or throw an error based on desired handling
   }
 
@@ -76,15 +72,11 @@ export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
  * @returns Enhanced file type information with ID mappings, or null if an error occurs
  */
 export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | null> {
-  const supabase = createServerSupabaseClient();
+  // Use the query helper to get all file types with all fields
+  const { data: fileTypes, error } = await getAllFileTypes({ fullSelect: true });
 
-  // Fetch all file type information in a single query with all fields
-  const { data: fileTypes, error: fileTypesError } = await supabase
-    .from('file_types')
-    .select('*');
-
-  if (fileTypesError || !fileTypes) {
-    console.error('Error fetching detailed file types:', fileTypesError);
+  if (error || !fileTypes) {
+    console.error('Error fetching detailed file types:', error);
     return null;
   }
 
@@ -145,19 +137,15 @@ export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | 
 
 /**
  * Get file type information by ID
+ * Using query helper instead of direct database query
  * @param fileTypeId - The ID of the file type to fetch
  * @returns File type object or null if not found
  */
 export async function getFileTypeById(
   fileTypeId: number,
 ): Promise<FileType | null> {
-  const supabase = createServerSupabaseClient();
-
-  const { data, error } = await supabase
-    .from('file_types')
-    .select('*')
-    .eq('id', fileTypeId)
-    .single();
+  // Use the query helper instead of direct database access
+  const { data, error } = await getFileTypeByIdHelper(fileTypeId);
 
   if (error || !data) {
     console.error(`Error fetching file type with ID ${fileTypeId}:`, error);

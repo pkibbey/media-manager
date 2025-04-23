@@ -1,6 +1,6 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { removeScanFolder as removeScanFolderHelper } from '@/lib/query-helpers';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -8,12 +8,7 @@ import { revalidatePath } from 'next/cache';
  */
 export async function removeScanFolder(folderId: number) {
   try {
-    const supabase = createServerSupabaseClient();
-
-    const { error } = await supabase
-      .from('scan_folders')
-      .delete()
-      .eq('id', folderId);
+    const { error } = await removeScanFolderHelper(folderId);
 
     if (error) {
       console.error('Error removing scan folder:', error);

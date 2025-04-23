@@ -1,33 +1,19 @@
 'use server';
 
-import { createServerSupabaseClient } from './supabase';
+import { 
+  addAbortToken as addAbortTokenQuery,
+  isAborted as isAbortedQuery,
+  removeAbortToken as removeAbortTokenQuery,
+  clearAllAbortTokens,
+  getActiveAbortTokens
+} from './query-helpers';
 
 /**
  * Add a new abort token to the database
  */
 export async function addAbortToken(token: string): Promise<void> {
-  const supabase = createServerSupabaseClient();
-
-  // First, clean up expired tokens (older than 1 hour)
-  const oneHourAgo = new Date();
-  oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-
-  await supabase
-    .from('abort_tokens')
-    .delete()
-    .lt('created_at', oneHourAgo.toISOString());
-
-  // Add the new token
-  await supabase.from('abort_tokens').upsert(
-    {
-      token,
-      created_at: new Date().toISOString(),
-    },
-    {
-      onConflict: 'token,created_at',
-      ignoreDuplicates: false,
-    },
-  );
+  // Use the query helper to add the token and clean up expired tokens
+  await addAbortTokenQuery(token);
 }
 
 /**
@@ -35,23 +21,9 @@ export async function addAbortToken(token: string): Promise<void> {
  */
 export async function isAborted(token: string): Promise<boolean> {
   if (!token) return false;
-
-  const supabase = createServerSupabaseClient();
-
-  const { data, error } = await supabase
-    .from('abort_tokens')
-    .select('token')
-    .eq('token', token)
-    .single();
-
-  // Return false if we got an error (token not found) or no data
-  // Only return true if we successfully found the token AND it's marked for abortion
-  if (error || !data) {
-    return false;
-  }
-
-  // The token exists in the abort_tokens table - this means the user requested cancellation
-  return true;
+  
+  // Use the query helper to check if the token is aborted
+  return isAbortedQuery(token);
 }
 
 /**
@@ -59,17 +31,29 @@ export async function isAborted(token: string): Promise<boolean> {
  */
 export async function removeAbortToken(token: string): Promise<void> {
   if (!token) return;
-
-  const supabase = createServerSupabaseClient();
-
-  await supabase.from('abort_tokens').delete().eq('token', token);
+  
+  // Use the query helper to remove the token
+  await removeAbortTokenQuery(token);
 }
 
 /**
  * Clear all abort tokens
  */
 export async function clearAbortTokens(): Promise<void> {
-  const supabase = createServerSupabaseClient();
+  // Use the query helper to clear all tokens
+  await clearAllAbortTokens();
+}
 
-  await supabase.from('abort_tokens').delete().neq('token', ''); // Delete all tokens
+/**
+ * Get all active abort tokens - useful for debugging
+ */
+export async function getAbortTokens(): Promise<{ token: string; created_at: string }[] | null> {
+  const { data, error } = await getActiveAbortTokens();
+  
+  if (error) {
+    console.error('Error getting abort tokens:', error);
+    return null;
+  }
+  
+  return data;
 }

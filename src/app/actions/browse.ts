@@ -1,6 +1,6 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { getMediaItems } from '@/lib/query-helpers';
 import type { MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
 
@@ -24,114 +24,8 @@ export async function browseMedia(
   error?: string;
 }> {
   try {
-    const supabase = createServerSupabaseClient();
-
-    // Calculate pagination range
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    // Start building the query
-    let query = supabase
-      .from('media_items')
-      .select('*, file_types!inner(*), processing_states(*)', {
-        count: 'exact',
-      });
-
-    // Text search
-    if (filters.search) {
-      query = query.ilike('file_name', `%${filters.search}%`);
-    }
-
-    // Media type filter
-    if (filters.type && filters.type !== 'all') {
-      query = query.eq('file_types.category', filters.type);
-    }
-
-    // Date range filters
-    if (filters.dateFrom) {
-      query = query.gte('media_date', filters.dateFrom.toISOString());
-    }
-
-    if (filters.dateTo) {
-      // Add one day to include the end date fully
-      const endDate = new Date(filters.dateTo);
-      endDate.setDate(endDate.getDate() + 1);
-      query = query.lt('media_date', endDate.toISOString());
-    }
-
-    // File size filters (convert MB to bytes)
-    if (filters.minSize > 0) {
-      query = query.gte('size_bytes', filters.minSize * 1024 * 1024);
-    }
-
-    if (filters.maxSize < Number.MAX_SAFE_INTEGER) {
-      query = query.lte('size_bytes', filters.maxSize * 1024 * 1024);
-    }
-
-    // Processing status filter
-    if (filters.processed && filters.processed !== 'all') {
-      // We need to join with processing_states table for this filter
-      const hasExif = filters.processed === 'yes';
-
-      // For processed items, check if there's a successful exif processing state
-      if (hasExif) {
-        query = query.not('exif_data', 'is', null);
-      } else {
-        // For unprocessed items, check if exif_data is null
-        query = query.is('exif_data', null);
-      }
-    }
-
-    // Camera filter (from EXIF data)
-    if (filters.camera && filters.camera !== 'all' && filters.camera !== '') {
-      // Filter by camera model in EXIF data
-      // We use PostgreSQL's JSONB query functionality
-      query = query.contains('exif_data', { Image: { Model: filters.camera } });
-    }
-
-    // Thumbnail filter
-    if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
-      if (filters.hasThumbnail === 'yes') {
-        // Filter for items with a thumbnail
-        query = query.not('thumbnail_path', 'is', null);
-      } else {
-        // Filter for items without a thumbnail
-        query = query.is('thumbnail_path', null);
-      }
-    }
-
-    // Apply sorting
-    let sortColumn: string;
-    switch (filters.sortBy) {
-      case 'name':
-        sortColumn = 'file_name';
-        break;
-      case 'size':
-        sortColumn = 'size_bytes';
-        break;
-      case 'type':
-        sortColumn = 'file_types.category';
-        break;
-      default:
-        sortColumn = 'media_date';
-        break;
-    }
-
-    query = query.order(sortColumn, {
-      ascending: filters.sortOrder === 'asc',
-      nullsFirst: filters.sortOrder === 'asc',
-    });
-
-    // Add secondary sort by file name to ensure consistent ordering
-    if (filters.sortBy !== 'name') {
-      query = query.order('file_name', { ascending: true });
-    }
-
-    // Apply pagination
-    query = query.range(from, to);
-
-    // Execute the query
-    const { data, error, count } = await query;
+    // Use the utility function to get media items with filters and pagination
+    const { data, error, count } = await getMediaItems(filters, page, pageSize);
 
     if (error) {
       console.error('Error fetching media items:', error);
@@ -140,6 +34,16 @@ export async function browseMedia(
         pagination: { page, pageSize, pageCount: 0, total: 0 },
         maxFileSize: 100,
         error: error.message,
+      };
+    }
+    
+    if (!data || data.length === 0) {
+      console.warn('No media items found or all were filtered out');
+      return {
+        success: true,
+        data: [],
+        pagination: { page, pageSize, pageCount: 0, total: 0 },
+        maxFileSize: 100,
       };
     }
 

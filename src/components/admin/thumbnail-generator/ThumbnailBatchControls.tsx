@@ -63,7 +63,7 @@ export function ThumbnailBatchControls({
         <Label htmlFor="batchSize" className="text-sm font-medium mb-0">
           Batch Size:
         </Label>
-        <Select
+        <Select        
           value={
             batchSize === Number.POSITIVE_INFINITY
               ? 'Infinity'
@@ -76,7 +76,7 @@ export function ThumbnailBatchControls({
           }
           disabled={isGenerating}
         >
-          <SelectTrigger className="w-full text-sm">
+          <SelectTrigger className="w-full text-sm" id="batchSize">
             <SelectValue placeholder="Select batch size" />
           </SelectTrigger>
           <SelectContent>
