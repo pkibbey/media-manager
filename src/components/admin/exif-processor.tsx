@@ -30,7 +30,7 @@ export default function ExifProcessor() {
   } = useExifProcessor();
 
   return (
-    <div className="overflow-hidden space-y-4">
+    <div className="overflow-hidden grid gap-4 space-y-4">
       {!isStreaming && (
         <ExifStats
           stats={stats}
@@ -48,16 +48,18 @@ export default function ExifProcessor() {
         hasError={hasError}
       />
 
-      <ExifProcessOptions
-        skipLargeFiles={skipLargeFiles}
-        setSkipLargeFiles={setSkipLargeFiles}
-        extractionMethod={extractionMethod}
-        setExtractionMethod={setExtractionMethod}
-        batchSize={batchSize}
-        setBatchSize={setBatchSize}
-        isStreaming={isStreaming}
-        totalUnprocessed={totalUnprocessed}
-      />
+      {!isStreaming && (
+        <ExifProcessOptions
+          skipLargeFiles={skipLargeFiles}
+          setSkipLargeFiles={setSkipLargeFiles}
+          extractionMethod={extractionMethod}
+          setExtractionMethod={setExtractionMethod}
+          batchSize={batchSize}
+          setBatchSize={setBatchSize}
+          isStreaming={isStreaming}
+          totalUnprocessed={totalUnprocessed}
+        />
+      )}
 
       <ExifActionButtons
         isStreaming={isStreaming}

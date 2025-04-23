@@ -31,6 +31,7 @@ export interface MediaStats {
   processedCount: number;
   unprocessedCount: number;
   ignoredCount: number; // Count of files with ignored file types
+  skippedCount: number; // Count of files with skipped processing
   needsTimestampCorrectionCount?: number; // Count of files needing timestamp correction
 }
 

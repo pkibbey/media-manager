@@ -1,7 +1,10 @@
 'use server';
 
+import { exec } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
+import sharp from 'sharp';
 import { LARGE_FILE_THRESHOLD, THUMBNAIL_SIZE } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
@@ -9,7 +12,6 @@ import type {
   ThumbnailGenerationOptions,
   ThumbnailGenerationResponse,
 } from '@/types/thumbnail-types';
-import sharp from 'sharp';
 import { convertHeicToJpeg } from './convertHeicToJpeg';
 
 /**
@@ -136,10 +138,74 @@ export async function generateThumbnail(
           .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
           .webp({ quality: 80 })
           .toBuffer();
+      }
+      // Special handling for TIFF files that might cause errors
+      else if (
+        mediaItem.file_types?.extension === 'tiff' ||
+        mediaItem.file_types?.extension === 'tif'
+      ) {
+        try {
+          // First attempt: try with tiff-specific options
+          thumbnailBuffer = await sharp(mediaItem.file_path, {
+            limitInputPixels: 30000 * 30000,
+            failOnError: false,
+            pages: 0, // Only read the first page of multi-page TIFFs
+          })
+            .rotate()
+            .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+              fit: 'cover',
+              fastShrinkOnLoad: true,
+            })
+            .webp({ quality: 80, effort: 2 })
+            .toBuffer();
+        } catch (tiffError) {
+          console.warn(
+            `[Thumbnail] First TIFF approach failed for ${mediaItem.file_path}, trying fallback method`,
+          );
+
+          // If the normal approach fails, try using ImageMagick if available
+          if (process.platform === 'darwin' || process.platform === 'linux') {
+            const execAsync = promisify(exec);
+            const tempDir = path.dirname(mediaItem.file_path);
+            const tempFileName = `${path.basename(mediaItem.file_path, path.extname(mediaItem.file_path))}_temp.jpg`;
+            const tempOutputPath = path.join(tempDir, tempFileName);
+
+            try {
+              // Try ImageMagick
+              await execAsync(
+                `magick convert "${mediaItem.file_path}[0]" -quality 90 "${tempOutputPath}"`,
+              );
+              const jpegBuffer = await fs.readFile(tempOutputPath);
+
+              // Create thumbnail from the JPEG
+              thumbnailBuffer = await sharp(jpegBuffer, { failOnError: false })
+                .rotate()
+                .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+              // Clean up temp file
+              await fs.unlink(tempOutputPath).catch(console.error);
+            } catch (magickError) {
+              console.error(
+                '[Thumbnail] ImageMagick TIFF conversion failed:',
+                magickError,
+              );
+              // Re-throw to be caught by outer catch block
+              throw new Error(
+                `TIFF processing failed: ${magickError instanceof Error ? magickError.message : 'Unknown error'}`,
+              );
+            }
+          } else {
+            // If no fallback available, re-throw the error
+            throw tiffError;
+          }
+        }
       } else {
-        // For all other image formats, use Sharp directly
+        // For all other image formats, use Sharp directly with enhanced error handling
         thumbnailBuffer = await sharp(mediaItem.file_path, {
           limitInputPixels: 30000 * 30000, // Allow reasonably large images
+          failOnError: false, // Don't fail on corrupt images or unsupported features
         })
           .rotate()
           .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {

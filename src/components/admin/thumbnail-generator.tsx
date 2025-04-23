@@ -32,32 +32,35 @@ export default function ThumbnailGenerator() {
   } = useThumbnailGenerator();
 
   return (
-    <div className="overflow-hidden space-y-4">
-      <ThumbnailStats thumbnailStats={thumbnailStats} />
+    <div className="grid overflow-hidden gap-4 space-y-4">
+      {!isGenerating && <ThumbnailStats thumbnailStats={thumbnailStats} />}
 
-      <ThumbnailProgressDisplay
-        isGenerating={isGenerating}
-        isProcessingAll={isProcessingAll}
-        progress={progress}
-        processed={processed}
-        total={total}
-        batchSize={batchSize}
-        totalProcessed={totalProcessed}
-        successCount={successCount}
-        failedCount={failedCount}
-        largeFilesSkipped={largeFilesSkipped}
-        detailProgress={detailProgress}
-        processingStartTime={processingStartTime}
-        hasError={hasError}
-      />
+      {isGenerating && (
+        <ThumbnailProgressDisplay
+          isProcessingAll={isProcessingAll}
+          progress={progress}
+          processed={processed}
+          total={total}
+          batchSize={batchSize}
+          totalProcessed={totalProcessed}
+          successCount={successCount}
+          failedCount={failedCount}
+          largeFilesSkipped={largeFilesSkipped}
+          detailProgress={detailProgress}
+          processingStartTime={processingStartTime}
+          hasError={hasError}
+        />
+      )}
 
-      <ThumbnailBatchControls
-        skipLargeFiles={skipLargeFiles}
-        setSkipLargeFiles={setSkipLargeFiles}
-        batchSize={batchSize}
-        setBatchSize={setBatchSize}
-        isGenerating={isGenerating}
-      />
+      {!isGenerating && (
+        <ThumbnailBatchControls
+          skipLargeFiles={skipLargeFiles}
+          setSkipLargeFiles={setSkipLargeFiles}
+          batchSize={batchSize}
+          setBatchSize={setBatchSize}
+          isGenerating={isGenerating}
+        />
+      )}
 
       <ThumbnailActionButtons
         isGenerating={isGenerating}

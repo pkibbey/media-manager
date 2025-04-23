@@ -15,15 +15,15 @@ export async function countMissingThumbnails(): Promise<{
 
     const { count: totalImageCount, error: countError } = await supabase
       .from('media_items')
-      .select('*, processing_states(*), file_types!inner(*)', {
+      .select('*, processing_states!inner(*), file_types!inner(*)', {
         count: 'exact',
         head: true,
       })
       .eq('file_types.category', 'image')
       .eq('processing_states.type', 'thumbnail')
-      .not('processing_states.status', 'eq', 'success')
-      .not('processing_states.status', 'eq', 'error')
-      .not('processing_states.status', 'eq', 'skipped')
+      // .not('processing_states.status', 'eq', 'success')
+      // .not('processing_states.status', 'eq', 'error')
+      // .not('processing_states.status', 'eq', 'skipped')
       .is('thumbnail_path', null);
 
     if (countError) {

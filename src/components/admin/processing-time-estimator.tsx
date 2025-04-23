@@ -30,9 +30,8 @@ export function ProcessingTimeEstimator({
   const [processingRate, setProcessingRate] = useState<number | null>(null);
 
   // Store processing history for more accurate estimates
-  const processingHistory = useRef<Array<{ count: number; duration: number }>>(
-    [],
-  );
+  const totalProcessedFiles = useRef<number>(0);
+  const totalProcessingTime = useRef<number>(0);
   const lastProcessedCount = useRef<number>(0);
   const lastTimestamp = useRef<number>(Date.now());
 
@@ -47,7 +46,8 @@ export function ProcessingTimeEstimator({
     if (processed === 0 && startTime) {
       lastTimestamp.current = startTime;
       lastProcessedCount.current = 0;
-      processingHistory.current = [];
+      totalProcessedFiles.current = 0;
+      totalProcessingTime.current = 0;
     }
 
     // Calculate processing rate when new items are processed
@@ -58,28 +58,12 @@ export function ProcessingTimeEstimator({
 
       // Only add to history if some time has passed (avoid divide by zero)
       if (duration > 0) {
-        // Add current rate to history (items per millisecond)
-        processingHistory.current.push({
-          count: itemsProcessed,
-          duration,
-        });
+        // Update total processed files and total processing time
+        totalProcessedFiles.current += itemsProcessed;
+        totalProcessingTime.current += duration;
 
-        // Keep only last 5 measurements for moving average
-        if (processingHistory.current.length > 5) {
-          processingHistory.current.shift();
-        }
-
-        // Calculate weighted moving average (more recent = higher weight)
-        let totalWeightedCount = 0;
-        let totalWeightedDuration = 0;
-
-        processingHistory.current.forEach((entry, index) => {
-          const weight = index + 1; // Higher weight for more recent entries
-          totalWeightedCount += entry.count * weight;
-          totalWeightedDuration += entry.duration * weight;
-        });
-
-        const averageRate = totalWeightedCount / totalWeightedDuration; // items per millisecond
+        const averageRate =
+          totalProcessedFiles.current / totalProcessingTime.current; // items per millisecond
         setProcessingRate(averageRate * 1000); // items per second
 
         // Update tracking variables

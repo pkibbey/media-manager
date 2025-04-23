@@ -38,7 +38,7 @@ export function createProcessingStateFilter({
   const supabase = createServerSupabaseClient();
   return supabase
     .from('processing_states')
-    .select('media_item_id')
+    .select('media_item_id, status')
     .eq('type', type)
     .in('status', statuses);
 }

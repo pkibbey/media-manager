@@ -389,7 +389,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
       .eq('file_types.category', 'image')
       .not('thumbnail_path', 'is', null)
       .eq('processing_states.type', 'thumbnail')
-      .not('processing_states.status', 'in', '("success","skipped")')
+      // .not('processing_states.status', 'in', '("success","skipped")')
       .limit(remainingLimit);
 
   if (statesError) {

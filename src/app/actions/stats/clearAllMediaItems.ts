@@ -12,7 +12,7 @@ export async function clearAllMediaItems(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Change all exif data to
+    // Delete all processing_states from the database
     const { error: deleteError, count } = await supabase
       .from('processing_states')
       .delete()

@@ -18,17 +18,19 @@ type ThumbnailStatsProps = {
 export function ThumbnailStats({ thumbnailStats }: ThumbnailStatsProps) {
   return (
     <>
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">Thumbnail Generator</h2>
-        <div className="text-sm text-muted-foreground">
-          {!thumbnailStats ? (
-            <span>Loading stats...</span>
-          ) : (
-            <span>
-              {thumbnailStats.filesWithThumbnails} /{' '}
-              {thumbnailStats.totalCompatibleFiles} files processed
-            </span>
-          )}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center gap-4 overflow-hidden">
+          <h2 className="text-lg font-medium truncate">Thumbnail Generator</h2>
+          <span className="shrink-0">
+            {!thumbnailStats ? (
+              <span>Loading stats...</span>
+            ) : (
+              <span>
+                {thumbnailStats.filesWithThumbnails} /{' '}
+                {thumbnailStats.totalCompatibleFiles} files processed
+              </span>
+            )}
+          </span>
         </div>
       </div>
 

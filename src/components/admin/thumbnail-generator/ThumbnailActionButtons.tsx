@@ -41,24 +41,6 @@ export function ThumbnailActionButtons({
               : `Generate ${Math.min(batchSize, thumbnailStats?.filesPending || 0)} Thumbnails`}
       </Button>
 
-      <Button
-        onClick={() => onGenerateThumbnails(true)}
-        disabled={
-          isGenerating ||
-          !thumbnailStats ||
-          (thumbnailStats && thumbnailStats.filesPending === 0)
-        }
-        variant="secondary"
-      >
-        {!thumbnailStats
-          ? 'Loading...'
-          : thumbnailStats.filesPending === 0
-            ? 'All Thumbnails Generated'
-            : isGenerating && isProcessingAll
-              ? 'Processing All...'
-              : `Process All (${thumbnailStats?.filesPending || 0} Remaining)`}
-      </Button>
-
       {isGenerating && (
         <Button onClick={onCancel} variant="destructive">
           Cancel

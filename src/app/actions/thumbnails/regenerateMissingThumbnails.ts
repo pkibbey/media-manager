@@ -22,7 +22,7 @@ export async function regenerateMissingThumbnails(): Promise<{
     const { data: successOrSkippedItems, error: successSkippedError } =
       await supabase
         .from('processing_states')
-        .select('media_item_id')
+        .select('media_item_id, status')
         .eq('type', 'thumbnail')
         .in('status', ['success', 'skipped']);
 

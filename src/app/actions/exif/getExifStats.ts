@@ -41,14 +41,14 @@ export async function getExifStats(): Promise<{
       .eq('processing_states.status', 'error');
 
     const { count: skippedCount } = await supabase
-      .from('processing_states')
-      .select('id, media_items!inner(filetypes!inner(*))', {
+      .from('media_items')
+      .select('id, file_types!inner(*), processing_states!inner(*)', {
         count: 'exact',
         head: true,
       })
-      // .eq('media_items.file_types.category', 'image')
-      .eq('type', 'exif')
-      .eq('status', 'skipped');
+      .eq('file_types.category', 'image')
+      .eq('processing_states.type', 'exif')
+      .eq('processing_states.status', 'skipped');
 
     const with_exif = successCount || 0;
     const no_exif = errorCount || 0;

@@ -1,11 +1,11 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import {
   countMissingThumbnails,
   getThumbnailStats,
   streamUnprocessedThumbnails,
 } from '@/app/actions/thumbnails';
 import { categorizeError } from '@/lib/errors';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 export type ThumbnailProgress = {
   status: 'processing' | 'completed' | 'error';
@@ -95,9 +95,13 @@ export function useThumbnailGenerator() {
 
   const processBatch = async () => {
     try {
+      // When processing all, use the configured batch size instead of Infinity
+      // This way the server receives a valid batch size parameter
+      const batchSizeToUse = batchSize;
+
       const stream = await streamUnprocessedThumbnails({
         skipLargeFiles,
-        batchSize,
+        batchSize: batchSizeToUse,
       });
 
       if (!stream) {
@@ -331,6 +335,9 @@ export function useThumbnailGenerator() {
         };
         shouldContinueProcessingRef.current = true;
         setTotalProcessed(0);
+      } else {
+        // If not processing all, make sure we don't continue after the first batch
+        shouldContinueProcessingRef.current = false;
       }
 
       setIsGenerating(true);

@@ -18,7 +18,7 @@ export async function getRandomMedia(limit = 5): Promise<{
     // First, retrieve media_item IDs with successful thumbnail processing
     const { data: thumbData, error: thumbError } = await supabase
       .from('processing_states')
-      .select('media_item_id')
+      .select('media_item_id, status, type')
       .eq('type', 'thumbnail')
       .eq('status', 'success');
 
