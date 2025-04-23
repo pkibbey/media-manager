@@ -480,6 +480,15 @@ export async function getFileCategory(
   return 'other';
 }
 
+/**
+ * Applies standard filters to a Supabase query to exclude ignored file types
+ * @param query The Supabase query to modify
+ * @returns The modified query with ignore filter applied
+ */
+export function excludeIgnoredFileTypes(query: any): any {
+  return query.eq('file_types.ignore', false);
+}
+
 export function isSkippedLargeFile(fileSize: number): boolean {
   return fileSize > LARGE_FILE_THRESHOLD;
 }

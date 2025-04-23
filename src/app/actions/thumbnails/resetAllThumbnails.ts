@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import { excludeIgnoredFileTypes } from '@/lib/utils';
 
 /**
  * Reset all thumbnails by:
@@ -15,9 +16,15 @@ export async function resetAllThumbnails(): Promise<{
 
   try {
     // 1. Call the database function to reset all thumbnails in a single operation
-    const { error } = await supabase.from('media_items').update({
-      thumbnail_path: null,
-    });
+    // Only reset thumbnails for non-ignored file types
+    const { error } = await excludeIgnoredFileTypes(
+      supabase
+        .from('media_items')
+        .update({
+          thumbnail_path: null,
+        })
+        .select('*, file_types!inner(*)')
+    );
 
     if (error) {
       throw new Error(`Failed to reset thumbnails: ${error.message}`);

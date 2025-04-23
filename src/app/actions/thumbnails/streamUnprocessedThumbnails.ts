@@ -1,7 +1,7 @@
 'use server';
 import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { isSkippedLargeFile } from '@/lib/utils';
+import { isSkippedLargeFile, excludeIgnoredFileTypes } from '@/lib/utils';
 import type { ThumbnailProgress } from '@/types/thumbnail-types';
 import { generateThumbnail } from './generateThumbnail';
 
@@ -348,16 +348,18 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
   // First, get media items with no thumbnail path
-  const { data: filesWithNoThumbnail, error: noThumbError, count: totalItems } = await supabase
-    .from('media_items')
-    .select(`
-      *,
-      file_types!inner(*),
-      processing_states!inner(*)
-    `, { count: 'exact' })
-    .eq('file_types.category', 'image')
-    .is('thumbnail_path', null)
-    .limit(limit);
+  const { data: filesWithNoThumbnail, error: noThumbError, count: totalItems } = await excludeIgnoredFileTypes(
+    supabase
+      .from('media_items')
+      .select(`
+        *,
+        file_types!inner(*),
+        processing_states!inner(*)
+      `, { count: 'exact' })
+      .or('file_types.category.eq.image, file_types.category.eq.video')
+      .is('thumbnail_path', null)
+      .limit(limit)
+  );
 
   if (noThumbError) {
     console.error('Error fetching files with no thumbnails:', noThumbError);
@@ -383,18 +385,20 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   }
 
   const { data: filesWithUnsuccessfulStates, error: statesError } =
-    await supabase
-      .from('media_items')
-      .select(`
-      *,
-      file_types!inner(*),
-      processing_states!inner(*)
-    `)
-      .eq('file_types.category', 'image')
-      .not('thumbnail_path', 'is', null)
-      .eq('processing_states.type', 'thumbnail')
-      .in('processing_states.status', ['error', 'pending'])
-      .limit(remainingLimit);
+    await excludeIgnoredFileTypes(
+      supabase
+        .from('media_items')
+        .select(`
+        *,
+        file_types!inner(*),
+        processing_states!inner(*)
+      `)
+        .or('file_types.category.eq.image, file_types.category.eq.video')
+        .not('thumbnail_path', 'is', null)
+        .eq('processing_states.type', 'thumbnail')
+        .in('processing_states.status', ['error', 'pending'])
+        .limit(remainingLimit)
+    );
 
   if (statesError) {
     console.error(
@@ -409,11 +413,8 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   }
 
   // Combine the results
-  return {
-    unprocessedFiles: [
-      ...(filesWithNoThumbnail || []),
-      ...(filesWithUnsuccessfulStates || []),
-    ], 
-    totalItems: totalItems || 0
-  };
+  return {unprocessedFiles:[
+    ...(filesWithNoThumbnail || []),
+    ...(filesWithUnsuccessfulStates || []),
+  ], totalItems: totalItems || 0};
 }

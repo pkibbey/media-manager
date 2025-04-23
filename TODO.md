@@ -17,3 +17,7 @@
 -- compare to see how graphql would work with this - would it be much easier to work with?
 
 -- i think we might be missing skipped files, which is pointing to a small inconsistency
+
+-- setup ignoring file types thoughout
+
+-- make sure image categories are used throughout

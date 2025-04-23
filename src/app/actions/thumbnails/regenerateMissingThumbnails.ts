@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import { excludeIgnoredFileTypes } from '@/lib/utils';
 import { generateThumbnail } from './generateThumbnail';
 
 /**
@@ -53,7 +54,10 @@ export async function regenerateMissingThumbnails(): Promise<{
 
     // Define our query to get media items without thumbnails
     // First get items that don't have a successful or skipped state
-    let query = supabase.from('media_items').select('id');
+    let query = supabase.from('media_items').select('id, file_types!inner(*)');
+    
+    // Exclude ignored file types
+    query = excludeIgnoredFileTypes(query);
 
     // Generate the NOT IN filter expression for ignored IDs
     const filterExpr =

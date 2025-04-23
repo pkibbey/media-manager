@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import { excludeIgnoredFileTypes } from '@/lib/utils';
 
 /**
  * Get statistics about thumbnail status
@@ -18,16 +19,21 @@ export async function getThumbnailStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get total count of all files
-    const { count: totalCount, error: totalError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true });
+    // Get total count of all files, excluding ignored file types
+    const { count: totalCount, error: totalError } = await excludeIgnoredFileTypes(
+      supabase
+        .from('media_items')
+        .select('*, file_types!inner(*)', { count: 'exact', head: true })
+    );
 
     if (totalError) {
       throw new Error(`Failed to get total file count: ${totalError.message}`);
     }
 
     // Get count of files with successful thumbnails
+    // Note: We don't need to filter by file_types.ignore here since we're only
+    // looking at processing_states that were already created, and those are already
+    // filtered by the time they were created
     const { count: withThumbnailsCount, error: withThumbnailsError } =
       await supabase
         .from('processing_states')

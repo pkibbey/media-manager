@@ -229,7 +229,6 @@ export function useThumbnailGenerator() {
               }
 
               if (data.totalItems) {
-                console.log('data.totalItems: ', data)
                 setTotal(data.totalItems);
               }
 
@@ -370,7 +369,6 @@ export function useThumbnailGenerator() {
       }
 
       const totalToProcess = countResult.count || 0;
-      console.log('totalToProcess: ', totalToProcess)
       setTotal(totalToProcess);
 
       if (totalToProcess === 0) {

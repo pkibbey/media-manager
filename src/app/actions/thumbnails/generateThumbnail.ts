@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { LARGE_FILE_THRESHOLD, THUMBNAIL_SIZE } from '@/lib/consts';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { isSkippedLargeFile } from '@/lib/utils';
+import { isSkippedLargeFile, excludeIgnoredFileTypes } from '@/lib/utils';
 import type {
   ThumbnailGenerationOptions,
   ThumbnailGenerationResponse,
@@ -35,12 +35,13 @@ export async function generateThumbnail(
     const supabase = createServerSupabaseClient();
 
     // Get the media item details
-    const { data: mediaItem, error } = await supabase
-      .from('media_items')
-      .select('*, file_types!inner(*)')
-      .eq('id', mediaId)
-      .eq('file_types.category', 'image')
-      .single();
+    const { data: mediaItem, error } = await excludeIgnoredFileTypes(
+      supabase
+        .from('media_items')
+        .select('*, file_types!inner(*)')
+        .eq('id', mediaId)
+        .eq('file_types.category', 'image')
+    ).single();
 
     if (error || !mediaItem) {
       console.error(`[Thumbnail] Error fetching media item ${mediaId}:`, error);
