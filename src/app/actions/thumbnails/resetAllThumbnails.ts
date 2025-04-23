@@ -1,7 +1,7 @@
 'use server';
 
+import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { excludeIgnoredFileTypes } from '@/lib/utils';
 
 /**
  * Reset all thumbnails by:
@@ -17,13 +17,13 @@ export async function resetAllThumbnails(): Promise<{
   try {
     // 1. Call the database function to reset all thumbnails in a single operation
     // Only reset thumbnails for non-ignored file types
-    const { error } = await excludeIgnoredFileTypes(
+    const { error } = await includeMedia(
       supabase
         .from('media_items')
         .update({
           thumbnail_path: null,
         })
-        .select('*, file_types!inner(*)')
+        .select('*, file_types!inner(*)'),
     );
 
     if (error) {

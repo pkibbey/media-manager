@@ -1,7 +1,7 @@
-import { createServerSupabaseClient } from './supabase';
-import { excludeIgnoredFileTypes } from './utils';
-import type { MediaFilters } from '@/types/media-types';
 import type { FileType, MediaItem } from '@/types/db-types';
+import type { MediaFilters } from '@/types/media-types';
+import { includeMedia } from './mediaFilters';
+import { createServerSupabaseClient } from './supabase';
 
 /**
  * Get the IDs of file types marked as ignored
@@ -53,19 +53,21 @@ export function createProcessingStateFilter({
  * @returns Query result with media item data
  */
 export async function getMediaItemById(
-  id: string, 
-  includeFields: string = ''
+  id: string,
+  includeFields = '',
 ): Promise<{
   data: MediaItem | null;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
-  return excludeIgnoredFileTypes(
+
+  return includeMedia(
     supabase
       .from('media_items')
-      .select(`*, file_types!inner(*)${includeFields ? ', ' + includeFields : ''}`)
-      .eq('id', id)
+      .select(
+        `*, file_types!inner(*)${includeFields ? `, ${includeFields}` : ''}`,
+      )
+      .eq('id', id),
   ).single();
 }
 
@@ -78,76 +80,75 @@ export async function getMediaItemById(
  */
 export async function getMediaItems(
   filters: MediaFilters,
-  page: number = 1,
-  pageSize: number = 20
+  page = 1,
+  pageSize = 20,
 ): Promise<{
   data: MediaItem[] | null;
   count: number | null;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   // Calculate pagination range
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  
+
   // Start building the query
-  let query = supabase
-    .from('media_items')
-    .select('*, file_types!inner(*), processing_states(*)', {
-      count: 'exact',
-    });
-  
-  // Apply filter to exclude ignored file types
-  query = excludeIgnoredFileTypes(query);
-  
+  let query = includeMedia(
+    supabase
+      .from('media_items')
+      .select('*, file_types!inner(*), processing_states(*)', {
+        count: 'exact',
+      }),
+  );
+
   // Apply text search
   if (filters.search) {
     query = query.ilike('file_name', `%${filters.search}%`);
   }
-  
+
   // Apply media type filter
   if (filters.type && filters.type !== 'all') {
     query = query.eq('file_types.category', filters.type);
   }
-  
+
   // Apply date range filters
   if (filters.dateFrom) {
     query = query.gte('media_date', filters.dateFrom.toISOString());
   }
-  
+
   if (filters.dateTo) {
     // Add one day to include the end date fully
     const endDate = new Date(filters.dateTo);
     endDate.setDate(endDate.getDate() + 1);
     query = query.lt('media_date', endDate.toISOString());
   }
-  
+
   // Apply file size filters (convert MB to bytes)
   if (filters.minSize > 0) {
     query = query.gte('size_bytes', filters.minSize * 1024 * 1024);
   }
-  
+
   if (filters.maxSize < Number.MAX_SAFE_INTEGER) {
     query = query.lte('size_bytes', filters.maxSize * 1024 * 1024);
   }
-  
+
   // Apply processing status filter
   if (filters.processed && filters.processed !== 'all') {
     const hasExif = filters.processed === 'yes';
-    
+
     if (hasExif) {
       query = query.not('exif_data', 'is', null);
     } else {
       query = query.is('exif_data', null);
     }
   }
-  
+
   // Apply camera filter
   if (filters.camera && filters.camera !== 'all' && filters.camera !== '') {
     query = query.contains('exif_data', { Image: { Model: filters.camera } });
   }
-  
+
   // Apply thumbnail filter
   if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
     if (filters.hasThumbnail === 'yes') {
@@ -156,7 +157,7 @@ export async function getMediaItems(
       query = query.is('thumbnail_path', null);
     }
   }
-  
+
   // Apply location filter
   if (filters.hasLocation && filters.hasLocation !== 'all') {
     if (filters.hasLocation === 'yes') {
@@ -165,7 +166,7 @@ export async function getMediaItems(
       query = query.or('exif_data->GPS.is.null, exif_data.is.null');
     }
   }
-  
+
   // Apply sorting
   let sortColumn: string;
   switch (filters.sortBy) {
@@ -182,20 +183,20 @@ export async function getMediaItems(
       sortColumn = 'media_date';
       break;
   }
-  
+
   query = query.order(sortColumn, {
     ascending: filters.sortOrder === 'asc',
     nullsFirst: filters.sortOrder === 'asc',
   });
-  
+
   // Add secondary sort by file name to ensure consistent ordering
   if (filters.sortBy !== 'name') {
     query = query.order('file_name', { ascending: true });
   }
-  
+
   // Apply pagination
   query = query.range(from, to);
-  
+
   // Execute the query
   return await query;
 }
@@ -205,36 +206,36 @@ export async function getMediaItems(
  * @param limit Number of random items to fetch
  * @returns Query result with media items
  */
-export async function getRandomMediaItems(
-  limit: number = 5
-): Promise<{
+export async function getRandomMediaItems(limit = 5): Promise<{
   data: MediaItem[] | null;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   // First, retrieve media_item IDs with successful thumbnail processing
   const { data: thumbData, error: thumbError } = await supabase
     .from('processing_states')
     .select('media_item_id, status, type')
     .eq('type', 'thumbnail')
     .eq('status', 'success');
-    
+
   if (thumbError || !thumbData) {
     return { data: null, error: thumbError };
   }
-  
-  const thumbnailMediaIds = thumbData.map((item) => item.media_item_id || '').filter(Boolean);
-  
+
+  const thumbnailMediaIds = thumbData
+    .map((item) => item.media_item_id || '')
+    .filter(Boolean);
+
   // Query media_items using the retrieved IDs
-  return excludeIgnoredFileTypes(
+  return includeMedia(
     supabase
       .from('media_items')
       .select('*, file_types!inner(*)')
       .in('id', thumbnailMediaIds)
       .gte('size_bytes', Math.floor(Math.random() * 50000 + 10000))
       .order('size_bytes', { ascending: false })
-      .limit(limit)
+      .limit(limit),
   );
 }
 
@@ -243,37 +244,34 @@ export async function getRandomMediaItems(
  * @param options Filter options for the count
  * @returns Count result
  */
-export async function countMediaItems(options: {
-  category?: string;
-  fileTypeId?: number;
-  hasExif?: boolean;
-  hasThumbnail?: boolean;
-  includeIgnored?: boolean;
-} = {}): Promise<{
+export async function countMediaItems(
+  options: {
+    category?: string;
+    fileTypeId?: number;
+    hasExif?: boolean;
+    hasThumbnail?: boolean;
+    includeIgnored?: boolean;
+  } = {},
+): Promise<{
   count: number | null;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   let query = supabase
     .from('media_items')
     .select('*, file_types!inner(*)', { count: 'exact', head: true });
-  
-  // Apply filter to exclude ignored file types, unless specifically including them
-  if (!options.includeIgnored) {
-    query = excludeIgnoredFileTypes(query);
-  }
-  
+
   // Filter by category if specified
   if (options.category) {
     query = query.eq('file_types.category', options.category);
   }
-  
+
   // Filter by file type ID if specified
   if (options.fileTypeId) {
     query = query.eq('file_type_id', options.fileTypeId);
   }
-  
+
   // Filter by EXIF presence if specified
   if (options.hasExif !== undefined) {
     if (options.hasExif) {
@@ -282,7 +280,7 @@ export async function countMediaItems(options: {
       query = query.is('exif_data', null);
     }
   }
-  
+
   // Filter by thumbnail presence if specified
   if (options.hasThumbnail !== undefined) {
     if (options.hasThumbnail) {
@@ -291,7 +289,7 @@ export async function countMediaItems(options: {
       query = query.is('thumbnail_path', null);
     }
   }
-  
+
   return query;
 }
 
@@ -302,29 +300,29 @@ export async function countMediaItems(options: {
  * @returns Update result
  */
 export async function updateMediaItem(
-  id: string, 
-  updates: Partial<MediaItem>
+  id: string,
+  updates: Partial<MediaItem>,
 ): Promise<{
   success: boolean;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   try {
     const { error } = await supabase
       .from('media_items')
       .update(updates)
       .eq('id', id);
-      
+
     return {
       success: !error,
-      error
+      error,
     };
   } catch (error) {
     console.error(`Error updating media item ${id}:`, error);
     return {
       success: false,
-      error
+      error,
     };
   }
 }
@@ -341,27 +339,25 @@ export async function updateProcessingState(
   mediaItemId: string,
   status: 'success' | 'error' | 'skipped' | 'pending',
   type: string,
-  errorMessage?: string
+  errorMessage?: string,
 ): Promise<{
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
-  return supabase
-    .from('processing_states')
-    .upsert(
-      {
-        media_item_id: mediaItemId,
-        type,
-        status,
-        processed_at: new Date().toISOString(),
-        error_message: errorMessage || null,
-      },
-      {
-        onConflict: 'media_item_id,type',
-        ignoreDuplicates: false,
-      }
-    );
+
+  return supabase.from('processing_states').upsert(
+    {
+      media_item_id: mediaItemId,
+      type,
+      status,
+      processed_at: new Date().toISOString(),
+      error_message: errorMessage || null,
+    },
+    {
+      onConflict: 'media_item_id,type',
+      ignoreDuplicates: false,
+    },
+  );
 }
 
 /**
@@ -369,29 +365,28 @@ export async function updateProcessingState(
  * @param options Query options for filtering file types
  * @returns Query result with file types data
  */
-export async function getAllFileTypes(options: {
-  fullSelect?: boolean;
-} = {}) {
+export async function getAllFileTypes(options: { fullSelect?: boolean } = {}) {
   const supabase = createServerSupabaseClient();
-  
+
   try {
     // Apply filters
     let query = supabase.from('file_types').select('*');
-    
+
     if (!options.fullSelect) {
       // Exclude ignored file types
-      query = excludeIgnoredFileTypes(query);
+      query = query.eq('file_types.ignore', false);
     }
-    
+
     // Always sort by extension for consistent results
     query = query.order('extension');
 
     const { data, error } = await query;
     if (error) {
+      console.log('getAllFileTypes error: ', error);
       console.error('Error fetching file types:', error);
       return { data: null, error };
     }
-    
+
     // Execute the query
     return {
       data: data || null,
@@ -399,9 +394,12 @@ export async function getAllFileTypes(options: {
     };
   } catch (err) {
     console.error('Error in getAllFileTypes:', err);
-    return { 
-      data: null, 
-      error: err instanceof Error ? err : new Error('Unknown error in getAllFileTypes') 
+    return {
+      data: null,
+      error:
+        err instanceof Error
+          ? err
+          : new Error('Unknown error in getAllFileTypes'),
     };
   }
 }
@@ -416,12 +414,8 @@ export async function getFileTypeById(id: number): Promise<{
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
-  return supabase
-    .from('file_types')
-    .select('*')
-    .eq('id', id)
-    .single();
+
+  return supabase.from('file_types').select('*').eq('id', id).single();
 }
 
 /**
@@ -434,7 +428,7 @@ export async function getFileTypeByExtension(extension: string): Promise<{
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   return supabase
     .from('file_types')
     .select('*')
@@ -449,30 +443,29 @@ export async function getFileTypeByExtension(extension: string): Promise<{
  * @returns Update result
  */
 export async function updateFileType(
-  id: number, 
-  updates: Partial<FileType>
+  id: number,
+  updates: Partial<FileType>,
 ): Promise<{
   success: boolean;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   try {
     const { error } = await supabase
       .from('file_types')
       .update(updates)
       .eq('id', id);
-     
-      
+
     return {
       success: !error,
-      error
+      error,
     };
   } catch (error) {
     console.error(`Error updating file type ${id}:`, error);
     return {
       success: false,
-      error
+      error,
     };
   }
 }
@@ -483,18 +476,14 @@ export async function updateFileType(
  * @returns Insert result
  */
 export async function insertFileType(
-  fileType: Omit<FileType, 'id'> & { id?: number }
+  fileType: Omit<FileType, 'id'> & { id?: number },
 ): Promise<{
   data: FileType | null;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
-  return supabase
-    .from('file_types')
-    .insert(fileType)
-    .select()
-    .single();
+
+  return supabase.from('file_types').insert(fileType).select().single();
 }
 
 /**
@@ -512,40 +501,38 @@ export async function addAbortToken(token: string): Promise<{
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   try {
     // First, clean up expired tokens (older than 1 hour)
     const oneHourAgo = new Date();
     oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-    
+
     await supabase
       .from('abort_tokens')
       .delete()
       .lt('created_at', oneHourAgo.toISOString());
-    
+
     // Add the new token
-    const { error } = await supabase
-      .from('abort_tokens')
-      .upsert(
-        {
-          token,
-          created_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'token,created_at',
-          ignoreDuplicates: false,
-        }
-      );
-    
+    const { error } = await supabase.from('abort_tokens').upsert(
+      {
+        token,
+        created_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'token,created_at',
+        ignoreDuplicates: false,
+      },
+    );
+
     return {
       success: !error,
-      error
+      error,
     };
   } catch (error) {
     console.error(`Error adding abort token ${token}:`, error);
     return {
       success: false,
-      error
+      error,
     };
   }
 }
@@ -557,15 +544,15 @@ export async function addAbortToken(token: string): Promise<{
  */
 export async function isAborted(token: string): Promise<boolean> {
   if (!token) return false;
-  
+
   const supabase = createServerSupabaseClient();
-  
+
   const { data, error } = await supabase
     .from('abort_tokens')
     .select('token')
     .eq('token', token)
     .single();
-  
+
   // Return false if we got an error (token not found) or no data
   // Only return true if we successfully found the token
   return !error && !!data;
@@ -581,24 +568,24 @@ export async function removeAbortToken(token: string): Promise<{
   error: any | null;
 }> {
   if (!token) return { success: true, error: null };
-  
+
   const supabase = createServerSupabaseClient();
-  
+
   try {
     const { error } = await supabase
       .from('abort_tokens')
       .delete()
       .eq('token', token);
-    
+
     return {
       success: !error,
-      error
+      error,
     };
   } catch (error) {
     console.error(`Error removing abort token ${token}:`, error);
     return {
       success: false,
-      error
+      error,
     };
   }
 }
@@ -612,22 +599,22 @@ export async function clearAllAbortTokens(): Promise<{
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   try {
     const { error } = await supabase
       .from('abort_tokens')
       .delete()
       .neq('token', ''); // Delete all tokens
-    
+
     return {
       success: !error,
-      error
+      error,
     };
   } catch (error) {
     console.error('Error clearing all abort tokens:', error);
     return {
       success: false,
-      error
+      error,
     };
   }
 }
@@ -641,7 +628,7 @@ export async function getActiveAbortTokens(): Promise<{
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   return supabase
     .from('abort_tokens')
     .select('token, created_at')
@@ -658,7 +645,7 @@ export async function deleteAllMediaItems(): Promise<{
   error?: string;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   try {
     // First get the count for confirmation
     const { count, error: countError } = await supabase
@@ -681,15 +668,15 @@ export async function deleteAllMediaItems(): Promise<{
       return { success: false, error: deleteError.message };
     }
 
-    return { 
-      success: true, 
-      count: count || 0
+    return {
+      success: true,
+      count: count || 0,
     };
   } catch (error: any) {
     console.error('Error deleting media items:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error'
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -703,7 +690,7 @@ export async function deleteAllProcessingStates(): Promise<{
   error?: string;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   try {
     const { error } = await supabase
       .from('processing_states')
@@ -718,9 +705,9 @@ export async function deleteAllProcessingStates(): Promise<{
     return { success: true };
   } catch (error: any) {
     console.error('Error deleting processing states:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error'
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -734,12 +721,9 @@ export async function deleteAllFileTypes(): Promise<{
   error?: string;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   try {
-    const { error } = await supabase
-      .from('file_types')
-      .delete()
-      .neq('id', 0);
+    const { error } = await supabase.from('file_types').delete().neq('id', 0);
 
     if (error) {
       console.error('Error deleting file types:', error);
@@ -749,9 +733,9 @@ export async function deleteAllFileTypes(): Promise<{
     return { success: true };
   } catch (error: any) {
     console.error('Error deleting file types:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error'
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -765,11 +749,8 @@ export async function getScanFolders(): Promise<{
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
-  return supabase
-    .from('scan_folders')
-    .select('*')
-    .order('path');
+
+  return supabase.from('scan_folders').select('*').order('path');
 }
 
 /**
@@ -779,14 +760,14 @@ export async function getScanFolders(): Promise<{
  * @returns Operation result with created folder data
  */
 export async function addScanFolder(
-  folderPath: string, 
-  includeSubfolders: boolean = true
+  folderPath: string,
+  includeSubfolders = true,
 ): Promise<{
   data: any | null;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
+
   return supabase
     .from('scan_folders')
     .insert({
@@ -802,15 +783,10 @@ export async function addScanFolder(
  * @param folderId ID of the scan folder to remove
  * @returns Operation result
  */
-export async function removeScanFolder(
-  folderId: number
-): Promise<{
+export async function removeScanFolder(folderId: number): Promise<{
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();
-  
-  return supabase
-    .from('scan_folders')
-    .delete()
-    .eq('id', folderId);
+
+  return supabase.from('scan_folders').delete().eq('id', folderId);
 }

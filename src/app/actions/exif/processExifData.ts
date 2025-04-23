@@ -4,8 +4,8 @@ import {
   extractAndSanitizeExifData,
   updateProcessingState,
 } from '@/lib/exif-utils';
+import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { excludeIgnoredFileTypes } from '@/lib/utils';
 import type { ExtractionMethod } from '@/types/exif';
 import type { Json } from '@/types/supabase';
 
@@ -30,12 +30,11 @@ export async function processExifData({
 
     // First get the to access its file path
     // Apply filter to exclude ignored file types
-    const { data: mediaItem, error: fetchError } = await excludeIgnoredFileTypes(
+    const { data: mediaItem, error: fetchError } = await includeMedia(
       supabase
         .from('media_items')
-        .select('file_path, file_name, file_types!inner(category)', { count: 'exact' })
-        .eq('id', mediaId)
-        .eq('file_types.category', 'image') // Exif data is only for images
+        .select('file_path, file_name, file_types!inner(*)', { count: 'exact' })
+        .eq('id', mediaId),
     ).single();
 
     if (fetchError || !mediaItem) {

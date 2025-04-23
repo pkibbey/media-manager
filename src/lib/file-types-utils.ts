@@ -26,6 +26,7 @@ export interface DetailedFileTypeInfo extends FileTypeInfo {
  * @returns An object containing processed file type information or null if an error occurs.
  */
 export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
+  console.log('getFileTypeInfo: ')
   // Use the query helper to get file types
   const { data: fileTypes, error } = await getAllFileTypes();
 

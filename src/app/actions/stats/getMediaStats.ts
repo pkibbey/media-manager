@@ -1,6 +1,6 @@
 'use server';
+import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { excludeIgnoredFileTypes } from '@/lib/utils';
 import type { MediaStats } from '@/types/media-types';
 
 /**
@@ -15,10 +15,10 @@ export async function getMediaStats(): Promise<{
     const supabase = createServerSupabaseClient();
 
     // Get total count of media items
-    const { count: totalCount } = await excludeIgnoredFileTypes(
+    const { count: totalCount } = await includeMedia(
       supabase
         .from('media_items')
-        .select('*, file_types!inner(*)', { count: 'exact', head: true })
+        .select('*, file_types!inner(*)', { count: 'exact', head: true }),
     );
 
     // Get total size of all media
@@ -27,7 +27,7 @@ export async function getMediaStats(): Promise<{
     const totalSizeBytes = sizeData?.sum || 0;
 
     // Get exif processing success count
-    const { count: processedCount } = await excludeIgnoredFileTypes(
+    const { count: processedCount } = await includeMedia(
       supabase
         .from('media_items')
         .select('id, processing_states!inner(*), file_types!inner(*)', {
@@ -35,11 +35,11 @@ export async function getMediaStats(): Promise<{
           head: true,
         })
         .eq('processing_states.type', 'exif')
-        .eq('processing_states.status', 'success')
+        .eq('processing_states.status', 'success'),
     );
 
     // Get exif processing error count
-    const { count: unprocessedCount } = await excludeIgnoredFileTypes(
+    const { count: unprocessedCount } = await includeMedia(
       supabase
         .from('media_items')
         .select('id, processing_states!inner(*), file_types!inner(*)', {
@@ -47,11 +47,11 @@ export async function getMediaStats(): Promise<{
           head: true,
         })
         .eq('processing_states.type', 'exif')
-        .eq('processing_states.status', 'error')
+        .eq('processing_states.status', 'error'),
     );
 
     // Get exif processing skipped count
-    const { count: skippedCount } = await excludeIgnoredFileTypes(
+    const { count: skippedCount } = await includeMedia(
       supabase
         .from('media_items')
         .select('id, processing_states!inner(*), file_types!inner(*)', {
@@ -59,7 +59,7 @@ export async function getMediaStats(): Promise<{
           head: true,
         })
         .eq('processing_states.type', 'exif')
-        .eq('processing_states.status', 'skipped')
+        .eq('processing_states.status', 'skipped'),
     );
 
     // Get ignored files count - this specifically counts files with ignored file types
@@ -69,7 +69,7 @@ export async function getMediaStats(): Promise<{
       .eq('file_types.ignore', true);
 
     // Get timestamp correction needs
-    const { count: needsTimestampCorrectionCount } = await excludeIgnoredFileTypes(
+    const { count: needsTimestampCorrectionCount } = await includeMedia(
       supabase
         .from('media_items')
         .select('id, processing_states!inner(*), file_types!inner(*)', {
@@ -78,7 +78,7 @@ export async function getMediaStats(): Promise<{
         })
         .is('media_date', null)
         .eq('processing_states.type', 'timestamp_correction')
-        .not('processing_states.status', 'eq', 'failed')
+        .not('processing_states.status', 'eq', 'failed'),
     );
 
     // Get items by category using RPC

@@ -2,6 +2,7 @@
 
 import fs from 'node:fs/promises';
 import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
+import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
 import type { ExifProgress, ExtractionMethod } from '@/types/exif';
@@ -323,13 +324,15 @@ async function getUnprocessedFiles({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
   // Query your database to get only up to 'limit' number of unprocessed files
-  const { data: files, error } = await supabase
-    .from('media_items')
-    .select('*, processing_states(*)')
-    // Filter out processing states that are an empty length
-    .is('processing_states', null)
-    .lte('size_bytes', LARGE_FILE_THRESHOLD)
-    .limit(limit);
+  const { data: files, error } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('*, processing_states(*)')
+      // Filter out processing states that are an empty length
+      .is('processing_states', null)
+      .lte('size_bytes', LARGE_FILE_THRESHOLD)
+      .limit(limit),
+  );
 
   if (error) {
     console.error('Error fetching unprocessed files:', error);

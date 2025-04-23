@@ -1,7 +1,8 @@
 'use server';
 import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
+import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { isSkippedLargeFile, excludeIgnoredFileTypes } from '@/lib/utils';
+import { isSkippedLargeFile } from '@/lib/utils';
 import type { ThumbnailProgress } from '@/types/thumbnail-types';
 import { generateThumbnail } from './generateThumbnail';
 
@@ -71,12 +72,16 @@ export async function streamUnprocessedThumbnails({
 
       while (hasMoreItems) {
         // Get this batch of unprocessed files
-        const {unprocessedFiles, totalItems} = await getUnprocessedFilesForThumbnails({
-          limit: fetchSize,
-        });
+        const { unprocessedFiles, totalItems } =
+          await getUnprocessedFilesForThumbnails({
+            limit: fetchSize,
+          });
 
         // If no files were returned and we're on batch 1, nothing to process at all
-        if (unprocessedFiles === undefined || unprocessedFiles.length === 0 && currentBatch === 1) {
+        if (
+          unprocessedFiles === undefined ||
+          (unprocessedFiles.length === 0 && currentBatch === 1)
+        ) {
           await sendProgress(writer, {
             status: 'completed',
             message: 'No files to process',
@@ -348,20 +353,27 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
   // First, get media items with no thumbnail path
-  const { data: filesWithNoThumbnail, error: noThumbError, count: totalItems } = await excludeIgnoredFileTypes(
+  const {
+    data: filesWithNoThumbnail,
+    error: noThumbError,
+    count: totalItems,
+  } = await includeMedia(
     supabase
       .from('media_items')
-      .select(`
+      .select(
+        `
         *,
         file_types!inner(*),
         processing_states!inner(*)
-      `, { count: 'exact' })
+      `,
+        { count: 'exact' },
+      )
       .or('file_types.category.eq.image, file_types.category.eq.video')
       .eq('processing_states.type', 'thumbnail')
       .not('processing_states.status', 'eq', 'success')
       .not('processing_states.status', 'eq', 'skipped')
       .not('processing_states.status', 'eq', 'error')
-      .limit(limit)
+      .limit(limit),
   );
 
   if (noThumbError) {
@@ -372,8 +384,8 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   // If we already have enough items, return them
   if (filesWithNoThumbnail && filesWithNoThumbnail.length >= limit) {
     return {
-      unprocessedFiles: filesWithNoThumbnail || [], 
-      totalItems: totalItems || 0
+      unprocessedFiles: filesWithNoThumbnail || [],
+      totalItems: totalItems || 0,
     };
   }
 
@@ -382,13 +394,13 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
 
   if (remainingLimit <= 0) {
     return {
-      unprocessedFiles: filesWithNoThumbnail || [], 
-      totalItems: totalItems || 0
+      unprocessedFiles: filesWithNoThumbnail || [],
+      totalItems: totalItems || 0,
     };
   }
 
   const { data: filesWithUnsuccessfulStates, error: statesError } =
-    await excludeIgnoredFileTypes(
+    await includeMedia(
       supabase
         .from('media_items')
         .select(`
@@ -400,7 +412,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
         .not('thumbnail_path', 'is', null)
         .eq('processing_states.type', 'thumbnail')
         .in('processing_states.status', ['error', 'pending'])
-        .limit(remainingLimit)
+        .limit(remainingLimit),
     );
 
   if (statesError) {
@@ -416,8 +428,11 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   }
 
   // Combine the results
-  return {unprocessedFiles:[
-    ...(filesWithNoThumbnail || []),
-    ...(filesWithUnsuccessfulStates || []),
-  ], totalItems: totalItems || 0};
+  return {
+    unprocessedFiles: [
+      ...(filesWithNoThumbnail || []),
+      ...(filesWithUnsuccessfulStates || []),
+    ],
+    totalItems: totalItems || 0,
+  };
 }

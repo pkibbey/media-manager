@@ -1,7 +1,21 @@
 'use server';
 
+import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { excludeIgnoredFileTypes } from '@/lib/utils';
+
+// List of file extensions that can have thumbnails
+const THUMBNAIL_COMPATIBLE_EXTENSIONS = [
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'gif',
+  'tiff',
+  'tif',
+  'heic',
+  'avif',
+  'bmp',
+];
 
 /**
  * Get statistics about thumbnail status
@@ -19,11 +33,12 @@ export async function getThumbnailStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Get total count of all files, excluding ignored file types
-    const { count: totalCount, error: totalError } = await excludeIgnoredFileTypes(
+    // Get total count of all compatible image files, excluding ignored file types
+    const { count: totalCount, error: totalError } = await includeMedia(
       supabase
         .from('media_items')
-        .select('*, file_types!inner(*)', { count: 'exact', head: true })
+        .select('*, file_types!inner(*)', { count: 'exact' })
+        .in('file_types.extension', THUMBNAIL_COMPATIBLE_EXTENSIONS),
     );
 
     if (totalError) {

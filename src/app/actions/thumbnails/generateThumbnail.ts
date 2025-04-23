@@ -6,8 +6,9 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { LARGE_FILE_THRESHOLD, THUMBNAIL_SIZE } from '@/lib/consts';
+import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { isSkippedLargeFile, excludeIgnoredFileTypes } from '@/lib/utils';
+import { isSkippedLargeFile } from '@/lib/utils';
 import type {
   ThumbnailGenerationOptions,
   ThumbnailGenerationResponse,
@@ -35,12 +36,11 @@ export async function generateThumbnail(
     const supabase = createServerSupabaseClient();
 
     // Get the media item details
-    const { data: mediaItem, error } = await excludeIgnoredFileTypes(
+    const { data: mediaItem, error } = await includeMedia(
       supabase
         .from('media_items')
         .select('*, file_types!inner(*)')
-        .eq('id', mediaId)
-        .eq('file_types.category', 'image')
+        .eq('id', mediaId),
     ).single();
 
     if (error || !mediaItem) {

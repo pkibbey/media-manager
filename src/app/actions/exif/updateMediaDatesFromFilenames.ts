@@ -1,8 +1,9 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase';
-import { extractDateFromFilename, excludeIgnoredFileTypes } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
+import { includeMedia } from '@/lib/mediaFilters';
+import { createServerSupabaseClient } from '@/lib/supabase';
+import { extractDateFromFilename } from '@/lib/utils';
 
 // Define the processing type constant
 const PROCESSING_TYPE_TIMESTAMP_CORRECTION = 'timestamp_correction';
@@ -29,12 +30,11 @@ export async function updateMediaDatesFromFilenames({
     const supabase = createServerSupabaseClient();
 
     // Get items with missing media_date or all items if updateAll is true
-    let query = supabase
-      .from('media_items')
-      .select('id, file_name, media_date, file_types!inner(*)');
-
-    // Apply filter to exclude ignored file types
-    query = excludeIgnoredFileTypes(query);
+    let query = includeMedia(
+      supabase
+        .from('media_items')
+        .select('id, file_name, media_date, file_types!inner(*)'),
+    );
 
     if (!updateAll) {
       query = query.is('media_date', null);
