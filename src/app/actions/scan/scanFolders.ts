@@ -2,11 +2,22 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createServerSupabaseClient } from '@/lib/supabase';
-import type { ScanOptions, ScanProgress } from '@/types/progress-types';
-
-// Size threshold for small files (10Kb)
-const SMALL_FILE_THRESHOLD = 10 * 1024; // 10Kb in bytes
+import {
+  getCategoryByExtension,
+  getMimeTypeByExtension,
+} from '@/lib/file-types-utils';
+import {
+  checkFileExists,
+  getFoldersToScan,
+  getScanFileTypes,
+  insertMediaItem,
+  sendProgress,
+  updateFolderLastScanned,
+  updateMediaItem,
+  upsertFileType,
+} from '@/lib/query-helpers';
+import { isAborted } from '@/lib/query-helpers';
+import type { ScanOptions } from '@/types/progress-types';
 
 /**
  * Scan folders for media files and insert them into the database
@@ -31,34 +42,19 @@ export async function scanFolders(options: ScanOptions = {}) {
     options: ScanOptions,
   ) {
     try {
-      const supabase = createServerSupabaseClient();
-      const {
-        ignoreSmallFiles = false,
-        folderId = null,
-        abortToken = null,
-      } = options;
+      const { folderId = null, abortToken = null } = options;
 
       // Initialize counters
       let totalFilesDiscovered = 0;
       let totalFilesProcessed = 0;
       let totalFilesSkipped = 0;
-      let totalIgnoredFiles = 0;
-      let totalSmallFilesSkipped = 0;
       let newFilesAdded = 0;
 
       const newFileTypes = new Set<string>();
 
-      // Check for abort signal
-      const abortController = abortToken ? new AbortController() : null;
-
       // Get folders to scan - either a specific folder or all folders
-      const { data: foldersToScan, error: foldersError } = folderId
-        ? await supabase
-            .from('scan_folders')
-            .select('*')
-            .eq('id', folderId)
-            .order('path')
-        : await supabase.from('scan_folders').select('*').order('path');
+      const { data: foldersToScan, error: foldersError } =
+        await getFoldersToScan(folderId || undefined);
 
       if (foldersError) {
         throw new Error(
@@ -67,7 +63,7 @@ export async function scanFolders(options: ScanOptions = {}) {
       }
 
       if (!foldersToScan || foldersToScan.length === 0) {
-        await sendProgress(writer, {
+        await sendProgress(encoder, writer, {
           status: 'completed',
           message:
             'No folders configured for scanning. Add folders in admin panel.',
@@ -77,15 +73,13 @@ export async function scanFolders(options: ScanOptions = {}) {
       }
 
       // Send initial progress update
-      await sendProgress(writer, {
+      await sendProgress(encoder, writer, {
         status: 'processing',
         message: `Starting scan of ${foldersToScan.length} folder(s)...`,
       });
 
       // Get existing file types for reference
-      const { data: existingFileTypes } = await supabase
-        .from('file_types')
-        .select('extension, category');
+      const { data: existingFileTypes } = await getScanFileTypes();
 
       // Create a map of extension -> category for quick lookup
       const fileTypeMap = new Map<string, string>();
@@ -96,11 +90,16 @@ export async function scanFolders(options: ScanOptions = {}) {
       // Process each folder
       for (const folder of foldersToScan) {
         try {
+          // Check if the operation should be aborted
+          if (abortToken && (await isAborted(abortToken))) {
+            throw new Error('Scan aborted by user');
+          }
+
           // Check if folder exists
           try {
             await fs.access(folder.path);
           } catch (accessError) {
-            await sendProgress(writer, {
+            await sendProgress(encoder, writer, {
               status: 'error',
               message: `Cannot access folder: ${folder.path}`,
               error: `Folder does not exist or is inaccessible. ${accessError}`,
@@ -110,7 +109,7 @@ export async function scanFolders(options: ScanOptions = {}) {
           }
 
           // Send update that we're starting to scan this folder
-          await sendProgress(writer, {
+          await sendProgress(encoder, writer, {
             status: 'processing',
             message: `Scanning folder: ${folder.path}${folder.include_subfolders ? ' (including subfolders)' : ''}`,
             folderPath: folder.path,
@@ -124,7 +123,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
           // Update discovered count and send update
           totalFilesDiscovered += files.length;
-          await sendProgress(writer, {
+          await sendProgress(encoder, writer, {
             status: 'processing',
             message: `Found ${files.length} files in ${folder.path}`,
             folderPath: folder.path,
@@ -135,7 +134,7 @@ export async function scanFolders(options: ScanOptions = {}) {
           const BATCH_SIZE = 100;
           for (let i = 0; i < files.length; i += BATCH_SIZE) {
             // Check for abort signal
-            if (abortController?.signal.aborted) {
+            if (abortToken && (await isAborted(abortToken))) {
               throw new Error('Scan aborted by user');
             }
 
@@ -143,38 +142,26 @@ export async function scanFolders(options: ScanOptions = {}) {
 
             // Send batch progress update
             if (i > 0) {
-              await sendProgress(writer, {
+              await sendProgress(encoder, writer, {
                 status: 'processing',
                 message: `Processing files ${i + 1} to ${Math.min(i + BATCH_SIZE, files.length)} of ${files.length} in ${folder.path}`,
                 folderPath: folder.path,
                 filesDiscovered: totalFilesDiscovered,
                 filesProcessed: totalFilesProcessed,
                 newFilesAdded,
-                ignoredFilesSkipped: totalIgnoredFiles,
-                smallFilesSkipped: totalSmallFilesSkipped,
+                filesSkipped: totalFilesSkipped,
               });
             }
 
             for (const file of batch) {
               try {
-                // Check file size if ignoreSmallFiles is true
-                if (ignoreSmallFiles) {
-                  const stats = await fs.stat(file.path);
-
-                  if (stats.size < SMALL_FILE_THRESHOLD) {
-                    totalFilesProcessed++;
-                    totalSmallFilesSkipped++;
-                    continue; // Skip this file
-                  }
-                }
-
                 // Get file extension
                 const fileExt = path.extname(file.path).slice(1).toLowerCase();
 
                 // Skip if no extension
                 if (!fileExt) {
                   totalFilesProcessed++;
-                  totalIgnoredFiles++;
+                  totalFilesSkipped++;
                   continue;
                 }
 
@@ -184,12 +171,8 @@ export async function scanFolders(options: ScanOptions = {}) {
                 const fileMtime = stats.mtime;
 
                 // Check if file already exists in database
-                const { data: existingFiles, error: existingError } =
-                  await supabase
-                    .from('media_items')
-                    .select('id, modified_date, size_bytes')
-                    .eq('file_path', file.path)
-                    .maybeSingle();
+                const { data: existingFile, error: existingError } =
+                  await checkFileExists(file.path);
 
                 if (existingError) {
                   console.error(
@@ -200,10 +183,10 @@ export async function scanFolders(options: ScanOptions = {}) {
 
                 // Skip if file exists and hasn't changed
                 if (
-                  existingFiles?.modified_date &&
-                  new Date(existingFiles.modified_date).getTime() ===
+                  existingFile?.modified_date &&
+                  new Date(existingFile.modified_date).getTime() ===
                     fileMtime.getTime() &&
-                  existingFiles.size_bytes === stats.size
+                  existingFile.size_bytes === stats.size
                 ) {
                   totalFilesProcessed++;
                   totalFilesSkipped++;
@@ -218,30 +201,13 @@ export async function scanFolders(options: ScanOptions = {}) {
                   // New file type found
                   newFileTypes.add(fileExt);
 
-                  // Import getCategoryByExtension and getMimeTypeByExtension from file-types-utils
-                  const { getCategoryByExtension, getMimeTypeByExtension } =
-                    await import('@/lib/file-types-utils');
-
                   // Determine category and mime type automatically
                   const category = getCategoryByExtension(fileExt);
                   const mimeType = getMimeTypeByExtension(fileExt);
 
                   // Add to database
-                  const { data: newType, error: typeError } = await supabase
-                    .from('file_types')
-                    .upsert(
-                      {
-                        extension: fileExt,
-                        category: category, // Use automatically determined category
-                        mime_type: mimeType, // Use automatically determined mime type
-                      },
-                      {
-                        onConflict: 'extension',
-                        ignoreDuplicates: false,
-                      },
-                    )
-                    .select('id')
-                    .single();
+                  const { data: newType, error: typeError } =
+                    await upsertFileType(fileExt, category, mimeType);
 
                   if (typeError) {
                     console.error(
@@ -255,11 +221,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                 } else {
                   // Get file type ID
                   const { data: existingType, error: typeError } =
-                    await supabase
-                      .from('file_types')
-                      .select('id')
-                      .eq('extension', fileExt)
-                      .single();
+                    await getFileTypeIdByExtension(fileExt);
 
                   if (typeError) {
                     console.error(
@@ -274,7 +236,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                 if (fileTypeId === null) {
                   // If we couldn't get a file type ID, skip this file
                   totalFilesProcessed++;
-                  totalIgnoredFiles++;
+                  totalFilesSkipped++;
                   continue;
                 }
 
@@ -282,18 +244,19 @@ export async function scanFolders(options: ScanOptions = {}) {
                 const fileData = {
                   file_name: fileName,
                   file_path: file.path,
+                  created_date: fileMtime.toISOString(),
                   modified_date: fileMtime.toISOString(),
                   size_bytes: stats.size,
                   file_type_id: fileTypeId,
                   folder_path: folder.path,
                 };
 
-                if (existingFiles) {
+                if (existingFile) {
                   // Update existing file
-                  const { error: updateError } = await supabase
-                    .from('media_items')
-                    .update(fileData)
-                    .eq('id', existingFiles.id);
+                  const { error: updateError } = await updateMediaItem(
+                    existingFile.id,
+                    fileData,
+                  );
 
                   if (updateError) {
                     console.error(
@@ -304,13 +267,9 @@ export async function scanFolders(options: ScanOptions = {}) {
                     newFilesAdded++;
                   }
                 } else {
-                  // Insert new file - ensure we get a response to confirm insertion
+                  // Insert new file
                   const { data: insertedItem, error: insertError } =
-                    await supabase
-                      .from('media_items')
-                      .insert(fileData)
-                      .select('id')
-                      .single();
+                    await insertMediaItem(fileData);
 
                   if (insertError) {
                     console.error(
@@ -333,15 +292,14 @@ export async function scanFolders(options: ScanOptions = {}) {
                   totalFilesProcessed % 25 === 0 ||
                   totalFilesProcessed === totalFilesDiscovered
                 ) {
-                  await sendProgress(writer, {
+                  await sendProgress(encoder, writer, {
                     status: 'processing',
                     message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files`,
                     folderPath: folder.path,
                     filesDiscovered: totalFilesDiscovered,
                     filesProcessed: totalFilesProcessed,
                     newFilesAdded,
-                    ignoredFilesSkipped: totalIgnoredFiles,
-                    smallFilesSkipped: totalSmallFilesSkipped,
+                    filesSkipped: totalFilesSkipped,
                     newFileTypes: Array.from(newFileTypes),
                   });
                 }
@@ -353,13 +311,10 @@ export async function scanFolders(options: ScanOptions = {}) {
           }
 
           // Update folder last_scanned timestamp
-          await supabase
-            .from('scan_folders')
-            .update({ last_scanned: new Date().toISOString() })
-            .eq('id', folder.id);
+          await updateFolderLastScanned(folder.id);
         } catch (folderError: any) {
           console.error(`Error scanning folder ${folder.path}:`, folderError);
-          await sendProgress(writer, {
+          await sendProgress(encoder, writer, {
             status: 'error',
             message: `Error scanning folder: ${folder.path}`,
             error: folderError.message,
@@ -369,35 +324,27 @@ export async function scanFolders(options: ScanOptions = {}) {
       }
 
       // Send final progress update
-      await sendProgress(writer, {
+      await sendProgress(encoder, writer, {
         status: 'completed',
-        message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, skipped ${totalIgnoredFiles} ignored file types, skipped ${totalSmallFilesSkipped} small files, added ${newFilesAdded} new/updated files.`,
+        message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, added ${newFilesAdded} new/updated files.`,
         filesDiscovered: totalFilesDiscovered,
         filesProcessed: totalFilesProcessed,
         newFilesAdded,
         newFileTypes: Array.from(newFileTypes),
-        ignoredFilesSkipped: totalIgnoredFiles,
-        smallFilesSkipped: totalSmallFilesSkipped,
+        filesSkipped: totalFilesSkipped,
       });
 
       // Close the stream
       await writer.close();
     } catch (error: any) {
       console.error('Error during scan:', error);
-      await sendProgress(writer, {
+      await sendProgress(encoder, writer, {
         status: 'error',
         message: 'Error during scan',
         error: error.message,
       });
       await writer.close();
     }
-  }
-
-  async function sendProgress(
-    writer: WritableStreamDefaultWriter,
-    progress: ScanProgress,
-  ) {
-    await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
   }
 
   async function getAllFiles(
@@ -450,4 +397,29 @@ export async function scanFolders(options: ScanOptions = {}) {
 
     return files;
   }
+}
+
+// Helper function to get file type ID by extension
+async function getFileTypeIdByExtension(extension: string): Promise<{
+  data: { id: number } | null;
+  error: any | null;
+}> {
+  // Use the query helper function but handle it here to maintain consistent interface
+  const { data: existingType, error } = await getScanFileTypes();
+
+  if (error || !existingType) {
+    return { data: null, error };
+  }
+
+  const fileType = existingType.find((ft) => ft.extension === extension);
+  if (!fileType) {
+    return { data: null, error: null };
+  }
+
+  // This would normally be returned from a direct query, but we're
+  // extracting it from the file types we already have
+  return {
+    data: { id: Number.parseInt(fileType.extension) },
+    error: null,
+  };
 }

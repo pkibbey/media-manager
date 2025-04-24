@@ -2,32 +2,14 @@
 
 import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-
-// List of file extensions that can have thumbnails
-const THUMBNAIL_COMPATIBLE_EXTENSIONS = [
-  'jpg',
-  'jpeg',
-  'png',
-  'webp',
-  'gif',
-  'tiff',
-  'tif',
-  'heic',
-  'avif',
-  'bmp',
-];
+import type { ThumbnailStats } from '@/types/thumbnail-types';
 
 /**
  * Get statistics about thumbnail status
  */
 export async function getThumbnailStats(): Promise<{
   success: boolean;
-  stats?: {
-    totalCompatibleFiles: number;
-    filesWithThumbnails: number;
-    filesPending: number;
-    skippedLargeFiles: number;
-  };
+  stats?: ThumbnailStats;
   error?: string;
 }> {
   try {
@@ -37,8 +19,7 @@ export async function getThumbnailStats(): Promise<{
     const { count: totalCount, error: totalError } = await includeMedia(
       supabase
         .from('media_items')
-        .select('*, file_types!inner(*)', { count: 'exact' })
-        .in('file_types.extension', THUMBNAIL_COMPATIBLE_EXTENSIONS),
+        .select('*, file_types!inner(*)', { count: 'exact', head: true }),
     );
 
     if (totalError) {
@@ -50,11 +31,16 @@ export async function getThumbnailStats(): Promise<{
     // looking at processing_states that were already created, and those are already
     // filtered by the time they were created
     const { count: withThumbnailsCount, error: withThumbnailsError } =
-      await supabase
-        .from('processing_states')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'thumbnail')
-        .eq('status', 'success');
+      await includeMedia(
+        supabase
+          .from('media_items')
+          .select('*, file_types!inner(*), processing_states!inner(*)', {
+            count: 'exact',
+            head: true,
+          })
+          .eq('processing_states.type', 'thumbnail')
+          .eq('processing_states.status', 'success'),
+      );
 
     if (withThumbnailsError) {
       throw new Error(
@@ -64,11 +50,16 @@ export async function getThumbnailStats(): Promise<{
 
     // Get count of files skipped due to being large
     const { count: skippedLargeFilesCount, error: skippedLargeFilesError } =
-      await supabase
-        .from('processing_states')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'thumbnail')
-        .eq('status', 'skipped');
+      await includeMedia(
+        supabase
+          .from('media_items')
+          .select('*, file_types!inner(*), processing_states!inner(*)', {
+            count: 'exact',
+            head: true,
+          })
+          .eq('processing_states.type', 'thumbnail')
+          .eq('processing_states.status', 'skipped'),
+      );
 
     if (skippedLargeFilesError) {
       throw new Error(
@@ -76,19 +67,41 @@ export async function getThumbnailStats(): Promise<{
       );
     }
 
-    // Calculate pending files by subtracting thumbnail-having files from total
-    const filesPending =
-      (totalCount || 0) -
-      (withThumbnailsCount || 0) -
-      (skippedLargeFilesCount || 0);
+    // Get count of files skipped due to being large
+    const { count: erroredCount, error: erroredError } = await includeMedia(
+      supabase
+        .from('media_items')
+        .select('*, file_types!inner(*), processing_states!inner(*)', {
+          count: 'exact',
+          head: true,
+        })
+        .eq('processing_states.type', 'thumbnail')
+        .eq('processing_states.status', 'error'),
+    );
+
+    if (erroredError) {
+      throw new Error(
+        `Failed to get errored files count: ${erroredError.message}`,
+      );
+    }
+
+    const stats = {
+      totalCompatibleFiles: totalCount || 0,
+      filesWithThumbnails: withThumbnailsCount || 0,
+      skippedLargeFiles: skippedLargeFilesCount || 0,
+    };
+
+    const unprocessedFilesCount =
+      stats.totalCompatibleFiles -
+      (stats.filesWithThumbnails +
+        stats.skippedLargeFiles +
+        (erroredCount || 0));
 
     return {
       success: true,
       stats: {
-        totalCompatibleFiles: totalCount || 0,
-        filesWithThumbnails: withThumbnailsCount || 0,
-        filesPending: filesPending > 0 ? filesPending : 0,
-        skippedLargeFiles: skippedLargeFilesCount || 0,
+        ...stats,
+        filesPending: unprocessedFilesCount || 0,
       },
     };
   } catch (error: any) {

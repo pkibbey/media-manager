@@ -5,7 +5,6 @@ import type { ScanProgress } from '@/types/progress-types';
 export function useScanFolders() {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
-  const [ignoreSmallFiles, setIgnoreSmallFiles] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cleanup function to abort scanning when component unmounts
@@ -23,8 +22,7 @@ export function useScanFolders() {
     abortControllerRef.current = new AbortController();
 
     try {
-      // Pass the ignoreSmallFiles option to the server action
-      const stream = await scanFolders({ ignoreSmallFiles });
+      const stream = await scanFolders();
       const reader = stream.getReader();
       const decoder = new TextDecoder();
 
@@ -108,8 +106,6 @@ export function useScanFolders() {
   return {
     isScanning,
     progress,
-    ignoreSmallFiles,
-    setIgnoreSmallFiles,
     startScan,
     cancelScan,
   };

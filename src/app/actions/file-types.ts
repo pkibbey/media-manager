@@ -10,10 +10,10 @@ import {
  * Get all file types
  */
 export async function getAllFileTypes() {
-  console.log('getAllFileTypes: ');
   try {
     const result = await getFileTypesHelper();
 
+    // Check if the result contains an error
     if (result.error) {
       console.error('Error fetching file types:', result.error);
       return { success: false, error: result.error };

@@ -83,36 +83,6 @@ export async function getMediaStats(): Promise<{
         .not('processing_states.status', 'eq', 'failed'),
     );
 
-    // Get items by category using RPC
-    // Note: This RPC function should be updated separately to filter out ignored file types
-    const { data: mediaData } = await supabase.rpc('get_media_statistics');
-
-    // Build category count map - handle undefined/non-array responses safely
-    const itemsByCategory: Record<string, number> = {};
-    if (mediaData && Array.isArray(mediaData)) {
-      mediaData.forEach((item: any) => {
-        if (item.category) {
-          itemsByCategory[item.category] = item.count;
-        }
-      });
-    }
-
-    // Get items grouped by extension
-    // Note: This RPC function should be updated separately to filter out ignored file types
-    const { data: extensionData } = await supabase.rpc(
-      'get_extension_statistics',
-    );
-
-    // Build extension count map - handle undefined/non-array responses safely
-    const itemsByExtension: Record<string, number> = {};
-    if (extensionData && Array.isArray(extensionData)) {
-      extensionData.forEach((item: any) => {
-        if (item.extension) {
-          itemsByExtension[item.extension] = item.count;
-        }
-      });
-    }
-
     return {
       success: true,
       data: {
@@ -123,8 +93,6 @@ export async function getMediaStats(): Promise<{
         ignoredCount: ignoredCount || 0,
         skippedCount: skippedCount || 0,
         needsTimestampCorrectionCount: needsTimestampCorrectionCount || 0,
-        itemsByCategory,
-        itemsByExtension,
       },
     };
   } catch (error) {

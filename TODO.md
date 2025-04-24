@@ -17,6 +17,7 @@
 -- compare to see how graphql would work with this - would it be much easier to work with?
 
 -- i think we might be missing skipped files, which is pointing to a small inconsistency
+-- and files that are too small or large should be set in the scan process
 
 -- setup ignoring file types thoughout
 

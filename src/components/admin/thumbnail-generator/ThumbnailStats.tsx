@@ -26,8 +26,9 @@ export function ThumbnailStats({ thumbnailStats }: ThumbnailStatsProps) {
               <span>Loading stats...</span>
             ) : (
               <span>
-                {thumbnailStats.filesWithThumbnails} /{' '}
-                {thumbnailStats.totalCompatibleFiles} files processed
+                {thumbnailStats.totalCompatibleFiles -
+                  thumbnailStats.filesPending}{' '}
+                / {thumbnailStats.totalCompatibleFiles} files processed
               </span>
             )}
           </span>

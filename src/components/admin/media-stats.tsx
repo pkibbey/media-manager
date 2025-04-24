@@ -1,5 +1,3 @@
-import { getMediaStats } from '@/app/actions/stats';
-import { formatBytes } from '@/lib/utils';
 import {
   BarChartIcon,
   FileIcon,
@@ -7,10 +5,18 @@ import {
   ImageIcon,
   PieChartIcon,
 } from '@radix-ui/react-icons';
+import { getDetailedMediaStats, getMediaStats } from '@/app/actions/stats';
+import { formatBytes } from '@/lib/utils';
 
 export default async function MediaStats() {
-  // Fetch data directly in the server component
-  const { success, data: stats, error } = await getMediaStats();
+  // Fetch both basic stats and detailed stats (categories and extensions)
+  const [basicStatsResult, detailedStatsResult] = await Promise.all([
+    getMediaStats(),
+    getDetailedMediaStats(),
+  ]);
+
+  const { success, data: stats, error } = basicStatsResult;
+  const { success: detailedSuccess, data: detailedStats } = detailedStatsResult;
 
   if (!success || !stats) {
     return (
@@ -28,7 +34,11 @@ export default async function MediaStats() {
 
   // Function to get top 5 extensions
   const getTopExtensions = () => {
-    return Object.entries(stats.itemsByExtension)
+    if (!detailedSuccess || !detailedStats?.itemsByExtension) {
+      return [];
+    }
+
+    return Object.entries(detailedStats.itemsByExtension)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
   };
@@ -93,60 +103,64 @@ export default async function MediaStats() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Categories breakdown */}
-        <div className="border rounded-md p-4 space-y-4">
-          <h4 className="font-medium">Categories</h4>
-          <div className="space-y-2">
-            {Object.entries(stats.itemsByCategory).map(([category, count]) => (
-              <div key={category} className="flex items-center gap-2">
-                <div className="p-1 rounded-full bg-secondary flex items-center justify-center">
-                  {getCategoryIcon(category)}
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium">{category}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {count} files
-                    </span>
+      {detailedSuccess && detailedStats && (
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Categories breakdown */}
+          <div className="border rounded-md p-4 space-y-4">
+            <h4 className="font-medium">Categories</h4>
+            <div className="space-y-2">
+              {Object.entries(detailedStats.itemsByCategory).map(
+                ([category, count]) => (
+                  <div key={category} className="flex items-center gap-2">
+                    <div className="p-1 rounded-full bg-secondary flex items-center justify-center">
+                      {getCategoryIcon(category)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">{category}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {count} files
+                        </span>
+                      </div>
+                      <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-primary h-full"
+                          style={{
+                            width: `${(count / stats.totalMediaItems) * 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="bg-primary h-full"
-                      style={{
-                        width: `${(count / stats.totalMediaItems) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+                ),
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Top extensions */}
-        <div className="border rounded-md p-4 space-y-4">
-          <h4 className="font-medium">Top File Types</h4>
-          <div className="space-y-2">
-            {getTopExtensions().map(([extension, count]) => (
-              <div
-                key={extension}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <code className="px-1.5 py-0.5 rounded text-xs bg-secondary">
-                    .{extension}
-                  </code>
-                  <span className="text-sm">{count} files</span>
+          {/* Top extensions */}
+          <div className="border rounded-md p-4 space-y-4">
+            <h4 className="font-medium">Top File Types</h4>
+            <div className="space-y-2">
+              {getTopExtensions().map(([extension, count]) => (
+                <div
+                  key={extension}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <code className="px-1.5 py-0.5 rounded text-xs bg-secondary">
+                      .{extension}
+                    </code>
+                    <span className="text-sm">{count} files</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {((count / stats.totalMediaItems) * 100).toFixed(1)}%
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {((count / stats.totalMediaItems) * 100).toFixed(1)}%
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Processing progress */}
       <div className="space-y-4 border rounded-md p-4">

@@ -19,21 +19,20 @@ export interface MediaFilters {
 /**
  * Statistics about media items in the system
  */
-export interface MediaStats {
+export type MediaStats = {
   totalMediaItems: number;
   totalSizeBytes: number;
-  itemsByCategory: {
-    [category: string]: number;
-  };
-  itemsByExtension: {
-    [extension: string]: number;
-  };
   processedCount: number;
   unprocessedCount: number;
-  ignoredCount: number; // Count of files with ignored file types
-  skippedCount: number; // Count of files with skipped processing
-  needsTimestampCorrectionCount?: number; // Count of files needing timestamp correction
-}
+  ignoredCount: number;
+  skippedCount: number;
+  needsTimestampCorrectionCount: number;
+};
+
+export type DetailedMediaStats = {
+  itemsByCategory: Record<string, number>;
+  itemsByExtension: Record<string, number>;
+};
 
 export interface MediaItemsFilter {
   search?: string;

@@ -1,11 +1,11 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
-import { includeMedia } from '@/lib/mediaFilters';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { getUnprocessedFiles } from '@/lib/exif-utils';
+import { fileTypeCache } from '@/lib/file-type-cache';
+import { sendProgress, updateProcessingState } from '@/lib/query-helpers';
 import { isSkippedLargeFile } from '@/lib/utils';
-import type { ExifProgress, ExtractionMethod } from '@/types/exif';
+import type { ExtractionMethod } from '@/types/exif';
 import { processExifData } from './processExifData';
 
 /**
@@ -36,7 +36,7 @@ export async function streamProcessUnprocessedItems({
     batchSize,
   }).catch((error) => {
     console.error('Error in processUnprocessedItemsInternal:', error);
-    sendProgress(writer, {
+    sendProgress(encoder, writer, {
       status: 'error',
       message: 'Error during EXIF processing',
       error:
@@ -61,8 +61,6 @@ export async function streamProcessUnprocessedItems({
     batchSize: number;
   }) {
     try {
-      const supabase = createServerSupabaseClient();
-
       // Track overall statistics across multiple batches if Infinity is selected
       let totalItemsProcessed = 0;
       let totalSuccessCount = 0;
@@ -84,7 +82,7 @@ export async function streamProcessUnprocessedItems({
 
         // If no files were returned and we're on batch 1, nothing to process at all
         if (unprocessedFiles.length === 0 && currentBatch === 1) {
-          await sendProgress(writer, {
+          await sendProgress(encoder, writer, {
             status: 'completed',
             message: 'No files to process',
             filesProcessed: 0,
@@ -111,7 +109,7 @@ export async function streamProcessUnprocessedItems({
         let batchLargeFilesSkipped = 0;
 
         // First update to show how many items were discovered
-        await sendProgress(writer, {
+        await sendProgress(encoder, writer, {
           status: 'processing',
           message: isInfinityMode
             ? `Processing all files (batch ${currentBatch})...`
@@ -125,24 +123,68 @@ export async function streamProcessUnprocessedItems({
 
         for (const media of unprocessedFiles) {
           try {
+            // Check for ignored or unsupported file types
+            let skipReason: string | null = null;
+            const fileTypeId = media.file_type_id ?? media.file_types?.id;
+            const fileExt = media.file_types?.extension;
+            if (fileTypeId) {
+              const fileType = await fileTypeCache.getFileTypeById(fileTypeId);
+              if (fileType?.ignore) {
+                skipReason = 'Ignored file type';
+              }
+            } else if (fileExt) {
+              // If no fileTypeId, fallback to extension check
+              const info = await fileTypeCache.getDetailedInfo();
+              if (info?.ignoredExtensions.includes(fileExt.toLowerCase())) {
+                skipReason = 'Ignored file type';
+              } else if (
+                !info ||
+                !info.extensionToCategory[fileExt.toLowerCase()]
+              ) {
+                skipReason = 'Unsupported file type';
+              }
+            } else {
+              skipReason = 'Unknown or missing file type';
+            }
+            // If skipReason is set, mark as skipped and continue
+            if (skipReason) {
+              updateProcessingState(
+                media.id,
+                'skipped',
+                'exif',
+                `Skipped due to ${skipReason}`,
+              );
+
+              batchProcessedCount++;
+              totalItemsProcessed++;
+              batchLargeFilesSkipped++;
+              totalLargeFilesSkipped++;
+              await sendProgress(encoder, writer, {
+                status: 'processing',
+                message: `Skipped: ${skipReason} (${media.file_name})`,
+                filesProcessed: totalItemsProcessed,
+                filesDiscovered: totalFilesDiscovered,
+                successCount: totalSuccessCount,
+                failedCount: totalFailedCount,
+                largeFilesSkipped: totalLargeFilesSkipped,
+                currentFilePath: media.file_path,
+              });
+              continue;
+            }
+
             // Check if we should skip this file due to size
             if (skipLargeFiles && media.file_path) {
               try {
                 const stats = await fs.stat(media.file_path);
                 if (isSkippedLargeFile(stats.size)) {
                   // Insert skipped state into processing_states table
-                  await supabase.from('processing_states').upsert(
-                    {
-                      media_item_id: media.id,
-                      type: 'exif',
-                      status: 'skipped',
-                      processed_at: new Date().toISOString(),
-                      error_message: `Large file (over ${Math.round(stats.size / (1024 * 1024))}MB)`,
-                    },
-                    {
-                      onConflict: 'media_item_id,type',
-                      ignoreDuplicates: false,
-                    },
+                  await updateProcessingState(
+                    media.id,
+                    'skipped',
+                    'exif',
+                    `Skipped large file (over ${Math.round(
+                      stats.size / (1024 * 1024),
+                    )}MB)`,
                   );
 
                   // Update counters
@@ -152,7 +194,7 @@ export async function streamProcessUnprocessedItems({
                   totalLargeFilesSkipped++;
 
                   // Send progress update for skipped file
-                  await sendProgress(writer, {
+                  await sendProgress(encoder, writer, {
                     status: 'processing',
                     message: `Skipped large file (over 100MB): ${media.file_name}`,
                     filesProcessed: totalItemsProcessed,
@@ -175,7 +217,7 @@ export async function streamProcessUnprocessedItems({
             }
 
             // Send update before processing each file
-            await sendProgress(writer, {
+            await sendProgress(encoder, writer, {
               status: 'processing',
               message: `Processing ${totalItemsProcessed + 1}: ${media.file_name}`,
               filesProcessed: totalItemsProcessed,
@@ -192,7 +234,7 @@ export async function streamProcessUnprocessedItems({
                 method: extractionMethod || 'default',
                 progressCallback: async (message) => {
                   // Send granular progress updates
-                  await sendProgress(writer, {
+                  await sendProgress(encoder, writer, {
                     status: 'processing',
                     message: `${message} - ${media.file_name}`,
                     filesProcessed: totalItemsProcessed,
@@ -222,7 +264,7 @@ export async function streamProcessUnprocessedItems({
               totalItemsProcessed % 5 === 0 ||
               totalItemsProcessed === totalFilesDiscovered
             ) {
-              await sendProgress(writer, {
+              await sendProgress(encoder, writer, {
                 status: 'processing',
                 message: isInfinityMode
                   ? `Processed ${totalItemsProcessed} of ${totalFilesDiscovered}+ files (${totalSuccessCount} successful, ${totalFailedCount} failed, ${totalLargeFilesSkipped} large files skipped)`
@@ -237,13 +279,21 @@ export async function streamProcessUnprocessedItems({
           } catch (error: any) {
             console.error(`Error processing file ${media.file_path}:`, error);
 
+            // Insert error state into processing_states table
+            await updateProcessingState(
+              media.id,
+              'error',
+              'exif',
+              error?.message || 'Unknown error during EXIF processing',
+            );
+
             batchProcessedCount++;
             batchFailedCount++;
             totalItemsProcessed++;
             totalFailedCount++;
 
             // Send error update
-            await sendProgress(writer, {
+            await sendProgress(encoder, writer, {
               status: 'processing',
               message: `Error processing file: ${error.message}`,
               filesProcessed: totalItemsProcessed,
@@ -262,7 +312,7 @@ export async function streamProcessUnprocessedItems({
           currentBatch++;
 
           // Send a batch completion update
-          await sendProgress(writer, {
+          await sendProgress(encoder, writer, {
             status: 'processing',
             message: `Finished batch ${currentBatch - 1}. Continuing with next batch...`,
             filesProcessed: totalItemsProcessed,
@@ -282,7 +332,7 @@ export async function streamProcessUnprocessedItems({
       }
 
       // Send final progress update
-      await sendProgress(writer, {
+      await sendProgress(encoder, writer, {
         status: 'completed',
         message: finalMessage,
         filesProcessed: totalItemsProcessed,
@@ -294,7 +344,9 @@ export async function streamProcessUnprocessedItems({
       });
     } catch (error: any) {
       console.error('Error during EXIF processing:', error);
-      await sendProgress(writer, {
+      // Insert error state into processing_states table
+
+      await sendProgress(encoder, writer, {
         status: 'error',
         message: 'Error during EXIF processing',
         error:
@@ -310,34 +362,4 @@ export async function streamProcessUnprocessedItems({
       await writer.close();
     }
   }
-
-  async function sendProgress(
-    writer: WritableStreamDefaultWriter,
-    progress: ExifProgress,
-  ) {
-    await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
-  }
-}
-
-// Helper function to get unprocessed files with a limit
-async function getUnprocessedFiles({ limit }: { limit: number }) {
-  const supabase = createServerSupabaseClient();
-
-  // Query your database to get only up to 'limit' number of unprocessed files
-  const { data: files, error } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('*, processing_states(*), file_types!inner(*)')
-      // Filter out processing states that are an empty length
-      .is('processing_states', null)
-      .lte('size_bytes', LARGE_FILE_THRESHOLD)
-      .limit(limit),
-  );
-
-  if (error) {
-    console.error('Error fetching unprocessed files:', error);
-    throw new Error('Failed to fetch unprocessed files');
-  }
-
-  return files;
 }

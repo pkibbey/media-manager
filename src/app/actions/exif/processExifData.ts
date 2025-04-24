@@ -1,11 +1,11 @@
 'use server';
 
+import { extractAndSanitizeExifData } from '@/lib/exif-utils';
 import {
-  extractAndSanitizeExifData,
+  getMediaItemById,
+  updateMediaItem,
   updateProcessingState,
-} from '@/lib/exif-utils';
-import { includeMedia } from '@/lib/mediaFilters';
-import { createServerSupabaseClient } from '@/lib/supabase';
+} from '@/lib/query-helpers';
 import type { ExtractionMethod } from '@/types/exif';
 import type { Json } from '@/types/supabase';
 
@@ -23,19 +23,12 @@ export async function processExifData({
   progressCallback?: (message: string) => void;
 }) {
   try {
-    // Create authenticated Supabase client
-    const supabase = createServerSupabaseClient();
-
     progressCallback?.('Fetching media item details');
 
     // First get the to access its file path
     // Apply filter to exclude ignored file types
-    const { data: mediaItem, error: fetchError } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('file_path, file_name, file_types!inner(*)', { count: 'exact' })
-        .eq('id', mediaId),
-    ).single();
+    const { data: mediaItem, error: fetchError } =
+      await getMediaItemById(mediaId);
 
     if (fetchError || !mediaItem) {
       console.error('Error fetching media item:', fetchError);
@@ -55,13 +48,7 @@ export async function processExifData({
     // If no EXIF data found, update processing state accordingly
     if (!extraction.success || !extraction.exifData) {
       progressCallback?.('No EXIF data found in file');
-      await updateProcessingState(
-        mediaId,
-        'error',
-        'exif',
-        extraction.message,
-        progressCallback,
-      );
+      await updateProcessingState(mediaId, 'error', 'exif', extraction.message);
 
       return {
         success: false,
@@ -78,19 +65,15 @@ export async function processExifData({
         'success',
         'exif',
         'EXIF data extracted successfully',
-        progressCallback,
       );
       if (stateError) throw stateError;
 
       // Update the media record with the actual EXIF data
       progressCallback?.('Updating media item with EXIF data');
-      const { error: updateError } = await supabase
-        .from('media_items')
-        .update({
-          exif_data: extraction.sanitizedExifData as Json,
-          media_date: extraction.mediaDate,
-        })
-        .eq('id', mediaId);
+      const { error: updateError } = await updateMediaItem(mediaId, {
+        exif_data: extraction.sanitizedExifData as Json,
+        media_date: extraction.mediaDate,
+      });
 
       if (updateError) throw updateError;
     } catch (txError) {
@@ -106,6 +89,8 @@ export async function processExifData({
           stateUpdateError,
         );
       }
+
+      console.error('Error updating media item:', txError);
 
       return {
         success: false,

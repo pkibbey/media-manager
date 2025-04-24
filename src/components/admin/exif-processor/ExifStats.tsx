@@ -35,7 +35,7 @@ export function ExifStats({
       <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
         <div className="flex justify-between">
           <span>{stats.with_exif} files with EXIF data</span>
-          <span>{stats.no_exif} files processed but no EXIF found</span>
+          <span>{stats.with_errors} files processed but no EXIF found</span>
         </div>
 
         <div className="flex justify-between">

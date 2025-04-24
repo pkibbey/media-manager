@@ -25,6 +25,14 @@ export function MediaDetailInfo({ item, category }: MediaDetailInfoProps) {
           <p className="uppercase">{category}</p>
         </div>
         <div>
+          <p className="text-muted-foreground">Created</p>
+          <p>
+            {item.created_date
+              ? format(new Date(item.created_date), 'MMM d, yyyy h:mm a')
+              : 'Unknown'}
+          </p>
+        </div>
+        <div>
           <p className="text-muted-foreground">Modified</p>
           <p>
             {item.modified_date

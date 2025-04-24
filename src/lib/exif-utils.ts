@@ -1,10 +1,12 @@
 'use server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createServerSupabaseClient } from '@/lib/supabase';
-import type { ExtractionMethod } from '@/types/exif';
 import exifReader, { type Exif } from 'exif-reader';
 import sharp from 'sharp';
+import type { ExtractionMethod } from '@/types/exif';
+import { LARGE_FILE_THRESHOLD } from './consts';
+import { includeMedia } from './mediaFilters';
+import { createServerSupabaseClient } from './supabase';
 
 /**
  * Extracts EXIF data using only the Sharp library
@@ -160,27 +162,40 @@ export async function extractAndSanitizeExifData(
   };
 }
 
-export async function updateProcessingState(
-  mediaId: string,
-  status: 'success' | 'error',
-  type = 'exif',
-  errorMessage?: string,
-  progressCallback?: (message: string) => void,
-) {
+export function getIncludedMedia() {
   const supabase = createServerSupabaseClient();
-  progressCallback?.(`Updating ${type} processing state to ${status}`);
 
-  return supabase.from('processing_states').upsert(
-    {
-      media_item_id: mediaId,
-      type,
-      status,
-      processed_at: new Date().toISOString(),
-      errorMessage,
-    },
-    {
-      onConflict: 'media_item_id,type',
-      ignoreDuplicates: false,
-    },
+  return includeMedia(
+    supabase
+      .from('media_items')
+      .select('id, file_types!inner(*), processing_states!inner(*)', {
+        count: 'exact',
+        head: true,
+      }),
   );
+}
+
+// Helper function to get unprocessed files with a limit
+export async function getUnprocessedFiles({ limit }: { limit: number }) {
+  const supabase = createServerSupabaseClient();
+
+  // Query your database to get only up to 'limit' number of unprocessed files
+  const { data: files, error } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('*, processing_states(*), file_types!inner(*)')
+      .or(
+        'status.is.null,status.neq.success,status.neq.error,status.neq.skipped',
+        { foreignTable: 'processing_states' },
+      )
+      .lte('size_bytes', LARGE_FILE_THRESHOLD)
+      .limit(limit),
+  );
+
+  if (error) {
+    console.error('Error fetching unprocessed files:', error);
+    throw new Error('Failed to fetch unprocessed files');
+  }
+
+  return files;
 }

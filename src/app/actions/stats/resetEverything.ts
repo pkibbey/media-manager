@@ -1,6 +1,10 @@
 'use server';
-import { deleteAllMediaItems, deleteAllProcessingStates, deleteAllFileTypes } from '@/lib/query-helpers';
 import { revalidatePath } from 'next/cache';
+import {
+  deleteAllFileTypes,
+  deleteAllMediaItems,
+  deleteAllProcessingStates,
+} from '@/lib/query-helpers';
 
 /**
  * Reset the processing state of all media items
@@ -12,25 +16,33 @@ export async function resetEverything(): Promise<{
   error?: string;
 }> {
   try {
-    // First, delete all media items
-    const mediaItemsResult = await deleteAllMediaItems();
-    
-    if (!mediaItemsResult.success) {
-      console.error('RESET: Error deleting media items:', mediaItemsResult.error);
-      return { success: false, error: mediaItemsResult.error };
+    // Delete all processing states - must be done befree deleting media items
+    const processingStatesResult = await deleteAllProcessingStates();
+    console.log('processingStatesResult: ', processingStatesResult);
+
+    if (!processingStatesResult.success) {
+      console.error(
+        'RESET: Error deleting processing states:',
+        processingStatesResult.error,
+      );
+      return { success: false, error: processingStatesResult.error };
     }
 
-    // Delete all processing states
-    const processingStatesResult = await deleteAllProcessingStates();
-    
-    if (!processingStatesResult.success) {
-      console.error('RESET: Error deleting processing states:', processingStatesResult.error);
-      return { success: false, error: processingStatesResult.error };
+    // Delete all media items
+    const mediaItemsResult = await deleteAllMediaItems();
+    console.log('mediaItemsResult: ', mediaItemsResult);
+
+    if (!mediaItemsResult.success) {
+      console.error(
+        'RESET: Error deleting media items:',
+        mediaItemsResult.error,
+      );
+      return { success: false, error: mediaItemsResult.error };
     }
 
     // Delete all file types
     const fileTypesResult = await deleteAllFileTypes();
-    
+
     if (!fileTypesResult.success) {
       console.error('RESET: Error deleting file types:', fileTypesResult.error);
       return { success: false, error: fileTypesResult.error };

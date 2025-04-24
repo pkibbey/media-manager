@@ -53,8 +53,7 @@ export function ScanProgress({ progress }: ScanProgressProps) {
       {/* Additional statistics in a grid layout for better organization */}
       {(progress.filesProcessed !== undefined ||
         progress.newFilesAdded !== undefined ||
-        progress.ignoredFilesSkipped !== undefined ||
-        progress.smallFilesSkipped !== undefined) && (
+        progress.filesSkipped !== undefined) && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-sm border-t border-border/30 pt-2">
           {progress.filesProcessed !== undefined && (
             <div>
@@ -70,17 +69,10 @@ export function ScanProgress({ progress }: ScanProgressProps) {
             </div>
           )}
 
-          {progress.ignoredFilesSkipped !== undefined && (
+          {progress.filesSkipped !== undefined && (
             <div>
-              <div className="text-xs text-muted-foreground">Ignored</div>
-              <div className="font-medium">{progress.ignoredFilesSkipped}</div>
-            </div>
-          )}
-
-          {progress.smallFilesSkipped !== undefined && (
-            <div>
-              <div className="text-xs text-muted-foreground">Small Files</div>
-              <div className="font-medium">{progress.smallFilesSkipped}</div>
+              <div className="text-xs text-muted-foreground">Skipped</div>
+              <div className="font-medium">{progress.filesSkipped}</div>
             </div>
           )}
         </div>

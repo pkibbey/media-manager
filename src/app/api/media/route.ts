@@ -8,8 +8,7 @@ import { lookup } from 'mime-types';
 import { type NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { fileTypeCache } from '@/lib/file-type-cache';
-import { includeMedia } from '@/lib/mediaFilters';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { getMediaItemById } from '@/lib/query-helpers';
 import { isImage, isVideo, needsConversion } from '@/lib/utils';
 
 // Cache directory for converted files
@@ -33,15 +32,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = createServerSupabaseClient();
-
     // Get the media item by ID
-    const { data: mediaItem, error } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('*, file_types!inner(*)')
-        .eq('id', id),
-    ).single();
+    const { data: mediaItem, error } = await getMediaItemById(id);
 
     if (error || !mediaItem) {
       console.error('Error fetching media item:', error);

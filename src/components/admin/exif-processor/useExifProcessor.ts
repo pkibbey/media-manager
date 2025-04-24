@@ -21,7 +21,7 @@ export type ErrorSummary = {
 export function useExifProcessor() {
   const [stats, setStats] = useState<ExifStatsResult>({
     with_exif: 0,
-    no_exif: 0,
+    with_errors: 0,
     total: 0,
     skipped: 0,
   });
@@ -55,11 +55,20 @@ export function useExifProcessor() {
   }, [abortController]);
 
   const fetchStats = async () => {
-    const response = await getExifStats();
-    const { success, stats: exifStats } = response;
+    try {
+      const response = await getExifStats();
+      const { success, stats: exifStats, message } = response;
 
-    if (success && exifStats) {
-      setStats(exifStats);
+      if (success && exifStats) {
+        setStats(exifStats);
+      } else {
+        console.error(
+          'Failed to fetch EXIF stats:',
+          message || 'Unknown error',
+        );
+      }
+    } catch (error) {
+      console.error('Exception when fetching EXIF stats:', error);
     }
   };
 
@@ -251,7 +260,7 @@ export function useExifProcessor() {
   };
 
   // Calculate derived values
-  const totalProcessed = stats.no_exif + stats.with_exif + stats.skipped;
+  const totalProcessed = stats.with_errors + stats.with_exif + stats.skipped;
   const totalUnprocessed = stats.total - totalProcessed;
   const processedPercentage =
     stats.total > 0 ? (totalProcessed / stats.total) * 100 : 0;

@@ -1,17 +1,9 @@
 import { ScanButton } from './ScanButton';
-import { ScanOptions } from './ScanOptions';
 import { ScanProgress } from './ScanProgress';
 import { useScanFolders } from './useScanFolders';
 
 export function ScanFoldersTriggerContainer() {
-  const {
-    isScanning,
-    progress,
-    ignoreSmallFiles,
-    setIgnoreSmallFiles,
-    startScan,
-    cancelScan,
-  } = useScanFolders();
+  const { isScanning, progress, startScan, cancelScan } = useScanFolders();
 
   return (
     <div className="space-y-4">
@@ -23,12 +15,6 @@ export function ScanFoldersTriggerContainer() {
             database. Unchanged files will be skipped to improve performance.
           </p>
         </div>
-
-        <ScanOptions
-          ignoreSmallFiles={ignoreSmallFiles}
-          setIgnoreSmallFiles={setIgnoreSmallFiles}
-          isDisabled={isScanning}
-        />
 
         <ScanButton
           isScanning={isScanning}

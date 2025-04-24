@@ -290,33 +290,33 @@ export async function countMediaItems(
  * @param updates Object containing fields to update
  * @returns Update result
  */
-export async function updateMediaItem(
-  id: string,
-  updates: Partial<MediaItem>,
-): Promise<{
-  success: boolean;
-  error: any | null;
-}> {
-  const supabase = createServerSupabaseClient();
+// export async function updateMediaItem(
+//   id: string,
+//   updates: Partial<MediaItem>,
+// ): Promise<{
+//   success: boolean;
+//   error: any | null;
+// }> {
+//   const supabase = createServerSupabaseClient();
 
-  try {
-    const { error } = await supabase
-      .from('media_items')
-      .update(updates)
-      .eq('id', id);
+//   try {
+//     const { error } = await supabase
+//       .from('media_items')
+//       .update(updates)
+//       .eq('id', id);
 
-    return {
-      success: !error,
-      error,
-    };
-  } catch (error) {
-    console.error(`Error updating media item ${id}:`, error);
-    return {
-      success: false,
-      error,
-    };
-  }
-}
+//     return {
+//       success: !error,
+//       error,
+//     };
+//   } catch (error) {
+//     console.error(`Error updating media item ${id}:`, error);
+//     return {
+//       success: false,
+//       error,
+//     };
+//   }
+// }
 
 /**
  * Update processing state for a media item
@@ -357,16 +357,15 @@ export async function updateProcessingState(
  * @returns Query result with file types data
  */
 export async function getAllFileTypes(options: { fullSelect?: boolean } = {}) {
-  console.log('getAllFileTypes: ', options);
   const supabase = createServerSupabaseClient();
 
   try {
     // Apply filters
-    let query = supabase.from('file_types').select('*, file_types!inner(*)');
+    let query = supabase.from('file_types').select('*');
 
     if (!options.fullSelect) {
       // Exclude ignored file types
-      query = query.eq('file_types.ignore', false);
+      query = query.is('ignore', false);
     }
 
     // Always sort by extension for consistent results
@@ -374,7 +373,6 @@ export async function getAllFileTypes(options: { fullSelect?: boolean } = {}) {
 
     const { data, error } = await query;
     if (error) {
-      console.log('getAllFileTypes error: ', error);
       console.error('Error fetching file types:', error);
       return { data: null, error };
     }
@@ -639,21 +637,11 @@ export async function deleteAllMediaItems(): Promise<{
   const supabase = createServerSupabaseClient();
 
   try {
-    // First get the count for confirmation
-    const { count, error: countError } = await supabase
-      .from('media_items')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      console.error('Error counting media items:', countError);
-      return { success: false, error: countError.message };
-    }
-
     // Then delete all media items
-    const { error: deleteError } = await supabase
+    const { error: deleteError, count } = await supabase
       .from('media_items')
-      .delete()
-      .filter('id', 'not.is', null);
+      .delete({ count: 'exact' })
+      .not('id', 'is', null);
 
     if (deleteError) {
       console.error('Error deleting media items:', deleteError);
@@ -781,4 +769,170 @@ export async function removeScanFolder(folderId: number): Promise<{
   const supabase = createServerSupabaseClient();
 
   return supabase.from('scan_folders').delete().eq('id', folderId);
+}
+
+/**
+ * Scan-related database operations
+ */
+
+/**
+ * Get folders to scan from the database
+ * @param folderId Optional specific folder ID to retrieve
+ * @returns Query result with scan folders data
+ */
+export async function getFoldersToScan(folderId?: number): Promise<{
+  data: any[] | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  return folderId
+    ? supabase.from('scan_folders').select('*').eq('id', folderId).order('path')
+    : supabase.from('scan_folders').select('*').order('path');
+}
+
+/**
+ * Get all file types for scanning
+ * @returns Query result with file types data (extension and category)
+ */
+export async function getScanFileTypes(): Promise<{
+  data: { extension: string; category: string }[] | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  return supabase.from('file_types').select('extension, category');
+}
+
+/**
+ * Check if a file exists in the database
+ * @param filePath Path to the file to check
+ * @returns Query result with file data if it exists
+ */
+export async function checkFileExists(filePath: string): Promise<{
+  data: { id: string; modified_date: string; size_bytes: number } | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  return supabase
+    .from('media_items')
+    .select('id, modified_date, size_bytes')
+    .eq('file_path', filePath)
+    .maybeSingle();
+}
+
+/**
+ * Get file type by extension
+ * @param extension File extension
+ * @returns Query result with file type ID
+ */
+export async function getFileTypeIdByExtension(extension: string): Promise<{
+  data: { id: number } | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  return supabase
+    .from('file_types')
+    .select('id')
+    .eq('extension', extension)
+    .single();
+}
+
+/**
+ * Add or update a file type
+ * @param extension File extension
+ * @param category File category
+ * @param mimeType File MIME type
+ * @returns Query result with the new file type ID
+ */
+export async function upsertFileType(
+  extension: string,
+  category: string,
+  mimeType: string,
+): Promise<{
+  data: { id: number } | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  return supabase
+    .from('file_types')
+    .upsert(
+      {
+        extension,
+        category,
+        mime_type: mimeType,
+      },
+      {
+        onConflict: 'extension',
+        ignoreDuplicates: false,
+      },
+    )
+    .select('id')
+    .single();
+}
+
+/**
+ * Insert a new media item
+ * @param fileData Media item data
+ * @returns Query result with inserted media item ID
+ */
+export async function insertMediaItem(fileData: {
+  file_name: string;
+  file_path: string;
+  created_date: string;
+  modified_date: string;
+  size_bytes: number;
+  file_type_id: number;
+  folder_path: string;
+}): Promise<{
+  data: { id: string } | null;
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  return supabase.from('media_items').insert(fileData).select('id').single();
+}
+
+/**
+ * Update an existing media item
+ * @param id Media item ID
+ * @param fileData Media item data
+ * @returns Query result
+ */
+export async function updateMediaItem(
+  id: string,
+  mediaItem: Partial<MediaItem>,
+): Promise<{
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  return supabase.from('media_items').update(mediaItem).eq('id', id);
+}
+
+/**
+ * Update the last scanned timestamp for a folder
+ * @param folderId Folder ID
+ * @returns Query result
+ */
+export async function updateFolderLastScanned(folderId: number): Promise<{
+  error: any | null;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  return supabase
+    .from('scan_folders')
+    .update({ last_scanned: new Date().toISOString() })
+    .eq('id', folderId);
+}
+
+export async function sendProgress<T>(
+  encoder: TextEncoder,
+  writer: WritableStreamDefaultWriter,
+  progress: T,
+) {
+  await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
 }

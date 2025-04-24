@@ -1,9 +1,9 @@
 'use server';
 import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import { includeMedia } from '@/lib/mediaFilters';
+import { sendProgress } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { isSkippedLargeFile } from '@/lib/utils';
-import type { ThumbnailProgress } from '@/types/thumbnail-types';
 import { generateThumbnail } from './generateThumbnail';
 
 /**
@@ -29,8 +29,8 @@ export async function streamUnprocessedThumbnails({
     writer,
     skipLargeFiles,
     batchSize,
-  }).catch((error) => {
-    sendProgress(writer, {
+  }).catch(async (error) => {
+    await sendProgress(encoder, writer, {
       status: 'error',
       message: 'Error during thumbnail generation',
       error:
@@ -81,7 +81,7 @@ export async function streamUnprocessedThumbnails({
           unprocessedFiles === undefined ||
           (unprocessedFiles.length === 0 && currentBatch === 1)
         ) {
-          await sendProgress(writer, {
+          await sendProgress(encoder, writer, {
             status: 'completed',
             message: 'No files to process',
             totalItems,
@@ -108,7 +108,7 @@ export async function streamUnprocessedThumbnails({
         let batchSkippedLargeFilesCount = 0;
 
         // Send initial progress update for this batch
-        await sendProgress(writer, {
+        await sendProgress(encoder, writer, {
           status: 'processing',
           message: isInfinityMode
             ? `Starting batch ${currentBatch}: Processing ${unprocessedFiles.length} files...`
@@ -149,7 +149,7 @@ export async function streamUnprocessedThumbnails({
                 totalSkippedLargeFilesCount++;
 
                 // Send progress update for skipped file
-                await sendProgress(writer, {
+                await sendProgress(encoder, writer, {
                   status: 'processing',
                   message: `Skipped large file: ${media.file_name}`,
                   totalItems: isInfinityMode
@@ -176,7 +176,7 @@ export async function streamUnprocessedThumbnails({
             }
 
             // Send update before processing each file
-            await sendProgress(writer, {
+            await sendProgress(encoder, writer, {
               status: 'processing',
               message: isInfinityMode
                 ? `Batch ${currentBatch}: Generating thumbnail: ${media.file_name}`
@@ -219,7 +219,7 @@ export async function streamUnprocessedThumbnails({
             }
 
             // Send progress update
-            await sendProgress(writer, {
+            await sendProgress(encoder, writer, {
               status: 'processing',
               message: result.message,
               totalItems: isInfinityMode
@@ -266,7 +266,7 @@ export async function streamUnprocessedThumbnails({
             );
 
             // Send error update
-            await sendProgress(writer, {
+            await sendProgress(encoder, writer, {
               status: 'processing',
               message: `Error generating thumbnail: ${error.message}`,
               totalItems: isInfinityMode
@@ -294,7 +294,7 @@ export async function streamUnprocessedThumbnails({
           currentBatch++;
 
           // Send a batch completion update
-          await sendProgress(writer, {
+          await sendProgress(encoder, writer, {
             status: 'processing',
             message: `Finished batch ${currentBatch - 1}. Continuing with next batch...`,
             totalItems: totalFilesDiscovered,
@@ -312,7 +312,7 @@ export async function streamUnprocessedThumbnails({
         ? `All processing completed. Generated ${totalSuccessCount} thumbnails (${totalFailedCount} failed, ${totalSkippedLargeFilesCount} skipped)`
         : `Thumbnail generation completed. Generated ${totalSuccessCount} thumbnails (${totalFailedCount} failed, ${totalSkippedLargeFilesCount} skipped)`;
 
-      await sendProgress(writer, {
+      await sendProgress(encoder, writer, {
         status: 'completed',
         message: finalMessage,
         totalItems: isInfinityMode
@@ -325,7 +325,7 @@ export async function streamUnprocessedThumbnails({
         isBatchComplete: true,
       });
     } catch (error: any) {
-      await sendProgress(writer, {
+      await sendProgress(encoder, writer, {
         status: 'error',
         message: 'Error during thumbnail generation',
         error:
@@ -336,13 +336,6 @@ export async function streamUnprocessedThumbnails({
       // Close the stream to signal completion to the client
       await writer.close();
     }
-  }
-
-  async function sendProgress(
-    writer: WritableStreamDefaultWriter,
-    progress: ThumbnailProgress,
-  ) {
-    await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
   }
 }
 
@@ -358,14 +351,9 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   } = await includeMedia(
     supabase
       .from('media_items')
-      .select(
-        `
-        *,
-        file_types!inner(*),
-        processing_states!inner(*)
-      `,
-        { count: 'exact' },
-      )
+      .select('*, file_types!inner(*), processing_states!inner(*)', {
+        count: 'exact',
+      })
       .eq('processing_states.type', 'thumbnail')
       .not('processing_states.status', 'eq', 'success')
       .not('processing_states.status', 'eq', 'skipped')
@@ -399,11 +387,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
     await includeMedia(
       supabase
         .from('media_items')
-        .select(`
-        *,
-        file_types!inner(*),
-        processing_states!inner(*)
-      `)
+        .select('*, file_types!inner(*), processing_states!inner(*)')
         .not('thumbnail_path', 'is', null)
         .eq('processing_states.type', 'thumbnail')
         .in('processing_states.status', ['error', 'pending'])

@@ -31,9 +31,8 @@ export type ScanProgress = {
   folderPath?: string;
   filesDiscovered?: number;
   filesProcessed?: number;
+  filesSkipped?: number;
   newFilesAdded?: number;
-  ignoredFilesSkipped?: number;
-  smallFilesSkipped?: number;
   newFileTypes?: string[];
   error?: string;
 };
@@ -42,12 +41,6 @@ export type ScanProgress = {
  * Options for the scan operation
  */
 export type ScanOptions = {
-  /**
-   * Whether to ignore files under 10kb
-   * Small files are often configuration files, metadata or thumbnails and not actual media
-   */
-  ignoreSmallFiles?: boolean;
-
   /**
    * Optional ID of a specific folder to scan
    * If not provided, all folders will be scanned

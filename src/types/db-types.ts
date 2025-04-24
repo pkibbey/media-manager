@@ -26,7 +26,7 @@ export type ProcessingState =
  */
 export interface ExifStatsResult {
   with_exif: number; // Files with successfully extracted EXIF data
-  no_exif: number; // Files processed but no EXIF data found
+  with_errors: number; // Files processed with errors
   skipped: number; // Files intentionally skipped during processing
   total: number; // Total number of media items
 }
