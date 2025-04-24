@@ -1,36 +1,129 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Media Manager
+
+A modern web application for organizing, viewing, and managing your media collection. Built with Next.js, TypeScript, and Supabase.
+
+![Media Manager Screenshot](public/video-placeholder.png)
+
+## Features
+
+- **Media Browsing**: Browse your media files with advanced filtering options
+- **Thumbnail Generation**: Automatic thumbnail creation for images and videos 
+- **EXIF Data Processing**: Extract and display EXIF metadata from your media files
+- **Media Organization**: Manage your media by folders and file types
+- **Timestamp Correction**: Tools for fixing and standardizing timestamps across files
+- **Admin Dashboard**: Complete admin interface for managing your media library
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS with shadcn/ui components
+- **Database & Storage**: Supabase
+- **Media Processing**: Sharp, fluent-ffmpeg, exif-reader
+- **Form Handling**: React Hook Form with Zod validation
+- **Code Quality**: Biome for linting and formatting
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ 
+- pnpm
+- Supabase CLI
+
+### Installation
+
+1. Clone the repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/media-manager.git
+cd media-manager
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Set up Supabase locally
 
-## Learn More
+```bash
+# Install Supabase CLI if you haven't already
+npm install -g supabase
 
-To learn more about Next.js, take a look at the following resources:
+# Start Supabase locally
+supabase start
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Apply migrations and generate types
+pnpm sync
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. Set up environment variables
 
-## Deploy on Vercel
+Create a `.env.local` file in the root directory and add the following:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-local-supabase-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-local-supabase-service-role-key>
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. Start the development server
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+
+## Development Workflow
+
+- `pnpm dev` - Start the development server
+- `pnpm build` - Build the application for production
+- `pnpm start` - Start the production server
+- `pnpm lint` - Run Biome linting
+- `pnpm format` - Format code with Biome
+- `pnpm types` - Generate Supabase TypeScript types
+- `pnpm sync` - Apply Supabase migrations and update types
+
+## Project Structure
+
+- `/src/app` - Next.js App Router pages and layouts
+  - `/actions` - Server actions for data manipulation
+  - `/api` - API routes
+  - `/admin` - Admin panel pages
+  - `/browse` - Media browsing interface
+- `/src/components` - React components
+  - `/admin` - Admin interface components
+  - `/browse` - Browse view components
+  - `/media` - Media display components
+  - `/ui` - Reusable UI components
+- `/src/hooks` - Custom React hooks
+- `/src/lib` - Utility functions and shared logic
+- `/src/types` - TypeScript type definitions
+- `/supabase` - Supabase configuration and migrations
+
+## Contributing
+
+Please read [STANDARDS.md](STANDARDS.md) for details on coding standards.
+
+### Development Standards
+
+This project follows specific coding standards and architectural patterns. Before contributing, familiarize yourself with:
+
+- Component organization and naming conventions
+- TypeScript usage and type safety practices
+- State management patterns
+- Styling approach using Tailwind CSS
+- Server vs. client components in Next.js
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- [Next.js](https://nextjs.org/) - The React Framework
+- [Supabase](https://supabase.io/) - Open source Firebase alternative
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [shadcn/ui](https://ui.shadcn.com/) - Re-usable UI components
