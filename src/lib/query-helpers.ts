@@ -88,7 +88,7 @@ export async function getMediaItems(
   let query = includeMedia(
     supabase
       .from('media_items')
-      .select('*, file_types!inner(*), processing_states(*)', {
+      .select('*, file_types!inner(*), processing_states!inner(*)', {
         count: 'exact',
       }),
   );

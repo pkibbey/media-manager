@@ -46,9 +46,6 @@ export function ExifProgressDisplay({
         rateUnit="files/sec"
       />
 
-      <div className="text-xs text-muted-foreground">
-        Skipped {progress?.largeFilesSkipped || 0} large files (over 100MB)
-      </div>
       <div className="text-xs text-muted-foreground truncate">
         Current file: {progress?.currentFilePath}
       </div>

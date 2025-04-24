@@ -22,8 +22,6 @@ export async function getThumbnailStats(): Promise<{
         .select('*, file_types!inner(*)', { count: 'exact', head: true }),
     );
 
-    console.log('Total compatible files count:', totalCount);
-
     if (totalError) {
       throw new Error(`Failed to get total file count: ${totalError.message}`);
     }
@@ -44,8 +42,6 @@ export async function getThumbnailStats(): Promise<{
           .eq('processing_states.status', 'success'),
       );
 
-    console.log('Files with thumbnails count:', withThumbnailsCount);
-
     if (withThumbnailsError) {
       throw new Error(
         `Failed to get files with thumbnails: ${withThumbnailsError.message}`,
@@ -65,8 +61,6 @@ export async function getThumbnailStats(): Promise<{
           .eq('processing_states.status', 'skipped'),
       );
 
-    console.log('Skipped large files count:', skippedLargeFilesCount);
-
     if (skippedLargeFilesError) {
       throw new Error(
         `Failed to get skipped large files count: ${skippedLargeFilesError.message}`,
@@ -84,8 +78,6 @@ export async function getThumbnailStats(): Promise<{
         .eq('processing_states.type', 'thumbnail')
         .eq('processing_states.status', 'error'),
     );
-
-    console.log('Errored files count:', erroredCount);
 
     if (erroredError) {
       throw new Error(
@@ -108,8 +100,6 @@ export async function getThumbnailStats(): Promise<{
       ...stats,
       filesPending: unprocessedFilesCount || 0,
     };
-
-    console.log('Final thumbnail stats:', finalStats);
 
     return {
       success: true,

@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { bytesToSize } from '@/lib/utils';
+import { formatBytes } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 
 type MediaDetailInfoProps = {
@@ -18,7 +18,7 @@ export function MediaDetailInfo({ item, category }: MediaDetailInfoProps) {
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-muted-foreground">Size</p>
-          <p>{bytesToSize(item.size_bytes || 0)}</p>
+          <p>{formatBytes(item.size_bytes || 0)}</p>
         </div>
         <div>
           <p className="text-muted-foreground">Type</p>

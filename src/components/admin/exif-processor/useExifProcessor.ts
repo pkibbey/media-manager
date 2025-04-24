@@ -29,7 +29,6 @@ export function useExifProcessor() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [progress, setProgress] = useState<ExifProgress | null>(null);
   const [hasError, setHasError] = useState(false);
-  const [skipLargeFiles, setSkipLargeFiles] = useState(true);
   const [errorSummary, setErrorSummary] = useState<ErrorSummary>({});
   const [abortController, setAbortController] =
     useState<AbortController | null>(null);
@@ -61,7 +60,6 @@ export function useExifProcessor() {
 
       if (success && exifStats) {
         setStats(exifStats);
-        console.log('EXIF stats fetched successfully:', exifStats);
       } else {
         console.error(
           'Failed to fetch EXIF stats:',
@@ -82,7 +80,6 @@ export function useExifProcessor() {
       setProgress({
         status: 'processing',
         message: `Starting EXIF processing (max ${batchSize} files)...`,
-        largeFilesSkipped: 0,
         filesDiscovered: 0,
         filesProcessed: 0,
         successCount: 0,
@@ -96,7 +93,6 @@ export function useExifProcessor() {
 
       // Call the server action to get a ReadableStream
       const stream = await streamProcessUnprocessedItems({
-        skipLargeFiles,
         extractionMethod,
         batchSize,
       });
@@ -276,8 +272,6 @@ export function useExifProcessor() {
     isStreaming,
     progress,
     hasError,
-    skipLargeFiles,
-    setSkipLargeFiles,
     errorSummary,
     extractionMethod,
     setExtractionMethod,

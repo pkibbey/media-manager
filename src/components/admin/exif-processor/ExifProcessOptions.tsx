@@ -1,4 +1,3 @@
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -7,17 +6,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import type { ExtractionMethod } from '@/types/exif';
 
 type ExifProcessOptionsProps = {
-  skipLargeFiles: boolean;
-  setSkipLargeFiles: (skip: boolean) => void;
   extractionMethod: ExtractionMethod;
   setExtractionMethod: (method: ExtractionMethod) => void;
   batchSize: number;
@@ -27,8 +18,6 @@ type ExifProcessOptionsProps = {
 };
 
 export function ExifProcessOptions({
-  skipLargeFiles,
-  setSkipLargeFiles,
   extractionMethod,
   setExtractionMethod,
   batchSize,
@@ -38,32 +27,6 @@ export function ExifProcessOptions({
 }: ExifProcessOptionsProps) {
   return (
     <div className="flex flex-col items-start gap-6 mt-4">
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="skipLargeFiles"
-          checked={skipLargeFiles}
-          onCheckedChange={(checked) => setSkipLargeFiles(checked as boolean)}
-          disabled={isStreaming || totalUnprocessed === 0}
-        />
-        <Label htmlFor="skipLargeFiles" className="text-sm">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="cursor-help border-b border-dotted border-gray-400">
-                  Skip large files (over 100MB)
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p>
-                  Large files can take a long time to process and often don't
-                  contain useful EXIF data. Checking this will improve
-                  processing speed.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </Label>
-      </div>
       <div className="flex gap-4 flex-col">
         <div className="flex space-y-2 gap-2 justify-center">
           <Label

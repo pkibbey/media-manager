@@ -3,7 +3,6 @@ import { format, formatDistanceToNow } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import { twMerge } from 'tailwind-merge';
 import type { MediaItem } from '@/types/db-types';
-import { LARGE_FILE_THRESHOLD } from './consts';
 import { fileTypeCache } from './file-type-cache';
 
 /**
@@ -120,7 +119,10 @@ export function getKeyboardNavigationIndex(
   }
 }
 
-export function bytesToSize(bytes: number): string {
+/**
+ * Format bytes to human readable size
+ */
+export function formatBytes(bytes: number): string {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   if (bytes === 0) return '0 Bytes';
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
@@ -128,13 +130,6 @@ export function bytesToSize(bytes: number): string {
     // biome-ignore lint/style/useExponentiationOperator: <explanation>
     (bytes / Math.pow(1024, i)).toFixed(2)
   } ${sizes[i]}`;
-}
-
-/**
- * Format bytes to human readable size
- */
-export function formatBytes(bytes: number): string {
-  return bytesToSize(bytes);
 }
 
 /**
@@ -487,8 +482,4 @@ export async function getFileCategory(
  */
 export function excludeIgnoredFileTypes(query: any): any {
   return query.eq('file_types.ignore', false);
-}
-
-export function isSkippedLargeFile(fileSize: number): boolean {
-  return fileSize > LARGE_FILE_THRESHOLD;
 }

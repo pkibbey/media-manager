@@ -5,8 +5,6 @@ import { getAllFileTypes } from '@/lib/query-helpers';
 export default async function FileTypesPage() {
   const { data: fileTypes, error: fileTypesError } = await getAllFileTypes();
 
-  console.log('fileTypes: ', fileTypes);
-
   return (
     <div className="items-start">
       <Suspense fallback={<div>Loading file types...</div>}>

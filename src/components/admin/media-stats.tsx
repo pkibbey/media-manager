@@ -5,20 +5,14 @@ import {
   ImageIcon,
   PieChartIcon,
 } from '@radix-ui/react-icons';
-import { getDetailedMediaStats, getMediaStats } from '@/app/actions/stats';
+import { getAllStats } from '@/app/actions/stats/getAllStats';
 import { formatBytes } from '@/lib/utils';
 
 export default async function MediaStats() {
   // Fetch both basic stats and detailed stats (categories and extensions)
-  const [basicStatsResult, detailedStatsResult] = await Promise.all([
-    getMediaStats(),
-    getDetailedMediaStats(),
-  ]);
+  const { data, success, error } = await getAllStats();
 
-  const { success, data: stats, error } = basicStatsResult;
-  const { success: detailedSuccess, data: detailedStats } = detailedStatsResult;
-
-  if (!success || !stats) {
+  if (!success || !data) {
     return (
       <div className="p-4 border rounded-md bg-destructive/10 text-destructive">
         Error loading statistics: {error}
@@ -28,23 +22,9 @@ export default async function MediaStats() {
 
   // Calculate percentages for progress bars - using only non-ignored files
   const processedPercentage =
-    stats.totalMediaItems > 0
-      ? (stats.processedCount / stats.totalMediaItems) * 100
+    data.totalMediaItems > 0
+      ? (data.processedCount / data.totalMediaItems) * 100
       : 0;
-
-  // Function to get top 5 extensions
-  const getTopExtensions = () => {
-    if (!detailedSuccess || !detailedStats?.itemsByExtension) {
-      return [];
-    }
-
-    return Object.entries(detailedStats.itemsByExtension)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-  };
-
-  // Calculate total count including ignored files (for UI display)
-  const totalWithIgnored = stats.totalMediaItems + stats.ignoredCount;
 
   // Function to get appropriate icon for a category
   const getCategoryIcon = (category: string) => {
@@ -70,23 +50,23 @@ export default async function MediaStats() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Total Media</div>
-          <div className="text-2xl font-bold">{stats.totalMediaItems}</div>
+          <div className="text-2xl font-bold">{data.totalMediaItems}</div>
           <div className="text-xs text-muted-foreground">
-            {totalWithIgnored} including ignored files
+            {data.ignoredCount} ignored files
           </div>
         </div>
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Total Size</div>
           <div className="text-2xl font-bold">
-            {formatBytes(stats.totalSizeBytes)}
+            {formatBytes(data.totalSizeBytes)}
           </div>
         </div>
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Processed</div>
           <div className="text-2xl font-bold">
-            {stats.processedCount}{' '}
+            {data.processedCount}{' '}
             <span className="text-sm font-normal text-muted-foreground">
-              / {stats.totalMediaItems}
+              / {data.totalMediaItems}
             </span>
           </div>
         </div>
@@ -95,7 +75,7 @@ export default async function MediaStats() {
             Needs Timestamp Correction
           </div>
           <div className="text-2xl font-bold">
-            {stats.needsTimestampCorrectionCount ?? 0}
+            {data.needsTimestampCorrectionCount ?? 0}
           </div>
           <div className="text-xs text-muted-foreground">
             Processed, EXIF-capable, no EXIF
@@ -103,67 +83,8 @@ export default async function MediaStats() {
         </div>
       </div>
 
-      {detailedSuccess && detailedStats && (
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Categories breakdown */}
-          <div className="border rounded-md p-4 space-y-4">
-            <h4 className="font-medium">Categories</h4>
-            <div className="space-y-2">
-              {Object.entries(detailedStats.itemsByCategory).map(
-                ([category, count]) => (
-                  <div key={category} className="flex items-center gap-2">
-                    <div className="p-1 rounded-full bg-secondary flex items-center justify-center">
-                      {getCategoryIcon(category)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">{category}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {count} files
-                        </span>
-                      </div>
-                      <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className="bg-primary h-full"
-                          style={{
-                            width: `${(count / stats.totalMediaItems) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ),
-              )}
-            </div>
-          </div>
-
-          {/* Top extensions */}
-          <div className="border rounded-md p-4 space-y-4">
-            <h4 className="font-medium">Top File Types</h4>
-            <div className="space-y-2">
-              {getTopExtensions().map(([extension, count]) => (
-                <div
-                  key={extension}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    <code className="px-1.5 py-0.5 rounded text-xs bg-secondary">
-                      .{extension}
-                    </code>
-                    <span className="text-sm">{count} files</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {((count / stats.totalMediaItems) * 100).toFixed(1)}%
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Processing progress */}
-      <div className="space-y-4 border rounded-md p-4">
+      <div className="bg-neutral-800 space-y-4 border rounded-md p-4">
         <h4 className="font-medium">Progress</h4>
 
         <div className="space-y-1">
@@ -173,7 +94,7 @@ export default async function MediaStats() {
               <span>Processing</span>
             </div>
             <span className="text-muted-foreground">
-              {stats.processedCount} / {stats.totalMediaItems}
+              {data.processedCount} / {data.totalMediaItems}
             </span>
           </div>
           <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
@@ -183,10 +104,46 @@ export default async function MediaStats() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            {stats.unprocessedCount} items remaining to be processed
+            {data.unprocessedCount} items remaining to be processed
           </p>
         </div>
       </div>
+
+      {success && data && (
+        <div className="grid gap-6">
+          {/* Categories breakdown */}
+          <div className="border rounded-md p-4 space-y-4">
+            <h4 className="font-medium">Stats</h4>
+            <div className="space-y-2">
+              {Object.entries(data).map(([category, count]) => (
+                <div key={category} className="flex items-center gap-2">
+                  <div className="p-1 rounded-full bg-secondary flex items-center justify-center">
+                    {getCategoryIcon(category)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-medium">{category}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {category === 'processedCount'
+                          ? formatBytes(count)
+                          : `${count} files`}
+                      </span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-primary h-full"
+                        style={{
+                          width: `${(count / data.totalMediaItems) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

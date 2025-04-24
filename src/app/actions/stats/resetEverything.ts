@@ -18,7 +18,6 @@ export async function resetEverything(): Promise<{
   try {
     // Delete all processing states - must be done befree deleting media items
     const processingStatesResult = await deleteAllProcessingStates();
-    console.log('processingStatesResult: ', processingStatesResult);
 
     if (!processingStatesResult.success) {
       console.error(
@@ -30,7 +29,6 @@ export async function resetEverything(): Promise<{
 
     // Delete all media items
     const mediaItemsResult = await deleteAllMediaItems();
-    console.log('mediaItemsResult: ', mediaItemsResult);
 
     if (!mediaItemsResult.success) {
       console.error(

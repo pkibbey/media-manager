@@ -1,9 +1,7 @@
 'use server';
-import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import { includeMedia } from '@/lib/mediaFilters';
 import { sendProgress } from '@/lib/query-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { isSkippedLargeFile } from '@/lib/utils';
 import { generateThumbnail } from './generateThumbnail';
 
 /**
@@ -11,10 +9,8 @@ import { generateThumbnail } from './generateThumbnail';
  * Returns a ReadableStream that emits progress updates
  */
 export async function streamUnprocessedThumbnails({
-  skipLargeFiles = true,
   batchSize = 100,
 }: {
-  skipLargeFiles?: boolean;
   batchSize?: number;
 }) {
   const encoder = new TextEncoder();
@@ -27,7 +23,6 @@ export async function streamUnprocessedThumbnails({
   // Start processing in the background
   processUnprocessedThumbnailsInternal({
     writer,
-    skipLargeFiles,
     batchSize,
   })
     .catch(async (error) => {
@@ -55,11 +50,9 @@ export async function streamUnprocessedThumbnails({
 
   async function processUnprocessedThumbnailsInternal({
     writer,
-    skipLargeFiles,
     batchSize,
   }: {
     writer: WritableStreamDefaultWriter;
-    skipLargeFiles: boolean;
     batchSize: number;
   }) {
     try {
@@ -133,57 +126,6 @@ export async function streamUnprocessedThumbnails({
 
         for (const media of unprocessedFiles) {
           try {
-            // Check if file is too large and we should skip it
-            if (skipLargeFiles && media.file_path && media.size_bytes) {
-              if (isSkippedLargeFile(media.size_bytes)) {
-                // Mark as skipped in processing_states table
-                await supabase.from('processing_states').upsert(
-                  {
-                    media_item_id: media.id,
-                    type: 'thumbnail',
-                    status: 'skipped',
-                    processed_at: new Date().toISOString(),
-                    error_message: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
-                  },
-                  {
-                    onConflict: 'media_item_id,type',
-                    ignoreDuplicates: false,
-                  },
-                );
-
-                // Update counters
-                batchProcessedCount++;
-                batchSkippedLargeFilesCount++;
-                totalItemsProcessed++;
-                totalSkippedLargeFilesCount++;
-
-                // Send progress update for skipped file
-                await sendProgress(encoder, writer, {
-                  status: 'processing',
-                  message: `Skipped large file: ${media.file_name}`,
-                  totalItems: isInfinityMode
-                    ? totalFilesDiscovered
-                    : unprocessedFiles.length,
-                  processed: isInfinityMode
-                    ? totalItemsProcessed
-                    : batchProcessedCount,
-                  successCount: isInfinityMode
-                    ? totalSuccessCount
-                    : batchSuccessCount,
-                  failedCount: isInfinityMode
-                    ? totalFailedCount
-                    : batchFailedCount,
-                  skippedLargeFiles: isInfinityMode
-                    ? totalSkippedLargeFilesCount
-                    : batchSkippedLargeFilesCount,
-                  currentFilePath: media.file_path,
-                  fileType: media.file_types?.extension,
-                });
-
-                continue; // Skip to the next file
-              }
-            }
-
             // Send update before processing each file
             await sendProgress(encoder, writer, {
               status: 'processing',
@@ -206,9 +148,7 @@ export async function streamUnprocessedThumbnails({
             });
 
             // Generate thumbnail - pass along the abort token
-            const result = await generateThumbnail(media.id, {
-              skipLargeFiles,
-            });
+            const result = await generateThumbnail(media.id);
 
             // Update counters
             batchProcessedCount++;
@@ -384,7 +324,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   } = await includeMedia(
     supabase
       .from('media_items')
-      .select('*, file_types!inner(*), processing_states(*)', {
+      .select('*, file_types!inner(*), processing_states!inner(*)', {
         count: 'exact',
       })
       .eq('processing_states.type', 'thumbnail')
@@ -420,7 +360,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
     await includeMedia(
       supabase
         .from('media_items')
-        .select('*, file_types!inner(*), processing_states(*)')
+        .select('*, file_types!inner(*), processing_states!inner(*)')
         .not('thumbnail_path', 'is', null)
         .not('processing_states.type', 'eq', 'exif')
         .limit(remainingLimit),

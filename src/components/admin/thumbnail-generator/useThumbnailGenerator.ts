@@ -35,8 +35,6 @@ export function useThumbnailGenerator() {
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(0);
   const [processed, setProcessed] = useState(0);
-  const [skipLargeFiles, setSkipLargeFiles] = useState(true);
-  const [largeFilesSkipped, setLargeFilesSkipped] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [errorSummary, setErrorSummary] = useState<ErrorSummary>({});
   const [detailProgress, setDetailProgress] =
@@ -100,7 +98,6 @@ export function useThumbnailGenerator() {
       const batchSizeToUse = batchSize;
 
       const stream = await streamUnprocessedThumbnails({
-        skipLargeFiles,
         batchSize: batchSizeToUse,
       });
 
@@ -114,7 +111,7 @@ export function useThumbnailGenerator() {
       let batchProcessed = 0;
       let batchSuccess = 0;
       let batchFailed = 0;
-      let batchSkipped = 0;
+      const batchSkipped = 0;
       let batchComplete = false;
 
       try {
@@ -156,7 +153,6 @@ export function useThumbnailGenerator() {
 
                   setProgress(0);
                   setProcessed(0);
-                  setLargeFilesSkipped(0);
                   setSuccessCount(0);
                   setFailedCount(0);
 
@@ -255,11 +251,6 @@ export function useThumbnailGenerator() {
                 batchFailed = data.failedCount;
               }
 
-              if (data.skippedLargeFiles !== undefined) {
-                setLargeFilesSkipped(data.skippedLargeFiles);
-                batchSkipped = data.skippedLargeFiles;
-              }
-
               if (data.currentFilePath || data.currentFileName) {
                 setDetailProgress((prev) => ({
                   ...prev!,
@@ -343,7 +334,6 @@ export function useThumbnailGenerator() {
       setIsGenerating(true);
       setProgress(0);
       setProcessed(0);
-      setLargeFilesSkipped(0);
       setSuccessCount(0);
       setFailedCount(0);
       setErrorSummary({});
@@ -389,9 +379,7 @@ export function useThumbnailGenerator() {
 
       const toastMessage = processAll
         ? `Starting to generate all ${totalToProcess} thumbnails in batches of ${batchSize}`
-        : `Generating thumbnails for ${currentBatchSize} of ${totalToProcess} media items${
-            skipLargeFiles ? ' (skipping large files)' : ''
-          }.`;
+        : `Generating thumbnails for ${currentBatchSize} of ${totalToProcess} media items.`;
 
       toast.success(toastMessage);
 
@@ -459,9 +447,6 @@ export function useThumbnailGenerator() {
     progress,
     total,
     processed,
-    skipLargeFiles,
-    setSkipLargeFiles,
-    largeFilesSkipped,
     hasError,
     errorSummary,
     detailProgress,

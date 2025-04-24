@@ -5,23 +5,16 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
-import { LARGE_FILE_THRESHOLD, THUMBNAIL_SIZE } from '@/lib/consts';
+import { THUMBNAIL_SIZE } from '@/lib/consts';
 import { includeMedia } from '@/lib/mediaFilters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { isSkippedLargeFile } from '@/lib/utils';
-import type {
-  ThumbnailGenerationOptions,
-  ThumbnailGenerationResponse,
-} from '@/types/thumbnail-types';
+import type { ThumbnailGenerationResponse } from '@/types/thumbnail-types';
 import { convertHeicToJpeg } from './convertHeicToJpeg';
 
 /**
  * Generate and upload a thumbnail for a single media item
  */
-export async function generateThumbnail(
-  mediaId: string,
-  options: ThumbnailGenerationOptions = {},
-): Promise<
+export async function generateThumbnail(mediaId: string): Promise<
   ThumbnailGenerationResponse & {
     thumbnailUrl?: string;
     skipped?: boolean;
@@ -29,9 +22,6 @@ export async function generateThumbnail(
     fileName?: string;
   }
 > {
-  // Only log the start of thumbnail generation if in debug mode
-  const { skipLargeFiles = false } = options;
-
   try {
     const supabase = createServerSupabaseClient();
 
@@ -78,43 +68,6 @@ export async function generateThumbnail(
         success: false,
         message: `File not found: ${mediaItem.file_path}`,
       };
-    }
-
-    // Check if file is too large and we should skip it
-    if (skipLargeFiles) {
-      try {
-        const stats = await fs.stat(mediaItem.file_path);
-
-        if (isSkippedLargeFile(stats.size)) {
-          // Mark as skipped in processing_states table
-          await supabase.from('processing_states').upsert(
-            {
-              media_item_id: mediaId,
-              type: 'thumbnail',
-              status: 'skipped',
-              processed_at: new Date().toISOString(),
-              error_message: `Large file (over ${Math.round(LARGE_FILE_THRESHOLD / (1024 * 1024))}MB)`,
-            },
-            {
-              onConflict: 'media_item_id,type',
-              ignoreDuplicates: false,
-            },
-          );
-
-          return {
-            success: true,
-            skipped: true,
-            skippedReason: 'large_file',
-            message: `Skipped large file (over ${LARGE_FILE_THRESHOLD / (1024 * 1024)}MB): ${mediaItem.file_name}`,
-            fileName: mediaItem.file_name,
-          };
-        }
-      } catch (statError) {
-        console.error(
-          `[Thumbnail] Error checking file size for ${mediaItem.file_path}:`,
-          statError,
-        );
-      }
     }
 
     let thumbnailBuffer: Buffer;

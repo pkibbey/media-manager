@@ -1,11 +1,10 @@
 'use client';
 
-import { fileTypeCache } from '@/lib/file-type-cache';
-import { isSkippedLargeFile } from '@/lib/utils';
-import type { MediaItem } from '@/types/db-types';
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
 import { memo, useEffect, useState } from 'react';
+import { fileTypeCache } from '@/lib/file-type-cache';
+import type { MediaItem } from '@/types/db-types';
 
 interface MediaThumbnailProps {
   item: MediaItem;
@@ -45,12 +44,10 @@ const MediaThumbnail = memo(
 
     // Use the dedicated thumbnail_path field from the media_item
     const thumbnailPath = item.thumbnail_path;
-    const showPlaceholder =
-      !thumbnailPath || isSkippedLargeFile(item.size_bytes || 0);
 
     return (
       <>
-        {isImg && !showPlaceholder ? (
+        {isImg && !thumbnailPath ? (
           <div className="w-full h-full relative">
             <Image
               src={thumbnailPath!} // Use non-null assertion as we checked showPlaceholder

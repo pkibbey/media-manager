@@ -1,13 +1,12 @@
 'use client';
 
-import useWindowWidth from '@/hooks/useWindowWidth';
-import { fileTypeCache } from '@/lib/file-type-cache';
-import { isSkippedLargeFile } from '@/lib/utils';
-import type { MediaItem } from '@/types/db-types';
 import type { Exif } from 'exif-reader';
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
 import { memo, useEffect, useState } from 'react';
+import useWindowWidth from '@/hooks/useWindowWidth';
+import { fileTypeCache } from '@/lib/file-type-cache';
+import type { MediaItem } from '@/types/db-types';
 
 interface MediaFullViewProps {
   item: MediaItem;
@@ -81,9 +80,7 @@ const MediaFullView = memo(
 
     return (
       <>
-        {isImg &&
-        item.file_path &&
-        !isSkippedLargeFile(item.size_bytes || 0) ? (
+        {isImg && item.file_path ? (
           <div
             className={`w-[${windowWidth}px] h-[${Math.round(windowWidth / aspectRatio)}px] relative ${containerClass}`}
           >

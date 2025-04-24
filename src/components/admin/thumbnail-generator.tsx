@@ -14,9 +14,6 @@ export default function ThumbnailGenerator() {
     progress,
     total,
     processed,
-    skipLargeFiles,
-    setSkipLargeFiles,
-    largeFilesSkipped,
     hasError,
     errorSummary,
     detailProgress,
@@ -45,7 +42,6 @@ export default function ThumbnailGenerator() {
           totalProcessed={totalProcessed}
           successCount={successCount}
           failedCount={failedCount}
-          largeFilesSkipped={largeFilesSkipped}
           detailProgress={detailProgress}
           processingStartTime={processingStartTime}
           hasError={hasError}
@@ -54,8 +50,6 @@ export default function ThumbnailGenerator() {
 
       {!isGenerating && (
         <ThumbnailBatchControls
-          skipLargeFiles={skipLargeFiles}
-          setSkipLargeFiles={setSkipLargeFiles}
           batchSize={batchSize}
           setBatchSize={setBatchSize}
           isGenerating={isGenerating}

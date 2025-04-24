@@ -11,7 +11,6 @@ export type ExtractionMethod =
  * Type for EXIF processing options
  */
 export type ExifProcessingOptions = {
-  skipLargeFiles?: boolean; // Whether to skip files over the large file threshold
   extractionMethod?: ExtractionMethod; // A/B testing method
   batchSize?: number; // Size of batches for processing files
 };
@@ -34,6 +33,5 @@ export type ExifProgress = {
     error: string;
     fileType?: string;
   }>;
-  largeFilesSkipped?: number; // New property to track large files skipped
-  method?: ExtractionMethod; // New property to track the method used
+  method?: ExtractionMethod;
 };

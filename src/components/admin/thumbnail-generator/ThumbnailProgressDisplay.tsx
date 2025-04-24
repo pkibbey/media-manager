@@ -1,5 +1,4 @@
 import { Progress } from '@/components/ui/progress';
-import { LARGE_FILE_THRESHOLD } from '@/lib/consts';
 import { ProcessingTimeEstimator } from '../processing-time-estimator';
 
 type ThumbnailProgress = {
@@ -19,7 +18,6 @@ type ThumbnailProgressDisplayProps = {
   totalProcessed: number;
   successCount: number;
   failedCount: number;
-  largeFilesSkipped: number;
   detailProgress: ThumbnailProgress | null;
   processingStartTime?: number;
   hasError: boolean;
@@ -34,7 +32,6 @@ export function ThumbnailProgressDisplay({
   totalProcessed,
   successCount,
   failedCount,
-  largeFilesSkipped,
   detailProgress,
   processingStartTime,
   hasError,
@@ -68,13 +65,6 @@ export function ThumbnailProgressDisplay({
           rateUnit="thumbnails/sec"
         />
 
-        {largeFilesSkipped > 0 && (
-          <div className="text-xs text-muted-foreground">
-            {`Skipped ${largeFilesSkipped} large files (over ${Math.round(
-              LARGE_FILE_THRESHOLD / 1024 / 1024,
-            )}MB)`}
-          </div>
-        )}
         <div className="text-xs text-muted-foreground truncate mt-1 flex justify-between">
           <span>Current file: {detailProgress?.currentFilePath || '_'}</span>
           <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-secondary">

@@ -1,10 +1,8 @@
 'use server';
 
-import fs from 'node:fs/promises';
 import { getUnprocessedFiles } from '@/lib/exif-utils';
 import { fileTypeCache } from '@/lib/file-type-cache';
 import { sendProgress, updateProcessingState } from '@/lib/query-helpers';
-import { isSkippedLargeFile } from '@/lib/utils';
 import type { ExtractionMethod } from '@/types/exif';
 import { processExifData } from './processExifData';
 
@@ -13,11 +11,9 @@ import { processExifData } from './processExifData';
  * This function returns a ReadableStream that emits progress updates
  */
 export async function streamProcessUnprocessedItems({
-  skipLargeFiles,
   extractionMethod,
   batchSize,
 }: {
-  skipLargeFiles: boolean;
   extractionMethod: ExtractionMethod;
   batchSize: number;
 }) {
@@ -31,7 +27,6 @@ export async function streamProcessUnprocessedItems({
   // Start processing in the background - passing options as a single object
   processUnprocessedItemsInternal({
     writer,
-    skipLargeFiles,
     extractionMethod,
     batchSize,
   }).catch((error) => {
@@ -51,12 +46,10 @@ export async function streamProcessUnprocessedItems({
 
   async function processUnprocessedItemsInternal({
     writer,
-    skipLargeFiles,
     extractionMethod,
     batchSize,
   }: {
     writer: WritableStreamDefaultWriter;
-    skipLargeFiles: boolean;
     extractionMethod?: ExtractionMethod;
     batchSize: number;
   }) {
@@ -65,7 +58,6 @@ export async function streamProcessUnprocessedItems({
       let totalItemsProcessed = 0;
       let totalSuccessCount = 0;
       let totalFailedCount = 0;
-      let totalLargeFilesSkipped = 0;
       let totalFilesDiscovered = 0;
 
       // For Infinity mode, we'll use a loop to process in chunks
@@ -89,7 +81,6 @@ export async function streamProcessUnprocessedItems({
             filesDiscovered: 0,
             successCount: 0,
             failedCount: 0,
-            largeFilesSkipped: 0,
           });
           return;
         }
@@ -106,7 +97,6 @@ export async function streamProcessUnprocessedItems({
         let batchProcessedCount = 0;
         let batchSuccessCount = 0;
         let batchFailedCount = 0;
-        let batchLargeFilesSkipped = 0;
 
         // First update to show how many items were discovered
         await sendProgress(encoder, writer, {
@@ -118,7 +108,6 @@ export async function streamProcessUnprocessedItems({
           filesDiscovered: totalFilesDiscovered,
           successCount: totalSuccessCount,
           failedCount: totalFailedCount,
-          largeFilesSkipped: totalLargeFilesSkipped,
         });
 
         for (const media of unprocessedFiles) {
@@ -157,8 +146,6 @@ export async function streamProcessUnprocessedItems({
 
               batchProcessedCount++;
               totalItemsProcessed++;
-              batchLargeFilesSkipped++;
-              totalLargeFilesSkipped++;
               await sendProgress(encoder, writer, {
                 status: 'processing',
                 message: `Skipped: ${skipReason} (${media.file_name})`,
@@ -166,54 +153,9 @@ export async function streamProcessUnprocessedItems({
                 filesDiscovered: totalFilesDiscovered,
                 successCount: totalSuccessCount,
                 failedCount: totalFailedCount,
-                largeFilesSkipped: totalLargeFilesSkipped,
                 currentFilePath: media.file_path,
               });
               continue;
-            }
-
-            // Check if we should skip this file due to size
-            if (skipLargeFiles && media.file_path) {
-              try {
-                const stats = await fs.stat(media.file_path);
-                if (isSkippedLargeFile(stats.size)) {
-                  // Insert skipped state into processing_states table
-                  await updateProcessingState(
-                    media.id,
-                    'skipped',
-                    'exif',
-                    `Skipped large file (over ${Math.round(
-                      stats.size / (1024 * 1024),
-                    )}MB)`,
-                  );
-
-                  // Update counters
-                  batchProcessedCount++;
-                  batchLargeFilesSkipped++;
-                  totalItemsProcessed++;
-                  totalLargeFilesSkipped++;
-
-                  // Send progress update for skipped file
-                  await sendProgress(encoder, writer, {
-                    status: 'processing',
-                    message: `Skipped large file (over 100MB): ${media.file_name}`,
-                    filesProcessed: totalItemsProcessed,
-                    filesDiscovered: totalFilesDiscovered,
-                    successCount: totalSuccessCount,
-                    failedCount: totalFailedCount,
-                    largeFilesSkipped: totalLargeFilesSkipped,
-                    currentFilePath: media.file_path,
-                  });
-
-                  continue; // Skip to the next file
-                }
-              } catch (statError) {
-                console.error(
-                  `Error getting file stats for ${media.file_path}:`,
-                  statError,
-                );
-                // Continue with processing if we can't get the file stats
-              }
             }
 
             // Send update before processing each file
@@ -224,7 +166,6 @@ export async function streamProcessUnprocessedItems({
               filesDiscovered: totalFilesDiscovered,
               successCount: totalSuccessCount,
               failedCount: totalFailedCount,
-              largeFilesSkipped: totalLargeFilesSkipped,
               currentFilePath: media.file_path,
             });
 
@@ -241,7 +182,6 @@ export async function streamProcessUnprocessedItems({
                     filesDiscovered: totalFilesDiscovered,
                     successCount: totalSuccessCount,
                     failedCount: totalFailedCount,
-                    largeFilesSkipped: totalLargeFilesSkipped,
                     currentFilePath: media.file_path,
                   });
                 },
@@ -267,13 +207,12 @@ export async function streamProcessUnprocessedItems({
               await sendProgress(encoder, writer, {
                 status: 'processing',
                 message: isInfinityMode
-                  ? `Processed ${totalItemsProcessed} of ${totalFilesDiscovered}+ files (${totalSuccessCount} successful, ${totalFailedCount} failed, ${totalLargeFilesSkipped} large files skipped)`
-                  : `Processed ${batchProcessedCount} of ${unprocessedFiles.length} files (${batchSuccessCount} successful, ${batchFailedCount} failed, ${batchLargeFilesSkipped} large files skipped)`,
+                  ? `Processed ${totalItemsProcessed} of ${totalFilesDiscovered}+ files (${totalSuccessCount} successful, ${totalFailedCount} failed)`
+                  : `Processed ${batchProcessedCount} of ${unprocessedFiles.length} files (${batchSuccessCount} successful, ${batchFailedCount} failed)`,
                 filesProcessed: totalItemsProcessed,
                 filesDiscovered: totalFilesDiscovered,
                 successCount: totalSuccessCount,
                 failedCount: totalFailedCount,
-                largeFilesSkipped: totalLargeFilesSkipped,
               });
             }
           } catch (error: any) {
@@ -302,7 +241,6 @@ export async function streamProcessUnprocessedItems({
               failedCount: totalFailedCount,
               error: error.message,
               currentFilePath: media.file_path,
-              largeFilesSkipped: totalLargeFilesSkipped,
             });
           }
         }
@@ -319,17 +257,12 @@ export async function streamProcessUnprocessedItems({
             filesDiscovered: totalFilesDiscovered,
             successCount: totalSuccessCount,
             failedCount: totalFailedCount,
-            largeFilesSkipped: totalLargeFilesSkipped,
           });
         }
       }
 
       // Prepare final message after all batches are processed
-      let finalMessage = `EXIF processing completed. Processed ${totalItemsProcessed} files: ${totalSuccessCount} successful, ${totalFailedCount} failed`;
-
-      if (totalLargeFilesSkipped) {
-        finalMessage += `, ${totalLargeFilesSkipped} large files skipped`;
-      }
+      const finalMessage = `EXIF processing completed. Processed ${totalItemsProcessed} files: ${totalSuccessCount} successful, ${totalFailedCount} failed`;
 
       // Send final progress update
       await sendProgress(encoder, writer, {
@@ -339,7 +272,6 @@ export async function streamProcessUnprocessedItems({
         filesDiscovered: totalFilesDiscovered,
         successCount: totalSuccessCount,
         failedCount: totalFailedCount,
-        largeFilesSkipped: totalLargeFilesSkipped,
         method: extractionMethod,
       });
     } catch (error: any) {
@@ -354,7 +286,6 @@ export async function streamProcessUnprocessedItems({
         filesProcessed: 0,
         successCount: 0,
         failedCount: 0,
-        largeFilesSkipped: 0,
         method: extractionMethod,
       });
     } finally {

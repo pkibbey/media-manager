@@ -3,12 +3,6 @@
  */
 export type ThumbnailGenerationOptions = {
   /**
-   * Whether to skip large files over the threshold
-   * Large files can take a long time to process and may cause timeouts
-   */
-  skipLargeFiles?: boolean;
-
-  /**
    * Maximum number of thumbnails to generate in a single batch
    * Default is 100
    */

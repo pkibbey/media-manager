@@ -93,9 +93,7 @@ export async function regenerateMissingThumbnails(): Promise<{
     // Process each item
     for (const item of items) {
       try {
-        const result = await generateThumbnail(item.id, {
-          skipLargeFiles: true,
-        });
+        const result = await generateThumbnail(item.id);
 
         processed++;
 

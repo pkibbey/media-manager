@@ -13,8 +13,6 @@ export default function ExifProcessor() {
     isStreaming,
     progress,
     hasError,
-    skipLargeFiles,
-    setSkipLargeFiles,
     errorSummary,
     extractionMethod,
     setExtractionMethod,
@@ -50,8 +48,6 @@ export default function ExifProcessor() {
 
       {!isStreaming && (
         <ExifProcessOptions
-          skipLargeFiles={skipLargeFiles}
-          setSkipLargeFiles={setSkipLargeFiles}
           extractionMethod={extractionMethod}
           setExtractionMethod={setExtractionMethod}
           batchSize={batchSize}

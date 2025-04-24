@@ -30,7 +30,7 @@ export async function getMediaStats(): Promise<{
     const { count: processedCount } = await includeMedia(
       supabase
         .from('media_items')
-        .select('id, processing_states(*), file_types!inner(*)', {
+        .select('id, processing_states!inner(*), file_types!inner(*)', {
           count: 'exact',
           head: true,
         })
@@ -42,7 +42,7 @@ export async function getMediaStats(): Promise<{
     const { count: unprocessedCount } = await includeMedia(
       supabase
         .from('media_items')
-        .select('id, processing_states(*), file_types!inner(*)', {
+        .select('id, processing_states!inner(*), file_types!inner(*)', {
           count: 'exact',
           head: true,
         })
@@ -54,7 +54,7 @@ export async function getMediaStats(): Promise<{
     const { count: skippedCount } = await includeMedia(
       supabase
         .from('media_items')
-        .select('id, processing_states(*), file_types!inner(*)', {
+        .select('id, processing_states!inner(*), file_types!inner(*)', {
           count: 'exact',
           head: true,
         })
@@ -74,7 +74,7 @@ export async function getMediaStats(): Promise<{
     const { count: needsTimestampCorrectionCount } = await includeMedia(
       supabase
         .from('media_items')
-        .select('id, processing_states(*), file_types!inner(*)', {
+        .select('id, processing_states!inner(*), file_types!inner(*)', {
           count: 'exact',
           head: true,
         })

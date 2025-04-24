@@ -1,6 +1,6 @@
 'use client';
 
-import { bytesToSize } from '@/lib/utils';
+import { formatBytes } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 import MediaThumbnail from './media-thumbnail';
 
@@ -55,7 +55,7 @@ export default function MediaCard({
           {item.file_name}
         </div>
         <div className="text-muted-foreground">
-          {bytesToSize(item.size_bytes || 0)}
+          {formatBytes(item.size_bytes || 0)}
         </div>
       </div>
     </div>
