@@ -2,14 +2,10 @@ import { Progress } from '@/components/ui/progress';
 import type { ScanProgress as ScanProgressType } from '@/types/progress-types';
 
 type ScanProgressProps = {
-  progress: ScanProgressType | null;
+  progress: ScanProgressType;
 };
 
 export function ScanProgress({ progress }: ScanProgressProps) {
-  if (!progress) {
-    return null;
-  }
-
   const progressPercent =
     progress.status === 'processing' &&
     progress.filesDiscovered !== undefined &&

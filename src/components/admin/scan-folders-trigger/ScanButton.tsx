@@ -20,7 +20,7 @@ export function ScanButton({
       variant={isScanning ? 'destructive' : 'default'}
       className="flex items-center gap-2"
     >
-      {isScanning ? 'Scanning' : 'Start Scan'}
+      {isScanning ? 'Cancel Scan' : 'Start Scan'}
     </Button>
   );
 }

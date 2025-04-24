@@ -1,9 +1,17 @@
+import { Progress } from '@/components/ui/progress';
 import { ScanButton } from './ScanButton';
 import { ScanProgress } from './ScanProgress';
 import { useScanFolders } from './useScanFolders';
 
 export function ScanFoldersTriggerContainer() {
   const { isScanning, progress, startScan, cancelScan } = useScanFolders();
+
+  const progressPercent =
+    progress?.status === 'processing' &&
+    progress.filesDiscovered !== undefined &&
+    progress.filesProcessed !== undefined
+      ? (progress.filesProcessed / Math.max(progress.filesDiscovered, 1)) * 100
+      : 0;
 
   return (
     <div className="space-y-4">
@@ -16,6 +24,8 @@ export function ScanFoldersTriggerContainer() {
           </p>
         </div>
 
+        <Progress value={progressPercent} className="h-2" />
+
         <ScanButton
           isScanning={isScanning}
           onScan={startScan}
@@ -24,7 +34,7 @@ export function ScanFoldersTriggerContainer() {
         />
       </div>
 
-      <ScanProgress progress={progress} />
+      {progress && <ScanProgress progress={progress} />}
     </div>
   );
 }

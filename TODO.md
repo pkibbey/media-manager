@@ -1,26 +1,28 @@
--- Process each image for keyword analysis
--- Process each image for sentiment analysis
--- Process each image for perceived quality
--- Process each image for content safety
+# Important
+
+-- Are we always keeping track of the ignored files correctly?
+
+-- Are we always keeping track of the skipped files correctly?
+
+-- review the site based on STANDARDS.md and clean up where possible
+
+# Less Important
+
+-- add ability to change UI scale (grid column sizes)
+
+-- update the UI to be able to quick process the selected photos
+
 -- Enabled images to be marked for deletion
 
 -- check that all the descrutive admin actions only remove the content they are supposed to
 
 -- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder
 
--- review the site and clean up where possible
-
--- update the UI to be able to quick process the selected photos
-
--- add ability to change UI scale (grid column sizes)
+# Much Less Important
 
 -- compare to see how graphql would work with this - would it be much easier to work with?
 
--- i think we might be missing skipped files, which is pointing to a small inconsistency
--- and files that are too small or large should be set in the scan process
-
--- setup ignoring file types thoughout
-
--- make sure image categories are used throughout
-
--- scour the site and make a list of standards and practices that the code aheres to that could be used to fully educate an engineer on understanding how to contibute to the codebase 
+-- Process each image for keyword analysis
+-- Process each image for sentiment analysis
+-- Process each image for perceived quality
+-- Process each image for content safety

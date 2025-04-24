@@ -4,7 +4,6 @@ import path from 'node:path';
 import exifReader, { type Exif } from 'exif-reader';
 import sharp from 'sharp';
 import type { ExtractionMethod } from '@/types/exif';
-import { LARGE_FILE_THRESHOLD } from './consts';
 import { includeMedia } from './mediaFilters';
 import { createServerSupabaseClient } from './supabase';
 
@@ -164,25 +163,66 @@ export async function extractAndSanitizeExifData(
 
 // Helper function to get unprocessed files with a limit
 export async function getUnprocessedFiles({ limit }: { limit: number }) {
+  console.log('getUnprocessedFiles: ', limit);
   const supabase = createServerSupabaseClient();
 
-  // Query your database to get only up to 'limit' number of unprocessed files
-  const { data: files, error } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('*, processing_states(*), file_types!inner(*)')
-      .or(
-        'status.is.null,status.neq.success,status.neq.error,status.neq.skipped',
-        { foreignTable: 'processing_states' },
-      )
-      .lte('size_bytes', LARGE_FILE_THRESHOLD)
-      .limit(limit),
-  );
+  // First, get all media items that don't have an exif processing state
+  const { data: filesWithoutProcessingState, error: error1 } =
+    await includeMedia(
+      supabase
+        .from('media_items')
+        .select('*, file_types!inner(*), processing_states!inner(*)')
+        .not(
+          'id',
+          'in',
+          supabase
+            .from('processing_states')
+            .select('media_item_id')
+            .eq('type', 'exif'),
+        )
+        .limit(limit),
+    );
 
-  if (error) {
-    console.error('Error fetching unprocessed files:', error);
+  if (error1) {
+    console.error('Error fetching files without processing state:', error1);
     throw new Error('Failed to fetch unprocessed files');
   }
 
-  return files;
+  // If we got enough files, return them
+  if (
+    filesWithoutProcessingState &&
+    filesWithoutProcessingState.length >= limit
+  ) {
+    return filesWithoutProcessingState;
+  }
+
+  // If we didn't get enough files from the first query, get files with non-success states
+  const remainingLimit = limit - (filesWithoutProcessingState?.length || 0);
+
+  if (remainingLimit <= 0) {
+    return filesWithoutProcessingState || [];
+  }
+
+  const { data: filesWithNonSuccessState, error: error2 } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('*, processing_states!inner(*), file_types!inner(*)')
+      .eq('processing_states.type', 'exif')
+      .or('status.eq.pending,status.eq.error', {
+        foreignTable: 'processing_states',
+      })
+      .limit(remainingLimit),
+  );
+
+  if (error2) {
+    console.error('Error fetching files with non-success state:', error2);
+    // Still return what we got from the first query
+    return filesWithoutProcessingState || [];
+  }
+
+  // Combine the results
+  return [
+    ...(filesWithoutProcessingState || []),
+    ...(filesWithNonSuccessState || []),
+  ];
 }

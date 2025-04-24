@@ -12,18 +12,15 @@ export async function getExifStats(): Promise<{
   try {
     const supabase = createServerSupabaseClient();
 
-    // Shared query for media items
-    const query = includeMedia(
-      supabase
-        .from('media_items')
-        .select('id, file_types!inner(*), processing_states!inner(*)', {
-          count: 'exact',
-          head: true,
-        }),
+    // Get total count of all media items (eligible for EXIF processing)
+    // We're not using processing_states here because we want to count ALL files
+    const { count: totalImageCount, error: totalError } = await includeMedia(
+      supabase.from('media_items').select('id, file_types!inner(*)', {
+        count: 'exact',
+        head: true,
+      }),
     );
 
-    // Get all eligible media items
-    const { count: totalImageCount, error: totalError } = await query;
     if (totalError) {
       console.error('Error getting total image count:', totalError);
       return {
@@ -33,9 +30,17 @@ export async function getExifStats(): Promise<{
     }
 
     // Count successful EXIF processed items
-    const { count: successCount, error: successError } = await query
-      .eq('processing_states.type', 'exif')
-      .eq('processing_states.status', 'success');
+    const { count: successCount, error: successError } = await includeMedia(
+      supabase
+        .from('media_items')
+        .select('id, file_types!inner(*), processing_states!inner(*)', {
+          count: 'exact',
+          head: true,
+        })
+        .eq('processing_states.type', 'exif')
+        .eq('processing_states.status', 'success'),
+    );
+
     if (successError) {
       console.error('Error getting success count:', successError);
       return {
@@ -45,9 +50,17 @@ export async function getExifStats(): Promise<{
     }
 
     // Count error EXIF processed items
-    const { count: errorCount, error: errorCountError } = await query
-      .eq('processing_states.type', 'exif')
-      .eq('processing_states.status', 'error');
+    const { count: errorCount, error: errorCountError } = await includeMedia(
+      supabase
+        .from('media_items')
+        .select('id, file_types!inner(*), processing_states!inner(*)', {
+          count: 'exact',
+          head: true,
+        })
+        .eq('processing_states.type', 'exif')
+        .eq('processing_states.status', 'error'),
+    );
+
     if (errorCountError) {
       console.error('Error getting error count:', errorCountError);
       return {
@@ -57,9 +70,17 @@ export async function getExifStats(): Promise<{
     }
 
     // Count skipped EXIF processed items
-    const { count: skippedCount, error: skippedError } = await query
-      .eq('processing_states.type', 'exif')
-      .eq('processing_states.status', 'skipped');
+    const { count: skippedCount, error: skippedError } = await includeMedia(
+      supabase
+        .from('media_items')
+        .select('id, file_types!inner(*), processing_states!inner(*)', {
+          count: 'exact',
+          head: true,
+        })
+        .eq('processing_states.type', 'exif')
+        .eq('processing_states.status', 'skipped'),
+    );
+
     if (skippedError) {
       console.error('Error getting skipped count:', skippedError);
       return {
