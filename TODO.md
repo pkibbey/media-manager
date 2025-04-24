@@ -22,3 +22,5 @@
 -- setup ignoring file types thoughout
 
 -- make sure image categories are used throughout
+
+-- scour the site and make a list of standards and practices that the code aheres to that could be used to fully educate an engineer on understanding how to contibute to the codebase 

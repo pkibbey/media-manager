@@ -162,19 +162,6 @@ export async function extractAndSanitizeExifData(
   };
 }
 
-export function getIncludedMedia() {
-  const supabase = createServerSupabaseClient();
-
-  return includeMedia(
-    supabase
-      .from('media_items')
-      .select('id, file_types!inner(*), processing_states!inner(*)', {
-        count: 'exact',
-        head: true,
-      }),
-  );
-}
-
 // Helper function to get unprocessed files with a limit
 export async function getUnprocessedFiles({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();

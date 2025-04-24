@@ -1,6 +1,7 @@
 'use server';
 
-import { getIncludedMedia } from '@/lib/exif-utils';
+import { includeMedia } from '@/lib/mediaFilters';
+import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ExifStatsResult } from '@/types/db-types';
 
 export async function getExifStats(): Promise<{
@@ -9,11 +10,20 @@ export async function getExifStats(): Promise<{
   message?: string;
 }> {
   try {
+    const supabase = createServerSupabaseClient();
+
     // Shared query for media items
-    const supabase = getIncludedMedia();
+    const query = includeMedia(
+      supabase
+        .from('media_items')
+        .select('id, file_types!inner(*), processing_states!inner(*)', {
+          count: 'exact',
+          head: true,
+        }),
+    );
 
     // Get all eligible media items
-    const { count: totalImageCount, error: totalError } = await supabase;
+    const { count: totalImageCount, error: totalError } = await query;
     if (totalError) {
       console.error('Error getting total image count:', totalError);
       return {
@@ -23,7 +33,7 @@ export async function getExifStats(): Promise<{
     }
 
     // Count successful EXIF processed items
-    const { count: successCount, error: successError } = await supabase
+    const { count: successCount, error: successError } = await query
       .eq('processing_states.type', 'exif')
       .eq('processing_states.status', 'success');
     if (successError) {
@@ -35,7 +45,7 @@ export async function getExifStats(): Promise<{
     }
 
     // Count error EXIF processed items
-    const { count: errorCount, error: errorCountError } = await supabase
+    const { count: errorCount, error: errorCountError } = await query
       .eq('processing_states.type', 'exif')
       .eq('processing_states.status', 'error');
     if (errorCountError) {
@@ -47,7 +57,7 @@ export async function getExifStats(): Promise<{
     }
 
     // Count skipped EXIF processed items
-    const { count: skippedCount, error: skippedError } = await supabase
+    const { count: skippedCount, error: skippedError } = await query
       .eq('processing_states.type', 'exif')
       .eq('processing_states.status', 'skipped');
     if (skippedError) {

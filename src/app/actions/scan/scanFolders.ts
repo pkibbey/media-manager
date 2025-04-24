@@ -16,7 +16,6 @@ import {
   updateMediaItem,
   upsertFileType,
 } from '@/lib/query-helpers';
-import { isAborted } from '@/lib/query-helpers';
 import type { ScanOptions } from '@/types/progress-types';
 
 /**
@@ -42,7 +41,7 @@ export async function scanFolders(options: ScanOptions = {}) {
     options: ScanOptions,
   ) {
     try {
-      const { folderId = null, abortToken = null } = options;
+      const { folderId = null } = options;
 
       // Initialize counters
       let totalFilesDiscovered = 0;
@@ -90,11 +89,6 @@ export async function scanFolders(options: ScanOptions = {}) {
       // Process each folder
       for (const folder of foldersToScan) {
         try {
-          // Check if the operation should be aborted
-          if (abortToken && (await isAborted(abortToken))) {
-            throw new Error('Scan aborted by user');
-          }
-
           // Check if folder exists
           try {
             await fs.access(folder.path);
@@ -133,11 +127,6 @@ export async function scanFolders(options: ScanOptions = {}) {
           // Process files in batches to avoid timeout
           const BATCH_SIZE = 100;
           for (let i = 0; i < files.length; i += BATCH_SIZE) {
-            // Check for abort signal
-            if (abortToken && (await isAborted(abortToken))) {
-              throw new Error('Scan aborted by user');
-            }
-
             const batch = files.slice(i, i + BATCH_SIZE);
 
             // Send batch progress update

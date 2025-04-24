@@ -1,4 +1,6 @@
+import { formatDistanceToNow } from 'date-fns';
 import { FolderRemoveButton } from '@/components/admin/folder-remove-button';
+import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
@@ -7,7 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { ScanFolder } from '@/types/db-types';
-import { formatDistanceToNow } from 'date-fns';
+import { FolderResetScanStatusButton } from './folder-reset-scan-status-button';
 import { FolderScanButton } from './folder-scan-button';
 
 interface FolderListDisplayProps {
@@ -37,34 +39,47 @@ export default function FolderListDisplay({ folders }: FolderListDisplayProps) {
       </CardHeader>
       <CardContent>
         <ul className="space-y-2">
-          {folders.map((folder) => (
-            <li
-              key={folder.id}
-              className="bg-secondary px-3 py-2 border rounded-md flex justify-between items-center"
-            >
-              <div className="space-y-1/2">
-                <p className="text-sm font-medium break-all">{folder.path}</p>
-                <div className="flex gap-2 text-xs text-muted-foreground">
-                  <span>
-                    {folder.include_subfolders
-                      ? 'Including subfolders'
-                      : 'Excluding subfolders'}
-                  </span>
-                  {folder.last_scanned && (
+          {folders.map((folder) => {
+            const isScanned = !!folder.last_scanned;
+            return (
+              <li
+                key={folder.id}
+                className="bg-secondary px-3 py-2 border rounded-md flex justify-between items-center"
+              >
+                <div className="space-y-1/2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium break-all">
+                      {folder.path}
+                    </p>
+                    {isScanned && <Badge variant="outline">Scanned</Badge>}
+                  </div>
+                  <div className="flex gap-2 text-xs text-muted-foreground">
                     <span>
-                      • Last scanned{' '}
-                      {formatDistanceToNow(new Date(folder.last_scanned))} ago
+                      {folder.include_subfolders
+                        ? 'Including subfolders'
+                        : 'Excluding subfolders'}
                     </span>
-                  )}
+                    {isScanned && (
+                      <span>
+                        • Last scanned{' '}
+                        {formatDistanceToNow(new Date(folder.last_scanned!))}{' '}
+                        ago
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex gap-2">
-                <FolderScanButton folderId={folder.id} />
-                <FolderRemoveButton folderId={folder.id} />
-              </div>
-            </li>
-          ))}
+                <div className="flex gap-2">
+                  <FolderResetScanStatusButton
+                    folderId={folder.id}
+                    isScanned={isScanned}
+                  />
+                  <FolderScanButton folderId={folder.id} />
+                  <FolderRemoveButton folderId={folder.id} />
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </CardContent>
     </Card>

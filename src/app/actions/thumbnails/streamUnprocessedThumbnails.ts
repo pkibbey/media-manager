@@ -29,17 +29,26 @@ export async function streamUnprocessedThumbnails({
     writer,
     skipLargeFiles,
     batchSize,
-  }).catch(async (error) => {
-    await sendProgress(encoder, writer, {
-      status: 'error',
-      message: 'Error during thumbnail generation',
-      error:
-        error?.message ||
-        'An unknown error occurred during thumbnail generation',
-    }).finally(() => {
+  })
+    .catch(async (error) => {
+      await sendProgress(encoder, writer, {
+        status: 'error',
+        message: 'Error during thumbnail generation',
+        error:
+          error?.message ||
+          'An unknown error occurred during thumbnail generation',
+      });
+    })
+    .finally(() => {
       writer.close().catch(console.error);
     });
-  });
+
+  // Set up a cleanup function on the stream
+  const originalCancel = stream.readable.cancel;
+  stream.readable.cancel = async (reason) => {
+    // Call the original cancel method
+    return originalCancel?.call(stream.readable, reason);
+  };
 
   // Return the readable stream
   return stream.readable;
@@ -196,7 +205,7 @@ export async function streamUnprocessedThumbnails({
               fileType: media.file_types?.extension,
             });
 
-            // Generate thumbnail
+            // Generate thumbnail - pass along the abort token
             const result = await generateThumbnail(media.id, {
               skipLargeFiles,
             });
@@ -239,6 +248,22 @@ export async function streamUnprocessedThumbnails({
               fileType: media.file_types?.extension,
             });
           } catch (error: any) {
+            // Check if this was an abort error
+            if (error.message.includes('aborted')) {
+              await sendProgress(encoder, writer, {
+                status: 'aborted',
+                message: 'Thumbnail generation aborted',
+                totalItems: isInfinityMode
+                  ? totalFilesDiscovered
+                  : unprocessedFiles.length,
+                processed: totalItemsProcessed,
+                successCount: totalSuccessCount,
+                failedCount: totalFailedCount,
+                skippedLargeFiles: totalSkippedLargeFilesCount,
+              });
+              return;
+            }
+
             console.error(
               `Error processing thumbnail for ${media.file_path}:`,
               error,
@@ -325,13 +350,21 @@ export async function streamUnprocessedThumbnails({
         isBatchComplete: true,
       });
     } catch (error: any) {
-      await sendProgress(encoder, writer, {
-        status: 'error',
-        message: 'Error during thumbnail generation',
-        error:
-          error?.message ||
-          'An unknown error occurred during thumbnail generation',
-      });
+      // Check if this was an abort error
+      if (error.message.includes('aborted')) {
+        await sendProgress(encoder, writer, {
+          status: 'aborted',
+          message: 'Thumbnail generation aborted',
+        });
+      } else {
+        await sendProgress(encoder, writer, {
+          status: 'error',
+          message: 'Error during thumbnail generation',
+          error:
+            error?.message ||
+            'An unknown error occurred during thumbnail generation',
+        });
+      }
     } finally {
       // Close the stream to signal completion to the client
       await writer.close();

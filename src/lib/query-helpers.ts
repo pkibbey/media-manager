@@ -477,155 +477,6 @@ export async function insertFileType(
 }
 
 /**
- * Abort Tokens Query Helpers
- * These functions help manage abort tokens in a standardized way
- */
-
-/**
- * Add a new abort token to the database with automatic cleanup of expired tokens
- * @param token Token string to add
- * @returns Query result
- */
-export async function addAbortToken(token: string): Promise<{
-  success: boolean;
-  error: any | null;
-}> {
-  const supabase = createServerSupabaseClient();
-
-  try {
-    // First, clean up expired tokens (older than 1 hour)
-    const oneHourAgo = new Date();
-    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-
-    await supabase
-      .from('abort_tokens')
-      .delete()
-      .lt('created_at', oneHourAgo.toISOString());
-
-    // Add the new token
-    const { error } = await supabase.from('abort_tokens').upsert(
-      {
-        token,
-        created_at: new Date().toISOString(),
-      },
-      {
-        onConflict: 'token,created_at',
-        ignoreDuplicates: false,
-      },
-    );
-
-    return {
-      success: !error,
-      error,
-    };
-  } catch (error) {
-    console.error(`Error adding abort token ${token}:`, error);
-    return {
-      success: false,
-      error,
-    };
-  }
-}
-
-/**
- * Check if a token exists in the database (meaning it's aborted)
- * @param token Token string to check
- * @returns Boolean indicating if the token is marked for abortion
- */
-export async function isAborted(token: string): Promise<boolean> {
-  if (!token) return false;
-
-  const supabase = createServerSupabaseClient();
-
-  const { data, error } = await supabase
-    .from('abort_tokens')
-    .select('token')
-    .eq('token', token)
-    .single();
-
-  // Return false if we got an error (token not found) or no data
-  // Only return true if we successfully found the token
-  return !error && !!data;
-}
-
-/**
- * Remove a specific abort token from the database
- * @param token Token string to remove
- * @returns Query result
- */
-export async function removeAbortToken(token: string): Promise<{
-  success: boolean;
-  error: any | null;
-}> {
-  if (!token) return { success: true, error: null };
-
-  const supabase = createServerSupabaseClient();
-
-  try {
-    const { error } = await supabase
-      .from('abort_tokens')
-      .delete()
-      .eq('token', token);
-
-    return {
-      success: !error,
-      error,
-    };
-  } catch (error) {
-    console.error(`Error removing abort token ${token}:`, error);
-    return {
-      success: false,
-      error,
-    };
-  }
-}
-
-/**
- * Clear all abort tokens from the database
- * @returns Query result
- */
-export async function clearAllAbortTokens(): Promise<{
-  success: boolean;
-  error: any | null;
-}> {
-  const supabase = createServerSupabaseClient();
-
-  try {
-    const { error } = await supabase
-      .from('abort_tokens')
-      .delete()
-      .neq('token', ''); // Delete all tokens
-
-    return {
-      success: !error,
-      error,
-    };
-  } catch (error) {
-    console.error('Error clearing all abort tokens:', error);
-    return {
-      success: false,
-      error,
-    };
-  }
-}
-
-/**
- * Get all active abort tokens
- * @returns Query result with abort tokens
- */
-export async function getActiveAbortTokens(): Promise<{
-  data: { token: string; created_at: string }[] | null;
-  error: any | null;
-}> {
-  const supabase = createServerSupabaseClient();
-
-  return supabase
-    .from('abort_tokens')
-    .select('token, created_at')
-    .order('created_at', { ascending: false });
-}
-
-/**
  * Delete all media items from the database
  * @returns Delete operation result
  */
@@ -801,7 +652,7 @@ export async function getScanFileTypes(): Promise<{
 }> {
   const supabase = createServerSupabaseClient();
 
-  return supabase.from('file_types').select('extension, category');
+  return supabase.from('file_types').select('id, category');
 }
 
 /**
@@ -927,6 +778,39 @@ export async function updateFolderLastScanned(folderId: number): Promise<{
     .from('scan_folders')
     .update({ last_scanned: new Date().toISOString() })
     .eq('id', folderId);
+}
+
+/**
+ * Update the scan status of a folder
+ * @param folderId ID of the folder to update
+ * @param resetStatus If true, sets last_scanned to null to mark folder for rescanning
+ * @returns Operation result
+ */
+export async function updateFolderScanStatus(
+  folderId: number,
+  resetStatus: boolean,
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const supabase = createServerSupabaseClient();
+
+  try {
+    const { error } = await supabase
+      .from('scan_folders')
+      .update({
+        last_scanned: resetStatus ? null : new Date().toISOString(),
+      })
+      .eq('id', folderId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Unknown error occurred' };
+  }
 }
 
 export async function sendProgress<T>(

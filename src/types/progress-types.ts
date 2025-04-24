@@ -48,7 +48,9 @@ export type ScanOptions = {
   folderId?: number;
 
   /**
-   * Token to abort the scan operation
+   * Whether to skip folders that have already been scanned
+   * If true, folders with last_scanned set will be skipped
+   * Default is false (scan all folders)
    */
-  abortToken?: string;
+  skipScanned?: boolean;
 };

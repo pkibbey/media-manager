@@ -61,6 +61,7 @@ export function useExifProcessor() {
 
       if (success && exifStats) {
         setStats(exifStats);
+        console.log('EXIF stats fetched successfully:', exifStats);
       } else {
         console.error(
           'Failed to fetch EXIF stats:',

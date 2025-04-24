@@ -13,11 +13,6 @@ export type ThumbnailGenerationOptions = {
    * Default is 100
    */
   batchSize?: number;
-
-  /**
-   * Token to abort the thumbnail generation operation
-   */
-  abortToken?: string;
 };
 
 /**

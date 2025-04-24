@@ -34,27 +34,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      abort_tokens: {
-        Row: {
-          created_at: string
-          expires_at: string
-          process_type: string | null
-          token: string
-        }
-        Insert: {
-          created_at?: string
-          expires_at?: string
-          process_type?: string | null
-          token: string
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          process_type?: string | null
-          token?: string
-        }
-        Relationships: []
-      }
       file_types: {
         Row: {
           can_display_natively: boolean | null
