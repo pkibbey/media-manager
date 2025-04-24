@@ -32,7 +32,7 @@ export function FileTypeCategories({
   handleToggleIgnore,
 }: FileCategoriesProps) {
   return (
-    <>
+    <div className="grid grid-cols-2 space-y-6 gap-6">
       {categories
         // Sort categories with "other" being last
         .sort((a, b) => {
@@ -82,6 +82,6 @@ export function FileTypeCategories({
             />
           </div>
         ))}
-    </>
+    </div>
   );
 }

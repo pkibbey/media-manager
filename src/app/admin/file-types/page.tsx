@@ -1,12 +1,11 @@
+import { Suspense } from 'react';
 import FileTypeManager from '@/components/admin/file-type-manager';
 import { getAllFileTypes } from '@/lib/query-helpers';
-import { Suspense } from 'react';
 
 export default async function FileTypesPage() {
-  const {
-    data: fileTypes,
-    error: fileTypesError,
-  } = await getAllFileTypes();
+  const { data: fileTypes, error: fileTypesError } = await getAllFileTypes();
+
+  console.log('fileTypes: ', fileTypes);
 
   return (
     <div className="items-start">

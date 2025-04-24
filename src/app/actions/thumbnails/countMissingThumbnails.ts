@@ -17,7 +17,7 @@ export async function countMissingThumbnails(): Promise<{
     const { count: totalImageCount, error: countError } = await includeMedia(
       supabase
         .from('media_items')
-        .select('*, processing_states!inner(*), file_types!inner(*)', {
+        .select('*, processing_states(*), file_types!inner(*)', {
           count: 'exact',
           head: true,
         })

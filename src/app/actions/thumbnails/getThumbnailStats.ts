@@ -22,6 +22,8 @@ export async function getThumbnailStats(): Promise<{
         .select('*, file_types!inner(*)', { count: 'exact', head: true }),
     );
 
+    console.log('Total compatible files count:', totalCount);
+
     if (totalError) {
       throw new Error(`Failed to get total file count: ${totalError.message}`);
     }
@@ -42,6 +44,8 @@ export async function getThumbnailStats(): Promise<{
           .eq('processing_states.status', 'success'),
       );
 
+    console.log('Files with thumbnails count:', withThumbnailsCount);
+
     if (withThumbnailsError) {
       throw new Error(
         `Failed to get files with thumbnails: ${withThumbnailsError.message}`,
@@ -61,13 +65,15 @@ export async function getThumbnailStats(): Promise<{
           .eq('processing_states.status', 'skipped'),
       );
 
+    console.log('Skipped large files count:', skippedLargeFilesCount);
+
     if (skippedLargeFilesError) {
       throw new Error(
         `Failed to get skipped large files count: ${skippedLargeFilesError.message}`,
       );
     }
 
-    // Get count of files skipped due to being large
+    // Get count of files with errors
     const { count: erroredCount, error: erroredError } = await includeMedia(
       supabase
         .from('media_items')
@@ -79,6 +85,8 @@ export async function getThumbnailStats(): Promise<{
         .eq('processing_states.status', 'error'),
     );
 
+    console.log('Errored files count:', erroredCount);
+
     if (erroredError) {
       throw new Error(
         `Failed to get errored files count: ${erroredError.message}`,
@@ -89,20 +97,23 @@ export async function getThumbnailStats(): Promise<{
       totalCompatibleFiles: totalCount || 0,
       filesWithThumbnails: withThumbnailsCount || 0,
       skippedLargeFiles: skippedLargeFilesCount || 0,
+      errored: erroredCount || 0,
     };
 
     const unprocessedFilesCount =
       stats.totalCompatibleFiles -
-      (stats.filesWithThumbnails +
-        stats.skippedLargeFiles +
-        (erroredCount || 0));
+      (stats.filesWithThumbnails + stats.skippedLargeFiles + stats.errored);
+
+    const finalStats = {
+      ...stats,
+      filesPending: unprocessedFilesCount || 0,
+    };
+
+    console.log('Final thumbnail stats:', finalStats);
 
     return {
       success: true,
-      stats: {
-        ...stats,
-        filesPending: unprocessedFilesCount || 0,
-      },
+      stats: finalStats,
     };
   } catch (error: any) {
     console.error('Error getting thumbnail stats:', error);

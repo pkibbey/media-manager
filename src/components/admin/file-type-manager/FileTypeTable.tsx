@@ -26,11 +26,9 @@ export function FileTypeTable({
         <thead className="bg-muted">
           <tr className="text-left text-xs">
             <th className="p-2">Extension</th>
-            <th className="p-2">MIME Type</th>
-            <th className="p-2 text-center">Native Display</th>
-            <th className="p-2 text-center">Needs Conversion</th>
+            <th className="p-2 text-center">Native</th>
+            <th className="p-2 text-center">Translate</th>
             <th className="p-2 text-center">Ignore</th>
-            <th className="p-2">Discovered</th>
           </tr>
         </thead>
         <tbody className="divide-y">

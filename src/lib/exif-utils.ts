@@ -171,15 +171,8 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
     await includeMedia(
       supabase
         .from('media_items')
-        .select('*, file_types!inner(*), processing_states!inner(*)')
-        .not(
-          'id',
-          'in',
-          supabase
-            .from('processing_states')
-            .select('media_item_id')
-            .eq('type', 'exif'),
-        )
+        .select('*, file_types!inner(*), processing_states(*)')
+        .not('processing_states.type', 'eq', 'exif')
         .limit(limit),
     );
 
@@ -206,7 +199,7 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
   const { data: filesWithNonSuccessState, error: error2 } = await includeMedia(
     supabase
       .from('media_items')
-      .select('*, processing_states!inner(*), file_types!inner(*)')
+      .select('*, processing_states(*), file_types!inner(*)')
       .eq('processing_states.type', 'exif')
       .or('status.eq.pending,status.eq.error', {
         foreignTable: 'processing_states',

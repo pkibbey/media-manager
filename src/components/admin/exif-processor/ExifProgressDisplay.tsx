@@ -20,7 +20,7 @@ export function ExifProgressDisplay({
   if (!isStreaming) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="overflow-hidden space-y-2">
       <div className="flex justify-between text-sm gap-4">
         <span className="truncate">{progress?.message}</span>
         <span className="shrink-0">

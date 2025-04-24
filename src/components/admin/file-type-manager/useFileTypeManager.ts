@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { updateFileType } from '@/app/actions/file-types';
+import { updateFileType } from '@/lib/query-helpers';
 import type { FileType } from '@/types/db-types';
 
 export interface GroupedFileTypes {

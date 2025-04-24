@@ -7,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Warning } from '@/components/ui/warning';
 
 export async function CorrectorStats() {
   // Fetch the stats directly in the server component
@@ -36,6 +37,7 @@ export async function CorrectorStats() {
 
   return (
     <div className="overflow-hidden space-y-4">
+      <Warning message="This step should only be performed after EXIF data processing is complete." />
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">Timestamp Correction</h2>
         <div className="text-sm text-muted-foreground">

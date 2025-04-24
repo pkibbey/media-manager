@@ -384,7 +384,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   } = await includeMedia(
     supabase
       .from('media_items')
-      .select('*, file_types!inner(*), processing_states!inner(*)', {
+      .select('*, file_types!inner(*), processing_states(*)', {
         count: 'exact',
       })
       .eq('processing_states.type', 'thumbnail')
@@ -420,10 +420,9 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
     await includeMedia(
       supabase
         .from('media_items')
-        .select('*, file_types!inner(*), processing_states!inner(*)')
+        .select('*, file_types!inner(*), processing_states(*)')
         .not('thumbnail_path', 'is', null)
-        .eq('processing_states.type', 'thumbnail')
-        .in('processing_states.status', ['error', 'pending'])
+        .not('processing_states.type', 'eq', 'exif')
         .limit(remainingLimit),
     );
 

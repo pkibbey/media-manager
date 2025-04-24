@@ -1,4 +1,3 @@
-import { formatDate } from '@/lib/utils';
 import type { FileType } from '@/types/db-types';
 
 type FileTypeRowProps = {
@@ -46,7 +45,6 @@ export function FileTypeRow({
           .{fileType.extension}
         </code>
       </td>
-      <td className="p-2 text-xs">{fileType.mime_type || 'unknown'}</td>
       <td className="p-2 text-center">
         <input
           type="checkbox"
@@ -77,7 +75,6 @@ export function FileTypeRow({
           aria-label="Ignore file type"
         />
       </td>
-      <td className="p-2 text-xs">{formatDate(fileType.created_at, 'PP')}</td>
     </tr>
   );
 }

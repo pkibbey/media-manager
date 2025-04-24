@@ -5,6 +5,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Warning } from '@/components/ui/warning';
 
 type ThumbnailStatsProps = {
   thumbnailStats: {
@@ -19,6 +20,7 @@ export function ThumbnailStats({ thumbnailStats }: ThumbnailStatsProps) {
   return (
     <>
       <div className="space-y-2">
+        <Warning message="This step should only be performed after EXIF data processing is complete." />{' '}
         <div className="flex justify-between items-center gap-4 overflow-hidden">
           <h2 className="text-lg font-medium truncate">Thumbnail Generator</h2>
           <span className="shrink-0">

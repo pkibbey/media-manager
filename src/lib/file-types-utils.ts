@@ -76,9 +76,7 @@ export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
  */
 export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | null> {
   // Use the query helper to get all file types with all fields
-  const { data: fileTypes, error } = await getAllFileTypes({
-    fullSelect: true,
-  });
+  const { data: fileTypes, error } = await getAllFileTypes();
 
   if (error || !fileTypes) {
     console.error('Error fetching detailed file types:', error);

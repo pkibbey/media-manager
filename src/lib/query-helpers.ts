@@ -356,17 +356,12 @@ export async function updateProcessingState(
  * @param options Query options for filtering file types
  * @returns Query result with file types data
  */
-export async function getAllFileTypes(options: { fullSelect?: boolean } = {}) {
+export async function getAllFileTypes() {
   const supabase = createServerSupabaseClient();
 
   try {
     // Apply filters
     let query = supabase.from('file_types').select('*');
-
-    if (!options.fullSelect) {
-      // Exclude ignored file types
-      query = query.is('ignore', false);
-    }
 
     // Always sort by extension for consistent results
     query = query.order('extension');

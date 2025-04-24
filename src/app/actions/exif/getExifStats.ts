@@ -21,6 +21,8 @@ export async function getExifStats(): Promise<{
       }),
     );
 
+    console.log('Total image count query result:', totalImageCount);
+
     if (totalError) {
       console.error('Error getting total image count:', totalError);
       return {
@@ -40,6 +42,8 @@ export async function getExifStats(): Promise<{
         .eq('processing_states.type', 'exif')
         .eq('processing_states.status', 'success'),
     );
+
+    console.log('Success count query result:', successCount);
 
     if (successError) {
       console.error('Error getting success count:', successError);
@@ -61,6 +65,8 @@ export async function getExifStats(): Promise<{
         .eq('processing_states.status', 'error'),
     );
 
+    console.log('Error count query result:', errorCount);
+
     if (errorCountError) {
       console.error('Error getting error count:', errorCountError);
       return {
@@ -81,6 +87,8 @@ export async function getExifStats(): Promise<{
         .eq('processing_states.status', 'skipped'),
     );
 
+    console.log('Skipped count query result:', skippedCount);
+
     if (skippedError) {
       console.error('Error getting skipped count:', skippedError);
       return {
@@ -89,14 +97,18 @@ export async function getExifStats(): Promise<{
       };
     }
 
+    const stats = {
+      with_exif: successCount || 0,
+      with_errors: errorCount || 0,
+      skipped: skippedCount || 0,
+      total: totalImageCount || 0,
+    };
+
+    console.log('Final calculated stats:', stats);
+
     return {
       success: true,
-      stats: {
-        with_exif: successCount || 0,
-        with_errors: errorCount || 0,
-        skipped: skippedCount || 0,
-        total: totalImageCount || 0,
-      },
+      stats,
     };
   } catch (error) {
     console.error('Error fetching EXIF stats:', error);
