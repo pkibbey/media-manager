@@ -31,33 +31,30 @@ export async function getAllStats(): Promise<{
         count: 'exact',
         head: true,
       })
-      .eq('processing_states.type', 'exif')
-      .eq('processing_states.status', 'success');
+      .eq('processing_states.type', 'exif');
 
     // Get exif processing error count
-    const { count: unprocessedCount } = await supabase
+    const { count: erroredCount } = await supabase
       .from('media_items')
       .select('id, processing_states!inner(*), file_types!inner(*)', {
         count: 'exact',
         head: true,
       })
-      .eq('processing_states.type', 'exif')
       .eq('processing_states.status', 'error');
 
     // Get exif processing skipped count
     const { count: skippedCount } = await supabase
       .from('media_items')
-      .select('id, processing_states!inner(*), file_types!inner(*)', {
+      .select('processing_states!inner(*)', {
         count: 'exact',
         head: true,
       })
-      .eq('processing_states.type', 'exif')
-      .eq('processing_states.status', 'skipped');
+      .eq('processing_states.status', 'aborted');
 
     // Get ignored files count - this specifically counts files with ignored file types
     const { count: ignoredCount } = await supabase
       .from('media_items')
-      .select('id, processing_states!inner(*), file_types!inner(*)', {
+      .select('file_types!inner(*)', {
         count: 'exact',
         head: true,
       })
@@ -66,7 +63,7 @@ export async function getAllStats(): Promise<{
     // Get timestamp correction needs
     const { count: needsTimestampCorrectionCount } = await supabase
       .from('media_items')
-      .select('id, processing_states!inner(*), file_types!inner(*)', {
+      .select('media_date, processing_states!inner(*)', {
         count: 'exact',
         head: true,
       })
@@ -80,7 +77,7 @@ export async function getAllStats(): Promise<{
         totalMediaItems: totalCount || 0,
         totalSizeBytes,
         processedCount: processedCount || 0,
-        unprocessedCount: unprocessedCount || 0,
+        erroredCount: erroredCount || 0,
         ignoredCount: ignoredCount || 0,
         skippedCount: skippedCount || 0,
         needsTimestampCorrectionCount: needsTimestampCorrectionCount || 0,

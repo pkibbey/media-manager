@@ -23,7 +23,7 @@ export type MediaStats = {
   totalMediaItems: number;
   totalSizeBytes: number;
   processedCount: number;
-  unprocessedCount: number;
+  erroredCount: number;
   ignoredCount: number;
   skippedCount: number;
   needsTimestampCorrectionCount: number;

@@ -9,24 +9,22 @@ import {
 import type { ExifStatsResult } from '@/types/db-types';
 
 type ExifStatsProps = {
-  stats: ExifStatsResult;
-  totalProcessed: number;
-  totalUnprocessed: number;
-  processedPercentage: number;
+  stats: ExifStatsResult | null;
 };
 
-export function ExifStats({
-  stats,
-  totalProcessed,
-  totalUnprocessed,
-  processedPercentage,
-}: ExifStatsProps) {
+export function ExifStats({ stats }: ExifStatsProps) {
+  const processedPercentage = stats
+    ? Math.round((stats.with_exif / Math.max(stats.total, 1)) * 100)
+    : 0;
+  const totalProcessed = stats ? stats.with_exif + stats.with_errors : 0;
+  const totalUnprocessed = stats ? stats.total - totalProcessed : 0;
+
   return (
     <>
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">EXIF Processor</h2>
         <div className="text-sm text-muted-foreground">
-          {totalProcessed} / {stats.total} files processed
+          {totalProcessed} / {stats?.total || 0} files processed
         </div>
       </div>
 
@@ -34,8 +32,10 @@ export function ExifStats({
 
       <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
         <div className="flex justify-between">
-          <span>{stats.with_exif} files with EXIF data</span>
-          <span>{stats.with_errors} files processed but no EXIF found</span>
+          <span>{stats?.with_exif || 0} files with EXIF data</span>
+          <span>
+            {stats?.with_errors || 0} files processed but no EXIF found
+          </span>
         </div>
 
         <div className="flex justify-between">
@@ -59,7 +59,7 @@ export function ExifStats({
       <div className="text-sm text-muted-foreground">
         Extract EXIF data from image and video files. This helps organize your
         media by date, location, and camera information.
-        {totalProcessed === 0 && stats.total === 0 ? (
+        {totalProcessed === 0 && !stats?.total ? (
           <span className="block mt-2 text-amber-600 dark:text-amber-500">
             No compatible media files found. This could be due to one of the
             following reasons:
@@ -74,7 +74,7 @@ export function ExifStats({
           </span>
         ) : (
           totalUnprocessed === 0 &&
-          totalProcessed < stats.total && (
+          totalProcessed < (stats?.total || 0) && (
             <span className="block mt-1 text-amber-600 dark:text-amber-500">
               Note: The remaining files either have extensions marked as ignored
               in file settings or are file types that don't typically contain

@@ -10,13 +10,13 @@ import {
 type ThumbnailBatchControlsProps = {
   batchSize: number;
   setBatchSize: (size: number) => void;
-  isGenerating: boolean;
+  isProcessing: boolean;
 };
 
 export function ThumbnailBatchControls({
   batchSize,
   setBatchSize,
-  isGenerating,
+  isProcessing,
 }: ThumbnailBatchControlsProps) {
   return (
     <div className="flex flex-col space-y-2 gap-2 items-start">
@@ -34,7 +34,7 @@ export function ThumbnailBatchControls({
             value === 'Infinity' ? Number.POSITIVE_INFINITY : Number(value),
           )
         }
-        disabled={isGenerating}
+        disabled={isProcessing}
       >
         <SelectTrigger className="w-full text-sm" id="batchSize">
           <SelectValue placeholder="Select batch size" />

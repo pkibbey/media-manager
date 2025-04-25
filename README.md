@@ -105,7 +105,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Contributing
 
-Please read [STANDARDS.md](STANDARDS.md) for details on coding standards.
+Please read [docs/standards.md](docs/standards.md) for details on coding standards.
 
 ### Development Standards
 

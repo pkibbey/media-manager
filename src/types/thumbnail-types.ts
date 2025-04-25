@@ -26,7 +26,7 @@ export type ThumbnailGenerationResponse = {
  * Type for tracking progress during thumbnail generation
  */
 export type ThumbnailProgress = {
-  status: 'processing' | 'completed' | 'error';
+  status: 'processing' | 'success' | 'error';
   message: string;
   totalItems?: number;
   processed?: number;

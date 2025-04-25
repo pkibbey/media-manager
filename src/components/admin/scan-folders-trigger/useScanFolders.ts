@@ -1,112 +1,63 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import { scanFolders } from '@/app/actions/scan';
-import type { ScanProgress } from '@/types/progress-types';
+import { useProcessorBase } from '@/hooks/useProcessorBase';
+import type { UnifiedProgress } from '@/types/progress-types';
+
+export interface ScanStats {
+  totalFolders: number;
+  totalFiles: number;
+  completedFiles: number;
+  pendingFiles: number;
+}
 
 export function useScanFolders() {
-  const [isScanning, setIsScanning] = useState(false);
-  const [progress, setProgress] = useState<ScanProgress | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Cleanup function to abort scanning when component unmounts
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
+  // Define stream function generator
+  const getStreamFunction = useCallback(() => {
+    return () => scanFolders();
   }, []);
 
-  const startScan = async () => {
-    setIsScanning(true);
-    setProgress(null);
-    abortControllerRef.current = new AbortController();
+  // Use the processor base hook
+  const {
+    isProcessing,
+    progress,
+    hasError,
+    errorSummary,
+    handleStartProcessing,
+    handleCancel,
+    stats,
+    refreshStats,
+  } = useProcessorBase<UnifiedProgress, ScanStats>({
+    fetchStats: async () => {
+      // This would be replaced with a real API call when available
+      return {
+        totalFolders: 0,
+        totalFiles: 0,
+        completedFiles: 0,
+        pendingFiles: 0,
+      };
+    },
+    getStreamFunction,
+    successMessage: {
+      start: 'Starting folder scan...',
+      batchComplete: (processed) =>
+        `Scan complete: Processed ${processed} files`,
+      allComplete: () => 'Folder scan completed successfully',
+    },
+  });
 
-    try {
-      const stream = await scanFolders();
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-
-      let done = false;
-      let buffer = '';
-
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-
-          // Process complete SSE messages
-          const messages = buffer.split('\n\n');
-          buffer = messages.pop() || ''; // Keep the last incomplete message
-
-          for (const message of messages) {
-            if (message.startsWith('data: ')) {
-              const data = message.slice(6);
-              try {
-                const progressUpdate: ScanProgress = JSON.parse(data);
-
-                setProgress(progressUpdate);
-
-                // If scan is complete or there's an error, we're done
-                if (
-                  progressUpdate.status === 'completed' ||
-                  progressUpdate.status === 'error'
-                ) {
-                  setIsScanning(false);
-                }
-              } catch (e) {
-                console.error('Error parsing SSE message:', e);
-              }
-            }
-          }
-        }
-      }
-
-      // Process any remaining buffer
-      if (buffer?.startsWith('data: ')) {
-        try {
-          const data = buffer.slice(6);
-          const progressUpdate: ScanProgress = JSON.parse(data);
-
-          setProgress(progressUpdate);
-
-          if (
-            progressUpdate.status === 'completed' ||
-            progressUpdate.status === 'error'
-          ) {
-            setIsScanning(false);
-          }
-        } catch (e) {
-          console.error('Error parsing SSE message:', e);
-        }
-      }
-    } catch (error) {
-      console.error('Error during scan:', error);
-      setProgress({
-        status: 'error',
-        message: 'Error connecting to scan service',
-        error: error instanceof Error ? error.message : String(error),
-      });
-      setIsScanning(false);
-    }
-  };
-
-  const cancelScan = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setIsScanning(false);
-    setProgress((prev) =>
-      prev ? { ...prev, status: 'error', message: 'Scan cancelled' } : null,
-    );
+  // Simplified method to start scanning
+  const startScan = () => {
+    handleStartProcessing(false);
   };
 
   return {
-    isScanning,
+    isScanning: isProcessing,
     progress,
+    hasError,
+    errorSummary,
     startScan,
-    cancelScan,
+    cancelScan: handleCancel,
+    scanStats: stats,
+    refreshScanStats: refreshStats,
   };
 }

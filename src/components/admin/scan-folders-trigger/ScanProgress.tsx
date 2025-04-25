@@ -26,7 +26,7 @@ export function ScanProgress({ progress }: ScanProgressProps) {
           }`}
         >
           {progress.status === 'processing' && 'Scanning folders...'}
-          {progress.status === 'completed' && 'Scan complete'}
+          {progress.status === 'success' && 'Scan complete'}
           {progress.status === 'error' && 'Scan error'}
         </h4>
         <span className="text-xs text-muted-foreground">

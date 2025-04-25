@@ -6,7 +6,7 @@ export const PAGE_SIZE = 50;
 /**
  * Default batch size for processing operations
  */
-export const BATCH_SIZE = 25;
+export const BATCH_SIZE = 100;
 
 /**
  * Threshold for large files (100MB in bytes)

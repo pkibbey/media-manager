@@ -2,10 +2,17 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { BATCH_SIZE } from '@/lib/consts';
 import {
   getCategoryByExtension,
   getMimeTypeByExtension,
 } from '@/lib/file-types-utils';
+import {
+  markProcessingAborted,
+  markProcessingError,
+  markProcessingStarted,
+  markProcessingSuccess,
+} from '@/lib/processing-helpers';
 import {
   checkFileExists,
   getFoldersToScan,
@@ -17,6 +24,9 @@ import {
   upsertFileType,
 } from '@/lib/query-helpers';
 import type { ScanOptions } from '@/types/progress-types';
+
+// Define the processing type constant for scan operations
+const PROCESSING_TYPE_SCAN = 'scan';
 
 /**
  * Scan folders for media files and insert them into the database
@@ -30,8 +40,19 @@ export async function scanFolders(options: ScanOptions = {}) {
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
+  // Track if the scan has been aborted
+  let aborted = false;
+
   // Start scanning in the background
   scanFoldersInternal(writer, options);
+
+  // Set up a cleanup function on the stream
+  const originalCancel = stream.readable.cancel;
+  stream.readable.cancel = async (reason) => {
+    aborted = true;
+    // Call the original cancel method
+    return originalCancel?.call(stream.readable, reason);
+  };
 
   // Return the readable stream
   return stream.readable;
@@ -63,10 +84,11 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       if (!foldersToScan || foldersToScan.length === 0) {
         await sendProgress(encoder, writer, {
-          status: 'completed',
+          status: 'success',
           message:
             'No folders configured for scanning. Add folders in admin panel.',
           filesDiscovered: 0,
+          totalFiles: 0,
         });
         return;
       }
@@ -88,6 +110,17 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       // Process each folder
       for (const folder of foldersToScan) {
+        // Check if scan has been aborted before starting a new folder
+        if (aborted) {
+          await sendProgress(encoder, writer, {
+            status: 'aborted',
+            message: 'Scan aborted by user',
+            filesDiscovered: totalFilesDiscovered,
+            filesProcessed: totalFilesProcessed,
+          });
+          return;
+        }
+
         try {
           // Check if folder exists
           try {
@@ -125,7 +158,6 @@ export async function scanFolders(options: ScanOptions = {}) {
           });
 
           // Process files in batches to avoid timeout
-          const BATCH_SIZE = 100;
           for (let i = 0; i < files.length; i += BATCH_SIZE) {
             const batch = files.slice(i, i + BATCH_SIZE);
 
@@ -143,6 +175,21 @@ export async function scanFolders(options: ScanOptions = {}) {
             }
 
             for (const file of batch) {
+              // Check for abort signal at the beginning of each file processing
+              if (aborted) {
+                // Mark any existing file as aborted if we were actively processing it
+                const { data: existingFile } = await checkFileExists(file.path);
+                if (existingFile?.id) {
+                  await markProcessingAborted({
+                    mediaItemId: existingFile.id,
+                    type: PROCESSING_TYPE_SCAN,
+                    reason: 'Scan aborted by user',
+                  });
+                }
+                // Break out of the file processing loop
+                break;
+              }
+
               try {
                 // Get file extension
                 const fileExt = path.extname(file.path).slice(1).toLowerCase();
@@ -242,6 +289,13 @@ export async function scanFolders(options: ScanOptions = {}) {
 
                 if (existingFile) {
                   // Update existing file
+                  // Mark as processing
+                  await markProcessingStarted({
+                    mediaItemId: existingFile.id,
+                    type: PROCESSING_TYPE_SCAN,
+                    message: `Updating file: ${fileName}`,
+                  });
+
                   const { error: updateError } = await updateMediaItem(
                     existingFile.id,
                     fileData,
@@ -252,8 +306,22 @@ export async function scanFolders(options: ScanOptions = {}) {
                       `Error updating media item: ${file.path}`,
                       updateError,
                     );
+
+                    // Mark as error
+                    await markProcessingError({
+                      mediaItemId: existingFile.id,
+                      type: PROCESSING_TYPE_SCAN,
+                      error: `Failed to update file: ${updateError.message}`,
+                    });
                   } else {
                     newFilesAdded++;
+
+                    // Mark as success
+                    await markProcessingSuccess({
+                      mediaItemId: existingFile.id,
+                      type: PROCESSING_TYPE_SCAN,
+                      message: 'File updated successfully',
+                    });
                   }
                 } else {
                   // Insert new file
@@ -267,6 +335,13 @@ export async function scanFolders(options: ScanOptions = {}) {
                     );
                   } else if (insertedItem) {
                     newFilesAdded++;
+
+                    // Mark as success for new items
+                    await markProcessingSuccess({
+                      mediaItemId: insertedItem.id,
+                      type: PROCESSING_TYPE_SCAN,
+                      message: 'File added successfully',
+                    });
                   } else {
                     console.error(
                       `Failed to insert media item with no error: ${file.path}`,
@@ -294,6 +369,17 @@ export async function scanFolders(options: ScanOptions = {}) {
                 }
               } catch (fileError: any) {
                 console.error(`Error processing file: ${file.path}`, fileError);
+
+                // If we have an existingFile ID, mark the error in processing_states
+                const { data: existingFile } = await checkFileExists(file.path);
+                if (existingFile?.id) {
+                  await markProcessingError({
+                    mediaItemId: existingFile.id,
+                    type: PROCESSING_TYPE_SCAN,
+                    error: `Error processing file: ${fileError.message || 'Unknown error'}`,
+                  });
+                }
+
                 totalFilesProcessed++;
               }
             }
@@ -314,7 +400,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       // Send final progress update
       await sendProgress(encoder, writer, {
-        status: 'completed',
+        status: 'success',
         message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, added ${newFilesAdded} new/updated files.`,
         filesDiscovered: totalFilesDiscovered,
         filesProcessed: totalFilesProcessed,
@@ -327,10 +413,17 @@ export async function scanFolders(options: ScanOptions = {}) {
       await writer.close();
     } catch (error: any) {
       console.error('Error during scan:', error);
+
+      // Check if this is an abort error or if the scan was explicitly aborted
+      const isAbortError =
+        error.message?.includes('aborted') ||
+        error.name === 'AbortError' ||
+        aborted;
+
       await sendProgress(encoder, writer, {
-        status: 'error',
-        message: 'Error during scan',
-        error: error.message,
+        status: isAbortError ? 'aborted' : 'error',
+        message: isAbortError ? 'Scan aborted by user' : 'Error during scan',
+        error: isAbortError ? 'Operation cancelled' : error.message,
       });
       await writer.close();
     }

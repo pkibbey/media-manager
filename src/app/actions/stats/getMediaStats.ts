@@ -39,7 +39,7 @@ export async function getMediaStats(): Promise<{
     );
 
     // Get exif processing error count
-    const { count: unprocessedCount } = await includeMedia(
+    const { count: erroredCount } = await includeMedia(
       supabase
         .from('media_items')
         .select('id, processing_states!inner(*), file_types!inner(*)', {
@@ -58,8 +58,7 @@ export async function getMediaStats(): Promise<{
           count: 'exact',
           head: true,
         })
-        .eq('processing_states.type', 'exif')
-        .eq('processing_states.status', 'skipped'),
+        .or('processing_states->status.is.skipped, processing_states.is.null'),
     );
 
     // Get ignored files count - this specifically counts files with ignored file types
@@ -89,7 +88,7 @@ export async function getMediaStats(): Promise<{
         totalMediaItems: totalCount || 0,
         totalSizeBytes,
         processedCount: processedCount || 0,
-        unprocessedCount: unprocessedCount || 0,
+        erroredCount: erroredCount || 0,
         ignoredCount: ignoredCount || 0,
         skippedCount: skippedCount || 0,
         needsTimestampCorrectionCount: needsTimestampCorrectionCount || 0,

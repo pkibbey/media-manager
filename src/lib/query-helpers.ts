@@ -1,4 +1,4 @@
-import type { FileType, MediaItem } from '@/types/db-types';
+import type { FileType, MediaItem, ProcessingState } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
 import { includeMedia } from './mediaFilters';
 import { createServerSupabaseClient } from './supabase';
@@ -327,22 +327,23 @@ export async function countMediaItems(
  * @returns Update result
  */
 export async function updateProcessingState(
-  mediaItemId: string,
-  status: 'success' | 'error' | 'skipped' | 'pending',
-  type: string,
-  errorMessage?: string,
+  processingState: Pick<
+    ProcessingState,
+    'media_item_id' | 'status' | 'type' | 'error_message'
+  >,
 ): Promise<{
   error: any | null;
 }> {
+  const { media_item_id, status, type, error_message } = processingState;
   const supabase = createServerSupabaseClient();
 
   return supabase.from('processing_states').upsert(
     {
-      media_item_id: mediaItemId,
+      media_item_id,
       type,
       status,
       processed_at: new Date().toISOString(),
-      error_message: errorMessage || null,
+      error_message: error_message,
     },
     {
       onConflict: 'media_item_id,type',
@@ -808,10 +809,41 @@ export async function updateFolderScanStatus(
   }
 }
 
+/**
+ * Sends a progress update through a stream writer
+ * Supports both the legacy generic type for backwards compatibility
+ * and the new UnifiedProgress type for standardization
+ */
 export async function sendProgress<T>(
   encoder: TextEncoder,
   writer: WritableStreamDefaultWriter,
   progress: T,
 ) {
+  await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
+}
+
+/**
+ * Enhanced version of sendProgress that calculates percentComplete automatically
+ * when totalCount and processedCount are provided
+ */
+export async function sendUnifiedProgress(
+  encoder: TextEncoder,
+  writer: WritableStreamDefaultWriter,
+  progress: Partial<import('../types/progress-types').UnifiedProgress>,
+) {
+  // Calculate percentComplete if not provided but we have the necessary data
+  if (
+    progress.totalCount &&
+    progress.processedCount &&
+    progress.percentComplete === undefined
+  ) {
+    progress.percentComplete = Math.min(
+      100,
+      Math.round(
+        (progress.processedCount / Math.max(1, progress.totalCount)) * 100,
+      ),
+    );
+  }
+
   await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
 }

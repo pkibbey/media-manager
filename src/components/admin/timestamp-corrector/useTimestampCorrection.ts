@@ -1,80 +1,104 @@
-import { useState } from 'react';
-import { toast } from 'sonner';
+import { useCallback } from 'react';
 import { updateMediaDatesFromFilenames } from '@/app/actions/exif';
 import { getMediaStats } from '@/app/actions/stats';
+import { useProcessorBase } from '@/hooks/useProcessorBase';
+import type { UnifiedProgress } from '@/types/progress-types';
 
-export type CorrectionProgress = {
-  processed: number;
-  updated: number;
-  percent: number;
-};
-
+/**
+ * Hook for handling timestamp correction operations
+ */
 export function useTimestampCorrection(initialNeedsCorrection = 0) {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState<CorrectionProgress>({
-    processed: 0,
-    updated: 0,
-    percent: 0,
-  });
-  const [processingStartTime, setProcessingStartTime] = useState<
-    number | undefined
-  >(undefined);
-  const [needsCorrection, setNeedsCorrection] = useState(
-    initialNeedsCorrection,
-  );
+  // Use the common processor base hook with timestamp correction specifics
+  const {
+    isProcessing,
+    progress,
+    processingStartTime,
+    stats: needsCorrection,
+    handleStartProcessing,
+    handleCancel: handleStopProcessing,
+  } = useProcessorBase<UnifiedProgress, number>({
+    // Initialize with the initial value and fetch updated stats
+    fetchStats: async () => {
+      try {
+        const { success, data } = await getMediaStats();
+        return success && data
+          ? data.needsTimestampCorrectionCount || 0
+          : initialNeedsCorrection;
+      } catch (error) {
+        console.error('Error fetching timestamp correction stats:', error);
+        return initialNeedsCorrection;
+      }
+    },
 
-  const handleStopProcessing = () => {
-    if (isProcessing) {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleUpdateTimestamps = async () => {
-    if (isProcessing) return;
-
-    setIsProcessing(true);
-    setProgress({ processed: 0, updated: 0, percent: 0 });
-    setProcessingStartTime(Date.now());
-
-    try {
-      const result = await updateMediaDatesFromFilenames({
-        itemCount: 500,
-        updateAll: false,
-      });
-
-      if (result.success) {
-        const percent =
-          result.processed > 0
-            ? Math.round((result.updated / result.processed) * 100)
-            : 0;
-
-        setProgress({
-          processed: result.processed,
-          updated: result.updated,
-          percent,
+    // Return the function to process timestamps
+    getStreamFunction: ({ batchSize }) => {
+      return async () => {
+        const result = await updateMediaDatesFromFilenames({
+          itemCount: batchSize,
+          updateAll: batchSize === Number.POSITIVE_INFINITY,
         });
 
-        toast.success(`Updated ${result.updated} timestamps successfully`);
+        // For compatibility with the stream processing hooks,
+        // we convert the one-time response to a simple stream
+        const { readable, writable } = new TransformStream();
+        const writer = writable.getWriter();
+        const encoder = new TextEncoder();
 
-        // Refresh stats after processing
-        const { success, data } = await getMediaStats();
-        if (success && data) {
-          setNeedsCorrection(data.needsTimestampCorrectionCount || 0);
+        if (result.success) {
+          // Success case - write a progress update and complete
+          await writer.write(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                status: 'success',
+                message: `Updated ${result.updated} timestamps successfully`,
+                processedCount: result.processed,
+                successCount: result.updated,
+                failedCount: result.processed - result.updated,
+                percentComplete:
+                  result.processed > 0
+                    ? Math.round((result.updated / result.processed) * 100)
+                    : 0,
+              })}\n\n`,
+            ),
+          );
+        } else {
+          // Error case
+          await writer.write(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                status: 'error',
+                message: result.error || 'Failed to update timestamps',
+                error: result.error,
+              })}\n\n`,
+            ),
+          );
         }
-      } else {
-        console.error(
-          'TimestampCorrector',
-          result.error || 'Failed to update timestamps',
-        );
-        toast.error('Failed to update timestamps');
-      }
-    } catch (error) {
-      console.error('Error updating timestamps:', error);
-      toast.error('Error occurred while updating timestamps');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+
+        // Close the stream
+        await writer.close();
+        return readable;
+      };
+    },
+
+    // Default batch size
+    defaultBatchSize: 500,
+
+    // Success messages
+    successMessage: {
+      start: 'Starting timestamp correction...',
+      batchComplete: (processed) =>
+        `Updated ${processed} timestamps successfully`,
+      allComplete: () => 'Timestamp correction completed successfully',
+    },
+  });
+
+  /**
+   * Handle updating timestamps
+   */
+  const handleUpdateTimestamps = useCallback(async () => {
+    if (isProcessing) return;
+    await handleStartProcessing(false);
+  }, [isProcessing, handleStartProcessing]);
 
   return {
     isProcessing,

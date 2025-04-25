@@ -7,6 +7,10 @@ import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { THUMBNAIL_SIZE } from '@/lib/consts';
 import { includeMedia } from '@/lib/mediaFilters';
+import {
+  markProcessingError,
+  markProcessingSuccess,
+} from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ThumbnailGenerationResponse } from '@/types/thumbnail-types';
 import { convertHeicToJpeg } from './convertHeicToJpeg';
@@ -49,20 +53,12 @@ export async function generateThumbnail(mediaId: string): Promise<
         `[Thumbnail] File not found: ${mediaItem.file_path} - ${error}`,
       );
 
-      // Update processing state in processing_states table
-      await supabase.from('processing_states').upsert(
-        {
-          media_item_id: mediaId,
-          type: 'thumbnail',
-          status: 'error',
-          processed_at: new Date().toISOString(),
-          error_message: 'File not found',
-        },
-        {
-          onConflict: 'media_item_id,type',
-          ignoreDuplicates: false,
-        },
-      );
+      // Update processing state using helper function
+      await markProcessingError({
+        mediaItemId: mediaId,
+        type: 'thumbnail',
+        error: 'File not found',
+      });
 
       return {
         success: false,
@@ -175,27 +171,16 @@ export async function generateThumbnail(mediaId: string): Promise<
         sharpError,
       );
 
-      // Mark as error in processing_states table
-      const errorMessage =
-        sharpError instanceof Error ? sharpError.message : 'Processing error';
-
-      await supabase.from('processing_states').upsert(
-        {
-          media_item_id: mediaId,
-          type: 'thumbnail',
-          status: 'error',
-          processed_at: new Date().toISOString(),
-          error_message: errorMessage,
-        },
-        {
-          onConflict: 'media_item_id,type',
-          ignoreDuplicates: false,
-        },
-      );
+      // Mark as error using helper function
+      await markProcessingError({
+        mediaItemId: mediaId,
+        type: 'thumbnail',
+        error: sharpError,
+      });
 
       return {
         success: false,
-        message: `Error generating thumbnail: ${errorMessage}`,
+        message: `Error generating thumbnail: ${sharpError instanceof Error ? sharpError.message : 'Processing error'}`,
         fileName: mediaItem.file_name,
       };
     }
@@ -217,20 +202,12 @@ export async function generateThumbnail(mediaId: string): Promise<
           storageError,
         );
 
-        // Mark as error in processing_states table
-        await supabase.from('processing_states').upsert(
-          {
-            media_item_id: mediaId,
-            type: 'thumbnail',
-            status: 'error',
-            processed_at: new Date().toISOString(),
-            error_message: 'Storage upload failed',
-          },
-          {
-            onConflict: 'media_item_id,type',
-            ignoreDuplicates: false,
-          },
-        );
+        // Mark as error using helper function
+        await markProcessingError({
+          mediaItemId: mediaId,
+          type: 'thumbnail',
+          error: `Storage upload failed: ${storageError.message}`,
+        });
 
         return {
           success: false,
@@ -244,20 +221,12 @@ export async function generateThumbnail(mediaId: string): Promise<
         uploadError,
       );
 
-      // Mark as upload error in processing_states table
-      await supabase.from('processing_states').upsert(
-        {
-          media_item_id: mediaId,
-          type: 'thumbnail',
-          status: 'error',
-          processed_at: new Date().toISOString(),
-          error_message: 'Upload exception',
-        },
-        {
-          onConflict: 'media_item_id,type',
-          ignoreDuplicates: false,
-        },
-      );
+      // Mark as upload error using helper function
+      await markProcessingError({
+        mediaItemId: mediaId,
+        type: 'thumbnail',
+        error: 'Upload exception',
+      });
 
       return {
         success: false,
@@ -287,20 +256,12 @@ export async function generateThumbnail(mediaId: string): Promise<
       // Attempt to delete the potentially orphaned thumbnail from storage
       await supabase.storage.from('thumbnails').remove([fileName]);
 
-      // Mark as error in processing_states table
-      await supabase.from('processing_states').upsert(
-        {
-          media_item_id: mediaId,
-          type: 'thumbnail',
-          status: 'error',
-          processed_at: new Date().toISOString(),
-          error_message: 'Failed to update media_items table',
-        },
-        {
-          onConflict: 'media_item_id,type',
-          ignoreDuplicates: false,
-        },
-      );
+      // Mark as error using helper function
+      await markProcessingError({
+        mediaItemId: mediaId,
+        type: 'thumbnail',
+        error: 'Failed to update media_items table',
+      });
 
       return {
         success: false,
@@ -309,25 +270,14 @@ export async function generateThumbnail(mediaId: string): Promise<
       };
     }
 
-    // Update the processing state in processing_states table with success status
-    const { error: updateProcessingStateError } = await supabase
-      .from('processing_states')
-      .upsert(
-        {
-          media_item_id: mediaId,
-          type: 'thumbnail',
-          status: 'success',
-          processed_at: new Date().toISOString(),
-          // Clear any previous error message on success
-          error_message: null,
-        },
-        {
-          onConflict: 'media_item_id,type',
-          ignoreDuplicates: false,
-        },
-      );
-
-    if (updateProcessingStateError) {
+    // Update the processing state with success status using helper function
+    try {
+      await markProcessingSuccess({
+        mediaItemId: mediaId,
+        type: 'thumbnail',
+        message: 'Thumbnail generated successfully',
+      });
+    } catch (updateProcessingStateError) {
       console.error(
         `[Thumbnail] Error updating processing_states for ${mediaId}:`,
         updateProcessingStateError,
@@ -353,22 +303,13 @@ export async function generateThumbnail(mediaId: string): Promise<
     };
   } catch (error: any) {
     console.error('[Thumbnail] Error generating thumbnail:', error);
-    // Try to mark as error in processing_states table
+    // Try to mark as error in processing_states table using helper function
     try {
-      const supabase = createServerSupabaseClient();
-      await supabase.from('processing_states').upsert(
-        {
-          media_item_id: mediaId,
-          type: 'thumbnail',
-          status: 'error',
-          processed_at: new Date().toISOString(),
-          error_message: 'Unhandled exception',
-        },
-        {
-          onConflict: 'media_item_id,type',
-          ignoreDuplicates: false,
-        },
-      );
+      await markProcessingError({
+        mediaItemId: mediaId,
+        type: 'thumbnail',
+        error: 'Unhandled exception',
+      });
     } catch (dbError) {
       console.error(
         '[Thumbnail] Failed to mark item as error after exception:',

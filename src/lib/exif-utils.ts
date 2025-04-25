@@ -1,4 +1,5 @@
 'use server';
+
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import exifReader, { type Exif } from 'exif-reader';
@@ -170,7 +171,7 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
     await includeMedia(
       supabase
         .from('media_items')
-        .select('*, file_types!inner(*), processing_states(*)')
+        .select('*, file_types!inner(*), processing_states!inner(*)')
         .neq('processing_states.type', 'exif')
         .limit(limit),
     );
@@ -200,7 +201,7 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
       .from('media_items')
       .select('*, processing_states!inner(*), file_types!inner(*)')
       .eq('processing_states.type', 'exif')
-      .or('status.eq.pending,status.eq.error', {
+      .or('status.eq.aborted,status.eq.error', {
         foreignTable: 'processing_states',
       })
       .limit(remainingLimit),

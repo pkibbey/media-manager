@@ -2,10 +2,11 @@
 
 import { extractAndSanitizeExifData } from '@/lib/exif-utils';
 import {
-  getMediaItemById,
-  updateMediaItem,
-  updateProcessingState,
-} from '@/lib/query-helpers';
+  handleProcessingError,
+  markProcessingSuccess,
+  markProcessingSkipped,
+} from '@/lib/processing-helpers';
+import { getMediaItemById, updateMediaItem } from '@/lib/query-helpers';
 import type { ExtractionMethod } from '@/types/exif';
 import type { Json } from '@/types/supabase';
 
@@ -48,7 +49,13 @@ export async function processExifData({
     // If no EXIF data found, update processing state accordingly
     if (!extraction.success || !extraction.exifData) {
       progressCallback?.('No EXIF data found in file');
-      await updateProcessingState(mediaId, 'error', 'exif', extraction.message);
+
+      // Use the new helper function for skipping items
+      await markProcessingSkipped({
+        mediaItemId: mediaId,
+        type: 'exif',
+        reason: extraction.message || 'No EXIF data found in file',
+      });
 
       return {
         success: false,
@@ -60,13 +67,11 @@ export async function processExifData({
 
     try {
       // Update the exif processing state
-      const { error: stateError } = await updateProcessingState(
-        mediaId,
-        'success',
-        'exif',
-        'EXIF data extracted successfully',
-      );
-      if (stateError) throw stateError;
+      await markProcessingSuccess({
+        mediaItemId: mediaId,
+        type: 'exif',
+        message: 'EXIF data extracted successfully',
+      });
 
       // Update the media record with the actual EXIF data
       progressCallback?.('Updating media item with EXIF data');
@@ -80,23 +85,12 @@ export async function processExifData({
       const errorMessage = `Database update error: ${txError instanceof Error ? txError.message : 'Unknown error'}`;
       progressCallback?.(errorMessage);
 
-      // Attempt to mark the processing state as error
-      try {
-        await updateProcessingState(mediaId, 'error', 'exif', errorMessage);
-      } catch (stateUpdateError) {
-        console.error(
-          "Failed to update processing state to 'error':",
-          stateUpdateError,
-        );
-      }
-
-      console.error('Error updating media item:', txError);
-
-      return {
-        success: false,
-        message:
-          txError instanceof Error ? txError.message : 'Database update error',
-      };
+      // Use our new helper function for error processing
+      return await handleProcessingError({
+        mediaItemId: mediaId,
+        type: 'exif',
+        error: txError,
+      });
     }
 
     progressCallback?.('EXIF data extraction completed successfully');
@@ -113,16 +107,11 @@ export async function processExifData({
     progressCallback?.(`Error: ${errorMessage}`);
     console.error('Error processing EXIF data:', error);
 
-    // Record the error in processing_states table
-    try {
-      await updateProcessingState(mediaId, 'error', 'exif', errorMessage);
-    } catch (updateError) {
-      console.error('Error updating processed state:', updateError);
-    }
-
-    return {
-      success: false,
-      message: errorMessage,
-    };
+    // Use our new helper function for error processing
+    return await handleProcessingError({
+      mediaItemId: mediaId,
+      type: 'exif',
+      error,
+    });
   }
 }

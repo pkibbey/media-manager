@@ -1,13 +1,6 @@
-type ErrorSummary = {
-  [errorType: string]: {
-    count: number;
-    examples: string[];
-  };
-};
-
 type ThumbnailErrorSummaryProps = {
   failedCount: number;
-  errorSummary: ErrorSummary;
+  errorSummary: string[];
 };
 
 export function ThumbnailErrorSummary({
@@ -25,31 +18,11 @@ export function ThumbnailErrorSummary({
       </h3>
 
       <ul className="space-y-3">
-        {Object.entries(errorSummary)
-          .sort(([, a], [, b]) => b.count - a.count)
-          .map(([errorType, details]) => (
-            <li key={errorType} className="text-xs">
-              <div className="flex justify-between">
-                <span className="font-medium">{errorType}:</span>
-                <span>
-                  {details.count} {details.count === 1 ? 'file' : 'files'}
-                </span>
-              </div>
-              {details.examples.length > 0 && (
-                <div className="mt-1 text-muted-foreground">
-                  <div className="text-xs mb-1">Examples:</div>
-                  {details.examples.map((example, i) => (
-                    <div
-                      key={`${errorType}-example-${i}-${example.substring(0, 10)}`}
-                      className="truncate pl-2 text-[10px]"
-                    >
-                      {example}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </li>
-          ))}
+        {errorSummary.map((error, index) => (
+          <li key={error + index} className="text-xs">
+            <div className="truncate pl-2 text-[10px]">{error}</div>
+          </li>
+        ))}
       </ul>
     </div>
   );

@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import type { ExtractionMethod } from '@/types/exif';
 import { ExifActionButtons } from './exif-processor/ExifActionButtons';
 import { ExifErrorSummary } from './exif-processor/ExifErrorSummary';
 import { ExifProcessOptions } from './exif-processor/ExifProcessOptions';
@@ -8,58 +10,45 @@ import { ExifStats } from './exif-processor/ExifStats';
 import { useExifProcessor } from './exif-processor/useExifProcessor';
 
 export default function ExifProcessor() {
+  const [extractionMethod, setExtractionMethod] =
+    useState<ExtractionMethod>('default');
   const {
     stats,
-    isStreaming,
+    isProcessing,
     progress,
     hasError,
     errorSummary,
-    extractionMethod,
-    setExtractionMethod,
     batchSize,
     setBatchSize,
     processingStartTime,
-    totalProcessed,
-    totalUnprocessed,
-    processedPercentage,
-    streamingProgressPercentage,
     handleProcess,
     handleCancel,
   } = useExifProcessor();
 
   return (
     <div className="overflow-hidden grid gap-4 space-y-4">
-      {!isStreaming && (
-        <ExifStats
-          stats={stats}
-          totalProcessed={totalProcessed}
-          totalUnprocessed={totalUnprocessed}
-          processedPercentage={processedPercentage}
-        />
-      )}
+      {!isProcessing && <ExifStats stats={stats} />}
 
       <ExifProgressDisplay
-        isStreaming={isStreaming}
+        isProcessing={isProcessing}
         progress={progress}
-        streamingProgressPercentage={streamingProgressPercentage}
         processingStartTime={processingStartTime}
         hasError={hasError}
       />
 
-      {!isStreaming && (
+      {!isProcessing && (
         <ExifProcessOptions
+          stats={stats}
           extractionMethod={extractionMethod}
           setExtractionMethod={setExtractionMethod}
           batchSize={batchSize}
           setBatchSize={setBatchSize}
-          isStreaming={isStreaming}
-          totalUnprocessed={totalUnprocessed}
+          isProcessing={isProcessing}
         />
       )}
 
       <ExifActionButtons
-        isStreaming={isStreaming}
-        totalUnprocessed={totalUnprocessed}
+        isProcessing={isProcessing}
         stats={stats}
         batchSize={batchSize}
         extractionMethod={extractionMethod}

@@ -1,4 +1,3 @@
-// filepath: /Users/phineas/Sites/media-manager/src/lib/file-type-cache.ts
 import type { FileType } from '@/types/db-types';
 import {
   type DetailedFileTypeInfo,

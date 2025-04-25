@@ -3,9 +3,8 @@ import type { ExifStatsResult } from '@/types/db-types';
 import type { ExtractionMethod } from '@/types/exif';
 
 type ExifActionButtonsProps = {
-  isStreaming: boolean;
-  totalUnprocessed: number;
-  stats: ExifStatsResult;
+  isProcessing: boolean;
+  stats: ExifStatsResult | null;
   batchSize: number;
   extractionMethod: ExtractionMethod;
   handleProcess: () => Promise<void>;
@@ -13,30 +12,33 @@ type ExifActionButtonsProps = {
 };
 
 export function ExifActionButtons({
-  isStreaming,
-  totalUnprocessed,
+  isProcessing,
   stats,
   batchSize,
   extractionMethod,
   handleProcess,
   handleCancel,
 }: ExifActionButtonsProps) {
+  const totalUnprocessed = stats
+    ? stats.total - (stats.with_exif + stats.with_errors)
+    : 0;
+
   return (
     <div className="flex flex-col gap-2">
       <Button
         onClick={handleProcess}
-        disabled={isStreaming || totalUnprocessed === 0}
+        disabled={isProcessing || totalUnprocessed === 0}
         className="w-full"
       >
-        {stats.total === 0
+        {!stats?.total
           ? 'No Files To Process'
-          : isStreaming
+          : isProcessing
             ? `Processing Batch (${extractionMethod})...`
             : `Process Next ${batchSize} Files (${extractionMethod})`}
       </Button>
 
       {/* Cancel button if processing */}
-      {isStreaming && (
+      {isProcessing && (
         <Button onClick={handleCancel} variant="destructive" className="w-full">
           Cancel Processing
         </Button>

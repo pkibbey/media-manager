@@ -1,10 +1,8 @@
 # Important
 
--- Are we always keeping track of the ignored files correctly?
+-- perform a variable name clean up
 
--- Are we always keeping track of the skipped files correctly?
-
--- review the site based on STANDARDS.md and clean up where possible
+-- When clicking on Generate 100 thumbnails, it appears to create the thumbnail, and update the thumbnail path, but it doesn't seem to add the thumbnail type to the processing states
 
 # Less Important
 
@@ -19,6 +17,8 @@
 -- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder
 
 # Much Less Important
+
+-- Add a second standards doc update - v2
 
 -- compare to see how graphql would work with this - would it be much easier to work with?
 

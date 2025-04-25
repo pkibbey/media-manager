@@ -1,9 +1,8 @@
-import type { ExifProgress } from '@/types/exif';
-import type { ErrorSummary } from './useExifProcessor';
+import type { UnifiedProgress } from '@/types/progress-types';
 
 type ExifErrorSummaryProps = {
-  progress: ExifProgress | null;
-  errorSummary: ErrorSummary;
+  progress: UnifiedProgress | null;
+  errorSummary: string[];
 };
 
 export function ExifErrorSummary({
@@ -27,29 +26,13 @@ export function ExifErrorSummary({
         </p>
       ) : (
         <ul className="space-y-3">
-          {Object.entries(errorSummary)
-            .sort(([, a], [, b]) => b.count - a.count) // Sort by count (highest first)
-            .map(([errorType, details]) => (
-              <li key={errorType} className="text-xs">
-                <div className="flex justify-between">
-                  <span className="font-medium">{errorType}:</span>
-                  <span>
-                    {details.count} {details.count === 1 ? 'file' : 'files'}
-                  </span>
-                </div>
-                {details.examples.length > 0 && (
-                  <div className="mt-1 text-muted-foreground">
-                    <div className="text-xs mb-1">Examples:</div>
-                    {details.examples.map((example, i) => (
-                      <div key={i} className="truncate pl-2 text-[10px]">
-                        {example.split('/').pop()}
-                        {/* Show just the filename */}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </li>
-            ))}
+          {errorSummary.map((error, index) => (
+            <li key={error + index} className="text-xs">
+              <div className="truncate text-[10px] font-medium text-muted-foreground">
+                {error}
+              </div>
+            </li>
+          ))}
         </ul>
       )}
     </div>

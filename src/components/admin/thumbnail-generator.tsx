@@ -9,11 +9,9 @@ import { useThumbnailGenerator } from './thumbnail-generator/useThumbnailGenerat
 
 export default function ThumbnailGenerator() {
   const {
-    isGenerating,
+    isProcessing,
     isProcessingAll,
     progress,
-    total,
-    processed,
     hasError,
     errorSummary,
     detailProgress,
@@ -23,21 +21,22 @@ export default function ThumbnailGenerator() {
     processingStartTime,
     batchSize,
     setBatchSize,
-    totalProcessed,
     handleGenerateThumbnails,
     handleCancel,
   } = useThumbnailGenerator();
 
+  const totalProcessed = progress?.processedCount || 0;
+
   return (
     <div className="flex flex-col overflow-hidden gap-4 space-y-4">
-      {!isGenerating && <ThumbnailStats thumbnailStats={thumbnailStats} />}
+      {!isProcessing && <ThumbnailStats thumbnailStats={thumbnailStats} />}
 
-      {isGenerating && (
+      {isProcessing && (
         <ThumbnailProgressDisplay
           isProcessingAll={isProcessingAll}
-          progress={progress}
-          processed={processed}
-          total={total} // this total is incorrect
+          progress={progress?.percentComplete || 0}
+          processed={progress?.processedCount || 0}
+          total={progress?.total || 0} // this total is incorrect
           batchSize={batchSize}
           totalProcessed={totalProcessed}
           successCount={successCount}
@@ -48,16 +47,16 @@ export default function ThumbnailGenerator() {
         />
       )}
 
-      {!isGenerating && (
+      {!isProcessing && (
         <ThumbnailBatchControls
           batchSize={batchSize}
           setBatchSize={setBatchSize}
-          isGenerating={isGenerating}
+          isProcessing={isProcessing}
         />
       )}
 
       <ThumbnailActionButtons
-        isGenerating={isGenerating}
+        isProcessing={isProcessing}
         isProcessingAll={isProcessingAll}
         thumbnailStats={thumbnailStats}
         batchSize={batchSize}

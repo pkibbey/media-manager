@@ -1,6 +1,10 @@
 'use server';
 
 import { includeMedia } from '@/lib/mediaFilters';
+import {
+  markProcessingStarted,
+  markProcessingError,
+} from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { generateThumbnail } from './generateThumbnail';
 
@@ -93,6 +97,13 @@ export async function regenerateMissingThumbnails(): Promise<{
     // Process each item
     for (const item of items) {
       try {
+        // Mark as processing before we begin
+        await markProcessingStarted({
+          mediaItemId: item.id,
+          type: 'thumbnail',
+          message: 'Regenerating thumbnail',
+        });
+
         const result = await generateThumbnail(item.id);
 
         processed++;
@@ -111,6 +122,13 @@ export async function regenerateMissingThumbnails(): Promise<{
           `Error regenerating thumbnail for ${item.id}:`,
           itemError,
         );
+
+        // Mark the error status
+        await markProcessingError({
+          mediaItemId: item.id,
+          type: 'thumbnail',
+          error: itemError,
+        });
       }
     }
 

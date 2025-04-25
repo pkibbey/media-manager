@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 
 type ThumbnailActionButtonsProps = {
-  isGenerating: boolean;
+  isProcessing: boolean;
   isProcessingAll: boolean;
   thumbnailStats: {
     totalCompatibleFiles: number;
@@ -15,7 +15,7 @@ type ThumbnailActionButtonsProps = {
 };
 
 export function ThumbnailActionButtons({
-  isGenerating,
+  isProcessing,
   isProcessingAll,
   thumbnailStats,
   batchSize,
@@ -27,21 +27,21 @@ export function ThumbnailActionButtons({
       <Button
         onClick={() => onGenerateThumbnails(false)}
         disabled={
-          isGenerating ||
+          isProcessing ||
           !thumbnailStats ||
           (thumbnailStats && thumbnailStats.filesPending === 0)
         }
       >
         {!thumbnailStats
           ? 'Loading...'
-          : thumbnailStats.filesPending === 0 && !isGenerating
+          : thumbnailStats.filesPending === 0 && !isProcessing
             ? 'All Thumbnails Generated'
-            : isGenerating && !isProcessingAll
+            : isProcessing && !isProcessingAll
               ? 'Generating...'
               : `Generate ${Math.min(batchSize, thumbnailStats?.filesPending || 0)} Thumbnails`}
       </Button>
 
-      {isGenerating && (
+      {isProcessing && (
         <Button onClick={onCancel} variant="destructive">
           Cancel
         </Button>

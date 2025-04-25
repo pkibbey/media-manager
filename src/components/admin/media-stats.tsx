@@ -51,9 +51,6 @@ export default async function MediaStats() {
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Total Media</div>
           <div className="text-2xl font-bold">{data.totalMediaItems}</div>
-          <div className="text-xs text-muted-foreground">
-            {data.ignoredCount} ignored files
-          </div>
         </div>
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Total Size</div>
@@ -68,6 +65,15 @@ export default async function MediaStats() {
             <span className="text-sm font-normal text-muted-foreground">
               / {data.totalMediaItems}
             </span>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {data.ignoredCount} ignored
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {data.skippedCount} skipped
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {data.erroredCount} errored
           </div>
         </div>
         <div className="bg-card border rounded-md p-4 flex flex-col">
@@ -104,7 +110,7 @@ export default async function MediaStats() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            {data.unprocessedCount} items remaining to be processed
+            {data.erroredCount} items errored
           </p>
         </div>
       </div>
@@ -124,7 +130,7 @@ export default async function MediaStats() {
                     <div className="flex justify-between mb-1">
                       <span className="text-sm font-medium">{category}</span>
                       <span className="text-xs text-muted-foreground">
-                        {category === 'processedCount'
+                        {category === 'totalSizeBytes'
                           ? formatBytes(count)
                           : `${count} files`}
                       </span>

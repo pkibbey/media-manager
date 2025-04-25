@@ -36,7 +36,7 @@ export async function browseMedia(
         error: error.message,
       };
     }
-    
+
     if (!data || data.length === 0) {
       console.warn('No media items found or all were filtered out');
       return {

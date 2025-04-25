@@ -24,7 +24,10 @@ export async function addScanFolder(
     }
 
     // Add folder to database using the helper function
-    const { data, error } = await addScanFolderHelper(folderPath, includeSubfolders);
+    const { data, error } = await addScanFolderHelper(
+      folderPath,
+      includeSubfolders,
+    );
 
     if (error) {
       console.error('Error adding scan folder:', error);

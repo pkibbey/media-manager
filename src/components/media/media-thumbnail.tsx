@@ -47,10 +47,10 @@ const MediaThumbnail = memo(
 
     return (
       <>
-        {isImg && !thumbnailPath ? (
+        {isImg && thumbnailPath ? (
           <div className="w-full h-full relative">
             <Image
-              src={thumbnailPath!} // Use non-null assertion as we checked showPlaceholder
+              src={thumbnailPath}
               alt={item.file_name}
               className={`object-cover ${className}`}
               fill
