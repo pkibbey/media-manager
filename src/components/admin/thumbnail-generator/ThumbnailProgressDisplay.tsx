@@ -4,9 +4,7 @@ import { ProcessingTimeEstimator } from '../processing-time-estimator';
 
 type ThumbnailProgressDisplayProps = {
   isProcessingAll: boolean;
-  progress: number;
-  processed: number;
-  total: number;
+  progress: UnifiedProgress | null;
   batchSize: number;
   totalProcessed: number;
   successCount: number;
@@ -19,8 +17,6 @@ type ThumbnailProgressDisplayProps = {
 export function ThumbnailProgressDisplay({
   isProcessingAll,
   progress,
-  processed,
-  total,
   batchSize,
   totalProcessed,
   successCount,
@@ -29,11 +25,6 @@ export function ThumbnailProgressDisplay({
   processingStartTime,
   hasError,
 }: ThumbnailProgressDisplayProps) {
-  // Make sure we have valid values for display
-  const displayTotal = total || batchSize;
-  const displayProgress =
-    progress || Math.round((processed / Math.max(displayTotal, 1)) * 100);
-
   return (
     <div className="flex flex-col overflow-hidden gap-4 space-y-4">
       <div className="flex justify-between items-center gap-4 overflow-hidden">
@@ -42,27 +33,29 @@ export function ThumbnailProgressDisplay({
         </h2>
         <span className="shrink-0">
           {successCount} /{' '}
-          {batchSize === Number.POSITIVE_INFINITY ? total : batchSize} files
+          {batchSize === Number.POSITIVE_INFINITY
+            ? progress?.totalCount
+            : batchSize}{' '}
+          files
           {isProcessingAll &&
             totalProcessed > 0 &&
             ` (${totalProcessed} total)`}
         </span>
       </div>
       <div className="flex flex-col gap-3">
-        <Progress value={displayProgress} className="h-2" />
+        <Progress value={progress?.percentComplete} className="h-2" />
         <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
           <div className="flex justify-between text-xs">
             <span className="flex items-center gap-2 truncate">
               <span>Success: {successCount}</span>
               <span>Failed: {failedCount}</span>
             </span>
-            <span>{displayProgress}%</span>
+            <span>{progress?.percentComplete}%</span>
           </div>
 
           <ProcessingTimeEstimator
             isProcessing
-            processed={processed}
-            remaining={displayTotal - processed}
+            progress={progress}
             startTime={processingStartTime}
             rateUnit="thumbnails/sec"
           />

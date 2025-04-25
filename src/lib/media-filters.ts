@@ -1,3 +1,4 @@
+// filepath: /Users/phineas/Sites/media-manager/src/lib/media-filters.ts
 import { LARGE_FILE_THRESHOLD, SMALL_FILE_THRESHOLD } from './consts';
 import { excludeIgnoredFileTypes } from './utils';
 

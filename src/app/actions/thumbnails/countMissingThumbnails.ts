@@ -1,5 +1,5 @@
 'use server';
-import { includeMedia } from '@/lib/mediaFilters';
+import { includeMedia } from '@/lib/media-filters';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
 /**

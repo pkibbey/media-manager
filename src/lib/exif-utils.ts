@@ -5,7 +5,7 @@ import path from 'node:path';
 import exifReader, { type Exif } from 'exif-reader';
 import sharp from 'sharp';
 import type { ExtractionMethod } from '@/types/exif';
-import { includeMedia } from './mediaFilters';
+import { includeMedia } from './media-filters';
 import { createServerSupabaseClient } from './supabase';
 
 /**

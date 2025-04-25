@@ -1,8 +1,8 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import { addScanFolder as addScanFolderHelper } from '@/lib/query-helpers';
 import { revalidatePath } from 'next/cache';
+import { addScanFolder as addScanFolderHelper } from '@/lib/query-helpers';
 
 /**
  * Add a new folder to be scanned for media files
@@ -36,7 +36,7 @@ export async function addScanFolder(
 
     revalidatePath('/admin');
 
-    return { success: true, data };
+    return { success: true, data, error: null };
   } catch (error: any) {
     console.error('Error adding scan folder:', error);
     return { success: false, error: error.message };

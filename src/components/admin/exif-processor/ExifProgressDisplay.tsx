@@ -34,10 +34,7 @@ export function ExifProgressDisplay({
 
       <ProcessingTimeEstimator
         isProcessing={isProcessing}
-        processed={progress?.processedCount || 0}
-        remaining={
-          (progress?.totalCount || 0) - (progress?.processedCount || 0)
-        }
+        progress={progress}
         startTime={processingStartTime}
         label="Est. time remaining"
         rateUnit="files/sec"

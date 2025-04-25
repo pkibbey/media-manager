@@ -1,6 +1,6 @@
 'use server';
 
-import { includeMedia } from '@/lib/mediaFilters';
+import { includeMedia } from '@/lib/media-filters';
 import {
   markProcessingAborted,
   markProcessingError,
@@ -49,7 +49,9 @@ export async function streamUnprocessedThumbnails({
       });
     })
     .finally(() => {
-      writer.close().catch(console.error);
+      if (!writer.closed) {
+        writer.close().catch(console.error);
+      }
     });
 
   // Set up a cleanup function on the stream
@@ -422,6 +424,9 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
       .select('*, file_types!inner(*), processing_states!inner(*)', {
         count: 'exact',
       })
+      // Only generate thumbnails for images
+      // video thumbnails should be handled separately
+      .eq('file_types.category', 'image')
       .is('thumbnail_path', null)
       .neq('processing_states.type', 'thumbnail')
       .limit(limit),

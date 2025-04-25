@@ -34,9 +34,7 @@ export default function ThumbnailGenerator() {
       {isProcessing && (
         <ThumbnailProgressDisplay
           isProcessingAll={isProcessingAll}
-          progress={progress?.percentComplete || 0}
-          processed={progress?.processedCount || 0}
-          total={progress?.total || 0} // this total is incorrect
+          progress={progress}
           batchSize={batchSize}
           totalProcessed={totalProcessed}
           successCount={successCount}

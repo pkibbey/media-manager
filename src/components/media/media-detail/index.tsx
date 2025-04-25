@@ -12,6 +12,3 @@ const MediaDetail = memo(function MediaDetail() {
 });
 
 export default MediaDetail;
-
-// Re-export helper functions for external use
-export { getDimensionsFromExif, getExifData } from './useMediaDetailState';

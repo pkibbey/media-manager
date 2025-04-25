@@ -1,9 +1,9 @@
 'use server';
 
-import { includeMedia } from '@/lib/mediaFilters';
+import { includeMedia } from '@/lib/media-filters';
 import {
-  markProcessingStarted,
   markProcessingError,
+  markProcessingStarted,
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { generateThumbnail } from './generateThumbnail';

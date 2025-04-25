@@ -1,46 +1,10 @@
-import type { Exif } from 'exif-reader';
 import { useCallback, useEffect, useState } from 'react';
 import { fileTypeCache } from '@/lib/file-type-cache';
+import { getExifData } from '@/lib/utils';
 import type { MediaItem } from '@/types/db-types';
 
 // Local storage key for zoom preference
 const ZOOM_PREFERENCE_KEY = 'media-detail-zoom-mode';
-
-// Helper function to safely type exif_data from Json
-export function getExifData(item: MediaItem): Exif | null {
-  return item.exif_data as Exif | null;
-}
-
-export function getDimensionsFromExif(exifData: Exif): {
-  width: number;
-  height: number;
-} {
-  if (exifData === null) {
-    return { width: 0, height: 0 };
-  }
-
-  // Try to get dimensions from Image or Photo tags
-  if (exifData.Image?.ImageWidth && exifData.Image?.ImageLength) {
-    return {
-      width: exifData.Image?.ImageWidth,
-      height: exifData.Image?.ImageLength,
-    };
-  }
-
-  // Fallback to Photo tags if Image tags are not available
-  if (exifData.Photo?.PixelXDimension && exifData.Photo?.PixelYDimension) {
-    return {
-      width: exifData.Photo?.PixelXDimension,
-      height: exifData.Photo?.PixelYDimension,
-    };
-  }
-
-  // If no dimensions are found, return default values
-  return {
-    width: 0,
-    height: 0,
-  };
-}
 
 export function useMediaDetailState(selectedItem: MediaItem | null) {
   const [zoomMode, setZoomMode] = useState(false);

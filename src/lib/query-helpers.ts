@@ -1,35 +1,7 @@
 import type { FileType, MediaItem, ProcessingState } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
-import { includeMedia } from './mediaFilters';
+import { includeMedia } from './media-filters';
 import { createServerSupabaseClient } from './supabase';
-
-/**
- * Get the IDs of file types marked as ignored
- * @returns Array of file type IDs
- */
-export async function getIgnoredFileTypeIds() {
-  const supabase = createServerSupabaseClient();
-  const { data } = await supabase
-    .from('file_types')
-    .select('id')
-    .eq('ignore', true);
-
-  return data?.map((ft) => ft.id.toString()) || [];
-}
-
-/**
- * @deprecated Use getIgnoredFileTypeIds instead
- * Legacy function for backward compatibility during transition
- */
-export async function getIgnoredExtensions() {
-  const supabase = createServerSupabaseClient();
-  const { data } = await supabase
-    .from('file_types')
-    .select('extension')
-    .eq('ignore', true);
-
-  return data?.map((ft) => ft.extension.toLowerCase()) || [];
-}
 
 export function createProcessingStateFilter({
   type,
@@ -283,40 +255,6 @@ export async function countMediaItems(
 
   return query;
 }
-
-/**
- * Update a media item with error handling
- * @param id Media item ID
- * @param updates Object containing fields to update
- * @returns Update result
- */
-// export async function updateMediaItem(
-//   id: string,
-//   updates: Partial<MediaItem>,
-// ): Promise<{
-//   success: boolean;
-//   error: any | null;
-// }> {
-//   const supabase = createServerSupabaseClient();
-
-//   try {
-//     const { error } = await supabase
-//       .from('media_items')
-//       .update(updates)
-//       .eq('id', id);
-
-//     return {
-//       success: !error,
-//       error,
-//     };
-//   } catch (error) {
-//     console.error(`Error updating media item ${id}:`, error);
-//     return {
-//       success: false,
-//       error,
-//     };
-//   }
-// }
 
 /**
  * Update processing state for a media item

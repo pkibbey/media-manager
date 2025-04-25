@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { THUMBNAIL_SIZE } from '@/lib/consts';
-import { includeMedia } from '@/lib/mediaFilters';
+import { includeMedia } from '@/lib/media-filters';
 import {
   markProcessingError,
   markProcessingSuccess,

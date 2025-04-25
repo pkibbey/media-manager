@@ -1,15 +1,16 @@
-import PersistentTabs from '@/components/admin/persistent-tabs';
 import type { ReactNode } from 'react';
+import PersistentTabs from '@/components/admin/persistent-tabs';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const navItems = [
     { href: '/admin/folders', label: 'Folders' },
     { href: '/admin/scan', label: 'Scan' },
-    { href: '/admin/processing', label: 'Processing' },
+    { href: '/admin/exif', label: 'Exif' },
     { href: '/admin/thumbnails', label: 'Thumbnails' },
     { href: '/admin/timestamps', label: 'Timestamps' },
     { href: '/admin/file-types', label: 'File-types' },
     { href: '/admin/stats', label: 'Stats' },
+    { href: '/admin/processing', label: 'Processing' },
   ];
 
   return (

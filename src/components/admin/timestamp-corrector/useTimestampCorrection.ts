@@ -75,7 +75,9 @@ export function useTimestampCorrection(initialNeedsCorrection = 0) {
         }
 
         // Close the stream
-        await writer.close();
+        if (!writer.closed) {
+          await writer.close();
+        }
         return readable;
       };
     },

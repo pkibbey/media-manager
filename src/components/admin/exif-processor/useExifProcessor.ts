@@ -1,8 +1,5 @@
 import { useCallback } from 'react';
-import {
-  getExifStats,
-  streamProcessUnprocessedItems,
-} from '@/app/actions/exif';
+import { getExifStats, streamExifUnprocessed } from '@/app/actions/exif';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import { BATCH_SIZE } from '@/lib/consts';
 import type { ExifStatsResult } from '@/types/db-types';
@@ -20,7 +17,7 @@ export function useExifProcessor() {
   const getStreamFunction = useCallback(
     (options: { batchSize: number; method: string }) => {
       return () =>
-        streamProcessUnprocessedItems({
+        streamExifUnprocessed({
           extractionMethod: options.method as ExtractionMethod,
           batchSize: options.batchSize,
         });

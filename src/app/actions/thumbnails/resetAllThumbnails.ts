@@ -1,7 +1,5 @@
 'use server';
 
-import { includeMedia } from '@/lib/mediaFilters';
-import { markProcessingStarted } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 
 /**
@@ -12,23 +10,10 @@ import { createServerSupabaseClient } from '@/lib/supabase';
 export async function resetAllThumbnails(): Promise<{
   success: boolean;
   message: string;
-  count?: number;
 }> {
   const supabase = createServerSupabaseClient();
 
   try {
-    // Get the media items first so we can mark them as being processed
-    const { data: mediaItems, error: fetchError } = await includeMedia(
-      supabase.from('media_items').select('id, file_types!inner(*)'),
-    );
-
-    if (fetchError) {
-      throw new Error(`Failed to fetch media items: ${fetchError.message}`);
-    }
-
-    // Track the count of items being reset
-    const count = mediaItems?.length || 0;
-
     // 1. Call the database function to reset all thumbnails in a single operation
     // Only reset thumbnails for non-ignored file types
     const { error } = await supabase
@@ -36,7 +21,7 @@ export async function resetAllThumbnails(): Promise<{
       .update({
         thumbnail_path: null,
       })
-      .select('*');
+      .select('*, file_types!inner(*)');
 
     if (error) {
       throw new Error(`Failed to reset thumbnails: ${error.message}`);
@@ -54,22 +39,9 @@ export async function resetAllThumbnails(): Promise<{
       );
     }
 
-    // 3. Set all items back to processing state
-    // This step marks items as needing thumbnail processing again
-    if (mediaItems) {
-      for (const item of mediaItems) {
-        await markProcessingStarted({
-          mediaItemId: item.id,
-          type: 'thumbnail',
-          message: 'Reset for reprocessing',
-        });
-      }
-    }
-
     return {
       success: true,
-      message: `All thumbnails have been reset successfully. ${count} items are ready for reprocessing.`,
-      count,
+      message: 'All thumbnails have been reset successfully.',
     };
   } catch (error: any) {
     console.error('[ResetThumbnails] Error during reset process:', error);

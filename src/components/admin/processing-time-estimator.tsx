@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { UnifiedProgress } from '@/types/progress-types';
 
 interface ProcessingTimeEstimatorProps {
   isProcessing: boolean;
-  processed: number;
-  remaining: number;
+  progress: UnifiedProgress | null;
   startTime?: number;
   label?: string;
   showRate?: boolean;
@@ -17,8 +17,7 @@ interface ProcessingTimeEstimatorProps {
  */
 export function ProcessingTimeEstimator({
   isProcessing,
-  processed,
-  remaining,
+  progress,
   startTime,
   label = 'Est. time remaining',
   showRate = true,
@@ -34,6 +33,10 @@ export function ProcessingTimeEstimator({
   const totalProcessingTime = useRef<number>(0);
   const lastProcessedCount = useRef<number>(0);
   const lastTimestamp = useRef<number>(Date.now());
+
+  const processed = progress?.processedCount || 0;
+  const remaining =
+    (progress?.totalCount || 0) - (progress?.processedCount || 0);
 
   // Update the estimate every second while processing
   useEffect(() => {
@@ -106,8 +109,6 @@ export function ProcessingTimeEstimator({
     const minutes = Math.ceil((seconds % 3600) / 60);
     return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
   };
-
-  if (!estimatedTimeRemaining) return null;
 
   return (
     <div className="text-xs text-muted-foreground flex items-center gap-2">

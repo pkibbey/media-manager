@@ -16,7 +16,7 @@ import { processExifData } from './processExifData';
  * Process all unprocessed items with streaming updates
  * This function returns a ReadableStream that emits progress updates
  */
-export async function streamProcessUnprocessedItems({
+export async function streamExifUnprocessed({
   extractionMethod,
   batchSize,
 }: {
@@ -52,7 +52,9 @@ export async function streamProcessUnprocessedItems({
         ? 'Processing aborted by user'
         : error?.message || 'An unknown error occurred during EXIF processing',
     }).finally(() => {
-      writer.close().catch(console.error);
+      if (!writer.closed) {
+        writer.close().catch(console.error);
+      }
     });
   });
 

@@ -410,7 +410,9 @@ export async function scanFolders(options: ScanOptions = {}) {
       });
 
       // Close the stream
-      await writer.close();
+      if (!writer.closed) {
+        await writer.close();
+      }
     } catch (error: any) {
       console.error('Error during scan:', error);
 
@@ -425,7 +427,9 @@ export async function scanFolders(options: ScanOptions = {}) {
         message: isAbortError ? 'Scan aborted by user' : 'Error during scan',
         error: isAbortError ? 'Operation cancelled' : error.message,
       });
-      await writer.close();
+      if (!writer.closed) {
+        await writer.close();
+      }
     }
   }
 
