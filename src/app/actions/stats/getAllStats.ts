@@ -16,7 +16,7 @@ export async function getAllStats(): Promise<{
   // Get total count of media items
   const { count: totalCount, error: totalError } = await supabase
     .from('media_items')
-    .select('id, file_types!inner(*)', { count: 'exact', head: true });
+    .select('id', { count: 'exact', head: true });
   if (totalError) throw totalError;
 
   // Get total size of all media
@@ -26,14 +26,16 @@ export async function getAllStats(): Promise<{
   if (sizeError) throw sizeError;
 
   // Get exif processing success count
-  const { count: processedCount, error: processedError } = await supabase
+  const { count: exifCount, error: exifError } = await supabase
     .from('media_items')
-    .select('id, processing_states!inner(*), file_types!inner(*)', {
+    .select('id, processing_states!inner(*)', {
       count: 'exact',
       head: true,
     })
     .eq('processing_states.type', 'exif');
-  if (processedError) throw processedError;
+
+  console.log('exifCount: ', exifCount);
+  if (exifError) throw exifError;
 
   // Get exif processing error count
   const { count: erroredCount, error: erroredError } = await supabase
@@ -81,7 +83,7 @@ export async function getAllStats(): Promise<{
     data: {
       totalMediaItems: totalCount || 0,
       totalSizeBytes: sizeData?.sum || 0,
-      processedCount: processedCount || 0,
+      exifCount: exifCount || 0,
       erroredCount: erroredCount || 0,
       ignoredCount: ignoredCount || 0,
       skippedCount: skippedCount || 0,

@@ -8,7 +8,7 @@ import {
 import { getAllStats } from '@/app/actions/stats/getAllStats';
 import { formatBytes } from '@/lib/utils';
 
-export default async function MediaStats() {
+export default async function AllMediaStats() {
   // Fetch both basic stats and detailed stats (categories and extensions)
   const { data, success, error } = await getAllStats();
 
@@ -23,7 +23,7 @@ export default async function MediaStats() {
   // Calculate percentages for progress bars - using only non-ignored files
   const processedPercentage =
     data.totalMediaItems > 0
-      ? (data.processedCount / data.totalMediaItems) * 100
+      ? (data.exifCount / data.totalMediaItems) * 100
       : 0;
 
   // Function to get appropriate icon for a category
@@ -61,7 +61,7 @@ export default async function MediaStats() {
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Processed</div>
           <div className="text-2xl font-bold">
-            {data.processedCount}{' '}
+            {data.exifCount}{' '}
             <span className="text-sm font-normal text-muted-foreground">
               / {data.totalMediaItems}
             </span>
@@ -100,7 +100,7 @@ export default async function MediaStats() {
               <span>Processing</span>
             </div>
             <span className="text-muted-foreground">
-              {data.processedCount} / {data.totalMediaItems}
+              {data.exifCount} / {data.totalMediaItems}
             </span>
           </div>
           <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">

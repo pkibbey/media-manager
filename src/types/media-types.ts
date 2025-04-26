@@ -22,7 +22,7 @@ export interface MediaFilters {
 export type AllMediaStats = {
   totalMediaItems: number;
   totalSizeBytes: number;
-  processedCount: number;
+  exifCount: number;
   erroredCount: number;
   ignoredCount: number;
   skippedCount: number;
