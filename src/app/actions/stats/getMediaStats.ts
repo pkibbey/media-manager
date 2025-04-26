@@ -1,12 +1,12 @@
 'use server';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { calculatePercentages } from '@/lib/utils';
-import type { StatsResponse, UnifiedStats } from '@/types/unified-stats';
+import type { UnifiedStats } from '@/types/unified-stats';
 
 /**
  * Get comprehensive statistics about media items in the system
  */
-export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
+export async function getMediaStats(): Promise<UnifiedStats> {
   const supabase = createServerSupabaseClient();
 
   // Get total count of media items
@@ -31,7 +31,7 @@ export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
   if (processedError) throw processedError;
 
   // Get exif processing error count
-  const { count: erroredCount, error: erroredError } = await supabase
+  const { count: failureCount, error: erroredError } = await supabase
     .from('media_items')
     .select('id, processing_states!inner(*), file_types!inner(*)', {
       count: 'exact',
@@ -40,52 +40,20 @@ export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
     .in('file_types.category', ['image', 'video'])
     .eq('file_types.ignore', false)
     .eq('processing_states.type', 'exif')
-    .eq('processing_states.status', 'error');
+    .eq('processing_states.status', 'failure');
   if (erroredError) throw erroredError;
-
-  // Get exif processing skipped count
-  const { count: skippedCount, error: skippedError } = await supabase
-    .from('media_items')
-    .select('id, processing_states!inner(*), file_types!inner(*)', {
-      count: 'exact',
-      head: true,
-    })
-    .in('file_types.category', ['image', 'video'])
-    .eq('file_types.ignore', false)
-    .eq('processing_states.type', 'exif')
-    .eq('processing_states.status', 'skipped');
-  if (skippedError) throw skippedError;
-
-  // Get ignored files count - this specifically counts files with ignored file types
-  const { count: ignoredCount, error: ignoredError } = await supabase
-    .from('media_items')
-    .select('id, processing_states!inner(*), file_types!inner(*)', {
-      count: 'exact',
-      head: true,
-    })
-    .in('file_types.category', ['image', 'video'])
-    .eq('file_types.ignore', false)
-    .eq('file_types.ignore', true);
-  if (ignoredError) throw ignoredError;
 
   // Create counts for new unified format
   const counts = {
     total: totalCount || 0,
     success: processedCount || 0,
-    failed: erroredCount || 0,
-    skipped: skippedCount || 0,
-    ignored: ignoredCount || 0,
+    failed: failureCount || 0,
   };
 
-  const unifiedStats: UnifiedStats = {
+  return {
     status: 'success',
     message: `${counts.success} of ${counts.total} files processed`,
     counts,
     percentages: calculatePercentages(counts),
-  };
-
-  return {
-    success: true,
-    data: unifiedStats,
   };
 }

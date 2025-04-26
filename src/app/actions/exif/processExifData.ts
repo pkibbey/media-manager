@@ -3,8 +3,8 @@
 import { extractAndSanitizeExifData } from '@/lib/exif-utils';
 import {
   handleProcessingError,
+  markProcessingError,
   markProcessingSuccess,
-  markProcessingSkipped,
 } from '@/lib/processing-helpers';
 import { getMediaItemById, updateMediaItem } from '@/lib/query-helpers';
 import type { ExtractionMethod } from '@/types/exif';
@@ -32,13 +32,13 @@ export async function processExifData({
       await getMediaItemById(mediaId);
 
     if (fetchError || !mediaItem) {
-      console.error('Error fetching media item:', fetchError);
       return {
         success: false,
         message: fetchError?.message || 'Media item not found',
       };
     }
 
+    console.log('fetchError: ', fetchError);
     // Extract EXIF data
     const extraction = await extractAndSanitizeExifData(
       mediaItem.file_path,
@@ -51,10 +51,10 @@ export async function processExifData({
       progressCallback?.('No EXIF data found in file');
 
       // Use the new helper function for skipping items
-      await markProcessingSkipped({
+      await markProcessingError({
         mediaItemId: mediaId,
         type: 'exif',
-        reason: extraction.message || 'No EXIF data found in file',
+        error: extraction.message || 'No EXIF data found in file',
       });
 
       return {
@@ -100,11 +100,12 @@ export async function processExifData({
       exifData: extraction.exifData,
     };
   } catch (error) {
+    console.log('error: ', error);
     const errorMessage =
       error instanceof Error
         ? error.message
         : 'Unknown error processing EXIF data';
-    progressCallback?.(`Error: ${errorMessage}`);
+    progressCallback?.(`Error processing EXIF: ${errorMessage}`);
     console.error('Error processing EXIF data:', error);
 
     // Use our new helper function for error processing

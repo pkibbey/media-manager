@@ -1,17 +1,19 @@
 import { Progress } from '@/components/ui/progress';
+import { UnifiedProgressDisplay } from '@/components/ui/unified-progress-display';
+import { UnifiedStatsDisplay } from '@/components/ui/unified-stats-display';
+import { calculatePercentages } from '@/lib/utils';
 import { ScanButton } from './ScanButton';
-import { ScanProgress } from './ScanProgress';
 import { useScanFolders } from './useScanFolders';
 
 export function ScanFoldersTriggerContainer() {
-  const { isScanning, progress, startScan, cancelScan } = useScanFolders();
+  const { stats, progress, isScanning, startScan, cancelScan } =
+    useScanFolders();
 
-  const progressPercent =
-    progress?.status === 'processing' &&
-    progress.filesDiscovered !== undefined &&
-    progress.filesProcessed !== undefined
-      ? (progress.filesProcessed / Math.max(progress.filesDiscovered, 1)) * 100
-      : 0;
+  const processedPercentage = calculatePercentages({
+    success: (progress?.successCount || 0) + (progress?.failureCount || 0),
+    total: progress?.totalCount || 0,
+    failed: progress?.failureCount || 0,
+  });
 
   return (
     <div className="space-y-4">
@@ -24,7 +26,18 @@ export function ScanFoldersTriggerContainer() {
           </p>
         </div>
 
-        <Progress value={progressPercent} className="h-2" />
+        {!isScanning && (
+          <UnifiedStatsDisplay
+            stats={stats}
+            title={''}
+            description={''}
+            className="w-full"
+          />
+        )}
+
+        {isScanning && (
+          <Progress value={processedPercentage.completed} className="h-2" />
+        )}
 
         <ScanButton
           isScanning={isScanning}
@@ -34,7 +47,9 @@ export function ScanFoldersTriggerContainer() {
         />
       </div>
 
-      {progress && <ScanProgress progress={progress} />}
+      {progress && (
+        <UnifiedProgressDisplay progress={progress} isProcessing={isScanning} />
+      )}
     </div>
   );
 }

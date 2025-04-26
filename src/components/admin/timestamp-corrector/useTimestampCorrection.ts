@@ -23,8 +23,8 @@ export function useTimestampCorrection() {
     // Initialize with the initial value and fetch updated stats
     fetchStats: async () => {
       try {
-        const { success, data } = await getMediaStats();
-        return success ? data : undefined;
+        const data = await getMediaStats();
+        return data;
       } catch (error) {
         console.error('Error fetching timestamp correction stats:', error);
         return undefined;

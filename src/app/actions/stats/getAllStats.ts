@@ -26,34 +26,14 @@ export async function getAllStats(): Promise<{
   if (sizeError) throw sizeError;
 
   // Get error total count
-  const { count: erroredCount, error: erroredError } = await supabase
+  const { count: failureCount, error: erroredError } = await supabase
     .from('media_items')
     .select('id, processing_states!inner(*)', {
       count: 'exact',
       head: true,
     })
-    .in('processing_states.status', ['error', 'failed', 'aborted']);
+    .eq('processing_states.status', 'failed');
   if (erroredError) throw erroredError;
-
-  // Get total skipped count
-  const { count: skippedCount, error: skippedError } = await supabase
-    .from('media_items')
-    .select('id, processing_states!inner(*)', {
-      count: 'exact',
-      head: true,
-    })
-    .eq('processing_states.status', 'skipped');
-  if (skippedError) throw skippedError;
-
-  // Get ignored files count
-  const { count: ignoredCount, error: ignoredError } = await supabase
-    .from('media_items')
-    .select('id, file_types!inner(*)', {
-      count: 'exact',
-      head: true,
-    })
-    .eq('file_types.ignore', true);
-  if (ignoredError) throw ignoredError;
 
   // Get timestamp correction needs
   const { count: timestampCorrectionCount } = await supabase
@@ -71,9 +51,7 @@ export async function getAllStats(): Promise<{
     success: true,
     data: {
       totalCount: totalCount || 0,
-      erroredCount: erroredCount || 0,
-      ignoredCount: ignoredCount || 0,
-      skippedCount: skippedCount || 0,
+      failureCount: failureCount || 0,
       totalSizeBytes: sizeData?.sum || 0,
       timestampCorrectionCount: timestampCorrectionCount || 0,
     },

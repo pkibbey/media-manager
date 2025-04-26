@@ -211,7 +211,6 @@ export type Database = {
           total: number;
           success: number;
           failed: number;
-          skipped: number;
         }[];
       };
       get_extension_statistics: {

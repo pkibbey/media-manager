@@ -11,7 +11,7 @@ export interface UnifiedStats {
   /**
    * A human-readable message describing the current stats
    */
-  message?: string;
+  message: string;
 
   /**
    * An optional error message if status is 'error'
@@ -30,56 +30,26 @@ export interface UnifiedStats {
     /**
      * Count of items successfully processed
      */
-    success?: number;
+    success: number;
 
     /**
      * Count of items that failed processing
      */
-    failed?: number;
-
-    /**
-     * Count of items that were skipped
-     */
-    skipped?: number;
-
-    /**
-     * Count of items ignored (e.g., due to file type)
-     */
-    ignored?: number;
+    failed: number;
   };
 
   /**
    * Optional percentages calculated from counts
    */
-  percentages?: {
+  percentages: {
     /**
      * Completion percentage (0-100)
      */
-    completed?: number;
+    completed: number;
 
     /**
      * Error percentage (0-100)
      */
-    error?: number;
+    error: number;
   };
-}
-
-/**
- * Generic success response with stats
- */
-export interface StatsResponse<T extends UnifiedStats = UnifiedStats> {
-  /**
-   * Whether the request was successful
-   */
-  success: boolean;
-
-  /**
-   * The stats data
-   */
-  data?: T;
-
-  /**
-   * An optional error message
-   */
-  error?: string;
 }

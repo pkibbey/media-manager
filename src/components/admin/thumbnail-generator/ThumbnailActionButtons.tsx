@@ -20,10 +20,7 @@ export function ThumbnailActionButtons({
 }: ThumbnailActionButtonsProps) {
   const totalCount = stats?.counts?.total || 0;
   const processedCount =
-    (stats?.counts?.success || 0) +
-    (stats?.counts?.failed || 0) +
-    (stats?.counts?.skipped || 0) +
-    (stats?.counts?.ignored || 0);
+    (stats?.counts?.success || 0) + (stats?.counts?.failed || 0);
   const filesPending = totalCount - processedCount;
 
   return (

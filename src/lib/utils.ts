@@ -492,9 +492,12 @@ export function calculatePercentages(
   counts: UnifiedStats['counts'],
 ): UnifiedStats['percentages'] {
   const total = counts.total || 0;
-  if (total === 0) return {};
+  const percentages: UnifiedStats['percentages'] = {
+    completed: 0,
+    error: 0,
+  };
 
-  const percentages: UnifiedStats['percentages'] = {};
+  if (total === 0) return percentages;
 
   // Calculate completed percentage
   if (counts.success !== undefined) {

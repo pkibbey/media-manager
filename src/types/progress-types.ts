@@ -14,7 +14,6 @@ export interface UnifiedProgress {
   totalCount?: number;
   successCount?: number;
   failureCount?: number;
-  skippedCount?: number;
   averageTimeMs?: number;
   estimatedTimeMs?: number;
   mediaItemId?: string;

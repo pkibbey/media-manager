@@ -8,7 +8,6 @@ import {
   getMimeTypeByExtension,
 } from '@/lib/file-types-utils';
 import {
-  markProcessingAborted,
   markProcessingError,
   markProcessingStarted,
   markProcessingSuccess,
@@ -49,10 +48,10 @@ export async function scanFolders(options: ScanOptions = {}) {
 
   // Set up a cleanup function on the stream
   const originalCancel = stream.readable.cancel;
-  stream.readable.cancel = async (reason) => {
+  stream.readable.cancel = async (message) => {
     aborted = true;
     // Call the original cancel method
-    return originalCancel?.call(stream.readable, reason);
+    return originalCancel?.call(stream.readable, message);
   };
 
   // Return the readable stream
@@ -68,7 +67,6 @@ export async function scanFolders(options: ScanOptions = {}) {
       // Initialize counters
       let totalFilesDiscovered = 0;
       let totalFilesProcessed = 0;
-      let totalFilesSkipped = 0;
       let newFilesAdded = 0;
 
       const newFileTypes = new Set<string>();
@@ -124,7 +122,6 @@ export async function scanFolders(options: ScanOptions = {}) {
             message: 'Scan aborted by user',
             totalCount: totalFilesDiscovered,
             processedCount: totalFilesProcessed,
-            skippedCount: totalFilesSkipped,
             metadata: {
               processingType: 'scan',
               newFilesAdded,
@@ -188,7 +185,6 @@ export async function scanFolders(options: ScanOptions = {}) {
                 message: `Processing files ${i + 1} to ${Math.min(i + BATCH_SIZE, files.length)} of ${files.length} in ${folder.path}`,
                 totalCount: totalFilesDiscovered,
                 processedCount: totalFilesProcessed,
-                skippedCount: totalFilesSkipped,
                 metadata: {
                   processingType: 'scan',
                   folderPath: folder.path,
@@ -203,10 +199,10 @@ export async function scanFolders(options: ScanOptions = {}) {
                 // Mark any existing file as aborted if we were actively processing it
                 const { data: existingFile } = await checkFileExists(file.path);
                 if (existingFile?.id) {
-                  await markProcessingAborted({
+                  await markProcessingError({
                     mediaItemId: existingFile.id,
                     type: 'scan',
-                    reason: 'Scan aborted by user',
+                    error: 'Scan aborted by user',
                   });
                 }
                 // Break out of the file processing loop
@@ -220,7 +216,6 @@ export async function scanFolders(options: ScanOptions = {}) {
                 // Skip if no extension
                 if (!fileExt) {
                   totalFilesProcessed++;
-                  totalFilesSkipped++;
                   continue;
                 }
 
@@ -248,7 +243,6 @@ export async function scanFolders(options: ScanOptions = {}) {
                   existingFile.size_bytes === stats.size
                 ) {
                   totalFilesProcessed++;
-                  totalFilesSkipped++;
                   continue;
                 }
 
@@ -295,7 +289,6 @@ export async function scanFolders(options: ScanOptions = {}) {
                 if (fileTypeId === null) {
                   // If we couldn't get a file type ID, skip this file
                   totalFilesProcessed++;
-                  totalFilesSkipped++;
                   continue;
                 }
 
@@ -384,7 +377,6 @@ export async function scanFolders(options: ScanOptions = {}) {
                     message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files`,
                     totalCount: totalFilesDiscovered,
                     processedCount: totalFilesProcessed,
-                    skippedCount: totalFilesSkipped,
                     metadata: {
                       processingType: 'scan',
                       folderPath: folder.path,
@@ -429,10 +421,9 @@ export async function scanFolders(options: ScanOptions = {}) {
       // Send final progress update
       await sendProgress(encoder, writer, {
         status: 'success',
-        message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, added ${newFilesAdded} new/updated files.`,
+        message: `Scan completed. Processed ${totalFilesProcessed} files, added ${newFilesAdded} new/updated files.`,
         totalCount: totalFilesDiscovered,
         processedCount: totalFilesProcessed,
-        skippedCount: totalFilesSkipped,
         metadata: {
           processingType: 'scan',
           newFilesAdded,

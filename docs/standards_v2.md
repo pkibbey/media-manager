@@ -101,7 +101,7 @@ Processing state management has been standardized with dedicated utility functio
   - `error`: Operation encountered an error
   - `skipped`: Item was intentionally skipped
   - `aborted`: Operation was manually canceled
-  - `failed`: Operation failed for reasons other than error
+  - `failed`: Operation failed for messages other than error
 
 ### Process State Helpers
 

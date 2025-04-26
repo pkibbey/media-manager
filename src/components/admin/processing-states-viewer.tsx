@@ -128,8 +128,8 @@ export function ProcessingStatesViewer() {
       <CardHeader>
         <CardTitle>Processing States Monitor</CardTitle>
         <CardDescription>
-          View and analyze processing states, including errors, aborted,
-          skipped, and failed states
+          View and analyze processing states, including success and failed
+          states
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -165,10 +165,7 @@ export function ProcessingStatesViewer() {
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="error">Error</SelectItem>
-                <SelectItem value="aborted">Aborted</SelectItem>
-                <SelectItem value="skipped">Skipped</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
                 <SelectItem value="success">Success</SelectItem>
               </SelectContent>
             </Select>
@@ -249,7 +246,7 @@ export function ProcessingStatesViewer() {
                     </TableCell>
                     <TableCell>{state.type}</TableCell>
                     <TableCell>
-                      {state.media_item?.file_name || 'Unknown file'}
+                      {state.media_item_id || 'Unknown file'}
                     </TableCell>
                     <TableCell>
                       {state.processed_at

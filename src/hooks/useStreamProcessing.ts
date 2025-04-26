@@ -171,7 +171,7 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         : null,
     );
 
-    // Mark the current processing item as aborted (now mapped to 'failure')
+    // Mark the current processing item as failure
     try {
       // If we have a specific currentItem identifier
       if (progress?.mediaItemId) {

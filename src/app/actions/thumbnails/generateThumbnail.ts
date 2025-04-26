@@ -20,8 +20,6 @@ import { convertHeicToJpeg } from './convertHeicToJpeg';
 export async function generateThumbnail(mediaId: string): Promise<
   ThumbnailGenerationResponse & {
     thumbnailUrl?: string;
-    skipped?: boolean;
-    skippedReason?: string;
     fileName?: string;
   }
 > {
@@ -148,7 +146,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       } else {
         // For all other image formats, use Sharp directly with enhanced error handling
         thumbnailBuffer = await sharp(mediaItem.file_path, {
-          limitInputPixels: 30000 * 30000, // Allow reasonably large images
+          limitInputPixels: 30000 * 30000, // Allow messageably large images
           failOnError: false, // Don't fail on corrupt images or unsupported features
         })
           .rotate()

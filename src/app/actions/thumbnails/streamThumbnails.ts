@@ -1,9 +1,7 @@
 'use server';
 
 import {
-  markProcessingAborted,
   markProcessingError,
-  markProcessingSkipped,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
 import { sendProgress } from '@/lib/query-helpers';
@@ -55,10 +53,10 @@ export async function streamThumbnails({
 
   // Set up a cleanup function on the stream
   const originalCancel = stream.readable.cancel;
-  stream.readable.cancel = async (reason) => {
+  stream.readable.cancel = async (message) => {
     aborted = true;
     // Call the original cancel method
-    return originalCancel?.call(stream.readable, reason);
+    return originalCancel?.call(stream.readable, message);
   };
 
   // Return the readable stream
@@ -76,7 +74,6 @@ export async function streamThumbnails({
       let totalItemsProcessed = 0;
       let totalSuccessCount = 0;
       let totalFailedCount = 0;
-      let totalSkippedLargeFilesCount = 0;
       let totalFilesDiscovered = 0;
 
       // For Infinity mode, we'll use a loop to process in chunks
@@ -104,7 +101,6 @@ export async function streamThumbnails({
             processedCount: 0,
             successCount: 0,
             failureCount: 0,
-            skippedCount: 0,
             metadata: {
               processingType: 'thumbnail',
             },
@@ -124,7 +120,6 @@ export async function streamThumbnails({
         let batchProcessedCount = 0;
         let batchSuccessCount = 0;
         let batchFailedCount = 0;
-        let batchSkippedLargeFilesCount = 0;
 
         // Send initial progress update for this batch
         await sendProgress(encoder, writer, {
@@ -138,7 +133,6 @@ export async function streamThumbnails({
           processedCount: totalItemsProcessed,
           successCount: totalSuccessCount,
           failureCount: totalFailedCount,
-          skippedCount: totalSkippedLargeFilesCount,
           metadata: {
             processingType: 'thumbnail',
             fileType: unprocessedFiles[0]?.file_types?.extension,
@@ -149,10 +143,10 @@ export async function streamThumbnails({
           // Check for abort signal at the start of each iteration
           if (aborted) {
             // Mark this item as aborted using our helper
-            await markProcessingAborted({
+            await markProcessingError({
               mediaItemId: media.id,
               type: 'thumbnail',
-              reason: 'Thumbnail generation aborted by user',
+              error: 'Thumbnail generation aborted by user',
             });
             break;
           }
@@ -174,9 +168,6 @@ export async function streamThumbnails({
               failureCount: isInfinityMode
                 ? totalFailedCount
                 : batchFailedCount,
-              skippedCount: isInfinityMode
-                ? totalSkippedLargeFilesCount
-                : batchSkippedLargeFilesCount,
               metadata: {
                 processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
@@ -191,27 +182,15 @@ export async function streamThumbnails({
             totalItemsProcessed++;
 
             if (result.success) {
-              if (result.skipped) {
-                batchSkippedLargeFilesCount++;
-                totalSkippedLargeFilesCount++;
+              batchSuccessCount++;
+              totalSuccessCount++;
 
-                // Mark explicitly as skipped in the database using our helper
-                await markProcessingSkipped({
-                  mediaItemId: media.id,
-                  type: 'thumbnail',
-                  reason: result.message || 'Skipped large file',
-                });
-              } else {
-                batchSuccessCount++;
-                totalSuccessCount++;
-
-                // Mark as success
-                await markProcessingSuccess({
-                  mediaItemId: media.id,
-                  type: 'thumbnail',
-                  message: result.message || 'Thumbnail generated successfully',
-                });
-              }
+              // Mark as success
+              await markProcessingSuccess({
+                mediaItemId: media.id,
+                type: 'thumbnail',
+                message: result.message || 'Thumbnail generated successfully',
+              });
             } else {
               batchFailedCount++;
               totalFailedCount++;
@@ -240,9 +219,6 @@ export async function streamThumbnails({
               failureCount: isInfinityMode
                 ? totalFailedCount
                 : batchFailedCount,
-              skippedCount: isInfinityMode
-                ? totalSkippedLargeFilesCount
-                : batchSkippedLargeFilesCount,
               metadata: {
                 processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
@@ -257,9 +233,10 @@ export async function streamThumbnails({
               aborted = true;
 
               // Mark this item as aborted using our helper
-              await markProcessingAborted({
+              await markProcessingError({
                 mediaItemId: media.id,
                 type: 'thumbnail',
+                error: 'Thumbnail generation aborted by user',
               });
 
               await sendProgress(encoder, writer, {
@@ -271,7 +248,6 @@ export async function streamThumbnails({
                 processedCount: totalItemsProcessed,
                 successCount: totalSuccessCount,
                 failureCount: totalFailedCount,
-                skippedCount: totalSkippedLargeFilesCount,
                 metadata: {
                   processingType: 'thumbnail',
                   fileType: media.file_types?.extension,
@@ -315,9 +291,6 @@ export async function streamThumbnails({
               failureCount: isInfinityMode
                 ? totalFailedCount
                 : batchFailedCount,
-              skippedCount: isInfinityMode
-                ? totalSkippedLargeFilesCount
-                : batchSkippedLargeFilesCount,
               metadata: {
                 processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
@@ -337,7 +310,6 @@ export async function streamThumbnails({
             processedCount: totalItemsProcessed,
             successCount: totalSuccessCount,
             failureCount: totalFailedCount,
-            skippedCount: totalSkippedLargeFilesCount,
             metadata: {
               processingType: 'thumbnail',
             },
@@ -357,7 +329,6 @@ export async function streamThumbnails({
             processedCount: totalItemsProcessed,
             successCount: totalSuccessCount,
             failureCount: totalFailedCount,
-            skippedCount: totalSkippedLargeFilesCount,
             isBatchComplete: true,
             metadata: {
               processingType: 'thumbnail',
@@ -372,8 +343,8 @@ export async function streamThumbnails({
 
       // Send final progress update
       const finalMessage = isInfinityMode
-        ? `All processing completed. Generated ${totalSuccessCount} thumbnails (${totalFailedCount} failed, ${totalSkippedLargeFilesCount} skipped)`
-        : `Thumbnail generation completed. Generated ${totalSuccessCount} thumbnails (${totalFailedCount} failed, ${totalSkippedLargeFilesCount} skipped)`;
+        ? `All processing completed. Generated ${totalSuccessCount} thumbnails (${totalFailedCount} failed)`
+        : `Thumbnail generation completed. Generated ${totalSuccessCount} thumbnails (${totalFailedCount} failed)`;
 
       await sendProgress(encoder, writer, {
         status: 'success',
@@ -382,7 +353,6 @@ export async function streamThumbnails({
         processedCount: totalItemsProcessed,
         successCount: totalSuccessCount,
         failureCount: totalFailedCount,
-        skippedCount: totalSkippedLargeFilesCount,
         isBatchComplete: true,
         metadata: {
           processingType: 'thumbnail',

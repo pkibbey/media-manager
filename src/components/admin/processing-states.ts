@@ -1,10 +1,10 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { MediaItem, ProcessingState } from '@/types/db-types';
+import type { ProcessingState } from '@/types/db-types';
 
 export type ProcessingStateWithMedia = ProcessingState & {
-  media_item?: MediaItem;
+  // media_item?: MediaItem;
 };
 
 export type ProcessingStatesResponse = {
@@ -67,7 +67,7 @@ export async function getProcessingStates({
 
     return {
       success: true,
-      data: data as ProcessingStateWithMedia[],
+      data,
       counts,
     };
   } catch (error) {

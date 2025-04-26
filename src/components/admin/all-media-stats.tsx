@@ -22,11 +22,9 @@ export default async function AllMediaStats() {
 
   // Calculate percentages for progress bars - using only non-ignored files
   const processedPercentage = calculatePercentages({
-    success: data.erroredCount + data.ignoredCount + data.skippedCount,
+    success: data.totalCount - data.failureCount,
     total: data.totalCount,
-    ignored: data.ignoredCount,
-    failed: data.erroredCount,
-    skipped: data.skippedCount,
+    failed: data.failureCount,
   });
 
   // Function to get appropriate icon for a category
@@ -95,7 +93,7 @@ export default async function AllMediaStats() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            {data.erroredCount} items errored
+            {data.failureCount} items errored
           </p>
         </div>
       </div>

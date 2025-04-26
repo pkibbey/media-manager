@@ -15,7 +15,6 @@ export type ThumbnailStats = {
   totalCompatibleFiles: number;
   filesWithThumbnails: number;
   filesPending: number;
-  skippedLargeFiles: number;
 } | null;
 
 export function useThumbnailGenerator() {
@@ -52,9 +51,8 @@ export function useThumbnailGenerator() {
   } = useProcessorBase<UnifiedProgress, UnifiedStats | null>({
     fetchStats: async () => {
       const result = await getThumbnailStats();
-      const stats = result.success && result.data ? result.data : null;
-      if (stats) setThumbnailStatsRef(stats);
-      return stats;
+      if (result) setThumbnailStatsRef(result);
+      return result;
     },
     getStreamFunction,
     defaultBatchSize: BATCH_SIZE,

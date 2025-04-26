@@ -17,18 +17,18 @@ export async function getExifStats(): Promise<UnifiedStats> {
   if (error) throw error;
 
   // The RPC returns an array with a single object
-  const stats = data?.[0] || { total: 0, success: 0, failed: 0, skipped: 0 };
+  // Convert any potential bigint values to JavaScript numbers
+  const rawStats = data?.[0] || { total: 0, success: 0, failed: 0 };
 
   const counts = {
-    total: stats.total ?? 0,
-    success: stats.success ?? 0,
-    failed: stats.failed ?? 0,
-    skipped: stats.skipped ?? 0,
+    total: Number(rawStats.total) || 0,
+    success: Number(rawStats.success) || 0,
+    failed: Number(rawStats.failed) || 0,
   };
 
   const unifiedStats: UnifiedStats = {
     status: 'success',
-    message: `${counts.success} of ${counts.total} files have EXIF data`,
+    message: `${counts.success} of ${counts.total} images have EXIF data`,
     counts,
     percentages: calculatePercentages(counts),
   };

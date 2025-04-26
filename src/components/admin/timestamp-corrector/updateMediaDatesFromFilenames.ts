@@ -2,9 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import {
-  markProcessingAborted,
   markProcessingError,
-  markProcessingFailed,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
@@ -79,31 +77,13 @@ export async function updateMediaDatesFromFilenames({
       try {
         processedItemsCount++;
 
-        // Check for existing processing state to see if this was previously aborted
-        const { data: existingState } = await supabase
-          .from('processing_states')
-          .select('status')
-          .eq('media_item_id', item.id)
-          .eq('type', PROCESSING_TYPE_TIMESTAMP_CORRECTION)
-          .maybeSingle();
-
-        // If this specific processing was previously aborted, update status to retry
-        if (existingState?.status === 'aborted') {
-          // Update the status to indicate we're retrying
-          await markProcessingSuccess({
-            mediaItemId: item.id,
-            type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-            message: 'Retrying after previous abort',
-          });
-        }
-
         // Check if the operation has been requested to abort
         if (isAborted) {
           // Mark as aborted
-          await markProcessingAborted({
+          await markProcessingError({
             mediaItemId: item.id,
             type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-            reason: 'Processing aborted by user',
+            error: 'Processing aborted by user',
           });
           continue;
         }
@@ -150,10 +130,10 @@ export async function updateMediaDatesFromFilenames({
             `Could not extract date from filename: ${item.file_name}. Marking as failed.`,
           );
 
-          await markProcessingFailed({
+          await markProcessingError({
             mediaItemId: item.id,
             type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-            reason: 'Could not parse date from filename',
+            error: 'Could not parse date from filename',
           });
         }
       } catch (itemError: any) {
@@ -165,9 +145,10 @@ export async function updateMediaDatesFromFilenames({
           isAborted = true;
 
           // Mark this item as aborted
-          await markProcessingAborted({
+          await markProcessingError({
             mediaItemId: item.id,
             type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
+            error: 'Processing aborted by user',
           });
 
           // Continue to next item, which will then be skipped due to isAborted flag

@@ -21,9 +21,7 @@ export interface MediaFilters {
  */
 export type AllMediaStats = {
   totalCount: number;
-  erroredCount: number;
-  ignoredCount: number;
-  skippedCount: number;
+  failureCount: number;
   totalSizeBytes: number;
   timestampCorrectionCount: number;
 };

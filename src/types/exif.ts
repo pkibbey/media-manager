@@ -25,7 +25,7 @@ export type ExifProgress = {
   filesProcessed?: number;
   totalFiles?: number;
   successCount?: number;
-  failedCount?: number;
+  failureCount?: number;
   error?: string;
   currentFilePath?: string;
   // New property to track error details

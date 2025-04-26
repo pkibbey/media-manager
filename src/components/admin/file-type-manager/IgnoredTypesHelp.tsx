@@ -41,7 +41,7 @@ export function IgnoredTypesHelp({
           </p>
           <ul className="list-disc pl-5 text-sm space-y-1 mb-2">
             <li>
-              Files with this extension will be skipped during folder scanning
+              Files with this extension will be ignored during media import
             </li>
             <li>
               Existing files with this extension will remain in the database

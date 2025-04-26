@@ -80,7 +80,6 @@ export function UnifiedProgressDisplay({
   const processedCount = progress.processedCount || 0;
   const successCount = progress.successCount || 0;
   const failureCount = progress.failureCount || 0;
-  const skippedCount = progress.skippedCount || 0;
   const percentComplete = progress.percentComplete || 0;
 
   // Determine component state
@@ -118,7 +117,6 @@ export function UnifiedProgressDisplay({
           {failureCount > 0 && (
             <span className="text-destructive">Failed: {failureCount}</span>
           )}
-          {skippedCount > 0 && <span>Skipped: {skippedCount}</span>}
         </div>
         <span>{percentComplete.toFixed(1)}%</span>
       </div>

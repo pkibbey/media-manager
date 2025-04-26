@@ -20,13 +20,3 @@ export type ScanFolder = Database['public']['Tables']['scan_folders']['Row'];
  */
 export type ProcessingState =
   Database['public']['Tables']['processing_states']['Row'];
-
-/**
- * ExifStatsResult represents statistics about EXIF extraction processing
- */
-export interface ExifStatsResult {
-  with_exif: number; // Files with successfully extracted EXIF data
-  with_errors: number; // Files processed with errors
-  skipped: number; // Files intentionally skipped during processing
-  total: number; // Total number of media items
-}

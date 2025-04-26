@@ -1,9 +1,3 @@
-# Important
-
--- When clicking on Generate 100 thumbnails, it appears to create the thumbnail, and update the thumbnail path, but it doesn't seem to add the thumbnail type to the processing states
-
--- fix Est. time remaining on all progress components
-
 # Less Important
 
 -- fix the drag and drop in file types
@@ -21,6 +15,8 @@
 -- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder
 
 # Much Less Important
+
+- Improve the performance of the database queries
 
 -- Generate video thumbnails
 

@@ -4,13 +4,7 @@ import { useCallback } from 'react';
 import { scanFolders } from '@/app/actions/scan';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { UnifiedProgress } from '@/types/progress-types';
-
-export interface ScanStats {
-  totalFolders: number;
-  totalFiles: number;
-  completedFiles: number;
-  pendingFiles: number;
-}
+import type { UnifiedStats } from '@/types/unified-stats';
 
 export function useScanFolders() {
   // Define stream function generator
@@ -28,14 +22,21 @@ export function useScanFolders() {
     handleCancel,
     stats,
     refreshStats,
-  } = useProcessorBase<UnifiedProgress, ScanStats>({
+  } = useProcessorBase<UnifiedProgress, UnifiedStats>({
     fetchStats: async () => {
       // This would be replaced with a real API call when available
       return {
-        totalFolders: 0,
-        totalFiles: 0,
-        completedFiles: 0,
-        pendingFiles: 0,
+        status: 'success',
+        message: 'Scan stats retrieved',
+        counts: {
+          total: 0,
+          success: 0,
+          failed: 0,
+        },
+        percentages: {
+          completed: 0,
+          error: 0,
+        },
       };
     },
     getStreamFunction,
@@ -53,6 +54,7 @@ export function useScanFolders() {
   };
 
   return {
+    stats,
     isScanning: isProcessing,
     progress,
     hasError,

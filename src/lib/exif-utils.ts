@@ -13,35 +13,27 @@ import { createServerSupabaseClient } from './supabase';
 async function extractMetadataWithSharp(
   filePath: string,
 ): Promise<Exif | null> {
-  try {
-    const extension = path.extname(filePath).toLowerCase();
-    const supportedExtensions = [
-      '.jpg',
-      '.jpeg',
-      '.png',
-      '.webp',
-      '.tiff',
-      '.gif',
-      '.avif',
-    ];
+  const extension = path.extname(filePath).toLowerCase();
+  const supportedExtensions = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+    '.tiff',
+    '.gif',
+    '.avif',
+  ];
 
-    if (supportedExtensions.includes(extension)) {
-      const metadata = await sharp(filePath).metadata();
+  if (supportedExtensions.includes(extension)) {
+    const metadata = await sharp(filePath).metadata();
 
-      if (metadata.exif) {
-        try {
-          // Parse EXIF buffer from Sharp
-          return exifReader(metadata.exif);
-        } catch (exifParseError) {
-          console.error('Error parsing EXIF from Sharp:', exifParseError);
-        }
-      }
+    if (metadata.exif) {
+      // Parse EXIF buffer from Sharp
+      return exifReader(metadata.exif);
     }
-    return null;
-  } catch (error) {
-    console.error('Error extracting via Sharp:', error);
-    return null;
   }
+
+  return null;
 }
 
 /**
@@ -50,13 +42,8 @@ async function extractMetadataWithSharp(
 async function extractMetadataDirectOnly(
   filePath: string,
 ): Promise<Exif | null> {
-  try {
-    const fileBuffer = await fs.readFile(filePath);
-    return exifReader(fileBuffer);
-  } catch (error) {
-    console.error('Error extracting EXIF data directly:', error);
-    return null;
-  }
+  const fileBuffer = await fs.readFile(filePath);
+  return exifReader(fileBuffer);
 }
 
 /**
@@ -65,22 +52,17 @@ async function extractMetadataDirectOnly(
 async function extractMetadataMarkerOnly(
   filePath: string,
 ): Promise<Exif | null> {
-  try {
-    const fileBuffer = await fs.readFile(filePath);
-    // JPEG files typically have EXIF data starting after the APP1 marker (0xFFE1)
-    const app1Marker = Buffer.from([0xff, 0xe1]);
-    const markerIndex = fileBuffer.indexOf(app1Marker);
+  const fileBuffer = await fs.readFile(filePath);
+  // JPEG files typically have EXIF data starting after the APP1 marker (0xFFE1)
+  const app1Marker = Buffer.from([0xff, 0xe1]);
+  const markerIndex = fileBuffer.indexOf(app1Marker);
 
-    if (markerIndex !== -1) {
-      // Extract EXIF data block - skip the marker (2 bytes) and length (2 bytes)
-      const exifBlock = fileBuffer.slice(markerIndex + 4);
-      return exifReader(exifBlock);
-    }
-    return null;
-  } catch (error) {
-    console.error('Error extracting EXIF data via markers:', error);
-    return null;
+  if (markerIndex !== -1) {
+    // Extract EXIF data block - skip the marker (2 bytes) and length (2 bytes)
+    const exifBlock = fileBuffer.slice(markerIndex + 4);
+    return exifReader(exifBlock);
   }
+  return null;
 }
 
 /**
@@ -107,8 +89,7 @@ export async function extractMetadata({
         return await extractMetadataWithSharp(filePath);
     }
   } catch (error) {
-    console.error('Error extracting EXIF data:', error);
-    return null;
+    throw new Error(`Failed to extract EXIF data: ${error}`);
   }
 }
 
@@ -174,10 +155,7 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
     .is('processing_states', null)
     .limit(limit);
 
-  console.log('filesWithoutProcessingState: ', filesWithoutProcessingState);
-
   if (error1) {
-    console.error('Error fetching files without processing state:', error1);
     throw new Error('Failed to fetch unprocessed files');
   }
 
@@ -196,18 +174,17 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
     return filesWithoutProcessingState || [];
   }
 
-  // Get files with aborted or error processing states
+  // Get files with failed processing states
   const { data: filesWithNonSuccessState, error: error2 } = await supabase
     .from('media_items')
     .select('*, file_types(*), processing_states!inner(*)')
     .in('file_types.category', ['image'])
     .eq('file_types.ignore', false)
     .eq('processing_states.type', 'exif')
-    .in('processing_states.status', ['aborted', 'error'])
+    .eq('processing_states.status', 'failure')
     .limit(remainingLimit);
 
   if (error2) {
-    console.error('Error fetching files with non-success state:', error2);
     // Still return what we got from the first query
     return filesWithoutProcessingState || [];
   }
