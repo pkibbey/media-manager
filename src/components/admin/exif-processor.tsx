@@ -2,13 +2,12 @@
 
 import { useState } from 'react';
 import type { ExtractionMethod } from '@/types/exif';
+import { UnifiedProgressDisplay } from '../ui/unified-progress-display';
+import { UnifiedStatsDisplay } from '../ui/unified-stats-display';
 import { ExifActionButtons } from './exif-processor/ExifActionButtons';
 import { ExifErrorSummary } from './exif-processor/ExifErrorSummary';
 import { ExifProcessOptions } from './exif-processor/ExifProcessOptions';
-import { ExifProgressDisplay } from './exif-processor/ExifProgressDisplay';
-import { ExifStats } from './exif-processor/ExifStats';
 import { useExifProcessor } from './exif-processor/useExifProcessor';
-
 export default function ExifProcessor() {
   const [extractionMethod, setExtractionMethod] =
     useState<ExtractionMethod>('default');
@@ -16,7 +15,6 @@ export default function ExifProcessor() {
     stats,
     isProcessing,
     progress,
-    hasError,
     errorSummary,
     batchSize,
     setBatchSize,
@@ -27,18 +25,38 @@ export default function ExifProcessor() {
 
   return (
     <div className="overflow-hidden grid gap-4 space-y-4">
-      {!isProcessing && <ExifStats stats={stats} />}
+      {!isProcessing && (
+        <UnifiedStatsDisplay
+          stats={stats}
+          title="Exif Processor"
+          description="Process EXIF data for image files and store them in Supabase Storage. This helps improve performance by pre-processing EXIF data instead of creating it on-demand."
+          labels={{
+            success: 'files with exif',
+            pending: 'files need processing',
+          }}
+          tooltipContent={
+            <p>
+              EXIF extraction processes files in batches. Large files or
+              unsupported formats may take longer.
+            </p>
+          }
+        />
+      )}
 
-      <ExifProgressDisplay
-        isProcessing={isProcessing}
-        progress={progress}
-        processingStartTime={processingStartTime}
-        hasError={hasError}
-      />
+      {isProcessing && (
+        <UnifiedProgressDisplay
+          isProcessing={isProcessing}
+          progress={progress}
+          processingStartTime={processingStartTime}
+          title="Generating Thumbnails"
+          itemsLabel={progress?.metadata?.fileType || 'files'}
+          rateUnit="thumbnails/sec"
+        />
+      )}
 
       {!isProcessing && (
         <ExifProcessOptions
-          stats={stats}
+          progress={progress}
           extractionMethod={extractionMethod}
           setExtractionMethod={setExtractionMethod}
           batchSize={batchSize}
@@ -47,9 +65,10 @@ export default function ExifProcessor() {
         />
       )}
 
+      {/* Action Buttons only need stats, not progress */}
       <ExifActionButtons
-        isProcessing={isProcessing}
         stats={stats}
+        isProcessing={isProcessing}
         batchSize={batchSize}
         extractionMethod={extractionMethod}
         handleProcess={handleProcess}

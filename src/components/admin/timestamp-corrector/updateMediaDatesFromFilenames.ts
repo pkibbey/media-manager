@@ -1,7 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { includeMedia } from '@/lib/media-filters';
 import {
   markProcessingAborted,
   markProcessingError,
@@ -38,11 +37,11 @@ export async function updateMediaDatesFromFilenames({
     let isAborted = false;
 
     // Get items with missing media_date or all items if updateAll is true
-    let query = includeMedia(
-      supabase
-        .from('media_items')
-        .select('id, file_name, media_date, file_types!inner(*)'),
-    );
+    let query = supabase
+      .from('media_items')
+      .select('id, file_name, media_date, file_types!inner(*)')
+      .in('file_types.category', ['image', 'video'])
+      .eq('file_types.ignore', false);
 
     if (!updateAll) {
       query = query.is('media_date', null);

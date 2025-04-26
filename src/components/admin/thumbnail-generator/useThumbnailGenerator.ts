@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback, useState } from 'react';
 import {
   countMissingThumbnails,
@@ -39,7 +41,6 @@ export function useThumbnailGenerator() {
   const {
     isProcessing,
     progress,
-    hasError,
     errorSummary,
     batchSize,
     setBatchSize,
@@ -110,12 +111,8 @@ export function useThumbnailGenerator() {
           totalCount: calculatedTotal,
         }
       : null,
-    hasError,
     errorSummary,
-    detailProgress: progress,
-    successCount: progress?.successCount || 0,
-    failedCount: progress?.failedCount || 0,
-    thumbnailStats: stats,
+    stats: stats || thumbnailStatsRef,
     processingStartTime,
     batchSize,
     setBatchSize,

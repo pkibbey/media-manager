@@ -1,14 +1,10 @@
 import { Button } from '@/components/ui/button';
+import type { UnifiedStats } from '@/types/unified-stats';
 
 type ThumbnailActionButtonsProps = {
   isProcessing: boolean;
   isProcessingAll: boolean;
-  thumbnailStats: {
-    totalCompatibleFiles: number;
-    filesWithThumbnails: number;
-    filesPending: number;
-    skippedLargeFiles: number;
-  } | null;
+  stats: UnifiedStats | null;
   batchSize: number;
   onGenerateThumbnails: (processAll: boolean) => Promise<void>;
   onCancel: () => void;
@@ -17,28 +13,30 @@ type ThumbnailActionButtonsProps = {
 export function ThumbnailActionButtons({
   isProcessing,
   isProcessingAll,
-  thumbnailStats,
+  stats,
   batchSize,
   onGenerateThumbnails,
   onCancel,
 }: ThumbnailActionButtonsProps) {
+  const totalCount = stats?.counts?.total || 0;
+  const processedCount =
+    (stats?.counts?.success || 0) +
+    (stats?.counts?.failed || 0) +
+    (stats?.counts?.skipped || 0) +
+    (stats?.counts?.ignored || 0);
+  const filesPending = totalCount - processedCount;
+
   return (
     <div className="flex gap-2 flex-wrap">
       <Button
         onClick={() => onGenerateThumbnails(false)}
-        disabled={
-          isProcessing ||
-          !thumbnailStats ||
-          (thumbnailStats && thumbnailStats.filesPending === 0)
-        }
+        disabled={isProcessing || !stats}
       >
-        {!thumbnailStats
+        {!stats
           ? 'Loading...'
-          : thumbnailStats.filesPending === 0 && !isProcessing
-            ? 'All Thumbnails Generated'
-            : isProcessing && !isProcessingAll
-              ? 'Generating...'
-              : `Generate ${Math.min(batchSize, thumbnailStats?.filesPending || 0)} Thumbnails`}
+          : isProcessing && !isProcessingAll
+            ? 'Generating...'
+            : `Generate ${Math.min(batchSize, filesPending)} Thumbnails`}
       </Button>
 
       {isProcessing && (

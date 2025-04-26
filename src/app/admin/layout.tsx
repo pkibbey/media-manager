@@ -14,9 +14,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-      <PersistentTabs navItems={navItems} />
-      <div className="pt-6">{children}</div>
+      <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+      <PersistentTabs
+        navItems={navItems}
+        className="sticky top-0 py-2 bg-background z-10"
+      />
+      <div className="pt-4">{children}</div>
     </div>
   );
 }

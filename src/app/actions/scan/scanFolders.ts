@@ -24,10 +24,10 @@ import {
   updateMediaItem,
   upsertFileType,
 } from '@/lib/query-helpers';
-import type { ScanOptions } from '@/types/progress-types';
 
-// Define the processing type constant for scan operations
-const PROCESSING_TYPE_SCAN = 'scan';
+interface ScanOptions {
+  folderId?: number | null;
+}
 
 /**
  * Scan folders for media files and insert them into the database
@@ -88,16 +88,22 @@ export async function scanFolders(options: ScanOptions = {}) {
           status: 'success',
           message:
             'No folders configured for scanning. Add folders in admin panel.',
-          filesDiscovered: 0,
-          totalFiles: 0,
+          totalCount: 0,
+          processedCount: 0,
+          metadata: {
+            processingType: 'scan',
+          },
         });
         return;
       }
 
       // Send initial progress update
       await sendProgress(encoder, writer, {
-        status: 'processing',
+        status: null,
         message: `Starting scan of ${foldersToScan.length} folder(s)...`,
+        metadata: {
+          processingType: 'scan',
+        },
       });
 
       // Get existing file types for reference
@@ -114,10 +120,15 @@ export async function scanFolders(options: ScanOptions = {}) {
         // Check if scan has been aborted before starting a new folder
         if (aborted) {
           await sendProgress(encoder, writer, {
-            status: 'aborted',
+            status: 'failure',
             message: 'Scan aborted by user',
-            filesDiscovered: totalFilesDiscovered,
-            filesProcessed: totalFilesProcessed,
+            totalCount: totalFilesDiscovered,
+            processedCount: totalFilesProcessed,
+            skippedCount: totalFilesSkipped,
+            metadata: {
+              processingType: 'scan',
+              newFilesAdded,
+            },
           });
           return;
         }
@@ -128,19 +139,24 @@ export async function scanFolders(options: ScanOptions = {}) {
             await fs.access(folder.path);
           } catch (accessError) {
             await sendProgress(encoder, writer, {
-              status: 'error',
-              message: `Cannot access folder: ${folder.path}`,
-              error: `Folder does not exist or is inaccessible. ${accessError}`,
-              folderPath: folder.path,
+              status: 'failure',
+              message: `Folder does not exist or is inaccessible. ${accessError}`,
+              metadata: {
+                processingType: 'scan',
+                folderPath: folder.path,
+              },
             });
             continue; // Skip to next folder
           }
 
           // Send update that we're starting to scan this folder
           await sendProgress(encoder, writer, {
-            status: 'processing',
+            status: null,
             message: `Scanning folder: ${folder.path}${folder.include_subfolders ? ' (including subfolders)' : ''}`,
-            folderPath: folder.path,
+            metadata: {
+              processingType: 'scan',
+              folderPath: folder.path,
+            },
           });
 
           // Get all files in the folder (and optionally subfolders)
@@ -152,10 +168,13 @@ export async function scanFolders(options: ScanOptions = {}) {
           // Update discovered count and send update
           totalFilesDiscovered += files.length;
           await sendProgress(encoder, writer, {
-            status: 'processing',
+            status: null,
             message: `Found ${files.length} files in ${folder.path}`,
-            folderPath: folder.path,
-            filesDiscovered: totalFilesDiscovered,
+            totalCount: totalFilesDiscovered,
+            metadata: {
+              processingType: 'scan',
+              folderPath: folder.path,
+            },
           });
 
           // Process files in batches to avoid timeout
@@ -165,13 +184,16 @@ export async function scanFolders(options: ScanOptions = {}) {
             // Send batch progress update
             if (i > 0) {
               await sendProgress(encoder, writer, {
-                status: 'processing',
+                status: null,
                 message: `Processing files ${i + 1} to ${Math.min(i + BATCH_SIZE, files.length)} of ${files.length} in ${folder.path}`,
-                folderPath: folder.path,
-                filesDiscovered: totalFilesDiscovered,
-                filesProcessed: totalFilesProcessed,
-                newFilesAdded,
-                filesSkipped: totalFilesSkipped,
+                totalCount: totalFilesDiscovered,
+                processedCount: totalFilesProcessed,
+                skippedCount: totalFilesSkipped,
+                metadata: {
+                  processingType: 'scan',
+                  folderPath: folder.path,
+                  newFilesAdded,
+                },
               });
             }
 
@@ -183,7 +205,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                 if (existingFile?.id) {
                   await markProcessingAborted({
                     mediaItemId: existingFile.id,
-                    type: PROCESSING_TYPE_SCAN,
+                    type: 'scan',
                     reason: 'Scan aborted by user',
                   });
                 }
@@ -293,7 +315,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                   // Mark as processing
                   await markProcessingStarted({
                     mediaItemId: existingFile.id,
-                    type: PROCESSING_TYPE_SCAN,
+                    type: 'scan',
                     message: `Updating file: ${fileName}`,
                   });
 
@@ -311,7 +333,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                     // Mark as error
                     await markProcessingError({
                       mediaItemId: existingFile.id,
-                      type: PROCESSING_TYPE_SCAN,
+                      type: 'scan',
                       error: `Failed to update file: ${updateError.message}`,
                     });
                   } else {
@@ -320,7 +342,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                     // Mark as success
                     await markProcessingSuccess({
                       mediaItemId: existingFile.id,
-                      type: PROCESSING_TYPE_SCAN,
+                      type: 'scan',
                       message: 'File updated successfully',
                     });
                   }
@@ -340,7 +362,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                     // Mark as success for new items
                     await markProcessingSuccess({
                       mediaItemId: insertedItem.id,
-                      type: PROCESSING_TYPE_SCAN,
+                      type: 'scan',
                       message: 'File added successfully',
                     });
                   } else {
@@ -358,14 +380,17 @@ export async function scanFolders(options: ScanOptions = {}) {
                   totalFilesProcessed === totalFilesDiscovered
                 ) {
                   await sendProgress(encoder, writer, {
-                    status: 'processing',
+                    status: null,
                     message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files`,
-                    folderPath: folder.path,
-                    filesDiscovered: totalFilesDiscovered,
-                    filesProcessed: totalFilesProcessed,
-                    newFilesAdded,
-                    filesSkipped: totalFilesSkipped,
-                    newFileTypes: Array.from(newFileTypes),
+                    totalCount: totalFilesDiscovered,
+                    processedCount: totalFilesProcessed,
+                    skippedCount: totalFilesSkipped,
+                    metadata: {
+                      processingType: 'scan',
+                      folderPath: folder.path,
+                      newFilesAdded,
+                      newFileTypes: Array.from(newFileTypes),
+                    },
                   });
                 }
               } catch (fileError: any) {
@@ -376,7 +401,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                 if (existingFile?.id) {
                   await markProcessingError({
                     mediaItemId: existingFile.id,
-                    type: PROCESSING_TYPE_SCAN,
+                    type: 'scan',
                     error: `Error processing file: ${fileError.message || 'Unknown error'}`,
                   });
                 }
@@ -391,10 +416,12 @@ export async function scanFolders(options: ScanOptions = {}) {
         } catch (folderError: any) {
           console.error(`Error scanning folder ${folder.path}:`, folderError);
           await sendProgress(encoder, writer, {
-            status: 'error',
+            status: 'failure',
             message: `Error scanning folder: ${folder.path}`,
-            error: folderError.message,
-            folderPath: folder.path,
+            metadata: {
+              processingType: 'scan',
+              folderPath: folder.path,
+            },
           });
         }
       }
@@ -403,11 +430,14 @@ export async function scanFolders(options: ScanOptions = {}) {
       await sendProgress(encoder, writer, {
         status: 'success',
         message: `Scan completed. Processed ${totalFilesProcessed} files, skipped ${totalFilesSkipped} unchanged files, added ${newFilesAdded} new/updated files.`,
-        filesDiscovered: totalFilesDiscovered,
-        filesProcessed: totalFilesProcessed,
-        newFilesAdded,
-        newFileTypes: Array.from(newFileTypes),
-        filesSkipped: totalFilesSkipped,
+        totalCount: totalFilesDiscovered,
+        processedCount: totalFilesProcessed,
+        skippedCount: totalFilesSkipped,
+        metadata: {
+          processingType: 'scan',
+          newFilesAdded,
+          newFileTypes: Array.from(newFileTypes),
+        },
       });
 
       // Close the stream
@@ -424,9 +454,11 @@ export async function scanFolders(options: ScanOptions = {}) {
         aborted;
 
       await sendProgress(encoder, writer, {
-        status: isAbortError ? 'aborted' : 'error',
-        message: isAbortError ? 'Scan aborted by user' : 'Error during scan',
-        error: isAbortError ? 'Operation cancelled' : error.message,
+        status: 'failure',
+        message: isAbortError ? 'Operation cancelled' : error.message,
+        metadata: {
+          processingType: 'scan',
+        },
       });
       if (!writer.closed) {
         await writer.close();

@@ -45,11 +45,20 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
             const messages = text.split('data: ');
 
             for (const message of messages) {
-              if (!message.trim()) continue;
+              const cleanedMessage = message.trim().replace(/^\s+|\s+$/g, '');
+
+              // Skip empty messages
+              if (!cleanedMessage) continue;
 
               try {
+                // Try to extract just the JSON part from the message
+                // This will find the first occurrence of an object (starting with { and ending with })
+                const jsonMatch = cleanedMessage.match(/(\{.*\})/);
+                if (!jsonMatch) continue;
+
                 // Parse the JSON data
-                const data = JSON.parse(message.replace(/\n\n$/, '')) as T;
+                const data = JSON.parse(jsonMatch[0]) as T;
+                console.log('data: ', data);
 
                 // Update progress state
                 setProgress(data);
@@ -69,15 +78,11 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                     options.onBatchComplete(data.processedCount);
                   }
                 }
-                // Handle error status
-                else if (data.status === 'error') {
-                  if (data.error) {
-                    errorDetails.push(data.error);
+                // Handle failure status
+                else if (data.status === 'failure') {
+                  if (data.message) {
+                    errorDetails.push(data.message);
                   }
-                }
-                // Handle aborted status
-                else if (data.status === 'aborted') {
-                  // Nothing specific to do here as we already set progress state
                 }
                 // Handle batch completion within ongoing process
                 else if (
@@ -162,29 +167,23 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
     // Update progress state to indicate abortion
     setProgress((prev) =>
       prev
-        ? { ...prev, status: 'aborted', message: 'Processing aborted by user' }
+        ? { ...prev, status: 'failure', message: 'Processing aborted by user' }
         : null,
     );
 
-    // Mark the current processing item as aborted
-    // This is handled differently depending on context:
-    // 1. If we know the specific item being processed via currentItem, we mark just that item
-    // 2. If we have processing type info, we mark all items in progress for that type as aborted
+    // Mark the current processing item as aborted (now mapped to 'failure')
     try {
-      // Case 1: We have a specific currentItem identifier
-      if (progress?.currentItem) {
+      // If we have a specific currentItem identifier
+      if (progress?.mediaItemId) {
         await updateProcessingState({
-          media_item_id: progress.currentItem,
-          status: 'aborted',
+          media_item_id: progress.mediaItemId,
+          status: 'failure',
           type: progress.metadata?.processingType || 'unknown',
           error_message: 'Processing aborted by user',
         });
       }
-      // Case 2: We only know the processing type but not specific items
-      // Note: This is handled by the server action that receives the abort signal
-      // through the abortController and should mark relevant items as aborted
     } catch (error) {
-      console.error('Failed to update processing state to aborted:', error);
+      console.error('Failed to update processing state to failure:', error);
     }
 
     // Cancel the stream if we have an abort controller

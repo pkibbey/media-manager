@@ -1,6 +1,6 @@
 'use server';
 
-import { getRandomMediaItems } from '@/lib/query-helpers';
+import { getRandomImages } from '@/lib/query-helpers';
 import type { MediaItem } from '@/types/db-types';
 
 /**
@@ -13,7 +13,7 @@ export async function getRandomMedia(limit = 5): Promise<{
   error?: string;
 }> {
   // Use the utility function to get random media items with thumbnails
-  const { data, error } = await getRandomMediaItems(limit);
+  const { data, error } = await getRandomImages(limit);
 
   if (error) {
     console.error('Error fetching random media:', error.message);

@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback } from 'react';
 import { getMediaStats } from '@/app/actions/stats';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
@@ -11,6 +13,7 @@ import { updateMediaDatesFromFilenames } from './updateMediaDatesFromFilenames';
 export function useTimestampCorrection() {
   // Use the common processor base hook with timestamp correction specifics
   const {
+    stats,
     isProcessing,
     progress,
     processingStartTime,
@@ -51,7 +54,7 @@ export function useTimestampCorrection() {
                 message: `Updated ${result.updated} timestamps successfully`,
                 processedCount: result.processed,
                 successCount: result.updated,
-                failedCount: result.processed - result.updated,
+                failureCount: result.processed - result.updated,
                 percentComplete:
                   result.processed > 0
                     ? Math.round((result.updated / result.processed) * 100)
@@ -101,6 +104,7 @@ export function useTimestampCorrection() {
   }, [isProcessing, handleStartProcessing]);
 
   return {
+    stats: stats || null,
     isProcessing,
     progress,
     processingStartTime,

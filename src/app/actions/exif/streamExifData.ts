@@ -44,13 +44,14 @@ export async function streamExifData({
       error?.name === 'AbortError' || error?.message?.includes('abort');
 
     sendProgress(encoder, writer, {
-      status: isAbortError ? 'aborted' : 'error',
+      status: 'failure',
       message: isAbortError
-        ? 'EXIF processing aborted'
-        : 'Error during EXIF processing',
-      error: isAbortError
         ? 'Processing aborted by user'
         : error?.message || 'An unknown error occurred during EXIF processing',
+      metadata: {
+        processingType: 'exif',
+        extractionMethod,
+      },
     }).finally(() => {
       if (!writer.closed) {
         writer.close().catch(console.error);
@@ -102,12 +103,15 @@ export async function streamExifData({
           await sendProgress(encoder, writer, {
             status: 'success',
             message: 'No files to process',
-            filesProcessed: 0,
-            filesDiscovered: 0,
+            processedCount: 0,
+            totalCount: 0,
             successCount: 0,
-            failedCount: 0,
+            failureCount: 0,
             skippedCount: 0,
-            totalFiles: 0,
+            metadata: {
+              processingType: 'exif',
+              extractionMethod,
+            },
           });
           return;
         }
@@ -125,26 +129,6 @@ export async function streamExifData({
         let batchSuccessCount = 0;
         let batchFailedCount = 0;
         let batchSkippedCount = 0;
-
-        // First update to show how many items were discovered
-        await sendProgress(encoder, writer, {
-          status: 'processing',
-          message: isInfinityMode
-            ? `Processing all files (batch ${currentBatch})...`
-            : `Processing ${unprocessedFiles.length} files...`,
-          filesProcessed: totalItemsProcessed,
-          filesDiscovered: totalFilesDiscovered,
-          successCount: totalSuccessCount,
-          failedCount: totalFailedCount,
-          skippedCount: totalSkippedCount,
-          totalFiles: 0,
-          metadata: {
-            processingType: 'exif',
-            fileType:
-              unprocessedFiles[(currentBatch - 1) * batchSize]?.file_types
-                ?.extension || 'unknown',
-          },
-        });
 
         for (const media of unprocessedFiles) {
           // Check for abort signal
@@ -196,15 +180,18 @@ export async function streamExifData({
               totalSkippedCount++;
 
               await sendProgress(encoder, writer, {
-                status: 'processing',
+                status: null,
                 message: `Skipped: ${skipReason} (${media.file_name})`,
-                filesProcessed: totalItemsProcessed,
-                filesDiscovered: totalFilesDiscovered,
+                processedCount: totalItemsProcessed,
+                totalCount: totalFilesDiscovered,
                 successCount: totalSuccessCount,
-                failedCount: totalFailedCount,
+                failureCount: totalFailedCount,
                 skippedCount: totalSkippedCount,
-                totalFiles: totalFilesDiscovered,
-                currentItem: media.id,
+                metadata: {
+                  processingType: 'exif',
+                  extractionMethod,
+                  fileType: media.file_types?.extension,
+                },
               });
               continue;
             }
@@ -218,15 +205,18 @@ export async function streamExifData({
 
             // Send update before processing each file
             await sendProgress(encoder, writer, {
-              status: 'processing',
+              status: null,
               message: `Processing ${totalItemsProcessed + 1}: ${media.file_name}`,
-              filesProcessed: totalItemsProcessed,
-              filesDiscovered: totalFilesDiscovered,
+              processedCount: totalItemsProcessed,
+              totalCount: totalFilesDiscovered,
               successCount: totalSuccessCount,
-              failedCount: totalFailedCount,
+              failureCount: totalFailedCount,
               skippedCount: totalSkippedCount,
-              totalFiles: totalFilesDiscovered,
-              currentItem: media.id,
+              metadata: {
+                processingType: 'exif',
+                extractionMethod,
+                fileType: media.file_types?.extension,
+              },
             });
 
             if (media.id) {
@@ -241,15 +231,18 @@ export async function streamExifData({
 
                   // Send granular progress updates
                   await sendProgress(encoder, writer, {
-                    status: 'processing',
+                    status: null,
                     message: `${message} - ${media.file_name}`,
-                    filesProcessed: totalItemsProcessed,
-                    filesDiscovered: totalFilesDiscovered,
-                    totalFiles: totalFilesDiscovered,
+                    processedCount: totalItemsProcessed,
+                    totalCount: totalFilesDiscovered,
                     successCount: totalSuccessCount,
-                    failedCount: totalFailedCount,
+                    failureCount: totalFailedCount,
                     skippedCount: totalSkippedCount,
-                    currentItem: media.id,
+                    metadata: {
+                      processingType: 'exif',
+                      extractionMethod,
+                      fileType: media.file_types?.extension,
+                    },
                   });
                 },
               });
@@ -272,24 +265,24 @@ export async function streamExifData({
               totalItemsProcessed === totalFilesDiscovered
             ) {
               await sendProgress(encoder, writer, {
-                status: 'processing',
+                status: null,
                 message: isInfinityMode
                   ? `Processed ${totalItemsProcessed} of ${totalFilesDiscovered}+ files (${totalSuccessCount} successful, ${totalFailedCount} failed, ${totalSkippedCount} skipped)`
                   : `Processed ${batchProcessedCount} of ${unprocessedFiles.length} files (${batchSuccessCount} successful, ${batchFailedCount} failed, ${batchSkippedCount} skipped)`,
-                filesProcessed: totalItemsProcessed,
-                filesDiscovered: totalFilesDiscovered,
+                processedCount: totalItemsProcessed,
+                totalCount: totalFilesDiscovered,
                 successCount: totalSuccessCount,
-                failedCount: totalFailedCount,
+                failureCount: totalFailedCount,
                 skippedCount: totalSkippedCount,
-                totalFiles: totalFilesDiscovered,
+                metadata: {
+                  processingType: 'exif',
+                  extractionMethod,
+                },
               });
             }
           } catch (error: any) {
             // Check if this was an abort error
-            if (
-              error.message?.includes('aborted') ||
-              error.name === 'AbortError'
-            ) {
+            if (error.name === 'AbortError') {
               aborted = true;
 
               // Mark this item as aborted using our helper function
@@ -299,15 +292,18 @@ export async function streamExifData({
               });
 
               await sendProgress(encoder, writer, {
-                status: 'aborted',
+                status: 'failure',
                 message: 'EXIF processing aborted by user',
-                filesProcessed: totalItemsProcessed,
-                filesDiscovered: totalFilesDiscovered,
+                processedCount: totalItemsProcessed,
+                totalCount: totalFilesDiscovered,
                 successCount: totalSuccessCount,
-                failedCount: totalFailedCount,
+                failureCount: totalFailedCount,
                 skippedCount: totalSkippedCount,
-                totalFiles: totalFilesDiscovered,
-                currentItem: media.id,
+                metadata: {
+                  processingType: 'exif',
+                  extractionMethod,
+                  fileType: media.file_types?.extension,
+                },
               });
 
               break;
@@ -329,16 +325,18 @@ export async function streamExifData({
 
             // Send error update
             await sendProgress(encoder, writer, {
-              status: 'processing',
+              status: null,
               message: `Error processing file: ${error.message}`,
-              filesProcessed: totalItemsProcessed,
-              filesDiscovered: totalFilesDiscovered,
+              processedCount: totalItemsProcessed,
+              totalCount: totalFilesDiscovered,
               successCount: totalSuccessCount,
-              failedCount: totalFailedCount,
+              failureCount: totalFailedCount,
               skippedCount: totalSkippedCount,
-              error: error.message,
-              totalFiles: totalFilesDiscovered,
-              currentItem: media.id,
+              metadata: {
+                processingType: 'exif',
+                extractionMethod,
+                fileType: media.file_types?.extension,
+              },
             });
           }
         }
@@ -346,14 +344,17 @@ export async function streamExifData({
         // Check for abortion after batch processing
         if (aborted) {
           await sendProgress(encoder, writer, {
-            status: 'aborted',
+            status: 'failure',
             message: 'Processing aborted by user',
-            filesProcessed: totalItemsProcessed,
-            filesDiscovered: totalFilesDiscovered,
+            processedCount: totalItemsProcessed,
+            totalCount: totalFilesDiscovered,
             successCount: totalSuccessCount,
-            failedCount: totalFailedCount,
+            failureCount: totalFailedCount,
             skippedCount: totalSkippedCount,
-            totalFiles: totalFilesDiscovered,
+            metadata: {
+              processingType: 'exif',
+              extractionMethod,
+            },
           });
           break;
         }
@@ -364,15 +365,18 @@ export async function streamExifData({
 
           // Send a batch completion update
           await sendProgress(encoder, writer, {
-            status: 'processing',
+            status: null,
             message: `Finished batch ${currentBatch - 1}. Continuing with next batch...`,
-            filesProcessed: totalItemsProcessed,
-            filesDiscovered: totalFilesDiscovered,
+            processedCount: totalItemsProcessed,
+            totalCount: totalFilesDiscovered,
             successCount: totalSuccessCount,
-            failedCount: totalFailedCount,
+            failureCount: totalFailedCount,
             skippedCount: totalSkippedCount,
-            totalFiles: totalFilesDiscovered,
             isBatchComplete: true,
+            metadata: {
+              processingType: 'exif',
+              extractionMethod,
+            },
           });
         }
       }
@@ -388,37 +392,38 @@ export async function streamExifData({
       await sendProgress(encoder, writer, {
         status: 'success',
         message: finalMessage,
-        filesProcessed: totalItemsProcessed,
-        filesDiscovered: totalFilesDiscovered,
+        processedCount: totalItemsProcessed,
+        totalCount: totalFilesDiscovered,
         successCount: totalSuccessCount,
-        failedCount: totalFailedCount,
+        failureCount: totalFailedCount,
         skippedCount: totalSkippedCount,
-        method: extractionMethod,
-        totalFiles: totalFilesDiscovered,
         isBatchComplete: true,
+        metadata: {
+          processingType: 'exif',
+          extractionMethod,
+        },
       });
     } catch (error: any) {
       console.error('Error during EXIF processing:', error);
 
       // Check if this was an abort
-      const isAbortError =
-        error.message?.includes('aborted') || error.name === 'AbortError';
+      const isAbortError = error.name === 'AbortError';
 
       await sendProgress(encoder, writer, {
-        status: isAbortError ? 'aborted' : 'error',
+        status: 'failure',
         message: isAbortError
-          ? 'EXIF processing aborted'
-          : 'Error during EXIF processing',
-        error: isAbortError
           ? 'Processing aborted by user'
           : error?.message ||
             'An unknown error occurred during EXIF processing',
-        filesProcessed: 0,
+        processedCount: 0, // Reset counts on final error
+        totalCount: 0,
         successCount: 0,
-        failedCount: 0,
+        failureCount: 0,
         skippedCount: 0,
-        method: extractionMethod,
-        totalFiles: 0,
+        metadata: {
+          processingType: 'exif',
+          extractionMethod,
+        },
       });
     } finally {
       // Close the stream to signal completion to the client

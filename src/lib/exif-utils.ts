@@ -5,7 +5,6 @@ import path from 'node:path';
 import exifReader, { type Exif } from 'exif-reader';
 import sharp from 'sharp';
 import type { ExtractionMethod } from '@/types/exif';
-import { includeMedia } from './media-filters';
 import { createServerSupabaseClient } from './supabase';
 
 /**
@@ -166,15 +165,16 @@ export async function extractAndSanitizeExifData(
 export async function getUnprocessedFiles({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
-  // First, get all media items that don't have an exif processing state
-  const { data: filesWithoutProcessingState, error: error1 } =
-    await includeMedia(
-      supabase
-        .from('media_items')
-        .select('*, file_types!inner(*), processing_states!inner(*)')
-        .neq('processing_states.type', 'exif')
-        .limit(limit),
-    );
+  // First, get media items with no exif processing state
+  const { data: filesWithoutProcessingState, error: error1 } = await supabase
+    .from('media_items')
+    .select('*, file_types(*), processing_states(*)')
+    .in('file_types.category', ['image'])
+    .eq('file_types.ignore', false)
+    .is('processing_states', null)
+    .limit(limit);
+
+  console.log('filesWithoutProcessingState: ', filesWithoutProcessingState);
 
   if (error1) {
     console.error('Error fetching files without processing state:', error1);
@@ -196,16 +196,15 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
     return filesWithoutProcessingState || [];
   }
 
-  const { data: filesWithNonSuccessState, error: error2 } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('*, processing_states!inner(*), file_types!inner(*)')
-      .eq('processing_states.type', 'exif')
-      .or('status.eq.aborted,status.eq.error', {
-        foreignTable: 'processing_states',
-      })
-      .limit(remainingLimit),
-  );
+  // Get files with aborted or error processing states
+  const { data: filesWithNonSuccessState, error: error2 } = await supabase
+    .from('media_items')
+    .select('*, file_types(*), processing_states!inner(*)')
+    .in('file_types.category', ['image'])
+    .eq('file_types.ignore', false)
+    .eq('processing_states.type', 'exif')
+    .in('processing_states.status', ['aborted', 'error'])
+    .limit(remainingLimit);
 
   if (error2) {
     console.error('Error fetching files with non-success state:', error2);

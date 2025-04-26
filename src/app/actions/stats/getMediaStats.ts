@@ -1,5 +1,4 @@
 'use server';
-import { includeMedia } from '@/lib/media-filters';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { calculatePercentages } from '@/lib/utils';
 import type { StatsResponse, UnifiedStats } from '@/types/unified-stats';
@@ -11,67 +10,62 @@ export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
   const supabase = createServerSupabaseClient();
 
   // Get total count of media items
-  const { count: totalCount, error: totalError } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('id, file_types!inner(*)', { count: 'exact', head: true }),
-  );
-  if (totalError) console.log('totalError: ', totalError);
+  const { count: totalCount, error: totalError } = await supabase
+    .from('media_items')
+    .select('id, file_types!inner(*)', { count: 'exact', head: true })
+    .in('file_types.category', ['image', 'video'])
+    .eq('file_types.ignore', false);
   if (totalError) throw totalError;
 
   // Get exif processing success count
-  const { count: processedCount, error: processedError } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('id, processing_states!inner(*), file_types!inner(*)', {
-        count: 'exact',
-        // head: true,
-      })
-      .eq('processing_states.type', 'exif')
-      .eq('processing_states.status', 'success'),
-  );
-  if (processedError) console.log('processedError: ', processedError);
+  const { count: processedCount, error: processedError } = await supabase
+    .from('media_items')
+    .select('id, processing_states!inner(*), file_types!inner(*)', {
+      count: 'exact',
+      // head: true,
+    })
+    .in('file_types.category', ['image', 'video'])
+    .eq('file_types.ignore', false)
+    .eq('processing_states.type', 'exif')
+    .eq('processing_states.status', 'success');
   if (processedError) throw processedError;
 
   // Get exif processing error count
-  const { count: erroredCount, error: erroredError } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('id, processing_states!inner(*), file_types!inner(*)', {
-        count: 'exact',
-        head: true,
-      })
-      // .eq('processing_states.type', 'exif')
-      .eq('processing_states.status', 'error'),
-  );
-  if (erroredError) console.log('erroredError: ', erroredError);
+  const { count: erroredCount, error: erroredError } = await supabase
+    .from('media_items')
+    .select('id, processing_states!inner(*), file_types!inner(*)', {
+      count: 'exact',
+      head: true,
+    })
+    .in('file_types.category', ['image', 'video'])
+    .eq('file_types.ignore', false)
+    .eq('processing_states.type', 'exif')
+    .eq('processing_states.status', 'error');
   if (erroredError) throw erroredError;
 
   // Get exif processing skipped count
-  const { count: skippedCount, error: skippedError } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('id, processing_states!inner(*), file_types!inner(*)', {
-        count: 'exact',
-        head: true,
-      })
-      // .eq('processing_states.type', 'exif')
-      .eq('processing_states.status', 'skipped'),
-  );
-  if (skippedError) console.log('skippedError: ', skippedError);
+  const { count: skippedCount, error: skippedError } = await supabase
+    .from('media_items')
+    .select('id, processing_states!inner(*), file_types!inner(*)', {
+      count: 'exact',
+      head: true,
+    })
+    .in('file_types.category', ['image', 'video'])
+    .eq('file_types.ignore', false)
+    .eq('processing_states.type', 'exif')
+    .eq('processing_states.status', 'skipped');
   if (skippedError) throw skippedError;
 
   // Get ignored files count - this specifically counts files with ignored file types
-  const { count: ignoredCount, error: ignoredError } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('id, processing_states!inner(*), file_types!inner(*)', {
-        count: 'exact',
-        head: true,
-      })
-      .eq('file_types.ignore', true),
-  );
-  if (ignoredError) console.log('ignoredError: ', ignoredError);
+  const { count: ignoredCount, error: ignoredError } = await supabase
+    .from('media_items')
+    .select('id, processing_states!inner(*), file_types!inner(*)', {
+      count: 'exact',
+      head: true,
+    })
+    .in('file_types.category', ['image', 'video'])
+    .eq('file_types.ignore', false)
+    .eq('file_types.ignore', true);
   if (ignoredError) throw ignoredError;
 
   // Create counts for new unified format

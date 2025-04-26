@@ -12,10 +12,7 @@ export type ProcessingStatesResponse = {
   data?: ProcessingStateWithMedia[];
   error?: string;
   counts?: {
-    error: number;
-    aborted: number;
-    skipped: number;
-    failed: number;
+    failure: number;
     processing: number;
     success: number;
     total: number;
@@ -88,35 +85,17 @@ export async function getProcessingStates({
 async function getProcessingStateCounts() {
   const supabase = createServerSupabaseClient();
 
-  // Get counts for error states
-  const { count: errorCount } = await supabase
+  // Get counts for failure states
+  const { count: failureCount } = await supabase
     .from('processing_states')
     .select('*', { count: 'exact', head: true })
-    .eq('status', 'error');
+    .eq('status', 'failure');
 
-  // Get counts for aborted states
-  const { count: abortedCount } = await supabase
-    .from('processing_states')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'aborted');
-
-  // Get counts for skipped states
-  const { count: skippedCount } = await supabase
-    .from('processing_states')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'skipped');
-
-  // Get counts for failed states
-  const { count: failedCount } = await supabase
-    .from('processing_states')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'failed');
-
-  // Get counts for processing states
+  // Get counts for processing states (null status)
   const { count: processingCount } = await supabase
     .from('processing_states')
     .select('*', { count: 'exact', head: true })
-    .eq('status', 'processing');
+    .is('status', null);
 
   // Get counts for success states
   const { count: successCount } = await supabase
@@ -130,10 +109,7 @@ async function getProcessingStateCounts() {
     .select('*', { count: 'exact', head: true });
 
   return {
-    error: errorCount || 0,
-    aborted: abortedCount || 0,
-    skipped: skippedCount || 0,
-    failed: failedCount || 0,
+    failure: failureCount || 0,
     processing: processingCount || 0,
     success: successCount || 0,
     total: totalCount || 0,

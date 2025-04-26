@@ -33,7 +33,6 @@ export async function getAllStats(): Promise<{
       head: true,
     })
     .in('processing_states.status', ['error', 'failed', 'aborted']);
-  console.log('erroredCount: ', erroredCount);
   if (erroredError) throw erroredError;
 
   // Get total skipped count
@@ -44,7 +43,6 @@ export async function getAllStats(): Promise<{
       head: true,
     })
     .eq('processing_states.status', 'skipped');
-  console.log('skippedCount: ', skippedCount);
   if (skippedError) throw skippedError;
 
   // Get ignored files count
@@ -55,7 +53,6 @@ export async function getAllStats(): Promise<{
       head: true,
     })
     .eq('file_types.ignore', true);
-  console.log('ignoredCount: ', ignoredCount);
   if (ignoredError) throw ignoredError;
 
   // Get timestamp correction needs

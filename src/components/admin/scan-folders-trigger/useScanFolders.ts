@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback } from 'react';
 import { scanFolders } from '@/app/actions/scan';
 import { useProcessorBase } from '@/hooks/useProcessorBase';

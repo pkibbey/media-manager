@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback } from 'react';
 import { getExifStats } from '@/app/actions/exif';
 import { streamExifData } from '@/app/actions/exif/streamExifData';

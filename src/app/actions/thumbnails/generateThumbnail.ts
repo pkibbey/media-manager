@@ -6,7 +6,6 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { THUMBNAIL_SIZE } from '@/lib/consts';
-import { includeMedia } from '@/lib/media-filters';
 import {
   markProcessingError,
   markProcessingSuccess,
@@ -30,12 +29,14 @@ export async function generateThumbnail(mediaId: string): Promise<
     const supabase = createServerSupabaseClient();
 
     // Get the media item details
-    const { data: mediaItem, error } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('*, file_types!inner(*)')
-        .eq('id', mediaId),
-    ).single();
+    const { data: mediaItem, error } = await supabase
+      .from('media_items')
+      .select('*, file_types!inner(*)')
+      .in('file_types.category', ['image'])
+      .eq('file_types.ignore', false)
+      .eq('id', mediaId)
+      .single();
+
     if (error) throw error;
 
     // Check if file exists

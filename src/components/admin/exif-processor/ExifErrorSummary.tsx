@@ -10,7 +10,7 @@ export function ExifErrorSummary({
   errorSummary,
 }: ExifErrorSummaryProps) {
   const shouldShowErrors =
-    (progress?.failedCount && progress.failedCount > 0) ||
+    (progress?.failureCount && progress.failureCount > 0) ||
     Object.keys(errorSummary).length > 0;
 
   if (!shouldShowErrors) return null;
@@ -21,7 +21,7 @@ export function ExifErrorSummary({
 
       {Object.keys(errorSummary).length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          {progress?.failedCount} files failed, but detailed information is not
+          {progress?.failureCount} files failed, but detailed information is not
           available.
         </p>
       ) : (

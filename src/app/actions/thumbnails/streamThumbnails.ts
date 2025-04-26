@@ -1,6 +1,5 @@
 'use server';
 
-import { includeMedia } from '@/lib/media-filters';
 import {
   markProcessingAborted,
   markProcessingError,
@@ -38,14 +37,14 @@ export async function streamThumbnails({
         error?.name === 'AbortError' || error?.message?.includes('abort');
 
       await sendProgress(encoder, writer, {
-        status: isAbortError ? 'aborted' : 'error',
+        status: 'failure',
         message: isAbortError
-          ? 'Thumbnail generation aborted'
-          : 'Error during thumbnail generation',
-        error: isAbortError
           ? 'Processing aborted by user'
           : error?.message ||
             'An unknown error occurred during thumbnail generation',
+        metadata: {
+          processingType: 'thumbnail',
+        },
       });
     })
     .finally(() => {
@@ -101,11 +100,14 @@ export async function streamThumbnails({
           await sendProgress(encoder, writer, {
             status: 'success',
             message: 'No files to process',
-            totalItems,
-            processed: 0,
+            totalCount: totalItems,
+            processedCount: 0,
             successCount: 0,
-            failedCount: 0,
-            skippedLargeFiles: 0,
+            failureCount: 0,
+            skippedCount: 0,
+            metadata: {
+              processingType: 'thumbnail',
+            },
           });
           return;
         }
@@ -126,17 +128,17 @@ export async function streamThumbnails({
 
         // Send initial progress update for this batch
         await sendProgress(encoder, writer, {
-          status: 'processing',
+          status: null,
           message: isInfinityMode
             ? `Starting batch ${currentBatch}: Processing ${unprocessedFiles.length} files...`
             : `Starting thumbnail generation for ${unprocessedFiles.length} files...`,
-          totalItems: isInfinityMode
+          totalCount: isInfinityMode
             ? totalFilesDiscovered
             : unprocessedFiles.length,
-          processed: totalItemsProcessed,
+          processedCount: totalItemsProcessed,
           successCount: totalSuccessCount,
-          failedCount: totalFailedCount,
-          skippedLargeFiles: totalSkippedLargeFilesCount,
+          failureCount: totalFailedCount,
+          skippedCount: totalSkippedLargeFilesCount,
           metadata: {
             processingType: 'thumbnail',
             fileType: unprocessedFiles[0]?.file_types?.extension,
@@ -158,22 +160,23 @@ export async function streamThumbnails({
           try {
             // Send update before processing each file
             await sendProgress(encoder, writer, {
-              status: 'processing',
+              status: null,
               message: isInfinityMode
                 ? `Batch ${currentBatch}: Processing: ${media.file_name}`
                 : `Processing: ${media.file_name}`,
-              totalItems,
-              processed: isInfinityMode
+              totalCount: totalItems, // Use totalItems from getUnprocessedFilesForThumbnails
+              processedCount: isInfinityMode
                 ? totalItemsProcessed
                 : batchProcessedCount,
               successCount: isInfinityMode
                 ? totalSuccessCount
                 : batchSuccessCount,
-              failedCount: isInfinityMode ? totalFailedCount : batchFailedCount,
-              skippedLargeFiles: isInfinityMode
+              failureCount: isInfinityMode
+                ? totalFailedCount
+                : batchFailedCount,
+              skippedCount: isInfinityMode
                 ? totalSkippedLargeFilesCount
                 : batchSkippedLargeFilesCount,
-              currentItem: media.id,
               metadata: {
                 processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
@@ -223,22 +226,23 @@ export async function streamThumbnails({
 
             // Send progress update
             await sendProgress(encoder, writer, {
-              status: 'processing',
+              status: null,
               message: result.message,
-              totalItems: isInfinityMode
+              totalCount: isInfinityMode
                 ? totalFilesDiscovered
                 : unprocessedFiles.length,
-              processed: isInfinityMode
+              processedCount: isInfinityMode
                 ? totalItemsProcessed
                 : batchProcessedCount,
               successCount: isInfinityMode
                 ? totalSuccessCount
                 : batchSuccessCount,
-              failedCount: isInfinityMode ? totalFailedCount : batchFailedCount,
-              skippedLargeFiles: isInfinityMode
+              failureCount: isInfinityMode
+                ? totalFailedCount
+                : batchFailedCount,
+              skippedCount: isInfinityMode
                 ? totalSkippedLargeFilesCount
                 : batchSkippedLargeFilesCount,
-              currentItem: media.id,
               metadata: {
                 processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
@@ -259,16 +263,15 @@ export async function streamThumbnails({
               });
 
               await sendProgress(encoder, writer, {
-                status: 'aborted',
+                status: 'failure',
                 message: 'Thumbnail generation aborted',
-                totalItems: isInfinityMode
+                totalCount: isInfinityMode
                   ? totalFilesDiscovered
                   : unprocessedFiles.length,
-                processed: totalItemsProcessed,
+                processedCount: totalItemsProcessed,
                 successCount: totalSuccessCount,
-                failedCount: totalFailedCount,
-                skippedLargeFiles: totalSkippedLargeFilesCount,
-                currentItem: media.id,
+                failureCount: totalFailedCount,
+                skippedCount: totalSkippedLargeFilesCount,
                 metadata: {
                   processingType: 'thumbnail',
                   fileType: media.file_types?.extension,
@@ -298,23 +301,23 @@ export async function streamThumbnails({
 
             // Send error update
             await sendProgress(encoder, writer, {
-              status: 'processing',
+              status: null,
               message: `Error generating thumbnail: ${error.message}`,
-              totalItems: isInfinityMode
+              totalCount: isInfinityMode
                 ? totalFilesDiscovered
                 : unprocessedFiles.length,
-              processed: isInfinityMode
+              processedCount: isInfinityMode
                 ? totalItemsProcessed
                 : batchProcessedCount,
               successCount: isInfinityMode
                 ? totalSuccessCount
                 : batchSuccessCount,
-              failedCount: isInfinityMode ? totalFailedCount : batchFailedCount,
-              skippedLargeFiles: isInfinityMode
+              failureCount: isInfinityMode
+                ? totalFailedCount
+                : batchFailedCount,
+              skippedCount: isInfinityMode
                 ? totalSkippedLargeFilesCount
                 : batchSkippedLargeFilesCount,
-              error: error.message,
-              currentItem: media.id,
               metadata: {
                 processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
@@ -326,15 +329,15 @@ export async function streamThumbnails({
         // Check for abort after completing the batch
         if (aborted) {
           await sendProgress(encoder, writer, {
-            status: 'aborted',
+            status: 'failure',
             message: 'Thumbnail generation aborted',
-            totalItems: isInfinityMode
+            totalCount: isInfinityMode
               ? totalFilesDiscovered
               : unprocessedFiles.length,
-            processed: totalItemsProcessed,
+            processedCount: totalItemsProcessed,
             successCount: totalSuccessCount,
-            failedCount: totalFailedCount,
-            skippedLargeFiles: totalSkippedLargeFilesCount,
+            failureCount: totalFailedCount,
+            skippedCount: totalSkippedLargeFilesCount,
             metadata: {
               processingType: 'thumbnail',
             },
@@ -348,13 +351,13 @@ export async function streamThumbnails({
 
           // Send a batch completion update
           await sendProgress(encoder, writer, {
-            status: 'processing',
+            status: null,
             message: `Finished batch ${currentBatch - 1}. Continuing with next batch...`,
-            totalItems: totalFilesDiscovered,
-            processed: totalItemsProcessed,
+            totalCount: totalFilesDiscovered,
+            processedCount: totalItemsProcessed,
             successCount: totalSuccessCount,
-            failedCount: totalFailedCount,
-            skippedLargeFiles: totalSkippedLargeFilesCount,
+            failureCount: totalFailedCount,
+            skippedCount: totalSkippedLargeFilesCount,
             isBatchComplete: true,
             metadata: {
               processingType: 'thumbnail',
@@ -375,13 +378,11 @@ export async function streamThumbnails({
       await sendProgress(encoder, writer, {
         status: 'success',
         message: finalMessage,
-        totalItems: isInfinityMode
-          ? totalFilesDiscovered
-          : totalFilesDiscovered,
-        processed: totalItemsProcessed,
+        totalCount: totalFilesDiscovered, // Use totalFilesDiscovered for both modes
+        processedCount: totalItemsProcessed,
         successCount: totalSuccessCount,
-        failedCount: totalFailedCount,
-        skippedLargeFiles: totalSkippedLargeFilesCount,
+        failureCount: totalFailedCount,
+        skippedCount: totalSkippedLargeFilesCount,
         isBatchComplete: true,
         metadata: {
           processingType: 'thumbnail',
@@ -393,11 +394,8 @@ export async function streamThumbnails({
         error.message?.includes('aborted') || error.name === 'AbortError';
 
       await sendProgress(encoder, writer, {
-        status: isAbortError ? 'aborted' : 'error',
+        status: 'failure',
         message: isAbortError
-          ? 'Thumbnail generation aborted'
-          : 'Error during thumbnail generation',
-        error: isAbortError
           ? 'Processing aborted by user'
           : error?.message ||
             'An unknown error occurred during thumbnail generation',
@@ -418,19 +416,18 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
     data: filesWithNoThumbnail,
     error: noThumbError,
     count: totalItems,
-  } = await includeMedia(
-    supabase
-      .from('media_items')
-      .select('*, file_types!inner(*), processing_states!inner(*)', {
-        count: 'exact',
-      })
-      // Only generate thumbnails for images
-      // video thumbnails should be handled separately
-      .eq('file_types.category', 'image')
-      .is('thumbnail_path', null)
-      .neq('processing_states.type', 'thumbnail')
-      .limit(limit),
-  );
+  } = await supabase
+    .from('media_items')
+    .select('*, file_types!inner(*), processing_states!inner(*)', {
+      count: 'exact',
+    })
+    // Only generate thumbnails for images
+    // video thumbnails should be handled separately
+    .eq('file_types.category', 'image')
+    .in('file_types.category', ['image'])
+    .eq('file_types.ignore', false)
+    .neq('processing_states.type', 'thumbnail')
+    .limit(limit);
 
   if (noThumbError) {
     throw new Error('Failed to fetch files with no thumbnails');
@@ -455,15 +452,15 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   }
 
   const { data: filesWithUnsuccessfulStates, error: statesError } =
-    await includeMedia(
-      supabase
-        .from('media_items')
-        .select('*, file_types!inner(*), processing_states!inner(*)', {
-          count: 'exact',
-        })
-        .eq('processing_states.type', 'thumbnail')
-        .neq('processing_states.status', '(success)'),
-    );
+    await supabase
+      .from('media_items')
+      .select('*, file_types!inner(*), processing_states!inner(*)', {
+        count: 'exact',
+      })
+      .in('file_types.category', ['image'])
+      .eq('file_types.ignore', false)
+      .eq('processing_states.type', 'thumbnail')
+      .neq('processing_states.status', '(success)');
 
   if (statesError) {
     console.error(

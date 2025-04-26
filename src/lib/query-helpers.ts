@@ -1,6 +1,9 @@
-import type { FileType, MediaItem, ProcessingState } from '@/types/db-types';
+import type { FileType, MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
-import { includeMedia } from './media-filters';
+import type {
+  ProcessingStatus,
+  UnifiedProgress,
+} from '../types/progress-types';
 import { createServerSupabaseClient } from './supabase';
 
 export function createProcessingStateFilter({
@@ -29,9 +32,13 @@ export async function getMediaItemById(id: string): Promise<{
 }> {
   const supabase = createServerSupabaseClient();
 
-  return includeMedia(
-    supabase.from('media_items').select('*, file_types!inner(*)').eq('id', id),
-  ).single();
+  return supabase
+    .from('media_items')
+    .select('*, file_types!inner(*)')
+    .eq('id', id)
+    .in('file_types.category', ['image', 'video'])
+    .eq('file_types.ignore', false)
+    .single();
 }
 
 /**
@@ -57,13 +64,13 @@ export async function getMediaItems(
   const to = from + pageSize - 1;
 
   // Start building the query
-  let query = includeMedia(
-    supabase
-      .from('media_items')
-      .select('*, file_types!inner(*), processing_states!inner(*)', {
-        count: 'exact',
-      }),
-  );
+  let query = supabase
+    .from('media_items')
+    .select('*, file_types!inner(*), processing_states!inner(*)', {
+      count: 'exact',
+    })
+    .in('file_types.category', ['image', 'video'])
+    .eq('file_types.ignore', false);
 
   // Apply text search
   if (filters.search) {
@@ -169,7 +176,7 @@ export async function getMediaItems(
  * @param limit Number of random items to fetch
  * @returns Query result with media items
  */
-export async function getRandomMediaItems(limit = 5): Promise<{
+export async function getRandomImages(limit = 5): Promise<{
   data: MediaItem[] | null;
   error: any | null;
 }> {
@@ -191,15 +198,15 @@ export async function getRandomMediaItems(limit = 5): Promise<{
     .filter(Boolean);
 
   // Query media_items using the retrieved IDs
-  return includeMedia(
-    supabase
-      .from('media_items')
-      .select('*, file_types!inner(*)')
-      .in('id', thumbnailMediaIds)
-      .gte('size_bytes', Math.floor(Math.random() * 50000 + 10000))
-      .order('size_bytes', { ascending: false })
-      .limit(limit),
-  );
+  return supabase
+    .from('media_items')
+    .select('*, file_types!inner(*)')
+    .in('file_types.category', ['image'])
+    .eq('file_types.ignore', false)
+    .in('id', thumbnailMediaIds)
+    .gte('size_bytes', Math.floor(Math.random() * 50000 + 10000))
+    .order('size_bytes', { ascending: false })
+    .limit(limit);
 }
 
 /**
@@ -258,18 +265,15 @@ export async function countMediaItems(
 
 /**
  * Update processing state for a media item
- * @param mediaItemId Media item ID
- * @param status Status to set
- * @param type Processing type
- * @param errorMessage Optional error message
+ * @param processingState The processing state to update
  * @returns Update result
  */
-export async function updateProcessingState(
-  processingState: Pick<
-    ProcessingState,
-    'media_item_id' | 'status' | 'type' | 'error_message'
-  >,
-): Promise<{
+export async function updateProcessingState(processingState: {
+  media_item_id: string;
+  status: ProcessingStatus;
+  type: string;
+  error_message?: string;
+}): Promise<{
   error: any | null;
 }> {
   const { media_item_id, status, type, error_message } = processingState;
@@ -735,26 +739,15 @@ export async function updateFolderScanStatus(
 }
 
 /**
- * Sends a progress update through a stream writer
- * Supports both the legacy generic type for backwards compatibility
- * and the new UnifiedProgress type for standardization
+ * Sends a progress update through a stream writer using the UnifiedProgress type.
+ * Calculates percentComplete automatically if totalCount and processedCount are provided.
  */
-export async function sendProgress<T>(
+export async function sendProgress(
   encoder: TextEncoder,
   writer: WritableStreamDefaultWriter,
-  progress: T,
-) {
-  await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
-}
-
-/**
- * Enhanced version of sendProgress that calculates percentComplete automatically
- * when totalCount and processedCount are provided
- */
-export async function sendUnifiedProgress(
-  encoder: TextEncoder,
-  writer: WritableStreamDefaultWriter,
-  progress: Partial<import('../types/progress-types').UnifiedProgress>,
+  progress: Omit<Partial<UnifiedProgress>, 'status'> & {
+    status: ProcessingStatus | null;
+  },
 ) {
   // Calculate percentComplete if not provided but we have the necessary data
   if (
@@ -770,5 +763,5 @@ export async function sendUnifiedProgress(
     );
   }
 
-  await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
+  await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\\n\\n`));
 }

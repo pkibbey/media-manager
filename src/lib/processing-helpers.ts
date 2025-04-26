@@ -1,7 +1,9 @@
+import type { ProcessingStatus } from '@/types/progress-types';
 import { updateProcessingState } from './query-helpers';
 
 /**
  * Handle an error during processing by updating the processing state
+ * and returning a result object
  */
 export async function handleProcessingError({
   mediaItemId,
@@ -17,12 +19,15 @@ export async function handleProcessingError({
   try {
     await updateProcessingState({
       media_item_id: mediaItemId,
-      status: 'error',
+      status: 'failure',
       type,
       error_message: errorMessage,
     });
   } catch (updateError) {
-    console.error(`Failed to update processing state to 'error':`, updateError);
+    console.error(
+      `Failed to update processing state to 'failure':`,
+      updateError,
+    );
   }
 
   return {
@@ -32,8 +37,39 @@ export async function handleProcessingError({
 }
 
 /**
- * Mark a media item as having an error during processing
- * This is similar to handleProcessingError but doesn't return a result object
+ * Generic helper function to update processing state with consistent error handling
+ */
+async function updateProcessingStateWithErrorHandling({
+  mediaItemId,
+  type,
+  status,
+  message,
+}: {
+  mediaItemId: string;
+  type: string;
+  status: ProcessingStatus | null;
+  message: string;
+}): Promise<void> {
+  // Skip if status is null (in progress)
+  if (status === null) return;
+
+  try {
+    await updateProcessingState({
+      media_item_id: mediaItemId,
+      status,
+      type,
+      error_message: message,
+    });
+  } catch (error) {
+    console.error(
+      `Failed to update processing state for media item ${mediaItemId}:`,
+      error,
+    );
+  }
+}
+
+/**
+ * Mark a media item as having an error or failure during processing
  */
 export async function markProcessingError({
   mediaItemId,
@@ -45,17 +81,12 @@ export async function markProcessingError({
   error: unknown;
 }): Promise<void> {
   const errorMessage = error instanceof Error ? error.message : String(error);
-
-  try {
-    await updateProcessingState({
-      media_item_id: mediaItemId,
-      status: 'error',
-      type,
-      error_message: errorMessage,
-    });
-  } catch (updateError) {
-    console.error(`Failed to update processing state to 'error':`, updateError);
-  }
+  await updateProcessingStateWithErrorHandling({
+    mediaItemId,
+    type,
+    status: 'failure',
+    message: errorMessage,
+  });
 }
 
 /**
@@ -70,92 +101,17 @@ export async function markProcessingSuccess({
   type: string;
   message?: string;
 }): Promise<void> {
-  try {
-    await updateProcessingState({
-      media_item_id: mediaItemId,
-      status: 'success',
-      type,
-      error_message: message,
-    });
-  } catch (error) {
-    console.error(`Failed to update processing state to 'success':`, error);
-  }
-}
-
-/**
- * Mark a media item as skipped during processing
- */
-export async function markProcessingSkipped({
-  mediaItemId,
-  type,
-  reason,
-}: {
-  mediaItemId: string;
-  type: string;
-  reason: string;
-}): Promise<void> {
-  try {
-    await updateProcessingState({
-      media_item_id: mediaItemId,
-      status: 'skipped',
-      type,
-      error_message: reason,
-    });
-  } catch (error) {
-    console.error(`Failed to update processing state to 'skipped':`, error);
-  }
-}
-
-/**
- * Mark a media item as aborted during processing
- */
-export async function markProcessingAborted({
-  mediaItemId,
-  type,
-  reason = 'Processing aborted by user',
-}: {
-  mediaItemId: string;
-  type: string;
-  reason?: string;
-}): Promise<void> {
-  try {
-    await updateProcessingState({
-      media_item_id: mediaItemId,
-      status: 'aborted',
-      type,
-      error_message: reason,
-    });
-  } catch (error) {
-    console.error(`Failed to update processing state to 'aborted':`, error);
-  }
-}
-
-/**
- * Mark a media item as failed during processing
- */
-export async function markProcessingFailed({
-  mediaItemId,
-  type,
-  reason,
-}: {
-  mediaItemId: string;
-  type: string;
-  reason: string;
-}): Promise<void> {
-  try {
-    await updateProcessingState({
-      media_item_id: mediaItemId,
-      status: 'failed',
-      type,
-      error_message: reason,
-    });
-  } catch (error) {
-    console.error(`Failed to update processing state to 'failed':`, error);
-  }
+  await updateProcessingStateWithErrorHandling({
+    mediaItemId,
+    type,
+    status: 'success',
+    message,
+  });
 }
 
 /**
  * Mark a media item as being processed
+ * Note: For the simplified model, we use null to indicate "in progress"
  */
 export async function markProcessingStarted({
   mediaItemId,
@@ -166,14 +122,75 @@ export async function markProcessingStarted({
   type: string;
   message?: string;
 }): Promise<void> {
-  try {
-    await updateProcessingState({
-      media_item_id: mediaItemId,
-      status: 'processing',
-      type,
-      error_message: message,
-    });
-  } catch (error) {
-    console.error(`Failed to update processing state to 'processing':`, error);
-  }
+  await updateProcessingStateWithErrorHandling({
+    mediaItemId,
+    type,
+    status: null,
+    message,
+  });
+}
+
+// All other failure states now map to the generic "failure" status
+
+/**
+ * Mark a media item as aborted during processing
+ * @deprecated Use markProcessingError instead
+ */
+export async function markProcessingAborted({
+  mediaItemId,
+  type,
+  reason = 'Processing aborted by user',
+}: {
+  mediaItemId: string;
+  type: string;
+  reason?: string;
+}): Promise<void> {
+  await updateProcessingStateWithErrorHandling({
+    mediaItemId,
+    type,
+    status: 'failure',
+    message: reason,
+  });
+}
+
+/**
+ * Mark a media item as skipped during processing
+ * @deprecated Use markProcessingError instead
+ */
+export async function markProcessingSkipped({
+  mediaItemId,
+  type,
+  reason,
+}: {
+  mediaItemId: string;
+  type: string;
+  reason: string;
+}): Promise<void> {
+  await updateProcessingStateWithErrorHandling({
+    mediaItemId,
+    type,
+    status: 'failure',
+    message: reason,
+  });
+}
+
+/**
+ * Mark a media item as failed during processing
+ * @deprecated Use markProcessingError instead
+ */
+export async function markProcessingFailed({
+  mediaItemId,
+  type,
+  reason,
+}: {
+  mediaItemId: string;
+  type: string;
+  reason: string;
+}): Promise<void> {
+  await updateProcessingStateWithErrorHandling({
+    mediaItemId,
+    type,
+    status: 'failure',
+    message: reason,
+  });
 }

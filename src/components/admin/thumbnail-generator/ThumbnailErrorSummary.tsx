@@ -1,13 +1,13 @@
 type ThumbnailErrorSummaryProps = {
-  failedCount: number;
+  failureCount: number;
   errorSummary: string[];
 };
 
 export function ThumbnailErrorSummary({
-  failedCount,
+  failureCount,
   errorSummary,
 }: ThumbnailErrorSummaryProps) {
-  if (failedCount === 0 || Object.keys(errorSummary).length === 0) {
+  if (failureCount === 0 || Object.keys(errorSummary).length === 0) {
     return null;
   }
 

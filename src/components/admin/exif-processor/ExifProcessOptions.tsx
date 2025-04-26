@@ -6,11 +6,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { ExifStatsResult } from '@/types/db-types';
 import type { ExtractionMethod } from '@/types/exif';
+import type { UnifiedProgress } from '@/types/progress-types';
 
 type ExifProcessOptionsProps = {
-  stats: ExifStatsResult | null;
+  progress: UnifiedProgress | null;
   extractionMethod: ExtractionMethod;
   setExtractionMethod: (method: ExtractionMethod) => void;
   batchSize: number;
@@ -19,16 +19,13 @@ type ExifProcessOptionsProps = {
 };
 
 export function ExifProcessOptions({
-  stats,
   extractionMethod,
+  progress,
   setExtractionMethod,
   batchSize,
   setBatchSize,
   isProcessing,
 }: ExifProcessOptionsProps) {
-  const totalUnprocessed = stats
-    ? stats.total - (stats.with_exif + stats.with_errors)
-    : 0;
   return (
     <div className="flex flex-col items-start gap-6 mt-4">
       <div className="flex gap-4 flex-col">
@@ -44,7 +41,7 @@ export function ExifProcessOptions({
             onValueChange={(value) =>
               setExtractionMethod(value as ExtractionMethod)
             }
-            disabled={isProcessing || totalUnprocessed === 0}
+            disabled={isProcessing || progress?.totalCount === 0}
           >
             <SelectTrigger className="w-full text-sm" id="extractionMethod">
               <SelectValue placeholder="Select extraction method" />
@@ -74,7 +71,7 @@ export function ExifProcessOptions({
                 value === 'Infinity' ? Number.POSITIVE_INFINITY : Number(value),
               )
             }
-            disabled={isProcessing || totalUnprocessed === 0}
+            disabled={isProcessing}
           >
             <SelectTrigger className="text-sm w-full" id="batchSize">
               <SelectValue placeholder="Select batch size" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Ban, Loader2, SkipForward, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -83,17 +83,13 @@ export function ProcessingStatesViewer() {
   }, [fetchProcessingStates]);
 
   // Get the status icon
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string | null) => {
     switch (status) {
-      case 'error':
+      case 'failure':
         return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'aborted':
-        return <Ban className="h-4 w-4 text-amber-500" />;
-      case 'skipped':
-        return <SkipForward className="h-4 w-4 text-blue-500" />;
-      case 'failed':
-        return <X className="h-4 w-4 text-red-500" />;
-      case 'processing':
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case null:
         return <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />;
       default:
         return null;
@@ -101,18 +97,14 @@ export function ProcessingStatesViewer() {
   };
 
   // Get status badge color
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null) => {
     switch (status) {
-      case 'error':
+      case 'failure':
         return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-      case 'aborted':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
-      case 'skipped':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-      case 'failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-      case 'processing':
+      case null:
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'success':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300';
     }
@@ -142,29 +134,11 @@ export function ProcessingStatesViewer() {
       </CardHeader>
       <CardContent>
         {/* Summary stats */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
           <Card className="p-3">
-            <p className="text-xs font-medium">Error</p>
+            <p className="text-xs font-medium">Failure</p>
             <p className="text-2xl font-bold text-red-600">
-              {counts?.error || 0}
-            </p>
-          </Card>
-          <Card className="p-3">
-            <p className="text-xs font-medium">Aborted</p>
-            <p className="text-2xl font-bold text-amber-600">
-              {counts?.aborted || 0}
-            </p>
-          </Card>
-          <Card className="p-3">
-            <p className="text-xs font-medium">Skipped</p>
-            <p className="text-2xl font-bold text-blue-600">
-              {counts?.skipped || 0}
-            </p>
-          </Card>
-          <Card className="p-3">
-            <p className="text-xs font-medium">Failed</p>
-            <p className="text-2xl font-bold text-red-600">
-              {counts?.failed || 0}
+              {counts?.failure || 0}
             </p>
           </Card>
           <Card className="p-3">
@@ -174,8 +148,10 @@ export function ProcessingStatesViewer() {
             </p>
           </Card>
           <Card className="p-3">
-            <p className="text-xs font-medium">Total</p>
-            <p className="text-2xl font-bold">{counts?.total || 0}</p>
+            <p className="text-xs font-medium">Success</p>
+            <p className="text-2xl font-bold text-green-600">
+              {counts?.success || 0}
+            </p>
           </Card>
         </div>
 
