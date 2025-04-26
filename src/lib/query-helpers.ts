@@ -506,19 +506,6 @@ export async function deleteAllFileTypes(): Promise<{
 }
 
 /**
- * Get all scan folders from the database
- * @returns Query result with scan folders data
- */
-export async function getScanFolders(): Promise<{
-  data: any[] | null;
-  error: any | null;
-}> {
-  const supabase = createServerSupabaseClient();
-
-  return supabase.from('scan_folders').select('*').order('path');
-}
-
-/**
  * Add a new scan folder to the database
  * @param folderPath Path to the folder to scan
  * @param includeSubfolders Whether to include subfolders in the scan

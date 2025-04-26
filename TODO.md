@@ -6,6 +6,7 @@
 
 # Less Important
 
+-- fix the drag and drop in file types
 
 -- server actions should be named pascal case and include revalidatePath
 

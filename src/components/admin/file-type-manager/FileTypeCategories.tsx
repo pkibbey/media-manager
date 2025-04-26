@@ -32,7 +32,7 @@ export function FileTypeCategories({
   handleToggleIgnore,
 }: FileCategoriesProps) {
   return (
-    <div className="grid grid-cols-2 space-y-6 gap-6">
+    <div className="grid grid-cols-2 gap-2">
       {categories
         // Sort categories with "other" being last
         .sort((a, b) => {
@@ -43,7 +43,6 @@ export function FileTypeCategories({
         .map((category) => (
           <div
             key={category}
-            className="space-y-2"
             onDragOver={(e) => {
               e.preventDefault();
               if (draggingFileType && category !== draggingFileType.category) {
