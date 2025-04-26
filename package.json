@@ -5,12 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "demo": "next start",
+    "start": "next start",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",
     "types": "supabase gen types typescript --local > src/types/supabase.ts",
-    "sync": "supabase migrations up --local --include-all && pnpm types && pnpm format",
-    "start": "supabase start --env-file ./supabase/.env.local"
+    "sync": "supabase migrations up --local --include-all && pnpm types && pnpm format"
   },
   "dependencies": {
     "@hookform/resolvers": "5.0.1",
