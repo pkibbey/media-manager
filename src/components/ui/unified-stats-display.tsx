@@ -124,16 +124,10 @@ export function UnifiedStatsDisplay({
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">{title}</h2>
         <div className="text-sm text-muted-foreground">
-          {stats?.counts.success ? (
-            <AnimatedNumber value={stats.counts.success} duration={100} />
-          ) : (
-            0
-          )}
+          {(stats?.counts.success ||0) + (stats?.counts.failed || 0)} 
           {' / '}
-          {stats?.counts.total && (
-            <AnimatedNumber value={stats.counts.total || 0} duration={100} />
-          )}{' '}
-          files processed
+          {stats?.counts.total || 0}{' '}
+          files
         </div>
       </div>
 
@@ -146,11 +140,10 @@ export function UnifiedStatsDisplay({
           <span>
             {stats?.counts.success || 0} {mergedLabels.success}
           </span>
-          {(stats?.counts.failed || 0) > 0 && (
-            <span>
-              {stats?.counts.failed || 0} {mergedLabels.failed}
-            </span>
-          )}
+
+          <span>
+            {stats?.counts.failed || 0} {mergedLabels.failed}
+          </span>
         </div>
 
         <div className="flex justify-between">

@@ -25,6 +25,11 @@ export interface UnifiedProgress {
   isBatchComplete?: boolean;
 }
 
+export interface UnifiedProgressWithoutStatus
+  extends Omit<UnifiedProgress, 'status'> {
+  status?: ProcessingStatus | null;
+}
+
 /**
  * Basic result interface for functions that return results
  */

@@ -24,7 +24,7 @@ export function TimestampCorrector() {
           description="Correct timestamps for media files based on EXIF data. This ensures that the timestamps are accurate and consistent across all media files."
           labels={{
             success: 'correct timestamps',
-            pending: 'needs correcting',
+            failed: 'needs correcting',
           }}
           tooltipContent={
             <p>
@@ -42,7 +42,7 @@ export function TimestampCorrector() {
           progress={progress}
           processingStartTime={processingStartTime}
           title="Correcting Timestamps"
-          itemsLabel={progress?.metadata?.fileType || 'timestamps'}
+          itemsLabel='timestamps'
           rateUnit="files/sec"
         />
       )}

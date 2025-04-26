@@ -70,10 +70,7 @@ export function UnifiedProgressDisplay({
   className,
 }: UnifiedProgressDisplayProps) {
   // Don't show anything if there's no processing happening or completed
-  if (!progress) return null;
-
-  const showProgress = isProcessing || progress.processedCount;
-  if (!showProgress) return null;
+  if (!progress || !isProcessing) return null;
 
   // Calculate counts for display
   const totalCount = progress.totalCount || 0;
@@ -90,8 +87,8 @@ export function UnifiedProgressDisplay({
       {/* Header with title and counts */}
       {title && (
         <div className="flex justify-between items-center gap-4 overflow-hidden">
-          <h3 className="text-lg font-medium truncate">{title}</h3>
-          <span className="shrink-0">
+          <h2 className="text-lg font-medium truncate">{title}</h2>
+          <span className="text-sm text-muted-foreground shrink-0">
             {processedCount} / {totalCount} {itemsLabel}
           </span>
         </div>
@@ -121,7 +118,7 @@ export function UnifiedProgressDisplay({
         <span>{percentComplete.toFixed(1)}%</span>
       </div>
 
-      {/* Time estimation */}
+      {/* Time estimation */}      
       {isProcessing && (
         <ProcessingTimeEstimator
           isProcessing={isProcessing}
@@ -135,10 +132,10 @@ export function UnifiedProgressDisplay({
       {!hideMetadata && progress.metadata && (
         <div className="text-xs text-muted-foreground truncate flex justify-between gap-4">
           {progress.metadata.processingType && (
-            <span>{progress.metadata.processingType}</span>
+            <span>Processing type: {progress.metadata.processingType}</span>
           )}
           {progress.metadata.fileType && (
-            <span className="px-2 py-1 bg-secondary rounded-md">
+            <span className="px-2 py-1 bg-secondary rounded-md justify-end">
               {progress.metadata.fileType}
             </span>
           )}

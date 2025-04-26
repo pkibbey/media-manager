@@ -32,8 +32,8 @@ export type ProcessorOptions<TStats> = {
    */
   successMessage?: {
     start?: string;
-    batchComplete?: (processed: number) => string;
-    allComplete?: () => string;
+    onBatchComplete?: (processed: number) => string;
+    onCompleteEach?: () => string;
   };
 };
 
@@ -48,8 +48,8 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
   defaultMethod = 'default',
   successMessage = {
     start: 'Starting processing...',
-    batchComplete: (processed) => `Processed ${processed} items`,
-    allComplete: () => 'Processing completed',
+    // onBatchComplete: (processed) => `Processed ${processed} items`,
+    // onCompleteEach: () => 'Processing completed',
   },
 }: ProcessorOptions<TStats>) {
   // State management
@@ -112,8 +112,8 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
         await startStream(streamFn, {
           onCompleted: () => {
             // When complete, show success message
-            if (successMessage.allComplete) {
-              toast.success(successMessage.allComplete());
+            if (successMessage.onCompleteEach) {
+              toast.success(successMessage.onCompleteEach());
             }
 
             // Refresh stats after completion
@@ -134,8 +134,8 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
             toast.error('Error during processing. Check console for details.');
           },
           onBatchComplete: (processedCount) => {
-            if (successMessage.batchComplete) {
-              toast.success(successMessage.batchComplete(processedCount));
+            if (successMessage.onBatchComplete) {
+              toast.success(successMessage.onBatchComplete(processedCount));
             }
           },
         });

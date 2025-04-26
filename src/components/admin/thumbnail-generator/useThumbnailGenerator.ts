@@ -58,9 +58,9 @@ export function useThumbnailGenerator() {
     defaultBatchSize: BATCH_SIZE,
     successMessage: {
       start: 'Starting thumbnail generation...',
-      batchComplete: (processed: number): string =>
+      onBatchComplete: (processed: number): string =>
         `Batch complete: Generated ${processed} thumbnails`,
-      allComplete: (): string => {
+      onCompleteEach: (): string => {
         const currentStats = thumbnailStatsRef;
         return `All processing complete! Generated ${currentStats?.counts.success} thumbnails (${currentStats?.counts.failed} failed)`;
       },

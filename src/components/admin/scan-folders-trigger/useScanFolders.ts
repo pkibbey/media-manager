@@ -42,9 +42,9 @@ export function useScanFolders() {
     getStreamFunction,
     successMessage: {
       start: 'Starting folder scan...',
-      batchComplete: (processed) =>
+      onBatchComplete: (processed) =>
         `Scan complete: Processed ${processed} files`,
-      allComplete: () => 'Folder scan completed successfully',
+      onCompleteEach: () => 'Folder scan completed successfully',
     },
   });
 

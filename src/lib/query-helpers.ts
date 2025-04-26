@@ -745,23 +745,9 @@ export async function updateFolderScanStatus(
 export async function sendProgress(
   encoder: TextEncoder,
   writer: WritableStreamDefaultWriter,
-  progress: Omit<Partial<UnifiedProgress>, 'status'> & {
+  progress: Omit<UnifiedProgress, 'status'> & {
     status: ProcessingStatus | null;
   },
 ) {
-  // Calculate percentComplete if not provided but we have the necessary data
-  if (
-    progress.totalCount &&
-    progress.processedCount &&
-    progress.percentComplete === undefined
-  ) {
-    progress.percentComplete = Math.min(
-      100,
-      Math.round(
-        (progress.processedCount / Math.max(1, progress.totalCount)) * 100,
-      ),
-    );
-  }
-
   await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\\n\\n`));
 }

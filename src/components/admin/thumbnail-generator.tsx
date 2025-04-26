@@ -30,7 +30,7 @@ export default function ThumbnailGenerator() {
           description="Generate thumbnails for image files and store them in Supabase Storage. This helps improve performance by pre-generating thumbnails instead of creating them on-demand."
           labels={{
             success: 'files with images',
-            pending: 'files need processing',
+            failed: 'files need processing',
           }}
           tooltipContent={
             <p>
@@ -48,7 +48,7 @@ export default function ThumbnailGenerator() {
           progress={progress}
           processingStartTime={processingStartTime}
           title="Generating Thumbnails"
-          itemsLabel={progress?.metadata?.fileType || 'files'}
+          itemsLabel='files'
           rateUnit="thumbnails/sec"
         />
       )}

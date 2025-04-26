@@ -48,7 +48,13 @@ export function ScanFoldersTriggerContainer() {
       </div>
 
       {progress && (
-        <UnifiedProgressDisplay progress={progress} isProcessing={isScanning} />
+        <UnifiedProgressDisplay
+          progress={progress}
+          isProcessing={isScanning}
+          itemsLabel="files"
+          title="Scanning Folders"
+          rateUnit="files/sec"
+        />
       )}
     </div>
   );

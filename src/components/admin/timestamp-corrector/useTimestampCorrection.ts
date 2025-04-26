@@ -89,9 +89,9 @@ export function useTimestampCorrection() {
     // Success messages
     successMessage: {
       start: 'Starting timestamp correction...',
-      batchComplete: (processed) =>
+      onBatchComplete: (processed) =>
         `Updated ${processed} timestamps successfully`,
-      allComplete: () => 'Timestamp correction completed successfully',
+      onCompleteEach: () => 'Timestamp correction completed successfully',
     },
   });
 

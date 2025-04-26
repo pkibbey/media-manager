@@ -24,8 +24,6 @@ export async function processExifData({
   progressCallback?: (message: string) => void;
 }) {
   try {
-    progressCallback?.('Fetching media item details');
-
     // First get the to access its file path
     // Apply filter to exclude ignored file types
     const { data: mediaItem, error: fetchError } =
@@ -38,7 +36,6 @@ export async function processExifData({
       };
     }
 
-    console.log('fetchError: ', fetchError);
     // Extract EXIF data
     const extraction = await extractAndSanitizeExifData(
       mediaItem.file_path,
@@ -100,13 +97,11 @@ export async function processExifData({
       exifData: extraction.exifData,
     };
   } catch (error) {
-    console.log('error: ', error);
     const errorMessage =
       error instanceof Error
         ? error.message
         : 'Unknown error processing EXIF data';
     progressCallback?.(`Error processing EXIF: ${errorMessage}`);
-    console.error('Error processing EXIF data:', error);
 
     // Use our new helper function for error processing
     return await handleProcessingError({

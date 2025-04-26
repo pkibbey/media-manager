@@ -19,8 +19,6 @@ export function ExifActionButtons({
   handleProcess,
   handleCancel,
 }: ExifActionButtonsProps) {
-  console.log('stats: ', stats?.counts);
-
   return (
     <div className="flex flex-col gap-2">
       <Button

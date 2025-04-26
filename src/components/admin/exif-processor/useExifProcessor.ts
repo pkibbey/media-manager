@@ -50,9 +50,8 @@ export function useExifProcessor() {
     defaultMethod: 'default',
     successMessage: {
       start: 'Starting EXIF processing...',
-      batchComplete: (processed) =>
+      onBatchComplete: (processed) =>
         `Batch complete: ${processed} files processed`,
-      allComplete: () => 'EXIF processing completed successfully',
     },
   });
 
