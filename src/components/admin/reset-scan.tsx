@@ -3,6 +3,7 @@
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { clearAllMediaItems } from '@/app/actions/exif';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -103,7 +104,4 @@ export default function ResetScan() {
       </Dialog>
     </>
   );
-}
-function clearAllMediaItems() {
-  throw new Error('Function not implemented.');
 }

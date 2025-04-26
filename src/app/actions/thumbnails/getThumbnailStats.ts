@@ -2,11 +2,8 @@
 
 import { includeMedia } from '@/lib/media-filters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import {
-  calculatePercentages,
-  type StatsResponse,
-  type UnifiedStats,
-} from '@/types/unified-stats';
+import { calculatePercentages } from '@/lib/utils';
+import type { StatsResponse, UnifiedStats } from '@/types/unified-stats';
 
 /**
  * Get statistics about thumbnail status

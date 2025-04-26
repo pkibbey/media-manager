@@ -1,5 +1,5 @@
 import ExifProcessor from '@/components/admin/exif-processor';
-import ResetMedia from '@/components/admin/reset-media';
+import { ResetMedia } from '@/components/admin/reset-media';
 
 export default function ProcessingPage() {
   return (

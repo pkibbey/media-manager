@@ -25,46 +25,37 @@ export async function getAllStats(): Promise<{
     .single();
   if (sizeError) throw sizeError;
 
-  // Get exif processing success count
-  const { count: exifCount, error: exifError } = await supabase
+  // Get error total count
+  const { count: erroredCount, error: erroredError } = await supabase
     .from('media_items')
     .select('id, processing_states!inner(*)', {
       count: 'exact',
       head: true,
     })
-    .eq('processing_states.type', 'exif');
-
-  console.log('exifCount: ', exifCount);
-  if (exifError) throw exifError;
-
-  // Get exif processing error count
-  const { count: erroredCount, error: erroredError } = await supabase
-    .from('media_items')
-    .select('id, processing_states!inner(*), file_types!inner(*)', {
-      count: 'exact',
-      head: true,
-    })
-    .eq('processing_states.status', 'error');
+    .in('processing_states.status', ['error', 'failed', 'aborted']);
+  console.log('erroredCount: ', erroredCount);
   if (erroredError) throw erroredError;
 
-  // Get exif processing skipped count
+  // Get total skipped count
   const { count: skippedCount, error: skippedError } = await supabase
     .from('media_items')
-    .select('processing_states!inner(*)', {
+    .select('id, processing_states!inner(*)', {
       count: 'exact',
       head: true,
     })
-    .eq('processing_states.status', 'aborted');
+    .eq('processing_states.status', 'skipped');
+  console.log('skippedCount: ', skippedCount);
   if (skippedError) throw skippedError;
 
-  // Get ignored files count - this specifically counts files with ignored file types
+  // Get ignored files count
   const { count: ignoredCount, error: ignoredError } = await supabase
     .from('media_items')
-    .select('file_types!inner(*)', {
+    .select('id, file_types!inner(*)', {
       count: 'exact',
       head: true,
     })
     .eq('file_types.ignore', true);
+  console.log('ignoredCount: ', ignoredCount);
   if (ignoredError) throw ignoredError;
 
   // Get timestamp correction needs
@@ -76,17 +67,17 @@ export async function getAllStats(): Promise<{
     })
     .is('media_date', null)
     .eq('processing_states.type', 'timestamp_correction')
+    // NOTE: Does this include all the right statuses?
     .not('processing_states.status', 'eq', 'failed');
 
   return {
     success: true,
     data: {
-      totalMediaItems: totalCount || 0,
-      totalSizeBytes: sizeData?.sum || 0,
-      exifCount: exifCount || 0,
+      totalCount: totalCount || 0,
       erroredCount: erroredCount || 0,
       ignoredCount: ignoredCount || 0,
       skippedCount: skippedCount || 0,
+      totalSizeBytes: sizeData?.sum || 0,
       timestampCorrectionCount: timestampCorrectionCount || 0,
     },
   };

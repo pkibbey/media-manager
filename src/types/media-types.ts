@@ -20,12 +20,11 @@ export interface MediaFilters {
  * Statistics about media items in the system
  */
 export type AllMediaStats = {
-  totalMediaItems: number;
-  totalSizeBytes: number;
-  exifCount: number;
+  totalCount: number;
   erroredCount: number;
   ignoredCount: number;
   skippedCount: number;
+  totalSizeBytes: number;
   timestampCorrectionCount: number;
 };
 

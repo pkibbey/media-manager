@@ -6,7 +6,7 @@ import {
   PieChartIcon,
 } from '@radix-ui/react-icons';
 import { getAllStats } from '@/app/actions/stats/getAllStats';
-import { formatBytes } from '@/lib/utils';
+import { calculatePercentages, formatBytes } from '@/lib/utils';
 
 export default async function AllMediaStats() {
   // Fetch both basic stats and detailed stats (categories and extensions)
@@ -21,10 +21,13 @@ export default async function AllMediaStats() {
   }
 
   // Calculate percentages for progress bars - using only non-ignored files
-  const processedPercentage =
-    data.totalMediaItems > 0
-      ? (data.exifCount / data.totalMediaItems) * 100
-      : 0;
+  const processedPercentage = calculatePercentages({
+    success: data.erroredCount + data.ignoredCount + data.skippedCount,
+    total: data.totalCount,
+    ignored: data.ignoredCount,
+    failed: data.erroredCount,
+    skipped: data.skippedCount,
+  });
 
   // Function to get appropriate icon for a category
   const getCategoryIcon = (category: string) => {
@@ -50,7 +53,7 @@ export default async function AllMediaStats() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Total Media</div>
-          <div className="text-2xl font-bold">{data.totalMediaItems}</div>
+          <div className="text-2xl font-bold">{data.totalCount}</div>
         </div>
         <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">Total Size</div>
@@ -59,26 +62,8 @@ export default async function AllMediaStats() {
           </div>
         </div>
         <div className="bg-card border rounded-md p-4 flex flex-col">
-          <div className="text-muted-foreground text-sm mb-1">Processed</div>
-          <div className="text-2xl font-bold">
-            {data.exifCount}{' '}
-            <span className="text-sm font-normal text-muted-foreground">
-              / {data.totalMediaItems}
-            </span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {data.ignoredCount} ignored
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {data.skippedCount} skipped
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {data.erroredCount} errored
-          </div>
-        </div>
-        <div className="bg-card border rounded-md p-4 flex flex-col">
           <div className="text-muted-foreground text-sm mb-1">
-            Needs Timestamp Correction
+            Time Correction
           </div>
           <div className="text-2xl font-bold">
             {data.timestampCorrectionCount ?? 0}
@@ -100,13 +85,13 @@ export default async function AllMediaStats() {
               <span>Processing</span>
             </div>
             <span className="text-muted-foreground">
-              {data.exifCount} / {data.totalMediaItems}
+              {processedPercentage?.completed}%
             </span>
           </div>
           <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
             <div
               className="bg-primary h-full"
-              style={{ width: `${processedPercentage}%` }}
+              style={{ width: `${processedPercentage?.completed}%` }}
             />
           </div>
           <p className="text-xs text-muted-foreground">
@@ -139,7 +124,7 @@ export default async function AllMediaStats() {
                       <div
                         className="bg-primary h-full"
                         style={{
-                          width: `${(count / data.totalMediaItems) * 100}%`,
+                          width: `${(count / data.totalCount) * 100}%`,
                         }}
                       />
                     </div>

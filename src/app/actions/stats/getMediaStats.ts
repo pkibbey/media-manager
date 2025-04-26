@@ -1,11 +1,8 @@
 'use server';
 import { includeMedia } from '@/lib/media-filters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import {
-  calculatePercentages,
-  type StatsResponse,
-  type UnifiedStats,
-} from '@/types/unified-stats';
+import { calculatePercentages } from '@/lib/utils';
+import type { StatsResponse, UnifiedStats } from '@/types/unified-stats';
 
 /**
  * Get comprehensive statistics about media items in the system
@@ -19,7 +16,7 @@ export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
       .from('media_items')
       .select('id, file_types!inner(*)', { count: 'exact', head: true }),
   );
-  console.log('totalError: ', totalError);
+  if (totalError) console.log('totalError: ', totalError);
   if (totalError) throw totalError;
 
   // Get exif processing success count
@@ -28,12 +25,12 @@ export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
       .from('media_items')
       .select('id, processing_states!inner(*), file_types!inner(*)', {
         count: 'exact',
-        head: true,
+        // head: true,
       })
       .eq('processing_states.type', 'exif')
       .eq('processing_states.status', 'success'),
   );
-  console.log('processedError: ', processedError);
+  if (processedError) console.log('processedError: ', processedError);
   if (processedError) throw processedError;
 
   // Get exif processing error count
@@ -44,10 +41,10 @@ export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
         count: 'exact',
         head: true,
       })
-      .eq('processing_states.type', 'exif')
+      // .eq('processing_states.type', 'exif')
       .eq('processing_states.status', 'error'),
   );
-  console.log('erroredError: ', erroredError);
+  if (erroredError) console.log('erroredError: ', erroredError);
   if (erroredError) throw erroredError;
 
   // Get exif processing skipped count
@@ -58,20 +55,23 @@ export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
         count: 'exact',
         head: true,
       })
-      .eq('processing_states.type', 'exif')
+      // .eq('processing_states.type', 'exif')
       .eq('processing_states.status', 'skipped'),
   );
-  console.log('skippedError: ', skippedError);
+  if (skippedError) console.log('skippedError: ', skippedError);
   if (skippedError) throw skippedError;
 
   // Get ignored files count - this specifically counts files with ignored file types
   const { count: ignoredCount, error: ignoredError } = await includeMedia(
     supabase
       .from('media_items')
-      .select('id, file_types!inner(*)', { count: 'exact', head: true })
+      .select('id, processing_states!inner(*), file_types!inner(*)', {
+        count: 'exact',
+        head: true,
+      })
       .eq('file_types.ignore', true),
   );
-  console.log('ignoredError: ', ignoredError);
+  if (ignoredError) console.log('ignoredError: ', ignoredError);
   if (ignoredError) throw ignoredError;
 
   // Create counts for new unified format

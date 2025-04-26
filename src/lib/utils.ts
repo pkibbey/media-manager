@@ -3,6 +3,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import { twMerge } from 'tailwind-merge';
 import type { MediaItem } from '@/types/db-types';
+import type { UnifiedStats } from '@/types/unified-stats';
 import { fileTypeCache } from './file-type-cache';
 
 /**
@@ -482,4 +483,28 @@ export async function getFileCategory(
  */
 export function excludeIgnoredFileTypes(query: any): any {
   return query.eq('file_types.ignore', false);
+}
+
+/**
+ * Helper function to calculate percentages from counts
+ */
+export function calculatePercentages(
+  counts: UnifiedStats['counts'],
+): UnifiedStats['percentages'] {
+  const total = counts.total || 0;
+  if (total === 0) return {};
+
+  const percentages: UnifiedStats['percentages'] = {};
+
+  // Calculate completed percentage
+  if (counts.success !== undefined) {
+    percentages.completed = Math.round((counts.success / total) * 100);
+  }
+
+  // Calculate error percentage
+  if (counts.failed !== undefined) {
+    percentages.error = Math.round((counts.failed / total) * 100);
+  }
+
+  return percentages;
 }

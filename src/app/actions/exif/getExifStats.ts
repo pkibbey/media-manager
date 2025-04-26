@@ -2,7 +2,8 @@
 
 import { includeMedia } from '@/lib/media-filters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { calculatePercentages, type UnifiedStats } from '@/types/unified-stats';
+import { calculatePercentages } from '@/lib/utils';
+import type { UnifiedStats } from '@/types/unified-stats';
 
 /**
  * Get EXIF processing statistics

@@ -5,10 +5,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const navItems = [
     { href: '/admin/folders', label: 'Folders' },
     { href: '/admin/scan', label: 'Scan' },
+    { href: '/admin/file-types', label: 'File Types' },
     { href: '/admin/exif', label: 'Exif' },
     { href: '/admin/thumbnails', label: 'Thumbnails' },
     { href: '/admin/timestamps', label: 'Timestamps' },
-    { href: '/admin/file-types', label: 'File-types' },
     { href: '/admin/stats', label: 'Stats' },
   ];
 

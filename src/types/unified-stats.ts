@@ -65,30 +65,6 @@ export interface UnifiedStats {
 }
 
 /**
- * Helper function to calculate percentages from counts
- */
-export function calculatePercentages(
-  counts: UnifiedStats['counts'],
-): UnifiedStats['percentages'] {
-  const total = counts.total || 0;
-  if (total === 0) return {};
-
-  const percentages: UnifiedStats['percentages'] = {};
-
-  // Calculate completed percentage
-  if (counts.success !== undefined) {
-    percentages.completed = Math.round((counts.success / total) * 100);
-  }
-
-  // Calculate error percentage
-  if (counts.failed !== undefined) {
-    percentages.error = Math.round((counts.failed / total) * 100);
-  }
-
-  return percentages;
-}
-
-/**
  * Generic success response with stats
  */
 export interface StatsResponse<T extends UnifiedStats = UnifiedStats> {
