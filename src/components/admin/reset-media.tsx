@@ -1,6 +1,8 @@
 'use client';
 
-import { clearAllMediaItems } from '@/app/actions/stats';
+import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,9 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 export function ResetMedia() {
   const [isResetting, setIsResetting] = useState(false);
@@ -30,13 +29,8 @@ export function ResetMedia() {
     setShowConfirmDialog(false);
 
     try {
-      const result = await clearAllMediaItems();
-
-      if (result.success) {
-        toast.success(result.message);
-      } else {
-        toast.error(`Failed to reset media items: ${result.error}`);
-      }
+      await clearAllMediaItems();
+      toast.success('Successfully reset all media items');
     } catch (error: any) {
       toast.error(`Error: ${error.message || 'Unknown error occurred'}`);
     } finally {
@@ -105,3 +99,6 @@ export function ResetMedia() {
 }
 
 export default ResetMedia;
+function clearAllMediaItems() {
+  throw new Error('Function not implemented.');
+}

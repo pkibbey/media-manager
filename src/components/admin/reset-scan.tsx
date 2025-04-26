@@ -1,6 +1,8 @@
 'use client';
 
-import { clearAllMediaItems } from '@/app/actions/stats';
+import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,9 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 export default function ResetScan() {
   const [isLoading, setIsLoading] = useState(false);
@@ -29,20 +28,16 @@ export default function ResetScan() {
     try {
       setIsLoading(true);
 
-      // Use the direct server action instead of fetch
-      const result = await clearAllMediaItems();
+      await clearAllMediaItems();
 
-      if (result.success) {
-        toast.success(result.message);
-        setDialogOpen(false);
-      } else {
-        toast.error(result.error || 'Failed to reset Scan');
-      }
+      toast.success(
+        'Media database reset successfully. Scan folders configuration preserved.',
+      );
+      setDialogOpen(false);
     } catch (error) {
       toast.error(
-        'An unexpected error occurred while resetting media database',
+        `An unexpected error occurred while resetting media database, ${error}`,
       );
-      console.error('Error resetting media database:', error);
     } finally {
       setIsLoading(false);
     }
@@ -108,4 +103,7 @@ export default function ResetScan() {
       </Dialog>
     </>
   );
+}
+function clearAllMediaItems() {
+  throw new Error('Function not implemented.');
 }

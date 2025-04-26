@@ -1,9 +1,9 @@
 'use client';
 
-import {
-  regenerateMissingThumbnails,
-  resetAllThumbnails,
-} from '@/app/actions/thumbnails';
+import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { resetAllThumbnails } from '@/app/actions/thumbnails';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -20,13 +20,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 export default function ResetThumbnails() {
   const [isLoading, setIsLoading] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleReset = async () => {
@@ -51,28 +47,6 @@ export default function ResetThumbnails() {
     }
   };
 
-  const handleRegenerateMissing = async () => {
-    try {
-      setIsRegenerating(true);
-      const result = await regenerateMissingThumbnails();
-
-      if (result.success) {
-        toast.success(result.message);
-      } else {
-        toast.error(
-          result.message || 'Failed to regenerate missing thumbnails',
-        );
-      }
-    } catch (error: any) {
-      toast.error(
-        'An unexpected error occurred while regenerating thumbnails',
-        error.message,
-      );
-    } finally {
-      setIsRegenerating(false);
-    }
-  };
-
   return (
     <>
       <Card>
@@ -89,7 +63,7 @@ export default function ResetThumbnails() {
             <Button
               variant="destructive"
               onClick={() => setDialogOpen(true)}
-              disabled={isLoading || isRegenerating}
+              disabled={isLoading}
               className="w-full"
             >
               {isLoading ? (
@@ -99,28 +73,6 @@ export default function ResetThumbnails() {
                 </>
               ) : (
                 'Reset All Thumbnails'
-              )}
-            </Button>
-          </div>
-
-          <div className="pt-2 border-t">
-            <h4 className="text-sm font-medium mb-2">Fix Missing Thumbnails</h4>
-            <p className="text-sm text-muted-foreground mb-2">
-              Regenerate thumbnails for media items that are missing thumbnails.
-            </p>
-            <Button
-              variant="outline"
-              onClick={handleRegenerateMissing}
-              disabled={isLoading || isRegenerating}
-              className="w-full"
-            >
-              {isRegenerating ? (
-                <>
-                  <RotateCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
-                  Regenerating...
-                </>
-              ) : (
-                'Regenerate Missing Thumbnails'
               )}
             </Button>
           </div>

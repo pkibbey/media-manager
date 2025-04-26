@@ -1,32 +1,30 @@
 import { useCallback } from 'react';
-import { updateMediaDatesFromFilenames } from '@/app/actions/exif';
 import { getMediaStats } from '@/app/actions/stats';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { UnifiedProgress } from '@/types/progress-types';
+import type { UnifiedStats } from '@/types/unified-stats';
+import { updateMediaDatesFromFilenames } from './updateMediaDatesFromFilenames';
 
 /**
  * Hook for handling timestamp correction operations
  */
-export function useTimestampCorrection(initialNeedsCorrection = 0) {
+export function useTimestampCorrection() {
   // Use the common processor base hook with timestamp correction specifics
   const {
     isProcessing,
     progress,
     processingStartTime,
-    stats: needsCorrection,
     handleStartProcessing,
     handleCancel: handleStopProcessing,
-  } = useProcessorBase<UnifiedProgress, number>({
+  } = useProcessorBase<UnifiedProgress, UnifiedStats | undefined>({
     // Initialize with the initial value and fetch updated stats
     fetchStats: async () => {
       try {
         const { success, data } = await getMediaStats();
-        return success && data
-          ? data.needsTimestampCorrectionCount || 0
-          : initialNeedsCorrection;
+        return success ? data : undefined;
       } catch (error) {
         console.error('Error fetching timestamp correction stats:', error);
-        return initialNeedsCorrection;
+        return undefined;
       }
     },
 
@@ -106,7 +104,6 @@ export function useTimestampCorrection(initialNeedsCorrection = 0) {
     isProcessing,
     progress,
     processingStartTime,
-    needsCorrection,
     handleStopProcessing,
     handleUpdateTimestamps,
   };

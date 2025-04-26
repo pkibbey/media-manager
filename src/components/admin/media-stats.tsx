@@ -81,7 +81,7 @@ export default async function MediaStats() {
             Needs Timestamp Correction
           </div>
           <div className="text-2xl font-bold">
-            {data.needsTimestampCorrectionCount ?? 0}
+            {data.timestampCorrectionCount ?? 0}
           </div>
           <div className="text-xs text-muted-foreground">
             Processed, EXIF-capable, no EXIF

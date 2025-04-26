@@ -1,8 +1,8 @@
 'use client';
 
-import { addScanFolder } from '@/app/actions/scan';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { addScanFolder } from '@/lib/query-helpers';
 
 export default function AddFolderForm() {
   const router = useRouter();
@@ -10,22 +10,22 @@ export default function AddFolderForm() {
   const [includeSubfolders, setIncludeSubfolders] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
-    setSuccess(null);
+    setMessage(null);
 
     try {
-      const result = await addScanFolder(folderPath, includeSubfolders);
-      if (result.success) {
-        setSuccess('Folder added successfully');
-        setFolderPath(''); // Reset form
-      } else {
-        setError(result.error || 'Unknown error occurred');
+      const { error } = await addScanFolder(folderPath, includeSubfolders);
+      if (error) {
+        setError(error);
+        return;
       }
+      setMessage('Folder added successfully');
+      setFolderPath('');
     } catch (error: any) {
       setError(error.message || 'An unexpected error occurred');
     } finally {
@@ -75,9 +75,9 @@ export default function AddFolderForm() {
           </div>
         )}
 
-        {success && (
+        {message && (
           <div className="p-3 text-sm rounded-md bg-primary/10 text-primary">
-            {success}
+            {message}
           </div>
         )}
 

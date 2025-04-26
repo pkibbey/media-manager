@@ -1,4 +1,3 @@
-export { clearAllMediaItems } from './clearAllMediaItems';
-export { getDetailedMediaStats } from './getDetailedMediaStats';
+export { resetEverything } from '../scan/resetEverything';
+export { clearAllStats } from './clearAllStats';
 export { getMediaStats } from './getMediaStats';
-export { resetEverything } from './resetEverything';

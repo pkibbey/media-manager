@@ -1,104 +1,97 @@
 'use server';
 import { includeMedia } from '@/lib/media-filters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { MediaStats } from '@/types/media-types';
+import {
+  calculatePercentages,
+  type StatsResponse,
+  type UnifiedStats,
+} from '@/types/unified-stats';
 
 /**
  * Get comprehensive statistics about media items in the system
  */
-export async function getMediaStats(): Promise<{
-  success: boolean;
-  data?: MediaStats;
-  error?: string;
-}> {
-  try {
-    const supabase = createServerSupabaseClient();
+export async function getMediaStats(): Promise<StatsResponse<UnifiedStats>> {
+  const supabase = createServerSupabaseClient();
 
-    // Get total count of media items
-    const { count: totalCount } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('id, file_types!inner(*)', { count: 'exact', head: true }),
-    );
+  // Get total count of media items
+  const { count: totalCount, error: totalError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('id, file_types!inner(*)', { count: 'exact', head: true }),
+  );
+  console.log('totalError: ', totalError);
+  if (totalError) throw totalError;
 
-    // Get total size of all media
-    const { data: sizeData } = await supabase.rpc('sum_file_sizes').single();
+  // Get exif processing success count
+  const { count: processedCount, error: processedError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('id, processing_states!inner(*), file_types!inner(*)', {
+        count: 'exact',
+        head: true,
+      })
+      .eq('processing_states.type', 'exif')
+      .eq('processing_states.status', 'success'),
+  );
+  console.log('processedError: ', processedError);
+  if (processedError) throw processedError;
 
-    const totalSizeBytes = sizeData?.sum || 0;
+  // Get exif processing error count
+  const { count: erroredCount, error: erroredError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('id, processing_states!inner(*), file_types!inner(*)', {
+        count: 'exact',
+        head: true,
+      })
+      .eq('processing_states.type', 'exif')
+      .eq('processing_states.status', 'error'),
+  );
+  console.log('erroredError: ', erroredError);
+  if (erroredError) throw erroredError;
 
-    // Get exif processing success count
-    const { count: processedCount } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('id, processing_states!inner(*), file_types!inner(*)', {
-          count: 'exact',
-          head: true,
-        })
-        .eq('processing_states.type', 'exif')
-        .eq('processing_states.status', 'success'),
-    );
+  // Get exif processing skipped count
+  const { count: skippedCount, error: skippedError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('id, processing_states!inner(*), file_types!inner(*)', {
+        count: 'exact',
+        head: true,
+      })
+      .eq('processing_states.type', 'exif')
+      .eq('processing_states.status', 'skipped'),
+  );
+  console.log('skippedError: ', skippedError);
+  if (skippedError) throw skippedError;
 
-    // Get exif processing error count
-    const { count: erroredCount } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('id, processing_states!inner(*), file_types!inner(*)', {
-          count: 'exact',
-          head: true,
-        })
-        .eq('processing_states.type', 'exif')
-        .eq('processing_states.status', 'error'),
-    );
+  // Get ignored files count - this specifically counts files with ignored file types
+  const { count: ignoredCount, error: ignoredError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('id, file_types!inner(*)', { count: 'exact', head: true })
+      .eq('file_types.ignore', true),
+  );
+  console.log('ignoredError: ', ignoredError);
+  if (ignoredError) throw ignoredError;
 
-    // Get exif processing skipped count
-    const { count: skippedCount } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('id, processing_states!inner(*), file_types!inner(*)', {
-          count: 'exact',
-          head: true,
-        })
-        .or('processing_states->status.is.skipped, processing_states.is.null'),
-    );
+  // Create counts for new unified format
+  const counts = {
+    total: totalCount || 0,
+    success: processedCount || 0,
+    failed: erroredCount || 0,
+    skipped: skippedCount || 0,
+    ignored: ignoredCount || 0,
+  };
 
-    // Get ignored files count - this specifically counts files with ignored file types
-    const { count: ignoredCount } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('id, file_types!inner(*)', { count: 'exact', head: true })
-        .eq('file_types.ignore', true),
-    );
+  const unifiedStats: UnifiedStats = {
+    status: 'success',
+    message: `${counts.success} of ${counts.total} files processed`,
+    counts,
+    percentages: calculatePercentages(counts),
+  };
 
-    // Get timestamp correction needs
-    const { count: needsTimestampCorrectionCount } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('id, processing_states!inner(*), file_types!inner(*)', {
-          count: 'exact',
-          head: true,
-        })
-        .is('media_date', null)
-        .eq('processing_states.type', 'timestamp_correction')
-        .not('processing_states.status', 'eq', 'failed'),
-    );
-
-    return {
-      success: true,
-      data: {
-        totalMediaItems: totalCount || 0,
-        totalSizeBytes,
-        processedCount: processedCount || 0,
-        erroredCount: erroredCount || 0,
-        ignoredCount: ignoredCount || 0,
-        skippedCount: skippedCount || 0,
-        needsTimestampCorrectionCount: needsTimestampCorrectionCount || 0,
-      },
-    };
-  } catch (error) {
-    console.error('Error fetching media stats:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
+  return {
+    success: true,
+    data: unifiedStats,
+  };
 }

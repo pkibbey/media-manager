@@ -16,7 +16,7 @@ export async function CorrectorStats() {
   // Calculate the percentage of files that don't need timestamp correction
   const correctedPercentage =
     stats?.totalMediaItems && stats.totalMediaItems > 0
-      ? ((stats.totalMediaItems - (stats.needsTimestampCorrectionCount ?? 0)) /
+      ? ((stats.totalMediaItems - (stats.timestampCorrectionCount ?? 0)) /
           stats.totalMediaItems) *
         100
       : 0;
@@ -41,7 +41,7 @@ export async function CorrectorStats() {
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">Timestamp Correction</h2>
         <div className="text-sm text-muted-foreground">
-          {stats.totalMediaItems - (stats.needsTimestampCorrectionCount ?? 0)} /{' '}
+          {stats.totalMediaItems - (stats.timestampCorrectionCount ?? 0)} /{' '}
           {stats.totalMediaItems} files corrected
         </div>
       </div>
@@ -52,13 +52,12 @@ export async function CorrectorStats() {
       <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
         <div className="flex justify-between">
           <span>
-            {stats.needsTimestampCorrectionCount ?? 0} files need timestamp
+            {stats.timestampCorrectionCount ?? 0} files need timestamp
             correction
           </span>
           <span>
             {stats.totalMediaItems
-              ? stats.totalMediaItems -
-                (stats.needsTimestampCorrectionCount ?? 0)
+              ? stats.totalMediaItems - (stats.timestampCorrectionCount ?? 0)
               : 0}{' '}
             files with correct timestamps
           </span>

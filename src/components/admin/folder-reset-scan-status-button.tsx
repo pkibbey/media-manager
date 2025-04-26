@@ -3,8 +3,8 @@
 import { RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { updateFolderScanStatus } from '@/app/actions/scan';
 import { Button } from '@/components/ui/button';
+import { updateFolderScanStatus } from '@/lib/query-helpers';
 
 interface FolderResetScanStatusProps {
   folderId: number;

@@ -4,21 +4,14 @@ import { CorrectionActions } from './CorrectionActions';
 import { CorrectionProgress } from './CorrectionProgress';
 import { useTimestampCorrection } from './useTimestampCorrection';
 
-export type TimestampCorrectorClientProps = {
-  initialNeedsCorrection?: number;
-};
-
-export function CorrectorClient({
-  initialNeedsCorrection = 0,
-}: TimestampCorrectorClientProps) {
+export function CorrectorClient() {
   const {
     isProcessing,
     progress,
     processingStartTime,
-    needsCorrection,
     handleStopProcessing,
     handleUpdateTimestamps,
-  } = useTimestampCorrection(initialNeedsCorrection);
+  } = useTimestampCorrection();
 
   return (
     <>
@@ -30,7 +23,6 @@ export function CorrectorClient({
 
       <CorrectionActions
         isProcessing={isProcessing}
-        needsCorrection={needsCorrection}
         onUpdateTimestamps={handleUpdateTimestamps}
         onStopProcessing={handleStopProcessing}
       />

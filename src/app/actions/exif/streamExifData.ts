@@ -16,7 +16,7 @@ import { processExifData } from './processExifData';
  * Process all unprocessed items with streaming updates
  * This function returns a ReadableStream that emits progress updates
  */
-export async function streamExifUnprocessed({
+export async function streamExifData({
   extractionMethod,
   batchSize,
 }: {

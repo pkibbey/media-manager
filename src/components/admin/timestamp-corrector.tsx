@@ -1,19 +1,13 @@
-import { getMediaStats } from '@/app/actions/stats';
 import { CorrectorClient } from './timestamp-corrector/CorrectorClient';
-import { CorrectorStats } from './timestamp-corrector/CorrectorStats';
 
 export async function TimestampCorrector() {
-  // Fetch initial stats to pass to the client component
-  const { data: stats } = await getMediaStats();
-  const needsCorrection = stats?.needsTimestampCorrectionCount || 0;
-
   return (
     <div className="space-y-4">
       {/* Server component for displaying stats */}
-      <CorrectorStats />
+      {/* <CorrectorStats /> */}
 
       {/* Client component for interactivity */}
-      <CorrectorClient initialNeedsCorrection={needsCorrection} />
+      <CorrectorClient />
     </div>
   );
 }

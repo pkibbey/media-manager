@@ -581,7 +581,7 @@ export async function getFoldersToScan(folderId?: number): Promise<{
  * @returns Query result with file types data (extension and category)
  */
 export async function getScanFileTypes(): Promise<{
-  data: { extension: string; category: string }[] | null;
+  data: { id: string; category: string }[] | null;
   error: any | null;
 }> {
   const supabase = createServerSupabaseClient();

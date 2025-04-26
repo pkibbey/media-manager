@@ -7,14 +7,12 @@ import { Button } from '@/components/ui/button';
 
 type CorrectionActionsProps = {
   isProcessing: boolean;
-  needsCorrection: number;
   onUpdateTimestamps: () => Promise<void>;
   onStopProcessing: () => void;
 };
 
 export function CorrectionActions({
   isProcessing,
-  needsCorrection,
   onUpdateTimestamps,
   onStopProcessing,
 }: CorrectionActionsProps) {
@@ -22,7 +20,7 @@ export function CorrectionActions({
     <div className="flex gap-2 pt-2">
       <Button
         onClick={onUpdateTimestamps}
-        disabled={isProcessing || needsCorrection === 0}
+        disabled={isProcessing}
         variant="default"
         className="flex-grow"
       >
@@ -31,11 +29,7 @@ export function CorrectionActions({
         ) : (
           <CalendarIcon className="mr-2 h-4 w-4" />
         )}
-        {isProcessing
-          ? 'Processing...'
-          : needsCorrection === 0
-            ? 'No Files Need Correction'
-            : 'Correct Timestamps'}
+        {isProcessing ? 'Processing...' : 'Correct Timestamps'}
       </Button>
 
       {isProcessing && (

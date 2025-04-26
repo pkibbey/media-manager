@@ -15,7 +15,7 @@ import { generateThumbnail } from './generateThumbnail';
  * Process all unprocessed thumbnails with streaming updates
  * Returns a ReadableStream that emits progress updates
  */
-export async function streamUnprocessedThumbnails({
+export async function streamThumbnails({
   batchSize = 100,
 }: {
   batchSize?: number;

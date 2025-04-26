@@ -15,6 +15,7 @@ import {
 } from '@/lib/processing-helpers';
 import {
   checkFileExists,
+  getFileTypeIdByExtension,
   getFoldersToScan,
   getScanFileTypes,
   insertMediaItem,
@@ -105,7 +106,7 @@ export async function scanFolders(options: ScanOptions = {}) {
       // Create a map of extension -> category for quick lookup
       const fileTypeMap = new Map<string, string>();
       existingFileTypes?.forEach((type) => {
-        fileTypeMap.set(type.extension, type.category);
+        fileTypeMap.set(type.id, type.category);
       });
 
       // Process each folder
@@ -483,29 +484,4 @@ export async function scanFolders(options: ScanOptions = {}) {
 
     return files;
   }
-}
-
-// Helper function to get file type ID by extension
-async function getFileTypeIdByExtension(extension: string): Promise<{
-  data: { id: number } | null;
-  error: any | null;
-}> {
-  // Use the query helper function but handle it here to maintain consistent interface
-  const { data: existingType, error } = await getScanFileTypes();
-
-  if (error || !existingType) {
-    return { data: null, error };
-  }
-
-  const fileType = existingType.find((ft) => ft.extension === extension);
-  if (!fileType) {
-    return { data: null, error: null };
-  }
-
-  // This would normally be returned from a direct query, but we're
-  // extracting it from the file types we already have
-  return {
-    data: { id: Number.parseInt(fileType.extension) },
-    error: null,
-  };
 }

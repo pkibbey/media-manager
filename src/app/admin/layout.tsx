@@ -10,7 +10,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { href: '/admin/timestamps', label: 'Timestamps' },
     { href: '/admin/file-types', label: 'File-types' },
     { href: '/admin/stats', label: 'Stats' },
-    { href: '/admin/processing', label: 'Processing' },
   ];
 
   return (

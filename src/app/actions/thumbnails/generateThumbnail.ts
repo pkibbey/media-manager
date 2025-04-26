@@ -36,14 +36,7 @@ export async function generateThumbnail(mediaId: string): Promise<
         .select('*, file_types!inner(*)')
         .eq('id', mediaId),
     ).single();
-
-    if (error || !mediaItem) {
-      console.error(`[Thumbnail] Error fetching media item ${mediaId}:`, error);
-      return {
-        success: false,
-        message: `Failed to fetch media item: ${error?.message || 'Not found'}`,
-      };
-    }
+    if (error) throw error;
 
     // Check if file exists
     try {

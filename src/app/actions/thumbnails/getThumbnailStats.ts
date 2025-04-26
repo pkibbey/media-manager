@@ -2,114 +2,96 @@
 
 import { includeMedia } from '@/lib/media-filters';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { ThumbnailStats } from '@/types/thumbnail-types';
+import {
+  calculatePercentages,
+  type StatsResponse,
+  type UnifiedStats,
+} from '@/types/unified-stats';
 
 /**
  * Get statistics about thumbnail status
+ * Uses the new UnifiedStats structure
  */
-export async function getThumbnailStats(): Promise<{
-  success: boolean;
-  stats?: ThumbnailStats;
-  error?: string;
-}> {
-  try {
-    const supabase = createServerSupabaseClient();
+export async function getThumbnailStats(): Promise<
+  StatsResponse<UnifiedStats>
+> {
+  const supabase = createServerSupabaseClient();
 
-    // Get total count of all compatible image files, excluding ignored file types
-    const { count: totalCount, error: totalError } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('*, file_types!inner(*)', { count: 'exact', head: true }),
-    );
+  // Get total count of all compatible image files, excluding ignored file types
+  const { count: totalCount, error: totalError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('*, file_types!inner(*)', { count: 'exact', head: true }),
+  );
+  if (totalError) throw totalError;
 
-    if (totalError) {
-      throw new Error(`Failed to get total file count: ${totalError.message}`);
-    }
+  // Get count of files with successful thumbnails
+  const { count: successCount, error: successError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('*, file_types!inner(*), processing_states!inner(*)', {
+        count: 'exact',
+        head: true,
+      })
+      .eq('processing_states.type', 'thumbnail')
+      .eq('processing_states.status', 'success'),
+  );
+  if (successError) throw successError;
 
-    // Get count of files with successful thumbnails
-    // Note: We don't need to filter by file_types.ignore here since we're only
-    // looking at processing_states that were already created, and those are already
-    // filtered by the time they were created
-    const { count: withThumbnailsCount, error: withThumbnailsError } =
-      await includeMedia(
-        supabase
-          .from('media_items')
-          .select('*, file_types!inner(*), processing_states!inner(*)', {
-            count: 'exact',
-            head: true,
-          })
-          .eq('processing_states.type', 'thumbnail')
-          .eq('processing_states.status', 'success'),
-      );
+  // Get count of files skipped due to being large
+  const { count: skippedCount, error: skippedError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('*, file_types!inner(*), processing_states!inner(*)', {
+        count: 'exact',
+        head: true,
+      })
+      .eq('processing_states.type', 'thumbnail')
+      .eq('processing_states.status', 'skipped'),
+  );
+  if (skippedError) throw skippedError;
 
-    if (withThumbnailsError) {
-      throw new Error(
-        `Failed to get files with thumbnails: ${withThumbnailsError.message}`,
-      );
-    }
+  // Get count of files with errors
+  const { count: erroredCount, error: erroredError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('*, file_types!inner(*), processing_states!inner(*)', {
+        count: 'exact',
+        head: true,
+      })
+      .eq('processing_states.type', 'thumbnail')
+      .eq('processing_states.status', 'error'),
+  );
+  if (erroredError) throw erroredError;
 
-    // Get count of files skipped due to being large
-    const { count: skippedLargeFilesCount, error: skippedLargeFilesError } =
-      await includeMedia(
-        supabase
-          .from('media_items')
-          .select('*, file_types!inner(*), processing_states!inner(*)', {
-            count: 'exact',
-            head: true,
-          })
-          .eq('processing_states.type', 'thumbnail')
-          .eq('processing_states.status', 'skipped'),
-      );
+  // Get ignored files count - this specifically counts files with ignored file types
+  const { count: ignoredCount, error: ignoredError } = await includeMedia(
+    supabase
+      .from('media_items')
+      .select('id, file_types!inner(*)', { count: 'exact', head: true })
+      .eq('file_types.ignore', true),
+  );
+  if (ignoredError) throw ignoredError;
 
-    if (skippedLargeFilesError) {
-      throw new Error(
-        `Failed to get skipped large files count: ${skippedLargeFilesError.message}`,
-      );
-    }
+  // Create counts for unified format
+  const counts = {
+    total: totalCount || 0,
+    success: successCount || 0,
+    failed: erroredCount || 0,
+    skipped: skippedCount || 0,
+    ignored: ignoredCount || 0,
+  };
 
-    // Get count of files with errors
-    const { count: erroredCount, error: erroredError } = await includeMedia(
-      supabase
-        .from('media_items')
-        .select('*, file_types!inner(*), processing_states!inner(*)', {
-          count: 'exact',
-          head: true,
-        })
-        .eq('processing_states.type', 'thumbnail')
-        .eq('processing_states.status', 'error'),
-    );
+  // New unified stats format
+  const unifiedStats: UnifiedStats = {
+    status: 'success',
+    message: `${counts.success} of ${counts.total} files have thumbnails`,
+    counts,
+    percentages: calculatePercentages(counts),
+  };
 
-    if (erroredError) {
-      throw new Error(
-        `Failed to get errored files count: ${erroredError.message}`,
-      );
-    }
-
-    const stats = {
-      totalCompatibleFiles: totalCount || 0,
-      filesWithThumbnails: withThumbnailsCount || 0,
-      skippedLargeFiles: skippedLargeFilesCount || 0,
-      errored: erroredCount || 0,
-    };
-
-    const unprocessedFilesCount =
-      stats.totalCompatibleFiles -
-      (stats.filesWithThumbnails + stats.skippedLargeFiles + stats.errored);
-
-    const finalStats = {
-      ...stats,
-      filesPending: unprocessedFilesCount || 0,
-    };
-
-    return {
-      success: true,
-      stats: finalStats,
-    };
-  } catch (error: any) {
-    console.error('Error getting thumbnail stats:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
+  return {
+    success: true,
+    data: unifiedStats,
+  };
 }

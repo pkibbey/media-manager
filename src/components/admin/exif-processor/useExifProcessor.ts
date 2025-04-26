@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
-import { getExifStats, streamExifUnprocessed } from '@/app/actions/exif';
+import { getExifStats } from '@/app/actions/exif';
+import { streamExifData } from '@/app/actions/exif/streamExifData';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import { BATCH_SIZE } from '@/lib/consts';
-import type { ExifStatsResult } from '@/types/db-types';
 import type { ExtractionMethod } from '@/types/exif';
 import type { UnifiedProgress } from '@/types/progress-types';
+import type { UnifiedStats } from '@/types/unified-stats';
 
 // Define the EXIF-specific progress type extending UnifiedProgress
 export interface ExifProgress extends UnifiedProgress {
@@ -17,7 +18,7 @@ export function useExifProcessor() {
   const getStreamFunction = useCallback(
     (options: { batchSize: number; method: string }) => {
       return () =>
-        streamExifUnprocessed({
+        streamExifData({
           extractionMethod: options.method as ExtractionMethod,
           batchSize: options.batchSize,
         });
@@ -40,33 +41,8 @@ export function useExifProcessor() {
     refreshStats: fetchStats,
     handleStartProcessing,
     handleCancel,
-  } = useProcessorBase<ExifProgress, ExifStatsResult>({
-    fetchStats: async () => {
-      try {
-        const response = await getExifStats();
-        if (response.success && response.stats) {
-          return response.stats;
-        }
-        console.error(
-          'Failed to fetch EXIF stats:',
-          response.message || 'Unknown error',
-        );
-        return {
-          with_exif: 0,
-          with_errors: 0,
-          total: 0,
-          skipped: 0,
-        };
-      } catch (error) {
-        console.error('Exception when fetching EXIF stats:', error);
-        return {
-          with_exif: 0,
-          with_errors: 0,
-          total: 0,
-          skipped: 0,
-        };
-      }
-    },
+  } = useProcessorBase<ExifProgress, UnifiedStats>({
+    fetchStats: getExifStats,
     getStreamFunction,
     defaultBatchSize: BATCH_SIZE,
     defaultMethod: 'default',

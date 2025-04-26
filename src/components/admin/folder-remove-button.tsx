@@ -1,8 +1,8 @@
 'use client';
 
-import { removeScanFolder } from '@/app/actions/scan';
 import { TrashIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
+import { removeScanFolder } from '@/lib/query-helpers';
 
 interface FolderRemoveButtonProps {
   folderId: number;

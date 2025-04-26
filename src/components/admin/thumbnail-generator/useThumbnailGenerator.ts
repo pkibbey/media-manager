@@ -2,11 +2,12 @@ import { useCallback, useState } from 'react';
 import {
   countMissingThumbnails,
   getThumbnailStats,
-  streamUnprocessedThumbnails,
 } from '@/app/actions/thumbnails';
+import { streamThumbnails } from '@/app/actions/thumbnails/streamThumbnails';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import { BATCH_SIZE } from '@/lib/consts';
 import type { UnifiedProgress } from '@/types/progress-types';
+import type { UnifiedStats } from '@/types/unified-stats';
 
 export type ThumbnailStats = {
   totalCompatibleFiles: number;
@@ -22,14 +23,14 @@ export function useThumbnailGenerator() {
   const [totalProcessed, setTotalProcessed] = useState(0);
   // Custom reference to stats to avoid circular reference
   const [thumbnailStatsRef, setThumbnailStatsRef] =
-    useState<ThumbnailStats>(null);
+    useState<UnifiedStats | null>(null);
   // Track the actual total count of files to process
   const [totalCount, setTotalCount] = useState(0);
 
   // Define stream function generator
   const getStreamFunction = useCallback(
     (options: { batchSize: number; method?: string }) => {
-      return () => streamUnprocessedThumbnails(options);
+      return () => streamThumbnails(options);
     },
     [],
   );
@@ -47,11 +48,11 @@ export function useThumbnailGenerator() {
     refreshStats,
     handleStartProcessing,
     handleCancel,
-  } = useProcessorBase<UnifiedProgress, ThumbnailStats>({
+  } = useProcessorBase<UnifiedProgress, UnifiedStats | null>({
     fetchStats: async () => {
       const result = await getThumbnailStats();
-      const stats = result.success && result.stats ? result.stats : null;
-      setThumbnailStatsRef(stats);
+      const stats = result.success && result.data ? result.data : null;
+      if (stats) setThumbnailStatsRef(stats);
       return stats;
     },
     getStreamFunction,
@@ -61,10 +62,8 @@ export function useThumbnailGenerator() {
       batchComplete: (processed: number): string =>
         `Batch complete: Generated ${processed} thumbnails`,
       allComplete: (): string => {
-        const currentStats: ThumbnailStats = thumbnailStatsRef;
-        const total: number = currentStats?.totalCompatibleFiles || 0;
-        const withThumbnails: number = currentStats?.filesWithThumbnails || 0;
-        return `All processing complete! Generated ${withThumbnails} thumbnails (${total - withThumbnails} pending)`;
+        const currentStats = thumbnailStatsRef;
+        return `All processing complete! Generated ${currentStats?.counts.success} thumbnails (${currentStats?.counts.failed} failed)`;
       },
     },
   });
@@ -76,14 +75,7 @@ export function useThumbnailGenerator() {
       setTotalProcessed(0);
 
       // Check if there are thumbnails to generate
-      const countResult = await countMissingThumbnails();
-      if (!countResult.success) {
-        throw new Error(
-          countResult.error || 'Failed to count missing thumbnails',
-        );
-      }
-
-      const totalToProcess = countResult.count || 0;
+      const totalToProcess = await countMissingThumbnails();
 
       // Set the total count for proper display
       setTotalCount(totalToProcess);

@@ -6,6 +6,9 @@
 
 # Less Important
 
+
+-- server actions should be named pascal case and include revalidatePath
+
 -- add ability to change UI scale (grid column sizes)
 
 -- update the UI to be able to quick process the selected photos
