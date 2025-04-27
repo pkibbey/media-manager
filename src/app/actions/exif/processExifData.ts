@@ -52,7 +52,7 @@ export async function processExifData({
       await markProcessingError({
         mediaItemId: mediaId,
         type: 'exif',
-        error: extraction.message || 'No EXIF data found in file',
+        errorMessage: extraction.message || 'No EXIF data found in file',
       });
 
       return {
@@ -68,7 +68,7 @@ export async function processExifData({
       await markProcessingSuccess({
         mediaItemId: mediaId,
         type: 'exif',
-        message: 'EXIF data extracted successfully',
+        errorMessage: 'EXIF data extracted successfully',
       });
 
       // Update the media record with the actual EXIF data
@@ -78,16 +78,26 @@ export async function processExifData({
         media_date: extraction.mediaDate,
       });
 
-      if (updateError) throw updateError;
-    } catch (txError) {
-      const errorMessage = `Database update error: ${txError instanceof Error ? txError.message : 'Unknown error'}`;
+      if (updateError) {
+        // Instead of throwing, handle it directly
+        const errorMessage = `Database update error: ${updateError.message}`;
+        progressCallback?.(errorMessage);
+
+        return await handleProcessingError({
+          mediaItemId: mediaId,
+          type: 'exif',
+          errorMessage: updateError,
+        });
+      }
+    } catch (error) {
+      const errorMessage = `Database update error: ${error instanceof Error ? error.message : 'Unknown error'}`;
       progressCallback?.(errorMessage);
 
       // Use our new helper function for error processing
       return await handleProcessingError({
         mediaItemId: mediaId,
         type: 'exif',
-        error: txError,
+        errorMessage,
       });
     }
 
@@ -108,7 +118,7 @@ export async function processExifData({
     return await handleProcessingError({
       mediaItemId: mediaId,
       type: 'exif',
-      error,
+      errorMessage,
     });
   }
 }

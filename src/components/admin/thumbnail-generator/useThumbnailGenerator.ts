@@ -1,14 +1,11 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import {
-  countMissingThumbnails,
-  getThumbnailStats,
-} from '@/app/actions/thumbnails';
+import { countMissingThumbnails } from '@/app/actions/thumbnails/countMissingThumbnails';
+import { getThumbnailStats } from '@/app/actions/thumbnails/getThumbnailStats';
 import { streamThumbnails } from '@/app/actions/thumbnails/streamThumbnails';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import { useThrottle } from '@/hooks/useThrottle';
-import { BATCH_SIZE } from '@/lib/consts';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
 
@@ -60,7 +57,7 @@ export function useThumbnailGenerator() {
       return result;
     },
     getStreamFunction,
-    defaultBatchSize: BATCH_SIZE,
+    defaultBatchSize: Number.POSITIVE_INFINITY,
     successMessage: {
       start: 'Starting thumbnail generation...',
       onBatchComplete: (processed: number): string =>

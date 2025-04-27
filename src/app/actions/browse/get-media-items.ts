@@ -32,6 +32,7 @@ export async function getMediaItems(
     .select('*, file_types!inner(*), processing_states!inner(*)', {
       count: 'exact',
     })
+    .in('file_types.category', ['image', 'video'])
     .eq('file_types.ignore', false);
 
   // Apply text search

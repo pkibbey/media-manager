@@ -3,7 +3,6 @@
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { resetAllThumbnails } from '@/app/actions/thumbnails';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -20,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { resetAllThumbnails } from '@/app/actions/thumbnails/resetAllThumbnails';
 
 export default function ResetThumbnails() {
   const [isLoading, setIsLoading] = useState(false);

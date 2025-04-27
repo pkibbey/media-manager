@@ -5,6 +5,9 @@ type ExifErrorSummaryProps = {
   errorSummary: string[];
 };
 
+// NOTE: Perhaps turn this into a shared ErrorSummary component
+// to be used in other places
+
 export function ExifErrorSummary({
   progress,
   errorSummary,

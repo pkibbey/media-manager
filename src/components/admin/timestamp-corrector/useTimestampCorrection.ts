@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { getMediaStats } from '@/app/actions/stats';
+import { getTimeStampStats } from '@/app/actions/stats/getTimeStampStats';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
@@ -23,7 +23,7 @@ export function useTimestampCorrection() {
     // Initialize with the initial value and fetch updated stats
     fetchStats: async () => {
       try {
-        const data = await getMediaStats();
+        const data = await getTimeStampStats();
         return data;
       } catch (error) {
         console.error('Error fetching timestamp correction stats:', error);
@@ -50,7 +50,7 @@ export function useTimestampCorrection() {
           await writer.write(
             encoder.encode(
               `data: ${JSON.stringify({
-                status: 'success',
+                status: 'complete',
                 message: `Updated ${result.updated} timestamps successfully`,
                 processedCount: result.processed,
                 successCount: result.updated,
@@ -67,7 +67,7 @@ export function useTimestampCorrection() {
           await writer.write(
             encoder.encode(
               `data: ${JSON.stringify({
-                status: 'error',
+                status: 'failure',
                 message: result.error || 'Failed to update timestamps',
                 error: result.error,
               })}\n\n`,
@@ -84,7 +84,7 @@ export function useTimestampCorrection() {
     },
 
     // Default batch size
-    defaultBatchSize: 500,
+    defaultBatchSize: Number.POSITIVE_INFINITY,
 
     // Success messages
     successMessage: {

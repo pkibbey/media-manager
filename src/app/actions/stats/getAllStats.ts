@@ -33,6 +33,12 @@ export async function getAllStats(): Promise<{
       head: true,
     })
     .eq('processing_states.status', 'failed');
+  if (erroredError) {
+    return {
+      success: false,
+      error: `Failed to reset thumbnails: ${erroredError.message}`,
+    };
+  }
   if (erroredError) throw erroredError;
 
   // Get timestamp correction needs

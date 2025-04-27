@@ -81,7 +81,7 @@ export async function updateMediaDatesFromFilenames({
           await markProcessingError({
             mediaItemId: item.id,
             type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-            error: 'Processing aborted by user',
+            errorMessage: 'Processing aborted by user',
           });
           continue;
         }
@@ -103,7 +103,7 @@ export async function updateMediaDatesFromFilenames({
             await markProcessingError({
               mediaItemId: item.id,
               type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-              error: `DB update failed: ${updateError.message}`,
+              errorMessage: `DB update failed: ${updateError.message}`,
             });
 
             // Throw error to be caught by the outer try/catch for this item
@@ -119,7 +119,7 @@ export async function updateMediaDatesFromFilenames({
           await markProcessingSuccess({
             mediaItemId: item.id,
             type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-            message: 'Date extracted from filename',
+            errorMessage: 'Date extracted from filename',
           });
         } else {
           // Could not extract date, mark as failed for this type
@@ -131,7 +131,7 @@ export async function updateMediaDatesFromFilenames({
           await markProcessingError({
             mediaItemId: item.id,
             type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-            error: 'Could not parse date from filename',
+            errorMessage: 'Could not parse date from filename',
           });
         }
       } catch (itemError: any) {
@@ -146,7 +146,7 @@ export async function updateMediaDatesFromFilenames({
           await markProcessingError({
             mediaItemId: item.id,
             type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-            error: 'Processing aborted by user',
+            errorMessage: 'Processing aborted by user',
           });
 
           // Continue to next item, which will then be skipped due to isAborted flag
@@ -165,7 +165,7 @@ export async function updateMediaDatesFromFilenames({
           await markProcessingError({
             mediaItemId: item.id,
             type: PROCESSING_TYPE_TIMESTAMP_CORRECTION,
-            error:
+            errorMessage:
               itemError.message || 'Unknown error during timestamp correction',
           });
         } catch (markFailedError: any) {

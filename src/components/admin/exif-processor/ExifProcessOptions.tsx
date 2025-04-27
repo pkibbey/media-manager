@@ -27,9 +27,9 @@ export function ExifProcessOptions({
   isProcessing,
 }: ExifProcessOptionsProps) {
   return (
-    <div className="flex flex-col items-start gap-6 mt-4">
-      <div className="flex gap-4 flex-col">
-        <div className="flex space-y-2 gap-2 justify-center">
+    <div className="flex flex-col items-start gap-6">
+      <div className="flex gap-4">
+        <div className="flex flex-col space-y-2 gap-2 justify-center">
           <Label
             htmlFor="extractionMethod"
             className="text-sm font-medium mb-0"

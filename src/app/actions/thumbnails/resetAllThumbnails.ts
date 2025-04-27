@@ -21,15 +21,26 @@ export async function resetAllThumbnails(): Promise<{
     })
     .neq('thumbnail_path', null)
     .select('*, file_types!inner(*)');
-  if (error) throw Error;
+
+  if (error) {
+    return {
+      success: false,
+      message: `Failed to reset thumbnails: ${error.message}`,
+    };
+  }
 
   // 2. Clear processing states related to thumbnails
   const { error: processingStatesError } = await supabase
     .from('processing_states')
     .delete()
     .eq('type', 'thumbnail');
-  if (processingStatesError) throw Error;
 
+  if (processingStatesError) {
+    return {
+      success: false,
+      message: `Failed to reset thumbnails: ${processingStatesError.message}`,
+    };
+  }
   return {
     success: true,
     message: `${count} thumbnails have been reset successfully.`,

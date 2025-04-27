@@ -124,7 +124,7 @@ export async function markProcessingError({
   type: string;
   error: unknown;
 }): Promise<void> {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage = String(error?.message ?? '');
   try {
     await updateProcessingState({
       media_item_id: mediaItemId,

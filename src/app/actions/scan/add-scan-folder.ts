@@ -1,6 +1,6 @@
 'use server';
 
-=import { createServerSupabaseClient } from '@/lib/supabase';
+import { createServerSupabaseClient } from '@/lib/supabase';
 
 /**
  * Add a new scan folder to the database
@@ -25,7 +25,6 @@ export async function addScanFolder(
     })
     .select()
     .single();
-
 
   return result;
 }

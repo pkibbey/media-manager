@@ -1,5 +1,4 @@
 import FolderList from '@/components/admin/folder-list';
-import ResetScan from '@/components/admin/reset-scan';
 import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
 
 export default function ScanPage() {
@@ -9,7 +8,6 @@ export default function ScanPage() {
         <ScanFoldersTrigger />
         <FolderList />
       </div>
-      <ResetScan />
     </div>
   );
 }

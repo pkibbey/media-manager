@@ -43,11 +43,6 @@ export interface UnifiedStats {
     failed: number;
 
     /**
-     * Count of items discovered for processing (may be more than total processed)
-     */
-    discovered?: number;
-
-    /**
      * Current batch number when processing in batches
      */
     currentBatch?: number;

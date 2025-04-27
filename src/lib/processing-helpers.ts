@@ -1,5 +1,5 @@
-import { updateProcessingState } from "@/app/actions/processing/update-processing-state";
-import { ProcessingStatus, ProgressStatus } from "@/types/progress-types";
+import { updateProcessingState } from '@/app/actions/processing/update-processing-state';
+import type { ProgressStatus } from '@/types/progress-types';
 
 /**
  * Handle an error during processing by updating the processing state
@@ -8,20 +8,18 @@ import { ProcessingStatus, ProgressStatus } from "@/types/progress-types";
 export async function handleProcessingError({
   mediaItemId,
   type,
-  error,
+  errorMessage,
 }: {
   mediaItemId: string;
   type: string;
-  error: unknown;
+  errorMessage: string;
 }) {
-  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
   try {
     await updateProcessingState({
-      media_item_id: mediaItemId,
+      mediaItemId,
       status: 'failure',
       type,
-      error_message: errorMessage,
+      errorMessage,
     });
   } catch (updateError) {
     console.error(
@@ -32,7 +30,7 @@ export async function handleProcessingError({
 
   return {
     success: false,
-    message: errorMessage,
+    error: errorMessage,
   };
 }
 
@@ -43,22 +41,22 @@ async function updateProcessingStateWithErrorHandling({
   mediaItemId,
   type,
   status,
-  message,
+  errorMessage,
 }: {
   mediaItemId: string;
   type: string;
-  status: ProcessingStatus;
-  message: string;
+  status: ProgressStatus;
+  errorMessage: string;
 }): Promise<void> {
   // Skip if status is null (in progress)
   if (status === null) return;
 
   try {
     await updateProcessingState({
-      media_item_id: mediaItemId,
+      mediaItemId,
       status,
       type,
-      error_message: message,
+      errorMessage,
     });
   } catch (error) {
     console.error(
@@ -74,18 +72,17 @@ async function updateProcessingStateWithErrorHandling({
 export async function markProcessingError({
   mediaItemId,
   type,
-  error,
+  errorMessage,
 }: {
   mediaItemId: string;
   type: string;
-  error: unknown;
+  errorMessage: string;
 }): Promise<void> {
-  const errorMessage = error instanceof Error ? error.message : String(error);
   await updateProcessingStateWithErrorHandling({
     mediaItemId,
     type,
     status: 'failure',
-    message: errorMessage,
+    errorMessage,
   });
 }
 
@@ -95,17 +92,17 @@ export async function markProcessingError({
 export async function markProcessingSuccess({
   mediaItemId,
   type,
-  message = 'Processing completed successfully',
+  errorMessage = 'Processing completed successfully',
 }: {
   mediaItemId: string;
   type: string;
-  message?: string;
+  errorMessage?: string;
 }): Promise<void> {
   await updateProcessingStateWithErrorHandling({
     mediaItemId,
     type,
     status: 'complete',
-    message,
+    errorMessage,
   });
 }
 
@@ -116,16 +113,16 @@ export async function markProcessingSuccess({
 export async function markProcessingStarted({
   mediaItemId,
   type,
-  message = 'Processing started',
+  errorMessage = 'Processing started',
 }: {
   mediaItemId: string;
   type: string;
-  message?: string;
+  errorMessage?: string;
 }): Promise<void> {
   await updateProcessingStateWithErrorHandling({
     mediaItemId,
     type,
     status: 'processing',
-    message,
+    errorMessage,
   });
 }

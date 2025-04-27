@@ -1,7 +1,4 @@
-import type { FileType, MediaItem } from '@/types/db-types';
-import type { MediaFilters } from '@/types/media-types';
-
-import type { ProgressStatus, UnifiedProgress } from '../types/progress-types';
+import type { FileType } from '@/types/db-types';
 
 import { createServerSupabaseClient } from './supabase';
 
@@ -110,18 +107,4 @@ export async function removeScanFolder(folderId: number): Promise<{
   const supabase = createServerSupabaseClient();
 
   return supabase.from('scan_folders').delete().eq('id', folderId);
-}
-
-/**
- * Sends a progress update through a stream writer using the UnifiedProgress type.
- * Calculates percentComplete automatically if totalCount and processedCount are provided.
- */
-export async function sendProgress(
-  encoder: TextEncoder,
-  writer: WritableStreamDefaultWriter,
-  progress: Omit<UnifiedProgress, 'status'> & {
-    status: ProgressStatus | null;
-  },
-) {
-  await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\\n\\n`));
 }

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { UnifiedProgress } from '@/types/progress-types';
 
 /**
@@ -12,6 +12,8 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
     useState<AbortController | null>(null);
   const [reader, setReader] =
     useState<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  // Add a ref to track if the reader is active
+  const readerActiveRef = useRef(false);
 
   // Function to handle reading from a streaming server action
   const startProcessing = useCallback(
@@ -23,25 +25,20 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         onBatchComplete?: (processedCount: number) => void;
       } = {},
     ) => {
-      console.log('[STREAM DEBUG] startProcessing called');
-
       // Create a new AbortController for this request
       const newAbortController = new AbortController();
       setAbortController(newAbortController);
       setIsProcessing(true);
 
+      // Reset reader state at the start
+      readerActiveRef.current = false;
+
       try {
         // Call the server action to get a readable stream
-        console.log('[STREAM DEBUG] Calling streamFunc to get ReadableStream');
         const stream = await streamFunc();
-        console.log(
-          '[STREAM DEBUG] Stream received:',
-          stream ? 'valid stream' : 'null/undefined',
-        );
-
         const newReader = stream.getReader();
-        console.log('[STREAM DEBUG] Got reader from stream');
         setReader(newReader);
+        readerActiveRef.current = true; // Mark reader as active
 
         // Set up TextDecoder to decode the stream
         const decoder = new TextDecoder();
@@ -49,319 +46,239 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
 
         try {
           // Start reading from the stream
-          console.log('[STREAM DEBUG] Starting to read from stream');
           let done = false;
-          let msgCount = 0;
 
-          while (!done) {
-            console.log('[STREAM DEBUG] Reading chunk from stream');
-            const { value, done: streamDone } = await newReader.read();
-            done = streamDone;
-
-            if (streamDone) {
-              console.log('[STREAM DEBUG] Stream is done');
+          while (!done && readerActiveRef.current) {
+            if (newAbortController.signal.aborted) {
+              break;
             }
 
-            if (value) {
-              // Extract and parse all 'data:' messages in the chunk
-              const text = decoder.decode(value);
-              console.log(
-                '[STREAM DEBUG] Received chunk:',
-                text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-              );
+            try {
+              const { value, done: streamDone } = await newReader.read();
+              done = streamDone;
 
-              const messages = text.split('data: ');
-              console.log(
-                '[STREAM DEBUG] Split into',
-                messages.length,
-                'messages',
-              );
+              if (streamDone) {
+                readerActiveRef.current = false;
+              }
 
-              for (const message of messages) {
-                const cleanedMessage = message
-                  .trim()
-                  .replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
+              // Process the value only if we have one and reader is still active
+              if (value && readerActiveRef.current) {
+                // Extract and parse all 'data:' messages in the chunk
+                const text = decoder.decode(value);
+                const messages = text.split('data: ');
 
-                // Skip empty messages
-                if (!cleanedMessage) continue;
+                for (const message of messages) {
+                  // If reader is no longer active, break the message processing
+                  if (!readerActiveRef.current) break;
 
-                msgCount++;
-                console.log('[STREAM DEBUG] Processing message', msgCount);
+                  const cleanedMessage = message
+                    .trim()
+                    .replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
 
-                try {
-                  // Try to extract just the JSON part from the message
-                  const jsonString = cleanedMessage
-                    .replace(/^[^{]*/, '')
-                    .replace(/[^}]*$/, '');
-                  console.log(
-                    '[STREAM DEBUG] Extracted JSON:',
-                    jsonString.substring(0, 100) +
-                      (jsonString.length > 100 ? '...' : ''),
-                  );
+                  // Skip empty messages
+                  if (!cleanedMessage) continue;
 
                   try {
-                    // First try simple JSON parsing
-                    const data = JSON.parse(jsonString);
-                    console.log('[STREAM DEBUG] Parsed data:', data);
+                    // Try to extract just the JSON part from the message
+                    const jsonString = cleanedMessage
+                      .replace(/^[^{]*/, '')
+                      .replace(/[^}]*$/, '');
 
-                    // Update the progress state with the parsed data
-                    setProgress((prev) => {
-                      const newState = {
-                        ...(prev || {}),
-                        ...data,
-                      } as T;
-                      console.log(
-                        '[STREAM DEBUG] Updated progress state:',
-                        newState,
-                      );
-                      return newState;
-                    });
-
-                    // Handle different status/stage values
-                    // Check both status and stage for compatibility with different API formats
-                    const isComplete = 
-                      data.status === 'complete' || 
-                      data.stage === 'complete';
-                      
-                    const isBatchComplete = 
-                      data.status === 'batch_complete' || 
-                      data.stage === 'batch_complete';
-                      
-                    const isError = 
-                      data.status === 'error' || 
-                      data.status === 'failure' ||
-                      data.stage === 'error' ||
-                      data.stage === 'failure';
-
-                    if (isComplete) {
-                      // Final completion
-                      console.log(
-                        '[STREAM DEBUG] Complete status detected, triggering completion',
-                      );
-                      if (options.onCompleted) {
-                        options.onCompleted();
-                      }
-                      // Make sure to clean up and set processing to false when complete
-                      setIsProcessing(false);
-                      setAbortController(null);
-                      if (newReader) {
-                        try {
-                          newReader.releaseLock();
-                        } catch (e) {
-                          console.error('[STREAM DEBUG] Error releasing reader lock:', e);
-                        }
-                        setReader(null);
-                      }
-                    } else if (
-                      isBatchComplete &&
-                      options.onBatchComplete &&
-                      data.processedCount
-                    ) {
-                      // Batch completion
-                      console.log(
-                        '[STREAM DEBUG] Batch complete status detected, processed:',
-                        data.processedCount,
-                      );
-                      options.onBatchComplete(data.processedCount);
-                    } else if (isError) {
-                      // Error handling
-                      console.log(
-                        '[STREAM DEBUG] Error status detected:',
-                        data.message,
-                      );
-                      if (options.onError) {
-                        options.onError(data.message, errorDetails);
-                      }
-                      if (data.message) {
-                        errorDetails.push(data.message);
-                      }
-                    }
-
-                    // For backwards compatibility - can be removed after refactoring all code
-                    if (data.isFinalBatch) {
-                      console.log(
-                        '[STREAM DEBUG] Legacy isFinalBatch detected, triggering completion',
-                      );
-                      if (options.onCompleted) {
-                        options.onCompleted();
-                      }
-                      // Clean up after completion
-                      setIsProcessing(false);
-                      setAbortController(null);
-                      if (newReader) {
-                        try {
-                          newReader.releaseLock();
-                        } catch (e) {
-                          console.error('[STREAM DEBUG] Error releasing reader lock:', e);
-                        }
-                        setReader(null);
-                      }
-                    } else if (
-                      data.isBatchComplete &&
-                      !data.isFinalBatch &&
-                      options.onBatchComplete &&
-                      data.processedCount
-                    ) {
-                      console.log(
-                        '[STREAM DEBUG] Legacy batch complete detected, processed:',
-                        data.processedCount,
-                      );
-                      options.onBatchComplete(data.processedCount);
-                    }
-                  } catch (_jsonParseError) {
-                    console.log(
-                      '[STREAM DEBUG] Simple JSON parse failed, trying fallback method',
-                    );
-                    // If the simple extraction didn't work, try a more complex approach
-                    // Find the outermost valid JSON object in the message
                     try {
-                      let validJson = null;
-                      let stack = 0;
-                      let startIdx = -1;
+                      // First try simple JSON parsing
+                      const data = JSON.parse(jsonString);
 
-                      for (let i = 0; i < cleanedMessage.length; i++) {
-                        if (cleanedMessage[i] === '{') {
-                          if (stack === 0) {
-                            startIdx = i;
-                          }
-                          stack++;
-                        } else if (cleanedMessage[i] === '}') {
-                          stack--;
-                          if (stack === 0 && startIdx !== -1) {
-                            const potentialJson = cleanedMessage.substring(
-                              startIdx,
-                              i + 1,
-                            );
-                            try {
-                              const data = JSON.parse(potentialJson);
-                              validJson = data;
-                            } catch {
-                              // Not valid JSON, keep looking
-                            }
-                          }
+                      // Update the progress state with the parsed data
+                      setProgress((prev) => {
+                        const newState = {
+                          ...(prev || {}),
+                          ...data,
+                        } as T;
+                        return newState;
+                      });
+
+                      const isComplete = data.status === 'complete';
+
+                      const isBatchComplete = data.status === 'batch_complete';
+
+                      const isError =
+                        data.status === 'error' || data.status === 'failure';
+
+                      if (isComplete) {
+                        // Final completion
+                        if (options.onCompleted) {
+                          options.onCompleted();
+                        }
+                        // Make sure to clean up and set processing to false when complete
+                        setIsProcessing(false);
+                        setAbortController(null);
+                        cleanupReader(newReader);
+                      } else if (
+                        isBatchComplete &&
+                        options.onBatchComplete &&
+                        data.processedCount
+                      ) {
+                        // Batch completion
+                        options.onBatchComplete(data.processedCount);
+                      } else if (isError) {
+                        // Error handling
+                        if (options.onError) {
+                          options.onError(data.message, errorDetails);
+                        }
+                        if (data.message) {
+                          errorDetails.push(data.message);
                         }
                       }
 
-                      // If we found valid JSON, update the progress
-                      if (validJson) {
-                        console.log(
-                          '[STREAM DEBUG] Found valid JSON with fallback method:',
-                          validJson,
-                        );
-                        setProgress(
-                          (prev) =>
-                            ({
-                              ...(prev || {}),
-                              ...validJson,
-                            }) as T,
-                        );
-
-                        // Handle different statuses in the fallback method too
-                        const isComplete = 
-                          validJson.status === 'complete' || 
-                          validJson.stage === 'complete';
-                          
-                        const isBatchComplete = 
-                          validJson.status === 'batch_complete' || 
-                          validJson.stage === 'batch_complete';
-                          
-                        const isError = 
-                          validJson.status === 'error' || 
-                          validJson.status === 'failure' ||
-                          validJson.stage === 'error' ||
-                          validJson.stage === 'failure';
-
-                        if (isComplete) {
-                          console.log(
-                            '[STREAM DEBUG] Complete status detected in fallback parser',
-                          );
-                          if (options.onCompleted) {
-                            options.onCompleted();
-                          }
-                          // Clean up after completion
-                          setIsProcessing(false);
-                          setAbortController(null);
-                          if (newReader) {
-                            try {
-                              newReader.releaseLock();
-                            } catch (e) {
-                              console.error('[STREAM DEBUG] Error releasing reader lock:', e);
-                            }
-                            setReader(null);
-                          }
-                        } else if (
-                          isBatchComplete &&
-                          options.onBatchComplete &&
-                          validJson.processedCount
-                        ) {
-                          console.log(
-                            '[STREAM DEBUG] Batch complete status detected in fallback parser:',
-                            validJson.processedCount,
-                          );
-                          options.onBatchComplete(validJson.processedCount);
-                        } else if (isError && validJson.message) {
-                          console.log(
-                            '[STREAM DEBUG] Error status detected in fallback parser:',
-                            validJson.message,
-                          );
-                          errorDetails.push(validJson.message);
+                      // For backwards compatibility - can be removed after refactoring all code
+                      if (data.isFinalBatch) {
+                        if (options.onCompleted) {
+                          options.onCompleted();
                         }
-
-                        // Backward compatibility
-                        if (validJson.isFinalBatch) {
-                          console.log(
-                            '[STREAM DEBUG] Legacy final batch detected in fallback parser',
-                          );
-                          if (options.onCompleted) {
-                            options.onCompleted();
-                          }
-                          // Clean up after completion
-                          setIsProcessing(false);
-                          setAbortController(null);
-                          if (newReader) {
-                            try {
-                              newReader.releaseLock();
-                            } catch (e) {
-                              console.error('[STREAM DEBUG] Error releasing reader lock:', e);
-                            }
-                            setReader(null);
-                          }
-                        } else if (
-                          validJson.isBatchComplete &&
-                          !validJson.isFinalBatch &&
-                          options.onBatchComplete &&
-                          validJson.processedCount
-                        ) {
-                          console.log(
-                            '[STREAM DEBUG] Legacy batch complete detected in fallback parser:',
-                            validJson.processedCount,
-                          );
-                          options.onBatchComplete(validJson.processedCount);
-                        }
+                        // Clean up after completion
+                        setIsProcessing(false);
+                        setAbortController(null);
+                        cleanupReader(newReader);
+                      } else if (
+                        data.isBatchComplete &&
+                        !data.isFinalBatch &&
+                        options.onBatchComplete &&
+                        data.processedCount
+                      ) {
+                        options.onBatchComplete(data.processedCount);
                       }
-                    } catch (fallbackError) {
-                      console.error(
-                        '[STREAM DEBUG] Failed to parse message with fallback method:',
-                        fallbackError,
-                        cleanedMessage,
-                      );
+                    } catch (_jsonParseError) {
+                      // If the simple extraction didn't work, try a more complex approach
+                      // Find the outermost valid JSON object in the message
+                      try {
+                        let validJson = null;
+                        let stack = 0;
+                        let startIdx = -1;
+
+                        for (let i = 0; i < cleanedMessage.length; i++) {
+                          if (cleanedMessage[i] === '{') {
+                            if (stack === 0) {
+                              startIdx = i;
+                            }
+                            stack++;
+                          } else if (cleanedMessage[i] === '}') {
+                            stack--;
+                            if (stack === 0 && startIdx !== -1) {
+                              const potentialJson = cleanedMessage.substring(
+                                startIdx,
+                                i + 1,
+                              );
+                              try {
+                                const data = JSON.parse(potentialJson);
+                                validJson = data;
+                              } catch {
+                                // Not valid JSON, keep looking
+                              }
+                            }
+                          }
+                        }
+
+                        // If we found valid JSON, update the progress
+                        if (validJson) {
+                          setProgress(
+                            (prev) =>
+                              ({
+                                ...(prev || {}),
+                                ...validJson,
+                              }) as T,
+                          );
+
+                          // Handle different statuses in the fallback method too
+                          const isComplete = validJson.status === 'complete';
+
+                          const isBatchComplete =
+                            validJson.status === 'batch_complete';
+
+                          const isError =
+                            validJson.status === 'error' ||
+                            validJson.status === 'failure';
+
+                          if (isComplete) {
+                            if (options.onCompleted) {
+                              options.onCompleted();
+                            }
+                            // Clean up after completion
+                            setIsProcessing(false);
+                            setAbortController(null);
+                            cleanupReader(newReader);
+                          } else if (
+                            isBatchComplete &&
+                            options.onBatchComplete &&
+                            validJson.processedCount
+                          ) {
+                            options.onBatchComplete(validJson.processedCount);
+                          } else if (isError && validJson.message) {
+                            errorDetails.push(validJson.message);
+                          }
+
+                          // Backward compatibility
+                          if (validJson.isFinalBatch) {
+                            if (options.onCompleted) {
+                              options.onCompleted();
+                            }
+                            // Clean up after completion
+                            setIsProcessing(false);
+                            setAbortController(null);
+                            cleanupReader(newReader);
+                          } else if (
+                            validJson.isBatchComplete &&
+                            !validJson.isFinalBatch &&
+                            options.onBatchComplete &&
+                            validJson.processedCount
+                          ) {
+                            options.onBatchComplete(validJson.processedCount);
+                          }
+                        }
+                      } catch (fallbackError) {
+                        console.error(
+                          '[STREAM DEBUG] Failed to parse message with fallback method:',
+                          fallbackError,
+                          cleanedMessage,
+                        );
+                      }
                     }
+                  } catch (parseError) {
+                    console.error(
+                      '[STREAM DEBUG] Error parsing message:',
+                      parseError,
+                      cleanedMessage,
+                    );
                   }
-                } catch (parseError) {
-                  console.error(
-                    '[STREAM DEBUG] Error parsing message:',
-                    parseError,
-                    cleanedMessage,
-                  );
                 }
+              }
+            } catch (readError: unknown) {
+              console.error(
+                '[STREAM DEBUG] Error reading from stream:',
+                readError,
+              );
+
+              // Check if this is a "reader released" type error
+              if (
+                typeof readError === 'object' &&
+                readError !== null &&
+                'message' in readError &&
+                typeof readError.message === 'string' &&
+                (readError.message.includes('released') ||
+                  readError.message.includes('locked'))
+              ) {
+                readerActiveRef.current = false;
+                break;
+              }
+
+              // For other errors, we might want to continue
+              if (options.onError) {
+                options.onError(readError);
               }
             }
           }
 
-          console.log('[STREAM DEBUG] Finished reading from stream');
           // Clean up reader
-          newReader.releaseLock();
-          setReader(null);
+          cleanupReader(newReader);
           // Stream completed normally, set processing to false
           setIsProcessing(false);
         } catch (error) {
@@ -370,25 +287,10 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
             options.onError(error);
           }
         } finally {
-          console.log('[STREAM DEBUG] Stream reading finally block');
-          // If the stream ended normally, call onCompleted if provided
-          if (!newReader.closed) {
-            try {
-              console.log(
-                '[STREAM DEBUG] Cancelling reader as it was not closed',
-              );
-              await newReader.cancel();
-            } catch (error) {
-              console.error('[STREAM DEBUG] Error cancelling reader:', error);
-            }
-            newReader.releaseLock();
-          }
-          setReader(null);
+          // Safe cleanup in finally block
+          cleanupReader(newReader);
           setAbortController(null);
           setIsProcessing(false);
-          console.log(
-            '[STREAM DEBUG] Stream processing completed, isProcessing set to false',
-          );
         }
       } catch (error) {
         console.error('[STREAM DEBUG] Error starting stream:', error);
@@ -397,39 +299,54 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         }
         setAbortController(null);
         setIsProcessing(false);
-        console.log(
-          '[STREAM DEBUG] Stream error caught, isProcessing set to false',
-        );
       }
+    },
+    [],
+  );
+
+  // Helper function to safely clean up a reader
+  const cleanupReader = useCallback(
+    async (readerToCleanup: ReadableStreamDefaultReader<Uint8Array> | null) => {
+      if (!readerToCleanup) return;
+
+      readerActiveRef.current = false;
+
+      try {
+        if (!readerToCleanup.closed) {
+          readerToCleanup.cancel().catch((e) => {
+            console.error('[STREAM DEBUG] Error during reader cancel:', e);
+          });
+        }
+
+        await readerToCleanup.read();
+        if (!readerToCleanup.closed) {
+          readerToCleanup.releaseLock();
+        }
+      } catch (e) {
+        console.error('[STREAM DEBUG] Error during reader cleanup:', e);
+      }
+
+      setReader(null);
     },
     [],
   );
 
   // Function to cancel the current processing
   const stopProcessing = useCallback(async () => {
-    console.log('[STREAM DEBUG] stopProcessing called');
+    // Mark reader as inactive first to prevent further read attempts
+    readerActiveRef.current = false;
+
     if (abortController) {
-      console.log('[STREAM DEBUG] Aborting controller');
       abortController.abort();
       setAbortController(null);
     }
 
     if (reader) {
-      try {
-        console.log('[STREAM DEBUG] Cancelling reader');
-        await reader.cancel();
-        reader.releaseLock();
-        setReader(null);
-      } catch (error) {
-        console.error('[STREAM DEBUG] Error cancelling stream reader:', error);
-      }
+      cleanupReader(reader);
     }
 
     setIsProcessing(false);
-    console.log(
-      '[STREAM DEBUG] stopProcessing completed, isProcessing set to false',
-    );
-  }, [abortController, reader]);
+  }, [abortController, reader, cleanupReader]);
 
   return {
     isProcessing,

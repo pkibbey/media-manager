@@ -5,25 +5,45 @@ import { calculatePercentages } from '@/lib/utils';
 import type { UnifiedStats } from '@/types/unified-stats';
 
 /**
- * Get EXIF processing statistics
- * This implementation uses the new UnifiedStats format while maintaining backward compatibility
- * with the old ExifStatsResult format
+ * Get EXIF processing statistics using Supabase JS queries.
  */
 export async function getExifStats(): Promise<UnifiedStats> {
   const supabase = createServerSupabaseClient();
 
-  // Use the new get_exif_stats RPC for efficient stats retrieval
-  const { data, error } = await supabase.rpc('get_exif_stats');
-  if (error) throw error;
+  const { error: allMediaItemsError, count: allMediaItemsCount } =
+    await supabase
+      .from('media_items')
+      .select('id, file_types(*)', { count: 'exact', head: true })
+      .eq('file_types.category', 'image')
+      .is('file_types.ignore', false);
+  if (allMediaItemsError) throw allMediaItemsError;
 
-  // The RPC returns an array with a single object
-  // Convert any potential bigint values to JavaScript numbers
-  const rawStats = data?.[0] || { total: 0, success: 0, failed: 0 };
+  const { error: successError, count: successCount } = await supabase
+    .from('media_items')
+    .select('id, file_types(*), processing_states!inner(*)', {
+      count: 'exact',
+      head: true,
+    })
+    .eq('processing_states.status', 'success')
+    .eq('file_types.category', 'image')
+    .is('file_types.ignore', false);
+  if (successError) throw successError;
+
+  const { error: failedError, count: failedCount } = await supabase
+    .from('media_items')
+    .select('id, file_types(*), processing_states!inner(*)', {
+      count: 'exact',
+      head: true,
+    })
+    .eq('processing_states.status', 'failure')
+    .eq('file_types.category', 'image')
+    .is('file_types.ignore', false);
+  if (failedError) throw failedError;
 
   const counts = {
-    total: Number(rawStats.total) || 0,
-    success: Number(rawStats.success) || 0,
-    failed: Number(rawStats.failed) || 0,
+    total: allMediaItemsCount || 0,
+    success: successCount || 0,
+    failed: failedCount || 0,
   };
 
   const unifiedStats: UnifiedStats = {

@@ -1,7 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { ProcessingStatus } from '@/types/progress-types';
+import type { ProgressStatus } from '@/types/progress-types';
 
 /**
  * Update processing state for a media item
@@ -9,23 +9,23 @@ import type { ProcessingStatus } from '@/types/progress-types';
  * @returns Update result
  */
 export async function updateProcessingState(processingState: {
-  media_item_id: string;
-  status: ProcessingStatus;
+  mediaItemId: string;
+  status: ProgressStatus;
   type: string;
-  error_message?: string;
+  errorMessage?: string;
 }): Promise<{
   error: any | null;
 }> {
-  const { media_item_id, status, type, error_message } = processingState;
+  const { mediaItemId, status, type, errorMessage } = processingState;
   const supabase = createServerSupabaseClient();
 
   const result = await supabase.from('processing_states').upsert(
     {
-      media_item_id,
+      media_item_id: mediaItemId,
       type,
       status,
       processed_at: new Date().toISOString(),
-      error_message: error_message,
+      error_message: errorMessage,
     },
     {
       onConflict: 'media_item_id,type',
@@ -33,6 +33,5 @@ export async function updateProcessingState(processingState: {
     },
   );
 
- 
   return result;
 }

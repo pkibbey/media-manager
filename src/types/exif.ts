@@ -12,5 +12,4 @@ export type ExtractionMethod =
  */
 export type ExifProcessingOptions = {
   extractionMethod?: ExtractionMethod; // A/B testing method
-  batchSize?: number; // Size of batches for processing files
 };

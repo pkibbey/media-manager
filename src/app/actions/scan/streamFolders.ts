@@ -2,6 +2,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { sendProgress } from '@/actions/processing/send-progress';
 import { BATCH_SIZE } from '@/lib/consts';
 import {
   getCategoryByExtension,
@@ -12,13 +13,11 @@ import {
   markProcessingStarted,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
-
 import type { UnifiedStats } from '@/types/unified-stats';
 import { getFileTypeIdByExtension } from '../file-types/get-file-type-id-by-extension';
 import { upsertFileType } from '../file-types/upsert-file-type';
 import { insertMediaItem } from '../media/insert-media-item';
 import { updateMediaItem } from '../media/update-media-item';
-import { sendProgress } from '../processing/send-progress';
 import { checkFileExists } from './check-file-exists';
 import { getFoldersToScan } from './get-folders-to-scan';
 import { getScanFileTypes } from './get-scan-file-types';
@@ -26,6 +25,7 @@ import { updateFolderLastScanned } from './update-folder-last-scanned';
 
 interface ScanOptions {
   folderId?: number | null;
+  batchSize?: number;
 }
 
 /**

@@ -35,7 +35,13 @@ export async function generateThumbnail(mediaId: string): Promise<
       .eq('id', mediaId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.log('error: ', error);
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
 
     // Check if file exists
     try {
@@ -49,7 +55,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       await markProcessingError({
         mediaItemId: mediaId,
         type: 'thumbnail',
-        error: 'File not found',
+        errorMessage: 'File not found',
       });
 
       return {
@@ -167,7 +173,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       await markProcessingError({
         mediaItemId: mediaId,
         type: 'thumbnail',
-        error: sharpError,
+        errorMessage: String(sharpError),
       });
 
       return {
@@ -198,7 +204,7 @@ export async function generateThumbnail(mediaId: string): Promise<
         await markProcessingError({
           mediaItemId: mediaId,
           type: 'thumbnail',
-          error: `Storage upload failed: ${storageError.message}`,
+          errorMessage: `Storage upload failed: ${storageError.message}`,
         });
 
         return {
@@ -217,7 +223,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       await markProcessingError({
         mediaItemId: mediaId,
         type: 'thumbnail',
-        error: 'Upload exception',
+        errorMessage: 'Upload exception',
       });
 
       return {
@@ -252,7 +258,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       await markProcessingError({
         mediaItemId: mediaId,
         type: 'thumbnail',
-        error: 'Failed to update media_items table',
+        errorMessage: 'Failed to update media_items table',
       });
 
       return {
@@ -267,7 +273,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       await markProcessingSuccess({
         mediaItemId: mediaId,
         type: 'thumbnail',
-        message: 'Thumbnail generated successfully',
+        errorMessage: 'Thumbnail generated successfully',
       });
     } catch (updateProcessingStateError) {
       console.error(
@@ -300,7 +306,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       await markProcessingError({
         mediaItemId: mediaId,
         type: 'thumbnail',
-        error: 'Unhandled exception',
+        errorMessage: 'Unhandled exception',
       });
     } catch (dbError) {
       console.error(

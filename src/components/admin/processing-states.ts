@@ -101,7 +101,7 @@ async function getProcessingStateCounts() {
   const { count: successCount } = await supabase
     .from('processing_states')
     .select('*', { count: 'exact', head: true })
-    .eq('status', 'success');
+    .eq('status', 'complete');
 
   // Get total count
   const { count: totalCount } = await supabase

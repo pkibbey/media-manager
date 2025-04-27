@@ -36,7 +36,7 @@ export async function streamThumbnails({
         error?.name === 'AbortError' || error?.message?.includes('abort');
 
       await sendProgress(encoder, writer, {
-        stage: 'failure',
+        status: 'failure',
         message: isAbortError
           ? 'Processing aborted by user'
           : error?.message ||
@@ -110,7 +110,7 @@ export async function streamThumbnails({
           (unprocessedFiles.length === 0 && counters.currentBatch === 1)
         ) {
           await sendProgress(encoder, writer, {
-            stage: 'failure',
+            status: 'failure',
             message: 'No files to process',
             totalCount: totalItems,
             processedCount: 0,
@@ -138,7 +138,7 @@ export async function streamThumbnails({
 
         // Send initial progress update for this batch
         await sendProgress(encoder, writer, {
-          stage: 'started',
+          status: 'processing',
           message: isInfinityMode
             ? `Starting batch ${counters.currentBatch}: Processing ${unprocessedFiles.length} files...`
             : `Starting thumbnail generation for ${unprocessedFiles.length} files...`,
@@ -164,7 +164,7 @@ export async function streamThumbnails({
           try {
             // Send update before processing each file
             await sendProgress(encoder, writer, {
-              stage: 'processing',
+              status: 'processing',
               message: isInfinityMode
                 ? `Batch ${counters.currentBatch}: Processing: ${media.file_name}`
                 : `Processing: ${media.file_name}`,
@@ -213,7 +213,7 @@ export async function streamThumbnails({
 
             // Send progress update
             await sendProgress(encoder, writer, {
-              stage: 'processing',
+              status: 'processing',
               message: result.message,
               totalCount: isInfinityMode
                 ? counters.discovered
@@ -246,7 +246,7 @@ export async function streamThumbnails({
               });
 
               await sendProgress(encoder, writer, {
-                stage: 'failure',
+                status: 'failure',
                 message: 'Thumbnail generation aborted',
                 totalCount: isInfinityMode
                   ? counters.discovered
@@ -283,7 +283,7 @@ export async function streamThumbnails({
 
             // Send error update
             await sendProgress(encoder, writer, {
-              stage: 'failure',
+              status: 'failure',
               message: `Error generating thumbnail: ${error.message}`,
               totalCount: isInfinityMode
                 ? counters.discovered
@@ -306,7 +306,7 @@ export async function streamThumbnails({
         // Check for abort after completing the batch
         if (aborted) {
           await sendProgress(encoder, writer, {
-            stage: 'failure',
+            status: 'failure',
             message: 'Thumbnail generation aborted',
             totalCount: isInfinityMode
               ? counters.discovered
@@ -327,7 +327,7 @@ export async function streamThumbnails({
 
           // Send a batch completion update
           await sendProgress(encoder, writer, {
-            stage: 'batch_complete',
+            status: 'batch_complete',
             message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
             ...getCommonProperties(),
             metadata: {
@@ -347,7 +347,7 @@ export async function streamThumbnails({
         : `Thumbnail generation completed. Generated ${counters.success} thumbnails (${counters.failed} failed)`;
 
       await sendProgress(encoder, writer, {
-        stage: 'complete',
+        status: 'complete',
         message: finalMessage,
         ...getCommonProperties(),
         metadata: {
@@ -360,7 +360,7 @@ export async function streamThumbnails({
         error.message?.includes('aborted') || error.name === 'AbortError';
 
       await sendProgress(encoder, writer, {
-        stage: 'failure',
+        status: 'failure',
         message: isAbortError
           ? 'Processing aborted by user'
           : error?.message ||

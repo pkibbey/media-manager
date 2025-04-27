@@ -1,6 +1,7 @@
 'use client';
 
 import { CheckIcon } from '@radix-ui/react-icons';
+import { BATCH_SIZE } from '@/lib/consts';
 import { cn } from '@/lib/utils';
 import type { UnifiedProgress } from '@/types/progress-types';
 import { ProcessingTimeEstimator } from '../admin/processing-time-estimator';
@@ -71,16 +72,19 @@ export function UnifiedProgressDisplay({
 }: UnifiedProgressDisplayProps) {
   // Don't show anything if there's no processing happening or completed
   if (!progress || !isProcessing) return null;
+  console.log('progress: ', progress);
+  const total =
+    (progress.processedCount || 0) +
+    (progress.currentBatch || 1) * (progress.batchSize || BATCH_SIZE);
 
   // Calculate counts for display
   const totalCount = progress.totalCount || 0;
-  const processedCount = progress.processedCount || 0;
   const successCount = progress.successCount || 0;
   const failureCount = progress.failureCount || 0;
   const percentComplete = progress.percentComplete || 0;
 
   // Determine component state
-  const isComplete = progress.stage === 'complete' && !isProcessing;
+  const isComplete = progress.status === 'complete' && !isProcessing;
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -89,7 +93,7 @@ export function UnifiedProgressDisplay({
         <div className="flex justify-between items-center gap-4 overflow-hidden">
           <h2 className="text-lg font-medium truncate">{title}</h2>
           <span className="text-sm text-muted-foreground shrink-0">
-            {processedCount} / {totalCount} {itemsLabel}
+            {total} / {totalCount} {itemsLabel}
           </span>
         </div>
       )}
@@ -99,7 +103,7 @@ export function UnifiedProgressDisplay({
         <span className="truncate">{progress.message}</span>
         {!title && (
           <span className="shrink-0">
-            {processedCount} / {totalCount} {itemsLabel}
+            {total} / {totalCount} {itemsLabel}
           </span>
         )}
       </div>
@@ -108,7 +112,7 @@ export function UnifiedProgressDisplay({
       <Progress value={percentComplete} className="h-2" />
 
       {/* Statistics row */}
-      <div className="flex justify-between text-xs text-muted-foreground">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <span>Success: {successCount}</span>
           {failureCount > 0 && (
@@ -130,7 +134,7 @@ export function UnifiedProgressDisplay({
 
       {/* Metadata display (e.g., current file type) */}
       {!hideMetadata && progress.metadata && (
-        <div className="text-xs text-muted-foreground truncate flex justify-between gap-4">
+        <div className="text-xs items-center text-muted-foreground truncate flex justify-between gap-4">
           {progress.metadata.processingType && (
             <span>Processing type: {progress.metadata.processingType}</span>
           )}

@@ -7,7 +7,7 @@ import { createServerSupabaseClient } from '@/lib/supabase';
  * 1. Setting the exif_data to null in the media_items table.
  * 2. Clearing any EXIF processing states.
  */
-export async function clearAllMediaItems(): Promise<{
+export async function clearAllProcessingStates(): Promise<{
   success: boolean;
   message: string;
 }> {

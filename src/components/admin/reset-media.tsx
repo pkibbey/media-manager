@@ -3,7 +3,7 @@
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { clearAllMediaItems } from '@/app/actions/exif/clear-all-media-items';
+import { clearAllProcessingStates } from '@/app/actions/exif/clear-all-processing-states';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -30,7 +30,7 @@ export function ResetMedia() {
     setShowConfirmDialog(false);
 
     try {
-      await clearAllMediaItems();
+      await clearAllProcessingStates();
       toast.success('Successfully reset all media items');
     } catch (error: any) {
       toast.error(`Error: ${error.message || 'Unknown error occurred'}`);

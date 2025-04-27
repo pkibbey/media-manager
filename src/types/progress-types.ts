@@ -6,8 +6,7 @@ export type ProgressStatus =
   | 'processing'
   | 'batch_complete'
   | 'complete'
-  | 'failure'
-  | 'success';
+  | 'failure';
 
 /**
  * Unified progress interface for all processing operations
@@ -55,16 +54,6 @@ export interface UnifiedProgress {
   failureCount?: number;
 
   /**
-   * Average time in milliseconds per item
-   */
-  averageTimeMs?: number;
-
-  /**
-   * Estimated time remaining in milliseconds
-   */
-  estimatedTimeMs?: number;
-
-  /**
    * ID of the current media item being processed
    */
   mediaItemId?: string;
@@ -82,23 +71,10 @@ export interface UnifiedProgress {
     fileType?: string;
   };
 
-  // Legacy fields - kept for backward compatibility
-  stage?: ProcessingStatus;
   isBatchComplete?: boolean;
   isFinalBatch?: boolean;
-}
-
-// Keep this for backward compatibility
-export type ProcessingStatus =
-  | 'started'
-  | 'failure'
-  | 'batch_complete'
-  | 'processing'
-  | 'complete';
-
-export interface UnifiedProgressWithoutStatus
-  extends Omit<UnifiedProgress, 'status'> {
-  status?: ProgressStatus | null;
+  currentBatch?: number;
+  batchSize?: number;
 }
 
 /**
