@@ -1,8 +1,8 @@
 'use server';
 
-import { getMediaItems } from '@/lib/query-helpers';
 import type { MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
+import { getMediaItems } from './browse/get-media-items';
 
 /**
  * Browse media items with filtering and pagination

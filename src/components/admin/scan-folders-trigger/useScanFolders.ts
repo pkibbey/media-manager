@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { scanFolders } from '@/app/actions/scan';
+import { streamFolders } from '@/app/actions/scan/streamFolders';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
@@ -9,7 +9,7 @@ import type { UnifiedStats } from '@/types/unified-stats';
 export function useScanFolders() {
   // Define stream function generator
   const getStreamFunction = useCallback(() => {
-    return () => scanFolders();
+    return () => streamFolders();
   }, []);
 
   // Use the processor base hook

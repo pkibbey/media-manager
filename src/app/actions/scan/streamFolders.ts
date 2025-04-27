@@ -12,17 +12,17 @@ import {
   markProcessingStarted,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
-import {
-  checkFileExists,
-  getFileTypeIdByExtension,
-  getFoldersToScan,
-  getScanFileTypes,
-  insertMediaItem,
-  sendProgress,
-  updateFolderLastScanned,
-  updateMediaItem,
-  upsertFileType,
-} from '@/lib/query-helpers';
+
+import type { UnifiedStats } from '@/types/unified-stats';
+import { getFileTypeIdByExtension } from '../file-types/get-file-type-id-by-extension';
+import { upsertFileType } from '../file-types/upsert-file-type';
+import { insertMediaItem } from '../media/insert-media-item';
+import { updateMediaItem } from '../media/update-media-item';
+import { sendProgress } from '../processing/send-progress';
+import { checkFileExists } from './check-file-exists';
+import { getFoldersToScan } from './get-folders-to-scan';
+import { getScanFileTypes } from './get-scan-file-types';
+import { updateFolderLastScanned } from './update-folder-last-scanned';
 
 interface ScanOptions {
   folderId?: number | null;
@@ -33,7 +33,7 @@ interface ScanOptions {
  * This function uses a streaming approach to provide progress updates
  * @param options Optional scan options like ignoring small files and specifying a single folder ID to scan
  */
-export async function scanFolders(options: ScanOptions = {}) {
+export async function streamFolders(options: ScanOptions = {}) {
   const encoder = new TextEncoder();
 
   // Create a transform stream to send progress updates
@@ -64,12 +64,34 @@ export async function scanFolders(options: ScanOptions = {}) {
     try {
       const { folderId = null } = options;
 
-      // Initialize counters
-      let totalFilesDiscovered = 0;
-      let totalFilesProcessed = 0;
-      let newFilesAdded = 0;
+      // Single stats object to track all counters
+      const counters: UnifiedStats['counts'] & {
+        newFilesAdded: number;
+        discovered: number;
+        newFileTypes: Set<string>;
+        currentBatch: number;
+      } = {
+        total: 0, // Total processed files
+        success: 0, // Successfully processed files (not used in scan)
+        failed: 0, // Failed files (not used in scan)
+        discovered: 0, // Total files discovered
+        newFilesAdded: 0, // New or updated files
+        newFileTypes: new Set<string>(), // New file types found
+        currentBatch: 1, // Current batch number
+      };
 
-      const newFileTypes = new Set<string>();
+      // Helper function to get common properties for progress messages
+      function getCommonProperties() {
+        return {
+          totalCount: counters.discovered,
+          processedCount: counters.total,
+          metadata: {
+            processingType: 'scan',
+            newFilesAdded: counters.newFilesAdded,
+            newFileTypes: Array.from(counters.newFileTypes),
+          },
+        };
+      }
 
       // Get folders to scan - either a specific folder or all folders
       const { data: foldersToScan, error: foldersError } =
@@ -83,7 +105,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       if (!foldersToScan || foldersToScan.length === 0) {
         await sendProgress(encoder, writer, {
-          status: 'success',
+          status: 'complete', // Use consistent status approach
           message:
             'No folders configured for scanning. Add folders in admin panel.',
           totalCount: 0,
@@ -97,7 +119,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       // Send initial progress update
       await sendProgress(encoder, writer, {
-        status: null,
+        status: 'processing', // Use consistent status approach
         message: `Starting scan of ${foldersToScan.length} folder(s)...`,
         metadata: {
           processingType: 'scan',
@@ -120,12 +142,7 @@ export async function scanFolders(options: ScanOptions = {}) {
           await sendProgress(encoder, writer, {
             status: 'failure',
             message: 'Scan aborted by user',
-            totalCount: totalFilesDiscovered,
-            processedCount: totalFilesProcessed,
-            metadata: {
-              processingType: 'scan',
-              newFilesAdded,
-            },
+            ...getCommonProperties(),
           });
           return;
         }
@@ -148,7 +165,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
           // Send update that we're starting to scan this folder
           await sendProgress(encoder, writer, {
-            status: null,
+            status: 'processing',
             message: `Scanning folder: ${folder.path}${folder.include_subfolders ? ' (including subfolders)' : ''}`,
             metadata: {
               processingType: 'scan',
@@ -163,11 +180,11 @@ export async function scanFolders(options: ScanOptions = {}) {
           );
 
           // Update discovered count and send update
-          totalFilesDiscovered += files.length;
+          counters.discovered += files.length;
           await sendProgress(encoder, writer, {
-            status: null,
+            status: 'processing',
             message: `Found ${files.length} files in ${folder.path}`,
-            totalCount: totalFilesDiscovered,
+            ...getCommonProperties(),
             metadata: {
               processingType: 'scan',
               folderPath: folder.path,
@@ -181,14 +198,12 @@ export async function scanFolders(options: ScanOptions = {}) {
             // Send batch progress update
             if (i > 0) {
               await sendProgress(encoder, writer, {
-                status: null,
+                status: 'processing',
                 message: `Processing files ${i + 1} to ${Math.min(i + BATCH_SIZE, files.length)} of ${files.length} in ${folder.path}`,
-                totalCount: totalFilesDiscovered,
-                processedCount: totalFilesProcessed,
+                ...getCommonProperties(),
                 metadata: {
                   processingType: 'scan',
                   folderPath: folder.path,
-                  newFilesAdded,
                 },
               });
             }
@@ -215,7 +230,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
                 // Skip if no extension
                 if (!fileExt) {
-                  totalFilesProcessed++;
+                  counters.total++;
                   continue;
                 }
 
@@ -242,7 +257,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                     fileMtime.getTime() &&
                   existingFile.size_bytes === stats.size
                 ) {
-                  totalFilesProcessed++;
+                  counters.total++;
                   continue;
                 }
 
@@ -252,7 +267,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                 // Check if we've seen this extension before
                 if (!fileTypeMap.has(fileExt)) {
                   // New file type found
-                  newFileTypes.add(fileExt);
+                  counters.newFileTypes.add(fileExt);
 
                   // Determine category and mime type automatically
                   const category = getCategoryByExtension(fileExt);
@@ -288,7 +303,7 @@ export async function scanFolders(options: ScanOptions = {}) {
 
                 if (fileTypeId === null) {
                   // If we couldn't get a file type ID, skip this file
-                  totalFilesProcessed++;
+                  counters.total++;
                   continue;
                 }
 
@@ -330,7 +345,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                       error: `Failed to update file: ${updateError.message}`,
                     });
                   } else {
-                    newFilesAdded++;
+                    counters.newFilesAdded++;
 
                     // Mark as success
                     await markProcessingSuccess({
@@ -350,7 +365,7 @@ export async function scanFolders(options: ScanOptions = {}) {
                       insertError,
                     );
                   } else if (insertedItem) {
-                    newFilesAdded++;
+                    counters.newFilesAdded++;
 
                     // Mark as success for new items
                     await markProcessingSuccess({
@@ -365,23 +380,20 @@ export async function scanFolders(options: ScanOptions = {}) {
                   }
                 }
 
-                totalFilesProcessed++;
+                counters.total++;
 
                 // Send updates every 25 files or on last file
                 if (
-                  totalFilesProcessed % 25 === 0 ||
-                  totalFilesProcessed === totalFilesDiscovered
+                  counters.total % 25 === 0 ||
+                  counters.total === counters.discovered
                 ) {
                   await sendProgress(encoder, writer, {
-                    status: null,
-                    message: `Processed ${totalFilesProcessed} of ${totalFilesDiscovered} files`,
-                    totalCount: totalFilesDiscovered,
-                    processedCount: totalFilesProcessed,
+                    status: 'processing',
+                    message: `Processed ${counters.total} of ${counters.discovered} files`,
+                    ...getCommonProperties(),
                     metadata: {
                       processingType: 'scan',
                       folderPath: folder.path,
-                      newFilesAdded,
-                      newFileTypes: Array.from(newFileTypes),
                     },
                   });
                 }
@@ -398,8 +410,19 @@ export async function scanFolders(options: ScanOptions = {}) {
                   });
                 }
 
-                totalFilesProcessed++;
+                counters.total++;
+                counters.failed++;
               }
+            }
+
+            // At the end of each batch, if we have more batches to go
+            if (i + BATCH_SIZE < files.length) {
+              counters.currentBatch++;
+              await sendProgress(encoder, writer, {
+                status: 'batch_complete',
+                message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
+                ...getCommonProperties(),
+              });
             }
           }
 
@@ -420,15 +443,9 @@ export async function scanFolders(options: ScanOptions = {}) {
 
       // Send final progress update
       await sendProgress(encoder, writer, {
-        status: 'success',
-        message: `Scan completed. Processed ${totalFilesProcessed} files, added ${newFilesAdded} new/updated files.`,
-        totalCount: totalFilesDiscovered,
-        processedCount: totalFilesProcessed,
-        metadata: {
-          processingType: 'scan',
-          newFilesAdded,
-          newFileTypes: Array.from(newFileTypes),
-        },
+        status: 'complete',
+        message: `Scan completed. Processed ${counters.total} files, added ${counters.newFilesAdded} new/updated files.`,
+        ...getCommonProperties(),
       });
 
       // Close the stream

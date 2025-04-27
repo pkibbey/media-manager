@@ -3,7 +3,6 @@
 import { InfoCircledIcon } from '@radix-ui/react-icons';
 import { cn } from '@/lib/utils';
 import type { UnifiedStats } from '@/types/unified-stats';
-import { AnimatedNumber } from './animated-number';
 import { Progress } from './progress';
 import {
   Tooltip,
@@ -124,10 +123,9 @@ export function UnifiedStatsDisplay({
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">{title}</h2>
         <div className="text-sm text-muted-foreground">
-          {(stats?.counts.success ||0) + (stats?.counts.failed || 0)} 
+          {(stats?.counts.success || 0) + (stats?.counts.failed || 0)}
           {' / '}
-          {stats?.counts.total || 0}{' '}
-          files
+          {stats?.counts.total || 0} files
         </div>
       </div>
 

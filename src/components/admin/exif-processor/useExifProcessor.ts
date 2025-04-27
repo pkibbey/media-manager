@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { getExifStats } from '@/app/actions/exif';
+import { getExifStats } from '@/app/actions/exif/get-exif-stats';
 import { streamExifData } from '@/app/actions/exif/streamExifData';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import { BATCH_SIZE } from '@/lib/consts';
@@ -9,9 +9,7 @@ import type { ExtractionMethod } from '@/types/exif';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
 
-// Define the EXIF-specific progress type extending UnifiedProgress
-export interface ExifProgress extends UnifiedProgress {
-  // Additional EXIF-specific fields
+interface ExifProgress extends UnifiedProgress {
   method?: ExtractionMethod;
 }
 
@@ -19,11 +17,22 @@ export function useExifProcessor() {
   // Define stream function generator with extraction method
   const getStreamFunction = useCallback(
     (options: { batchSize: number; method: string }) => {
-      return () =>
-        streamExifData({
+      console.log(
+        '[EXIF DEBUG] Creating stream function with options:',
+        options,
+      );
+      return () => {
+        console.log(
+          '[EXIF DEBUG] Stream function called with method:',
+          options.method,
+          'batchSize:',
+          options.batchSize,
+        );
+        return streamExifData({
           extractionMethod: options.method as ExtractionMethod,
           batchSize: options.batchSize,
         });
+      };
     },
     [],
   );
@@ -44,7 +53,17 @@ export function useExifProcessor() {
     handleStartProcessing,
     handleCancel,
   } = useProcessorBase<ExifProgress, UnifiedStats>({
-    fetchStats: getExifStats,
+    fetchStats: async () => {
+      console.log('[EXIF DEBUG] Fetching EXIF stats');
+      try {
+        const result = await getExifStats();
+        console.log('[EXIF DEBUG] Stats fetched successfully:', result);
+        return result;
+      } catch (error) {
+        console.error('[EXIF DEBUG] Error fetching stats:', error);
+        throw error;
+      }
+    },
     getStreamFunction,
     defaultBatchSize: BATCH_SIZE,
     defaultMethod: 'default',
@@ -57,7 +76,18 @@ export function useExifProcessor() {
 
   // Handle process method with the simplified interface
   const handleProcess = async () => {
-    await handleStartProcessing(false);
+    console.log(
+      '[EXIF DEBUG] handleProcess called with batchSize:',
+      batchSize,
+      'method:',
+      extractionMethod,
+    );
+    try {
+      await handleStartProcessing(false);
+      console.log('[EXIF DEBUG] handleStartProcessing completed');
+    } catch (error) {
+      console.error('[EXIF DEBUG] Error in handleProcess:', error);
+    }
   };
 
   return {

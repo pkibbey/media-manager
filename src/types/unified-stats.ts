@@ -1,4 +1,9 @@
 /**
+ * Simplified processing status type
+ */
+export type StatsStatus = 'processing' | 'success' | 'error';
+
+/**
  * UnifiedStats - A standardized stats type for all stats-related functions across the application
  * This provides a consistent structure for stats reporting similar to UnifiedProgress for progress reporting
  */
@@ -6,7 +11,7 @@ export interface UnifiedStats {
   /**
    * The overall status of the resource or process being reported on
    */
-  status: 'processing' | 'success' | 'error';
+  status: StatsStatus;
 
   /**
    * A human-readable message describing the current stats
@@ -36,6 +41,16 @@ export interface UnifiedStats {
      * Count of items that failed processing
      */
     failed: number;
+
+    /**
+     * Count of items discovered for processing (may be more than total processed)
+     */
+    discovered?: number;
+
+    /**
+     * Current batch number when processing in batches
+     */
+    currentBatch?: number;
   };
 
   /**

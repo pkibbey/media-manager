@@ -1,6 +1,6 @@
 'use client';
 
-import { resetEverything } from '@/app/actions/stats';
+import { resetEverything } from '@/app/actions/scan/resetEverything';
 import { Button } from '@/components/ui/button';
 import {
   Card,

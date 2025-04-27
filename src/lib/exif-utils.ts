@@ -6,6 +6,7 @@ import exifReader, { type Exif } from 'exif-reader';
 import sharp from 'sharp';
 import type { ExtractionMethod } from '@/types/exif';
 import { createServerSupabaseClient } from './supabase';
+import { sanitizeExifData } from '@/lib/utils';
 
 /**
  * Extracts EXIF data using only the Sharp library
@@ -79,17 +80,39 @@ export async function extractMetadata({
   method: ExtractionMethod;
 }): Promise<Exif | null> {
   try {
+    // First check if the file exists
+    try {
+      await fs.access(filePath);
+    } catch (accessError) {
+      console.error(`File access error for ${filePath}:`, accessError);
+      throw new Error(`File does not exist or is not accessible: ${filePath}`);
+    }
+
     // Choose extraction method based on parameter
     switch (method) {
       case 'direct-only':
         return await extractMetadataDirectOnly(filePath);
       case 'marker-only':
         return await extractMetadataMarkerOnly(filePath);
-      default:
+      case 'sharp-only':
         return await extractMetadataWithSharp(filePath);
+      default:
+        // Try Sharp first, if it fails try direct extraction
+        try {
+          const sharpResult = await extractMetadataWithSharp(filePath);
+          if (sharpResult) return sharpResult;
+          
+          // If Sharp didn't find EXIF data, try direct extraction
+          console.log(`No EXIF found with Sharp for ${filePath}, trying direct extraction`);
+          return await extractMetadataDirectOnly(filePath);
+        } catch (sharpError) {
+          console.error(`Sharp extraction failed for ${filePath}, trying direct:`, sharpError);
+          return await extractMetadataDirectOnly(filePath);
+        }
     }
   } catch (error) {
-    throw new Error(`Failed to extract EXIF data: ${error}`);
+    console.error(`EXIF extraction error for ${filePath}:`, error);
+    throw new Error(`Failed to extract EXIF data: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -104,42 +127,74 @@ export async function extractAndSanitizeExifData(
   mediaDate: string | null;
   message: string;
 }> {
-  progressCallback?.(`Extracting metadata using ${method} method`);
-  const exifData = await extractMetadata({
-    filePath,
-    method,
-  });
+  progressCallback?.(`Extracting metadata using ${method} method from ${filePath}`);
+  
+  try {
+    // Check if file exists before attempting extraction
+    try {
+      const stats = await fs.stat(filePath);
+      console.log(`File ${filePath} exists, size: ${stats.size} bytes`);
+    } catch (statError) {
+      console.error(`File stat error for ${filePath}:`, statError);
+      return {
+        success: false,
+        exifData: null,
+        sanitizedExifData: null,
+        mediaDate: null,
+        message: `File access error: ${statError instanceof Error ? statError.message : String(statError)}`,
+      };
+    }
+    
+    const exifData = await extractMetadata({
+      filePath,
+      method,
+    });
 
-  if (!exifData) {
+    if (!exifData) {
+      console.log(`No EXIF data found in ${filePath}`);
+      return {
+        success: false,
+        exifData: null,
+        sanitizedExifData: null,
+        mediaDate: null,
+        message: 'No EXIF data found',
+      };
+    }
+
+    // Import sanitizeExifData function
+    progressCallback?.('Sanitizing EXIF data');
+    
+    console.log(`Successfully extracted EXIF from ${filePath}, data:`, 
+      exifData.Image ? `Contains Image section with ${Object.keys(exifData.Image).length} fields` : 'No Image section',
+      exifData.Photo ? `Contains Photo section with ${Object.keys(exifData.Photo).length} fields` : 'No Photo section'
+    );
+
+    // Sanitize EXIF data before storing it
+    const sanitizedExifData = sanitizeExifData(exifData);
+
+    // Get media date from EXIF
+    const mediaDate =
+      exifData.Photo?.DateTimeOriginal?.toISOString() ||
+      exifData.Image?.DateTime?.toISOString() ||
+      null;
+
+    return {
+      success: true,
+      exifData,
+      sanitizedExifData,
+      mediaDate,
+      message: 'EXIF data extracted and sanitized successfully',
+    };
+  } catch (error) {
+    console.error(`Error in extractAndSanitizeExifData for ${filePath}:`, error);
     return {
       success: false,
       exifData: null,
       sanitizedExifData: null,
       mediaDate: null,
-      message: 'No EXIF data found',
+      message: `EXIF extraction error: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
-
-  // Import sanitizeExifData function
-  progressCallback?.('Sanitizing EXIF data');
-  const { sanitizeExifData } = await import('@/lib/utils');
-
-  // Sanitize EXIF data before storing it
-  const sanitizedExifData = sanitizeExifData(exifData);
-
-  // Get media date from EXIF
-  const mediaDate =
-    exifData.Photo?.DateTimeOriginal?.toISOString() ||
-    exifData.Image?.DateTime?.toISOString() ||
-    null;
-
-  return {
-    success: true,
-    exifData,
-    sanitizedExifData,
-    mediaDate,
-    message: 'EXIF data extracted and sanitized successfully',
-  };
 }
 
 // Helper function to get unprocessed files with a limit
@@ -149,8 +204,8 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
   // First, get media items with no exif processing state
   const { data: filesWithoutProcessingState, error: error1 } = await supabase
     .from('media_items')
-    .select('*, file_types(*), processing_states(*)')
-    .in('file_types.category', ['image'])
+    .select('*, file_types!inner(*), processing_states(*)')
+    .eq('file_types.category', 'image')
     .eq('file_types.ignore', false)
     .is('processing_states', null)
     .limit(limit);
@@ -177,8 +232,8 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
   // Get files with failed processing states
   const { data: filesWithNonSuccessState, error: error2 } = await supabase
     .from('media_items')
-    .select('*, file_types(*), processing_states!inner(*)')
-    .in('file_types.category', ['image'])
+    .select('*, file_types!inner(*), processing_states!inner(*)')
+    .eq('file_types.category', 'image')
     .eq('file_types.ignore', false)
     .eq('processing_states.type', 'exif')
     .eq('processing_states.status', 'failure')

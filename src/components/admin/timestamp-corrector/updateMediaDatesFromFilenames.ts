@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import {
   markProcessingError,
   markProcessingSuccess,
@@ -38,7 +37,6 @@ export async function updateMediaDatesFromFilenames({
     let query = supabase
       .from('media_items')
       .select('id, file_name, media_date, file_types!inner(*)')
-      .in('file_types.category', ['image', 'video'])
       .eq('file_types.ignore', false);
 
     if (!updateAll) {
@@ -178,8 +176,6 @@ export async function updateMediaDatesFromFilenames({
         }
       }
     }
-
-    revalidatePath('/admin');
 
     return {
       success: true, // The overall batch operation succeeded in running

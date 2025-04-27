@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { updateFileType } from '@/lib/query-helpers';
 import type { FileType } from '@/types/db-types';
+import { updateFileType } from '@/app/actions/file-types/update-file-type';
 
 export interface GroupedFileTypes {
   [category: string]: FileType[];

@@ -8,8 +8,8 @@ import { lookup } from 'mime-types';
 import { type NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { fileTypeCache } from '@/lib/file-type-cache';
-import { getMediaItemById } from '@/lib/query-helpers';
 import { isImage, isVideo, needsConversion } from '@/lib/utils';
+import { getMediaItemById } from '@/app/actions/media/get-media-item-by-id';
 
 // Cache directory for converted files
 const CACHE_DIR = path.join(process.cwd(), '.cache');

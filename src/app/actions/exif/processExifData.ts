@@ -1,14 +1,15 @@
 'use server';
 
+import { getMediaItemById } from '@/app/actions/media/get-media-item-by-id';
 import { extractAndSanitizeExifData } from '@/lib/exif-utils';
 import {
   handleProcessingError,
   markProcessingError,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
-import { getMediaItemById, updateMediaItem } from '@/lib/query-helpers';
 import type { ExtractionMethod } from '@/types/exif';
 import type { Json } from '@/types/supabase';
+import { updateMediaItem } from '../media/update-media-item';
 
 /**
  * Process EXIF data for a single media item by ID

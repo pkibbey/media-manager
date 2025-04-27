@@ -1,1 +1,0 @@
-export { scanFolders } from './scanFolders';

@@ -42,7 +42,7 @@ export function TimestampCorrector() {
           progress={progress}
           processingStartTime={processingStartTime}
           title="Correcting Timestamps"
-          itemsLabel='timestamps'
+          itemsLabel="timestamps"
           rateUnit="files/sec"
         />
       )}

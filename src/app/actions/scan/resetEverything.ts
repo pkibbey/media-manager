@@ -1,10 +1,8 @@
 'use server';
-import { revalidatePath } from 'next/cache';
-import {
-  deleteAllFileTypes,
-  deleteAllMediaItems,
-  deleteAllProcessingStates,
-} from '@/lib/query-helpers';
+
+import { deleteAllProcessingStates } from '../delete-all-processing-states';
+import { deleteAllMediaItems } from '../exif/delete-all-media-items';
+import { deleteAllFileTypes } from '../file-types/delete-all-file-types';
 
 /**
  * Reset the processing state of all media items
@@ -41,8 +39,6 @@ export async function resetEverything(): Promise<{
     console.error('RESET: Error deleting file types:', fileTypesResult.error);
     return { success: false, error: fileTypesResult.error };
   }
-
-  revalidatePath('/admin');
 
   return {
     success: true,

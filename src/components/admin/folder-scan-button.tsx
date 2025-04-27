@@ -1,8 +1,8 @@
 'use client';
 
-import { scanFolders } from '@/app/actions/scan';
 import { ScanSearchIcon } from 'lucide-react';
 import { useState } from 'react';
+import { streamFolders } from '@/app/actions/scan/streamFolders';
 
 interface FolderScanButtonProps {
   folderId: number;
@@ -14,7 +14,7 @@ export function FolderScanButton({ folderId }: FolderScanButtonProps) {
   const handleScan = async () => {
     setIsScanning(true);
     try {
-      await scanFolders({ folderId });
+      await streamFolders({ folderId });
     } catch (error) {
       console.error('Error Scanning folder:', error);
     } finally {

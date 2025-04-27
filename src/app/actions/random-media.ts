@@ -1,7 +1,7 @@
 'use server';
 
-import { getRandomImages } from '@/lib/query-helpers';
 import type { MediaItem } from '@/types/db-types';
+import { getRandomImages } from './random-media/get-random-images';
 
 /**
  * Fetch random media items for display on the homepage

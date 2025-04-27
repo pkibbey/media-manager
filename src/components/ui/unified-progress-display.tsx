@@ -80,7 +80,7 @@ export function UnifiedProgressDisplay({
   const percentComplete = progress.percentComplete || 0;
 
   // Determine component state
-  const isComplete = progress.status === 'success' && !isProcessing;
+  const isComplete = progress.stage === 'complete' && !isProcessing;
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -118,7 +118,7 @@ export function UnifiedProgressDisplay({
         <span>{percentComplete.toFixed(1)}%</span>
       </div>
 
-      {/* Time estimation */}      
+      {/* Time estimation */}
       {isProcessing && (
         <ProcessingTimeEstimator
           isProcessing={isProcessing}

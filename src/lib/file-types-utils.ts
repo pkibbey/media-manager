@@ -1,10 +1,7 @@
 import type { FileType } from '@/types/db-types';
-import {
-  getAllFileTypes,
-  getFileTypeById as getFileTypeByIdHelper,
-} from './query-helpers';
+import { getAllFileTypes } from './query-helpers';
 
-export interface FileTypeInfo {
+interface FileTypeInfo {
   ignoredExtensions: string[];
   extensionToCategory: Record<string, string>;
   allFileTypes: {
@@ -22,52 +19,6 @@ export interface DetailedFileTypeInfo extends FileTypeInfo {
   extensionToId: Map<string, number>;
   categoryToIds: Record<string, number[]>;
   ignoredIds?: number[];
-}
-
-/**
- * Fetches file type information (ignored extensions, category mappings) from the database.
- * @returns An object containing processed file type information or null if an error occurs.
- */
-export async function getFileTypeInfo(): Promise<FileTypeInfo | null> {
-  // Use the query helper to get file types
-  const { data: fileTypes, error } = await getAllFileTypes();
-
-  if (error || !fileTypes) {
-    console.error('Error fetching file types:', error);
-    return null; // Return null or throw an error based on desired handling
-  }
-
-  // Build maps and arrays of file type information
-  const ignoredExtensions: string[] = [];
-  const extensionToCategory: Record<string, string> = {};
-  const allFileTypes: {
-    extension: string;
-    category: string;
-    ignore: boolean | null;
-  }[] = [];
-
-  fileTypes?.forEach((fileType) => {
-    const ext = fileType.extension.toLowerCase();
-    const category = fileType.category;
-
-    allFileTypes.push({
-      extension: ext,
-      category: category,
-      ignore: fileType.ignore,
-    });
-
-    if (fileType.ignore) {
-      ignoredExtensions.push(ext);
-    }
-
-    extensionToCategory[ext] = category;
-  });
-
-  return {
-    ignoredExtensions,
-    extensionToCategory,
-    allFileTypes, // Include the raw data if needed elsewhere
-  };
 }
 
 /**
@@ -139,80 +90,8 @@ export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | 
 }
 
 /**
- * Get file type information by ID
- * Using query helper instead of direct database query
- * @param fileTypeId - The ID of the file type to fetch
- * @returns File type object or null if not found
- */
-export async function getFileTypeById(
-  fileTypeId: number,
-): Promise<FileType | null> {
-  // Use the query helper instead of direct database access
-  const { data, error } = await getFileTypeByIdHelper(fileTypeId);
-
-  if (error || !data) {
-    console.error(`Error fetching file type with ID ${fileTypeId}:`, error);
-    return null;
-  }
-
-  return data as FileType;
-}
-
-/**
  * Helper functions that replace direct extension checks
  */
-
-/**
- * Check if a file is an image based on file type ID
- * @param fileTypeId - The file type ID to check
- * @returns True if the file type is an image
- */
-export async function isImageById(fileTypeId: number | null): Promise<boolean> {
-  if (!fileTypeId) return false;
-
-  const fileType = await getFileTypeById(fileTypeId);
-  return fileType?.category === 'image' || fileType?.category === 'raw_image';
-}
-
-/**
- * Check if a file is a video based on file type ID
- * @param fileTypeId - The file type ID to check
- * @returns True if the file type is a video
- */
-export async function isVideoById(fileTypeId: number | null): Promise<boolean> {
-  if (!fileTypeId) return false;
-
-  const fileType = await getFileTypeById(fileTypeId);
-  return fileType?.category === 'video';
-}
-
-/**
- * Check if a file needs conversion based on file type ID
- * @param fileTypeId - The file type ID to check
- * @returns True if the file type needs conversion
- */
-export async function needsConversionById(
-  fileTypeId: number | null,
-): Promise<boolean> {
-  if (!fileTypeId) return false;
-
-  const fileType = await getFileTypeById(fileTypeId);
-  return fileType?.needs_conversion === true;
-}
-
-/**
- * Get the MIME type for a file based on file type ID
- * @param fileTypeId - The file type ID to check
- * @returns The MIME type if available, or null
- */
-export async function getMimeTypeById(
-  fileTypeId: number | null,
-): Promise<string | null> {
-  if (!fileTypeId) return null;
-
-  const fileType = await getFileTypeById(fileTypeId);
-  return fileType?.mime_type || null;
-}
 
 /**
  * Determine the appropriate MIME type from a file extension

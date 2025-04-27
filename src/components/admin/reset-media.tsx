@@ -3,7 +3,7 @@
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { clearAllMediaItems } from '@/app/actions/exif';
+import { clearAllMediaItems } from '@/app/actions/exif/clear-all-media-items';
 import { Button } from '@/components/ui/button';
 import {
   Card,

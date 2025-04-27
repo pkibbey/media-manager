@@ -32,7 +32,7 @@ export default function ExifProcessor() {
           description="Process EXIF data for image files and store them in Supabase Storage. This helps improve performance by pre-processing EXIF data instead of creating it on-demand."
           labels={{
             success: 'files with exif',
-            failed: 'files need processing',
+            failed: 'files failed',
           }}
           tooltipContent={
             <p>
@@ -48,10 +48,10 @@ export default function ExifProcessor() {
           isProcessing={isProcessing}
           progress={progress}
           processingStartTime={processingStartTime}
-          title="Generating Thumbnails"
-          itemsLabel='images'
+          title="Processing EXIF Data"
+          itemsLabel="images"
           rateUnit="images/sec"
-          className='overflow-hidden'
+          className="overflow-hidden"
         />
       )}
 

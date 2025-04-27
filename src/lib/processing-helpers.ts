@@ -1,5 +1,5 @@
-import type { ProcessingStatus } from '@/types/progress-types';
-import { updateProcessingState } from './query-helpers';
+import { updateProcessingState } from "@/app/actions/processing/update-processing-state";
+import { ProcessingStatus, ProgressStatus } from "@/types/progress-types";
 
 /**
  * Handle an error during processing by updating the processing state
@@ -47,7 +47,7 @@ async function updateProcessingStateWithErrorHandling({
 }: {
   mediaItemId: string;
   type: string;
-  status: ProcessingStatus | null;
+  status: ProcessingStatus;
   message: string;
 }): Promise<void> {
   // Skip if status is null (in progress)
@@ -104,7 +104,7 @@ export async function markProcessingSuccess({
   await updateProcessingStateWithErrorHandling({
     mediaItemId,
     type,
-    status: 'success',
+    status: 'complete',
     message,
   });
 }
@@ -125,7 +125,7 @@ export async function markProcessingStarted({
   await updateProcessingStateWithErrorHandling({
     mediaItemId,
     type,
-    status: null,
+    status: 'processing',
     message,
   });
 }

@@ -7,6 +7,7 @@ import {
 } from '@/app/actions/thumbnails';
 import { streamThumbnails } from '@/app/actions/thumbnails/streamThumbnails';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
+import { useThrottle } from '@/hooks/useThrottle';
 import { BATCH_SIZE } from '@/lib/consts';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
@@ -27,6 +28,10 @@ export function useThumbnailGenerator() {
     useState<UnifiedStats | null>(null);
   // Track the actual total count of files to process
   const [totalCount, setTotalCount] = useState(0);
+
+  // Throttle state setters
+  const throttledSetTotalProcessed = useThrottle(setTotalProcessed, 100);
+  const throttledSetTotalCount = useThrottle(setTotalCount, 100);
 
   // Define stream function generator
   const getStreamFunction = useCallback(
@@ -77,7 +82,7 @@ export function useThumbnailGenerator() {
       const totalToProcess = await countMissingThumbnails();
 
       // Set the total count for proper display
-      setTotalCount(totalToProcess);
+      throttledSetTotalCount(totalToProcess);
 
       if (totalToProcess === 0) {
         return;
@@ -92,7 +97,7 @@ export function useThumbnailGenerator() {
 
   // Update total processed count when progress changes
   if (progress?.processedCount && progress.processedCount > totalProcessed) {
-    setTotalProcessed(progress.processedCount);
+    throttledSetTotalProcessed(progress.processedCount);
   }
 
   // Ensure we have a valid total count for progress display

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useThrottle } from '@/hooks/useThrottle';
 import type { UnifiedProgress } from '@/types/progress-types';
 
 interface ProcessingTimeEstimatorProps {
@@ -34,14 +35,24 @@ export function ProcessingTimeEstimator({
   const lastProcessedCount = useRef<number>(0);
   const lastTimestamp = useRef<number>(Date.now());
 
-  const processed = progress?.processedCount || 0;
+  const processed = useMemo(
+    () => progress?.processedCount || 0,
+    [progress?.processedCount],
+  );
   const remaining =
     (progress?.totalCount || 0) - (progress?.processedCount || 0);
+
+  // Throttle setProcessingRate and setEstimatedTimeRemaining
+  const throttledSetProcessingRate = useThrottle(setProcessingRate, 100);
+  const throttledSetEstimatedTimeRemaining = useThrottle(
+    setEstimatedTimeRemaining,
+    100,
+  );
 
   // Update the estimate every second while processing
   useEffect(() => {
     if (!isProcessing || remaining <= 0) {
-      setEstimatedTimeRemaining(null);
+      throttledSetEstimatedTimeRemaining(null);
       return;
     }
 
@@ -67,7 +78,7 @@ export function ProcessingTimeEstimator({
 
         const averageRate =
           totalProcessedFiles.current / totalProcessingTime.current; // items per millisecond
-        setProcessingRate(averageRate * 1000); // items per second
+        throttledSetProcessingRate(averageRate * 1000); // items per second
 
         // Update tracking variables
         lastTimestamp.current = now;
@@ -80,12 +91,14 @@ export function ProcessingTimeEstimator({
       if (processingRate && processingRate > 0) {
         const secondsRemaining = remaining / processingRate;
 
-        setEstimatedTimeRemaining(formatTimeRemaining(secondsRemaining));
+        throttledSetEstimatedTimeRemaining(
+          formatTimeRemaining(secondsRemaining),
+        );
       } else if (processed > 0) {
         // If no rate yet but processing has started, show calculating message
-        setEstimatedTimeRemaining('Calculating...');
+        throttledSetEstimatedTimeRemaining('Calculating...');
       } else {
-        setEstimatedTimeRemaining(null);
+        throttledSetEstimatedTimeRemaining(null);
       }
     };
 
@@ -95,7 +108,15 @@ export function ProcessingTimeEstimator({
     // Then update periodically
     const timer = setInterval(updateEstimate, 1000);
     return () => clearInterval(timer);
-  }, [isProcessing, processed, remaining, processingRate, startTime]);
+  }, [
+    throttledSetProcessingRate,
+    isProcessing,
+    processed,
+    remaining,
+    processingRate,
+    startTime,
+    throttledSetEstimatedTimeRemaining,
+  ]);
 
   // Format seconds into a human-readable string
   const formatTimeRemaining = (seconds: number): string => {

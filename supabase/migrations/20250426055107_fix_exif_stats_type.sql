@@ -20,7 +20,7 @@ BEGIN
     ))::int AS success,
     (count(*) FILTER (
       WHERE ft.category IN ('image') AND ft.ignore = false
-        AND ps.type = 'exif' AND ps.status = 'error'
+        AND ps.type = 'exif' AND ps.status = 'failure'
     ))::int AS failed
   FROM media_items mi
   JOIN file_types ft ON mi.file_type_id = ft.id

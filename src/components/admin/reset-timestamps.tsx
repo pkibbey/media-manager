@@ -1,4 +1,6 @@
 'use client';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -8,9 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Loader2, RefreshCw } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 
 export default function ResetTimestamps() {
   const [isResetting, setIsResetting] = useState(false);
@@ -19,7 +18,6 @@ export default function ResetTimestamps() {
     message?: string;
     error?: string;
   }>({});
-  const router = useRouter();
 
   const handleReset = async () => {
     if (
@@ -38,9 +36,9 @@ export default function ResetTimestamps() {
       // const result = await resetAllMediaItems();
       setResult(result);
 
-      if (result.success) {
-        router.refresh();
-      }
+      // if (result.success) {
+      //   router.refresh();
+      // }
     } catch (error: any) {
       setResult({ success: false, error: error.message });
     } finally {

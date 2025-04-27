@@ -28,3 +28,5 @@
 -- Process each image for sentiment analysis
 -- Process each image for perceived quality
 -- Process each image for content safety
+
+-- A way to recognize important events, and to give them a magnitude of importance, so that when scanning through a timeline of photos, it can sort by importance to select which image to show for a certain segment

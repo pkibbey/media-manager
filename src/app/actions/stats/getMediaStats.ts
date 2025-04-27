@@ -12,8 +12,7 @@ export async function getMediaStats(): Promise<UnifiedStats> {
   // Get total count of media items
   const { count: totalCount, error: totalError } = await supabase
     .from('media_items')
-    .select('id, file_types!inner(*)', { count: 'exact', head: true })
-    .in('file_types.category', ['image', 'video'])
+    .select('id, file_types!inner(*)', { count: 'exact', head: true })    
     .eq('file_types.ignore', false);
   if (totalError) throw totalError;
 
@@ -23,8 +22,7 @@ export async function getMediaStats(): Promise<UnifiedStats> {
     .select('id, processing_states!inner(*), file_types!inner(*)', {
       count: 'exact',
       // head: true,
-    })
-    .in('file_types.category', ['image', 'video'])
+    })    
     .eq('file_types.ignore', false)
     .eq('processing_states.type', 'exif')
     .eq('processing_states.status', 'success');
@@ -36,8 +34,7 @@ export async function getMediaStats(): Promise<UnifiedStats> {
     .select('id, processing_states!inner(*), file_types!inner(*)', {
       count: 'exact',
       head: true,
-    })
-    .in('file_types.category', ['image', 'video'])
+    })    
     .eq('file_types.ignore', false)
     .eq('processing_states.type', 'exif')
     .eq('processing_states.status', 'failure');
