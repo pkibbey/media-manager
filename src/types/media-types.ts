@@ -11,7 +11,7 @@ export interface MediaFilters {
   sortBy: 'date' | 'name' | 'size' | 'type';
   sortOrder: 'asc' | 'desc';
   processed: 'all' | 'yes' | 'no';
-  camera: string;
+  camera: 'all' | string; // Updated type to reflect that 'all' is a special value
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';
 }
@@ -23,7 +23,6 @@ export type AllMediaStats = {
   totalCount: number;
   failureCount: number;
   totalSizeBytes: number;
-  timestampCorrectionCount: number;
 };
 
 export type DetailedMediaStats = {

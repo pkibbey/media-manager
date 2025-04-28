@@ -1,7 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { MediaItem } from '@/types/db-types';
+import type { Action, MediaItem } from '@/types/db-types';
 
 /**
  * Update an existing media item
@@ -12,15 +12,8 @@ import type { MediaItem } from '@/types/db-types';
 export async function updateMediaItem(
   id: string,
   mediaItem: Partial<MediaItem>,
-): Promise<{
-  error: any | null;
-}> {
+): Action<null> {
   const supabase = createServerSupabaseClient();
 
-  const result = await supabase
-    .from('media_items')
-    .update(mediaItem)
-    .eq('id', id);
-
-  return result;
+  return await supabase.from('media_items').update(mediaItem).eq('id', id);
 }

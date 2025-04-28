@@ -11,17 +11,17 @@ import type { UnifiedProgress } from '@/types/progress-types';
 
 type ExifProcessOptionsProps = {
   progress: UnifiedProgress | null;
-  extractionMethod: ExtractionMethod;
-  setExtractionMethod: (method: ExtractionMethod) => void;
+  method: ExtractionMethod;
+  setMethod: (method: ExtractionMethod) => void;
   batchSize: number;
   setBatchSize: (size: number) => void;
   isProcessing: boolean;
 };
 
 export function ExifProcessOptions({
-  extractionMethod,
+  method,
   progress,
-  setExtractionMethod,
+  setMethod,
   batchSize,
   setBatchSize,
   isProcessing,
@@ -30,20 +30,15 @@ export function ExifProcessOptions({
     <div className="flex flex-col items-start gap-6">
       <div className="flex gap-4">
         <div className="flex flex-col space-y-2 gap-2 justify-center">
-          <Label
-            htmlFor="extractionMethod"
-            className="text-sm font-medium mb-0"
-          >
+          <Label htmlFor="method" className="text-sm font-medium mb-0">
             Method:
           </Label>
           <Select
-            value={extractionMethod}
-            onValueChange={(value) =>
-              setExtractionMethod(value as ExtractionMethod)
-            }
+            value={method}
+            onValueChange={(value) => setMethod(value as ExtractionMethod)}
             disabled={isProcessing || progress?.totalCount === 0}
           >
-            <SelectTrigger className="w-full text-sm" id="extractionMethod">
+            <SelectTrigger className="w-full text-sm" id="method">
               <SelectValue placeholder="Select extraction method" />
             </SelectTrigger>
             <SelectContent>

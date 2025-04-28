@@ -14,6 +14,10 @@ export function FileSizeFilter({
   maxFileSize,
   applyFilters,
 }: FileSizeFilterProps) {
+  // Get form values with fallbacks to prevent undefined values
+  const minSize = form.getValues('minSize') ?? 0;
+  const maxSize = form.getValues('maxSize') ?? maxFileSize;
+
   return (
     <FormField
       control={form.control}
@@ -23,14 +27,14 @@ export function FileSizeFilter({
           <div className="flex justify-between">
             <FormLabel>File Size Range</FormLabel>
             <span className="text-xs text-muted-foreground">
-              {form.getValues('minSize')}MB - {form.getValues('maxSize')}MB
+              {minSize}MB - {maxSize}MB
             </span>
           </div>
           <Slider
             min={0}
             max={maxFileSize}
             step={1}
-            value={[form.getValues('minSize'), form.getValues('maxSize')]}
+            value={[minSize, maxSize]}
             onValueChange={(values) => {
               form.setValue('minSize', values[0]);
               form.setValue('maxSize', values[1]);

@@ -29,14 +29,15 @@ export function ResetMedia() {
     setIsResetting(true);
     setShowConfirmDialog(false);
 
-    try {
-      await clearAllProcessingStates();
-      toast.success('Successfully reset all media items');
-    } catch (error: any) {
-      toast.error(`Error: ${error.message || 'Unknown error occurred'}`);
-    } finally {
-      setIsResetting(false);
+    const { error, statusText } = await clearAllProcessingStates();
+
+    if (!error) {
+      toast.success(statusText || 'Successfully reset all media items');
+    } else {
+      toast.error(statusText || 'Failed to reset all media items');
     }
+
+    setIsResetting(false);
   };
 
   return (

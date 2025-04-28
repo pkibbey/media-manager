@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { Action } from '@/types/db-types';
 
 /**
  * Update the scan status of a folder
@@ -11,26 +12,13 @@ import { createServerSupabaseClient } from '@/lib/supabase';
 export async function updateFolderScanStatus(
   folderId: number,
   resetStatus: boolean,
-): Promise<{
-  success: boolean;
-  error?: string;
-}> {
+): Action<null> {
   const supabase = createServerSupabaseClient();
 
-  try {
-    const { error } = await supabase
-      .from('scan_folders')
-      .update({
-        last_scanned: resetStatus ? null : new Date().toISOString(),
-      })
-      .eq('id', folderId);
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Unknown error occurred' };
-  }
+  return await supabase
+    .from('scan_folders')
+    .update({
+      last_scanned: resetStatus ? null : new Date().toISOString(),
+    })
+    .eq('id', folderId);
 }

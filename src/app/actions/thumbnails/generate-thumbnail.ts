@@ -12,7 +12,7 @@ import {
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ThumbnailGenerationResponse } from '@/types/thumbnail-types';
-import { convertHeicToJpeg } from './convertHeicToJpeg';
+import { convertHeicToJpeg } from './convert-heic-to-jpeg';
 
 /**
  * Generate and upload a thumbnail for a single media item
@@ -54,7 +54,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       // Update processing state using helper function
       await markProcessingError({
         mediaItemId: mediaId,
-        type: 'thumbnail',
+        progressType: 'thumbnail',
         errorMessage: 'File not found',
       });
 
@@ -172,7 +172,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       // Mark as error using helper function
       await markProcessingError({
         mediaItemId: mediaId,
-        type: 'thumbnail',
+        progressType: 'thumbnail',
         errorMessage: String(sharpError),
       });
 
@@ -203,7 +203,7 @@ export async function generateThumbnail(mediaId: string): Promise<
         // Mark as error using helper function
         await markProcessingError({
           mediaItemId: mediaId,
-          type: 'thumbnail',
+          progressType: 'thumbnail',
           errorMessage: `Storage upload failed: ${storageError.message}`,
         });
 
@@ -222,7 +222,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       // Mark as upload error using helper function
       await markProcessingError({
         mediaItemId: mediaId,
-        type: 'thumbnail',
+        progressType: 'thumbnail',
         errorMessage: 'Upload exception',
       });
 
@@ -257,7 +257,7 @@ export async function generateThumbnail(mediaId: string): Promise<
       // Mark as error using helper function
       await markProcessingError({
         mediaItemId: mediaId,
-        type: 'thumbnail',
+        progressType: 'thumbnail',
         errorMessage: 'Failed to update media_items table',
       });
 
@@ -272,7 +272,7 @@ export async function generateThumbnail(mediaId: string): Promise<
     try {
       await markProcessingSuccess({
         mediaItemId: mediaId,
-        type: 'thumbnail',
+        progressType: 'thumbnail',
         errorMessage: 'Thumbnail generated successfully',
       });
     } catch (updateProcessingStateError) {
@@ -305,7 +305,7 @@ export async function generateThumbnail(mediaId: string): Promise<
     try {
       await markProcessingError({
         mediaItemId: mediaId,
-        type: 'thumbnail',
+        progressType: 'thumbnail',
         errorMessage: 'Unhandled exception',
       });
     } catch (dbError) {

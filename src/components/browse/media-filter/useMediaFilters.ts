@@ -153,7 +153,7 @@ export function useMediaFilters({
       sortBy: formValues.sortBy || 'date',
       sortOrder: formValues.sortOrder || 'desc',
       processed: formValues.processed || 'all',
-      camera: formValues.camera || '',
+      camera: formValues.camera || 'all', // Changed from '' to 'all'
       hasLocation: formValues.hasLocation || 'all',
       hasThumbnail: formValues.hasThumbnail || 'all',
     });
@@ -191,7 +191,7 @@ export function useMediaFilters({
       sortBy: 'date',
       sortOrder: 'desc',
       processed: 'all',
-      camera: '',
+      camera: 'all', // Changed from empty string to 'all'
       hasLocation: 'all',
       hasThumbnail: 'all',
     };

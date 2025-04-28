@@ -1,20 +1,19 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { FileType } from '@/types/db-types';
+import type { Action, FileType } from '@/types/db-types';
 
 /**
  * Get a file type by extension
  * @param extension File extension (without the dot)
- * @returns Query result with file type data
+ * @returns Query result with file type data and success status
  */
-export async function getFileTypeByExtension(extension: string): Promise<{
-  data: FileType | null;
-  error: any | null;
-}> {
+export async function getFileTypeByExtension(
+  extension: string,
+): Action<FileType> {
   const supabase = createServerSupabaseClient();
 
-  return supabase
+  return await supabase
     .from('file_types')
     .select('*')
     .eq('extension', extension.toLowerCase())

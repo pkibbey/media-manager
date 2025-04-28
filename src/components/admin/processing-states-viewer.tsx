@@ -48,7 +48,7 @@ export function ProcessingStatesViewer() {
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const ITEMS_PER_PAGE = 10;
-  const PROCESSING_TYPES = ['exif', 'thumbnail', 'timestamp_correction'];
+  const PROCESSING_TYPES = ['exif', 'thumbnail'];
 
   // Function to fetch processing states
   const fetchProcessingStates = useCallback(async () => {
@@ -62,12 +62,13 @@ export function ProcessingStatesViewer() {
       });
 
       if (!response.success) {
+        // Updated to handle the new standardized Action<T> format
         setError(response.error || 'Failed to fetch processing states');
         return;
       }
 
       setProcessingStates(response?.data || []);
-      setCounts(response.counts);
+      setCounts(response.counts); // Adjust to get counts from data
       setError(null);
     } catch (err) {
       setError('An error occurred while fetching processing states');

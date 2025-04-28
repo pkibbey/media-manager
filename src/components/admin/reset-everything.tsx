@@ -1,5 +1,8 @@
 'use client';
 
+import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { resetEverything } from '@/app/actions/scan/resetEverything';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,9 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 export default function ResetEverything() {
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +32,7 @@ export default function ResetEverything() {
       // Use the direct server action instead of fetch
       const result = await resetEverything();
 
-      if (result.success) {
+      if (!result.error) {
         toast.success(result.message);
         setDialogOpen(false);
       } else {

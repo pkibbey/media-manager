@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { Action, MediaItem } from '@/types/db-types';
 
 /**
  * Insert a new media item
@@ -15,17 +16,12 @@ export async function insertMediaItem(fileData: {
   size_bytes: number;
   file_type_id: number;
   folder_path: string;
-}): Promise<{
-  data: { id: string } | null;
-  error: any | null;
-}> {
+}): Action<MediaItem> {
   const supabase = createServerSupabaseClient();
 
-  const result = await supabase
+  return await supabase
     .from('media_items')
     .insert(fileData)
     .select('id')
     .single();
-
-  return result;
 }

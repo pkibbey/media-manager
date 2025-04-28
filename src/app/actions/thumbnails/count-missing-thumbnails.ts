@@ -10,7 +10,7 @@ export async function countMissingThumbnails() {
   const supabase = createServerSupabaseClient();
 
   // Count items that need thumbnail processing
-  const { count: missingThumbnailsCount, error: countError } = await supabase
+  return await supabase
     .from('media_items')
     .select('*, processing_states!inner(*), file_types!inner(*)', {
       count: 'exact',
@@ -19,8 +19,4 @@ export async function countMissingThumbnails() {
     .in('file_types.category', ['image'])
     .eq('file_types.ignore', false)
     .neq('processing_states.type', 'thumbnail');
-
-  if (countError) throw countError;
-
-  return missingThumbnailsCount || 0;
 }

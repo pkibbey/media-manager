@@ -1,23 +1,21 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { Action, ScanFolder } from '@/types/db-types';
 
 /**
- * Add a new scan folder to the database
+ * Add a new folder to scan
  * @param folderPath Path to the folder to scan
  * @param includeSubfolders Whether to include subfolders in the scan
- * @returns Operation result with created folder data
+ * @returns Operation result with new folder data
  */
 export async function addScanFolder(
   folderPath: string,
-  includeSubfolders = true,
-): Promise<{
-  data: any | null;
-  error: any | null;
-}> {
+  includeSubfolders: boolean,
+): Action<ScanFolder> {
   const supabase = createServerSupabaseClient();
 
-  const result = await supabase
+  return await supabase
     .from('scan_folders')
     .insert({
       path: folderPath,
@@ -25,6 +23,4 @@ export async function addScanFolder(
     })
     .select()
     .single();
-
-  return result;
 }

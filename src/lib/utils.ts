@@ -134,6 +134,61 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
+ * Sanitize EXIF data for storage in database
+ * Removes circular references and converts Date objects to ISO strings
+ */
+export function sanitizeExifData(exifData: any): any {
+  if (!exifData) return null;
+
+  const processed = new Set();
+
+  function sanitizeValue(value: any): any {
+    // Handle null/undefined
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    // Handle Date objects
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+
+    // Handle basic types
+    if (typeof value !== 'object') {
+      return value;
+    }
+
+    // Handle arrays
+    if (Array.isArray(value)) {
+      return value.map((item) => sanitizeValue(item));
+    }
+
+    // Handle circular references
+    if (processed.has(value)) {
+      return '[Circular Reference]';
+    }
+
+    // Process object
+    processed.add(value);
+    const result: Record<string, any> = {};
+
+    for (const key in value) {
+      if (Object.hasOwn(value, key)) {
+        try {
+          result[key] = sanitizeValue(value[key]);
+        } catch (e) {
+          result[key] = `[Error: Unable to sanitize] - ${e}`;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  return sanitizeValue(exifData);
+}
+
+/**
  * Extract date from filename using common patterns
  */
 export function extractDateFromFilename(filename: string): Date | null {
@@ -407,41 +462,6 @@ export function getExifData(item: MediaItem): Exif | null {
 }
 
 /**
- * Sanitize EXIF data to remove problematic characters that PostgreSQL can't handle
- * Specifically targets null bytes (\u0000) and other invalid unicode that causes
- * the "unsupported Unicode escape sequence" error
- */
-export function sanitizeExifData(data: any): any {
-  if (data === null || data === undefined) {
-    return data;
-  }
-
-  if (typeof data === 'string') {
-    // Replace null bytes and other control characters that might cause issues
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: <explanation>
-    return data.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
-  }
-
-  if (typeof data === 'object') {
-    if (Array.isArray(data)) {
-      return data.map((item) => sanitizeExifData(item));
-    }
-
-    const result: Record<string, any> = {};
-    for (const key in data) {
-      if (Object.hasOwn(data, key)) {
-        // Recursively sanitize nested objects
-        result[key] = sanitizeExifData(data[key]);
-      }
-    }
-    return result;
-  }
-
-  // For numbers, booleans, etc., return as is
-  return data;
-}
-
-/**
  * Get MIME type for a file
  * @param fileTypeId The file type ID to use
  */
@@ -488,11 +508,12 @@ export function excludeIgnoredFileTypes(query: any): any {
 /**
  * Helper function to calculate percentages from counts
  */
-export function calculatePercentages(
-  counts: UnifiedStats['counts'],
-): UnifiedStats['percentages'] {
+export function calculatePercentages(counts: UnifiedStats['counts']): {
+  completed: number;
+  error: number;
+} {
   const total = counts.total || 0;
-  const percentages: UnifiedStats['percentages'] = {
+  const percentages = {
     completed: 0,
     error: 0,
   };

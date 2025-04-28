@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { BATCH_SIZE } from '@/lib/consts';
+import type { ExtractionMethod } from '@/types/exif';
 import type { UnifiedProgress } from '@/types/progress-types';
 import { useStreamProcessing } from './useStreamProcessing';
 
@@ -8,14 +9,14 @@ export type ProcessorOptions<TStats> = {
   /**
    * Function to fetch initial stats for the processor
    */
-  fetchStats: () => Promise<TStats>;
+  fetchStats: () => Promise<TStats | null>;
 
   /**
    * Function that returns a stream function to process items
    */
   getStreamFunction: (options: {
     batchSize: number;
-    method: string;
+    method: ExtractionMethod;
   }) => () => Promise<ReadableStream>;
 
   /**
@@ -26,7 +27,7 @@ export type ProcessorOptions<TStats> = {
   /**
    * Default processing method
    */
-  defaultMethod?: string;
+  defaultMethod?: ExtractionMethod;
 
   /**
    * Success messages to display during processing
@@ -39,14 +40,14 @@ export type ProcessorOptions<TStats> = {
 };
 
 /**
- * A base hook for all processor components (EXIF, thumbnails, timestamp correction)
+ * A base hook for all processor components (EXIF, thumbnails, etc.)
  * providing common functionality for streaming processing operations
  */
 export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
   fetchStats,
   getStreamFunction,
   defaultBatchSize = BATCH_SIZE,
-  defaultMethod = 'default',
+  defaultMethod = 'default' as ExtractionMethod,
   successMessage = {
     start: 'Starting processing...',
     // onBatchComplete: (processed) => `Processed ${processed} items`,
@@ -71,13 +72,6 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
     stopProcessing: stopStream,
   } = useStreamProcessing<TProgress>();
 
-  // Load stats on mount and after processing
-  useEffect(() => {
-    if (!isProcessing) {
-      refreshStats();
-    }
-  }, [isProcessing]);
-
   // Refresh stats function
   const refreshStats = useCallback(async () => {
     try {
@@ -88,6 +82,24 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
       toast.error('Failed to fetch processing stats');
     }
   }, [fetchStats]);
+
+  // Load stats on mount
+  useEffect(() => {
+    refreshStats();
+  }, []);
+
+  // Refresh stats when processing completes
+  const [wasProcessing, setWasProcessing] = useState(false);
+
+  useEffect(() => {
+    if (isProcessing) {
+      setWasProcessing(true);
+    } else if (wasProcessing) {
+      // Only refresh stats when transitioning from processing to not processing
+      refreshStats();
+      setWasProcessing(false);
+    }
+  }, [isProcessing, refreshStats, wasProcessing]);
 
   // Start processing handler
   const handleStartProcessing = useCallback(

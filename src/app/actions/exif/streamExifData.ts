@@ -1,14 +1,15 @@
 'use server';
 
-import { sendProgress } from '@/actions/processing/send-progress';
-import { getUnprocessedFiles } from '@/lib/exif-utils';
 import { fileTypeCache } from '@/lib/file-type-cache';
 import {
   markProcessingError,
   markProcessingStarted,
+  sendProgress,
 } from '@/lib/processing-helpers';
 import type { ExtractionMethod } from '@/types/exif';
+import type { ProgressType } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
+import { getUnprocessedFiles } from './get-unprocessed-files';
 import { processExifData } from './processExifData';
 
 /**
@@ -16,10 +17,10 @@ import { processExifData } from './processExifData';
  * This function returns a ReadableStream that emits progress updates
  */
 export async function streamExifData({
-  extractionMethod,
+  method,
   batchSize,
 }: {
-  extractionMethod: ExtractionMethod;
+  method: ExtractionMethod;
   batchSize: number;
 }) {
   const encoder = new TextEncoder();
@@ -33,7 +34,7 @@ export async function streamExifData({
   // Start processing in the background - passing options as a single object
   processUnprocessedItemsInternal({
     writer,
-    extractionMethod,
+    method,
     batchSize,
   }).catch((error) => {
     console.error('[SERVER] Error in processUnprocessedItemsInternal:', error);
@@ -47,9 +48,9 @@ export async function streamExifData({
       message: isAbortError
         ? 'Processing aborted by user'
         : error?.message || 'An unknown error occurred during EXIF processing',
+      progressType: 'exif',
       metadata: {
-        processingType: 'exif',
-        extractionMethod,
+        method,
       },
     }).finally(() => {
       if (!writer.closed) {
@@ -70,12 +71,13 @@ export async function streamExifData({
 
   async function processUnprocessedItemsInternal({
     writer,
-    extractionMethod,
+    method,
     batchSize,
   }: {
     writer: WritableStreamDefaultWriter;
-    extractionMethod?: ExtractionMethod;
+    method?: ExtractionMethod;
     batchSize: number;
+    progressType?: ProgressType;
   }) {
     try {
       // Single stats object to track all counters
@@ -94,6 +96,7 @@ export async function streamExifData({
           failureCount: counters.failed,
           currentBatch: counters.currentBatch,
           batchSize: Math.min(batchSize, MAX_FETCH_SIZE), // Ensure batch size doesn't exceed max fetch size
+          progressType: 'exif' as ProgressType,
         };
       }
 
@@ -128,32 +131,34 @@ export async function streamExifData({
           limit: fetchSize,
         });
 
-        const unprocessedFiles = unprocessed?.data || [];
-
-        // Set the total count of unprocessed files
-        counters.total = unprocessed?.count || 0;
-
-        // Check abort state again after the potentially long database operation
-        if (aborted) {
+        // Check for errors in the response
+        if (unprocessed.error) {
+          // Send error progress update
           await sendProgress(encoder, writer, {
             status: 'failure',
-            message: 'Processing aborted by user',
+            message: `Error fetching files: ${unprocessed.error}. Please try again later.`,
             ...getCommonProperties(),
+            metadata: {
+              method,
+            },
           });
-          return;
+
+          return; // Exit processing due to this critical error
         }
+
+        const unprocessedFiles = unprocessed.data || [];
+
+        // Set the total count of unprocessed files
+        counters.total = unprocessed.count || 0;
 
         // If no files were returned and we're on batch 1, nothing to process at all
         if (unprocessedFiles.length === 0 && counters.currentBatch === 1) {
           await sendProgress(encoder, writer, {
             status: 'failure',
             message: 'No files to process',
-            totalCount: 0,
-            successCount: 0,
-            failureCount: 0,
+            ...getCommonProperties(),
             metadata: {
-              processingType: 'exif',
-              extractionMethod,
+              method,
             },
           });
           return;
@@ -171,7 +176,7 @@ export async function streamExifData({
             // Mark this item as aborted using our helper function
             await markProcessingError({
               mediaItemId: media.id,
-              type: 'exif',
+              progressType: 'exif',
               errorMessage: 'Processing aborted by user',
             });
 
@@ -212,7 +217,7 @@ export async function streamExifData({
             if (aborted) {
               await markProcessingError({
                 mediaItemId: media.id,
-                type: 'exif',
+                progressType: 'exif',
                 errorMessage: 'Processing aborted by user',
               });
 
@@ -228,7 +233,7 @@ export async function streamExifData({
             if (errorReason) {
               await markProcessingError({
                 mediaItemId: media.id,
-                type: 'exif',
+                progressType: 'exif',
                 errorMessage: `Errored due to ${errorReason}`,
               });
 
@@ -240,15 +245,12 @@ export async function streamExifData({
                 message: `Errored: ${errorReason} (${media.file_name})`,
                 ...getCommonProperties(),
                 metadata: {
-                  processingType: 'exif',
-                  extractionMethod,
+                  method,
                   fileType: media.file_types?.extension,
                 },
               });
               continue;
             }
-
-            // Mark as processing before we begin
 
             // Check abort again before marking as processing
             if (aborted) {
@@ -260,9 +262,10 @@ export async function streamExifData({
               return;
             }
 
+            // Mark as processing before we begin
             await markProcessingStarted({
               mediaItemId: media.id,
-              type: 'exif',
+              progressType: 'exif',
               errorMessage: `Processing started for ${media.file_name}`,
             });
 
@@ -272,8 +275,7 @@ export async function streamExifData({
               message: `Processing ${counters.total + 1}: ${media.file_name}`,
               ...getCommonProperties(),
               metadata: {
-                processingType: 'exif',
-                extractionMethod,
+                method,
                 fileType: media.file_types?.extension,
               },
             });
@@ -283,7 +285,7 @@ export async function streamExifData({
               if (aborted) {
                 await markProcessingError({
                   mediaItemId: media.id,
-                  type: 'exif',
+                  progressType: 'exif',
                   errorMessage: 'Processing aborted by user',
                 });
 
@@ -297,7 +299,7 @@ export async function streamExifData({
 
               const result = await processExifData({
                 mediaId: media.id,
-                method: extractionMethod || 'default',
+                method: method || 'default',
                 progressCallback: async (message) => {
                   // Check for abort again during processing
                   if (aborted) {
@@ -310,8 +312,7 @@ export async function streamExifData({
                     message: `${message} - ${media.file_name}`,
                     ...getCommonProperties(),
                     metadata: {
-                      processingType: 'exif',
-                      extractionMethod,
+                      method,
                       fileType: media.file_types?.extension,
                     },
                   });
@@ -337,7 +338,7 @@ export async function streamExifData({
               // Mark this item as aborted using our helper function
               await markProcessingError({
                 mediaItemId: media.id,
-                type: 'exif',
+                progressType: 'exif',
                 errorMessage: 'Processing aborted by user',
               });
 
@@ -346,8 +347,7 @@ export async function streamExifData({
                 message: 'EXIF processing aborted by user',
                 ...getCommonProperties(),
                 metadata: {
-                  processingType: 'exif',
-                  extractionMethod,
+                  method,
                   fileType: media.file_types?.extension,
                 },
               });
@@ -360,7 +360,7 @@ export async function streamExifData({
             // Use our helper function for error processing
             await markProcessingError({
               mediaItemId: media.id,
-              type: 'exif',
+              progressType: 'exif',
               errorMessage:
                 error?.message || 'Unknown error during EXIF processing',
             });
@@ -374,8 +374,7 @@ export async function streamExifData({
               message: `Error processing file ${media.file_name}: ${error.message}. Continuing with next file...`,
               ...getCommonProperties(),
               metadata: {
-                processingType: 'exif',
-                extractionMethod,
+                method,
                 fileType: media.file_types?.extension,
               },
             });
@@ -391,8 +390,7 @@ export async function streamExifData({
             message: 'Processing aborted by user',
             ...getCommonProperties(),
             metadata: {
-              processingType: 'exif',
-              extractionMethod,
+              method,
             },
           });
           return;

@@ -239,10 +239,7 @@ Hooks use function generators to enable parameterized streaming:
 // Example pattern
 const getStreamFunction = useCallback(
   (options: { batchSize: number; method: string }) => {
-    return () => streamExifData({
-      extractionMethod: options.method as ExtractionMethod,
-      batchSize: options.batchSize,
-    });
+    return () => streamExifData(options);
   },
   [],
 );

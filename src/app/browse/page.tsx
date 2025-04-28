@@ -1,14 +1,15 @@
 'use client';
 
+import { max } from 'lodash';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/media/media-list';
 import { Pagination } from '@/components/ui/pagination';
 import { PAGE_SIZE } from '@/lib/consts';
 import type { MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { browseMedia } from '../actions/browse';
+import { getMediaItems } from '../actions/browse/get-media-items';
 
 // Define the default filter values
 const defaultFilters: MediaFilters = {
@@ -21,7 +22,7 @@ const defaultFilters: MediaFilters = {
   sortBy: 'date',
   sortOrder: 'desc',
   processed: 'all',
-  camera: '',
+  camera: 'all',
   hasLocation: 'all',
   hasThumbnail: 'all',
 };
@@ -140,41 +141,43 @@ export default function BrowsePage() {
 
       setError(null);
 
-      try {
-        const result = await browseMedia(filters, currentPage, PAGE_SIZE);
+      const result = await getMediaItems({
+        filters,
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+      });
 
-        if (result.success && result.data) {
-          setMediaItems(result.data as MediaItem[]);
-          setPagination(result.pagination);
-          setMaxFileSize(result.maxFileSize);
-
-          // Extract unique camera models from media items with processed EXIF data
-          if (result.data.length > 0) {
-            const uniqueCameras = new Set<string>();
-            result.data.forEach((item) => {
-              // @ts-ignore
-              if (item.exif_data?.Image?.Model) {
-                // @ts-ignore
-                uniqueCameras.add(item.exif_data.Image.Model);
-              }
-            });
-
-            const cameras = Array.from(uniqueCameras);
-            setAvailableCameras(cameras);
-          }
-        } else {
-          setError(result.error || 'Failed to load media items');
-          // Only clear media items if there's an error
-          setMediaItems([]);
-        }
-      } catch (error: any) {
-        setError(error.message || 'An unexpected error occurred');
+      if (result.error) {
+        setError(result.error.message || 'An unknown error occurred');
         // Only clear media items if there's an error
         setMediaItems([]);
-      } finally {
-        setLoading(false);
-        setInitialLoad(false);
       }
+
+      if (!result.error && result.data && result.pagination) {
+        setMediaItems(result.data);
+        setPagination(result.pagination);
+
+        const maxSize = max(result.data.map((item) => item.size_bytes || 0));
+        setMaxFileSize(maxSize ? Math.ceil(maxSize / 1024 / 1024) : 100);
+
+        // Extract unique camera models from media items with processed EXIF data
+        if (result.data.length > 0) {
+          const uniqueCameras = new Set<string>();
+          result.data.forEach((item) => {
+            // @ts-ignore
+            if (item.exif_data?.Image?.Model) {
+              // @ts-ignore
+              uniqueCameras.add(item.exif_data.Image.Model);
+            }
+          });
+
+          const cameras = Array.from(uniqueCameras);
+          setAvailableCameras(cameras);
+        }
+      }
+
+      setLoading(false);
+      setInitialLoad(false);
     };
 
     loadMedia();

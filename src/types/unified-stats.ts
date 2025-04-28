@@ -47,19 +47,4 @@ export interface UnifiedStats {
      */
     currentBatch?: number;
   };
-
-  /**
-   * Optional percentages calculated from counts
-   */
-  percentages: {
-    /**
-     * Completion percentage (0-100)
-     */
-    completed: number;
-
-    /**
-     * Error percentage (0-100)
-     */
-    error: number;
-  };
 }

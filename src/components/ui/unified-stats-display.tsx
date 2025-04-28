@@ -11,11 +11,11 @@ import {
   TooltipTrigger,
 } from './tooltip';
 
-export interface UnifiedStatsDisplayProps {
+interface UnifiedStatsDisplayProps {
   /**
    * The stats data to display
    */
-  stats: UnifiedStats | null;
+  stats: UnifiedStats;
 
   /**
    * The title to display at the top of the component
@@ -79,16 +79,9 @@ export function UnifiedStatsDisplay({
   allProcessedMessage,
   className,
 }: UnifiedStatsDisplayProps) {
-  // Get percentage from stats or calculate if not provided
-  const processedPercentage =
-    stats?.percentages?.completed ||
-    (stats && stats.counts.total > 0
-      ? Math.round(
-          (((stats.counts.success || 0) + (stats.counts.failed || 0)) /
-            stats.counts.total) *
-            100,
-        )
-      : 0);
+  // Calculate progress percentage
+  const progressValue = stats?.counts?.total ? 
+    Math.round((stats.counts.success * 100) / stats.counts.total) : 0;
 
   // Calculate total processed files
   const totalProcessed = stats
@@ -110,7 +103,7 @@ export function UnifiedStatsDisplay({
 
   // Determine if we should show the no files message or all processed message
   const showNoFilesMessage =
-    stats && totalProcessed === 0 && !stats.counts.total && noFilesMessage;
+    stats && stats.counts.total === 0 && noFilesMessage;
   const showAllProcessedMessage =
     stats &&
     totalWaiting === 0 &&
@@ -123,14 +116,14 @@ export function UnifiedStatsDisplay({
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">{title}</h2>
         <div className="text-sm text-muted-foreground">
-          {(stats?.counts.success || 0) + (stats?.counts.failed || 0)}
+          {totalProcessed}
           {' / '}
           {stats?.counts.total || 0} files
         </div>
       </div>
 
       {/* Progress bar */}
-      <Progress value={processedPercentage} className="h-2" />
+      <Progress value={progressValue} className="h-2" />
 
       {/* Stats details */}
       <div className="text-xs flex flex-col space-y-1 text-muted-foreground">
@@ -187,6 +180,13 @@ export function UnifiedStatsDisplay({
         {stats?.error && (
           <span className="block mt-2 text-destructive">
             Error: {stats.error}
+          </span>
+        )}
+
+        {/* Show status message if present */}
+        {stats?.message && stats.status !== 'error' && (
+          <span className="block mt-2 text-info">
+            {stats.message}
           </span>
         )}
       </div>

@@ -6,7 +6,7 @@ type ExifActionButtonsProps = {
   stats: UnifiedStats | null;
   isProcessing: boolean;
   batchSize: number;
-  extractionMethod: ExtractionMethod;
+  method: ExtractionMethod;
   handleProcess: () => Promise<void>;
   handleCancel: () => void;
 };
@@ -15,7 +15,7 @@ export function ExifActionButtons({
   stats,
   isProcessing,
   batchSize,
-  extractionMethod,
+  method,
   handleProcess,
   handleCancel,
 }: ExifActionButtonsProps) {
@@ -29,8 +29,8 @@ export function ExifActionButtons({
         {!stats?.counts.total
           ? 'No Files To Process'
           : isProcessing
-            ? `Processing Batch (${extractionMethod})...`
-            : `Process Next ${batchSize} Files (${extractionMethod})`}
+            ? `Processing Batch (${method})...`
+            : `Process Next ${batchSize} Files (${method})`}
       </Button>
 
       {/* Cancel button if processing */}

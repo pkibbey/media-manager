@@ -7,7 +7,7 @@ export function ThumbnailErrorSummary({
   failureCount,
   errorSummary,
 }: ThumbnailErrorSummaryProps) {
-  if (failureCount === 0 || Object.keys(errorSummary).length === 0) {
+  if (failureCount === 0 || errorSummary.length === 0) {
     return null;
   }
 
@@ -19,7 +19,10 @@ export function ThumbnailErrorSummary({
 
       <ul className="space-y-3">
         {errorSummary.map((error, index) => (
-          <li key={error + index} className="text-xs">
+          <li
+            key={`thumbnail-error-${index}-${error.substring(0, 20)}`}
+            className="text-xs"
+          >
             <div className="truncate pl-2 text-[10px]">{error}</div>
           </li>
         ))}

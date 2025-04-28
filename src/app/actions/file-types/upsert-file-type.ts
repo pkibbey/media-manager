@@ -1,25 +1,23 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { Action } from '@/types/db-types';
 
 /**
  * Add or update a file type
  * @param extension File extension
  * @param category File category
  * @param mimeType File MIME type
- * @returns Query result with the new file type ID
+ * @returns Query result with the new file type ID and success status
  */
 export async function upsertFileType(
   extension: string,
   category: string,
   mimeType: string,
-): Promise<{
-  data: { id: number } | null;
-  error: any | null;
-}> {
+): Action<{ id: number }> {
   const supabase = createServerSupabaseClient();
 
-  const result = await supabase
+  return await supabase
     .from('file_types')
     .upsert(
       {
@@ -34,6 +32,4 @@ export async function upsertFileType(
     )
     .select('id')
     .single();
-
-  return result;
 }

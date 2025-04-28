@@ -1,21 +1,19 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { Action, MediaItem } from '@/types/db-types';
 
 /**
  * Check if a file exists in the database
- * @param filePath Path to the file to check
- * @returns Query result with file data if it exists
+ * @param filePath Path of the file to check
+ * @returns Query result with media item data if found
  */
-export async function checkFileExists(filePath: string): Promise<{
-  data: { id: string; modified_date: string; size_bytes: number } | null;
-  error: any | null;
-}> {
+export async function checkFileExists(filePath: string): Action<MediaItem> {
   const supabase = createServerSupabaseClient();
 
-  return supabase
+  return await supabase
     .from('media_items')
-    .select('id, modified_date, size_bytes')
+    .select('*')
     .eq('file_path', filePath)
     .maybeSingle();
 }

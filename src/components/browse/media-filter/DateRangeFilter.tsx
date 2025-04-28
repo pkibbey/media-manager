@@ -22,6 +22,14 @@ type DateRangeFilterProps = {
 };
 
 export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
+  // Helper to safely format date or return placeholder
+  const formatDateOrPlaceholder = (date: Date | null) => {
+    if (!date || isNaN(date.getTime())) {
+      return <span>Pick a date</span>;
+    }
+    return format(date, 'PPP');
+  };
+
   return (
     <>
       {/* Date Range - From */}
@@ -40,11 +48,7 @@ export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
                       !field.value && 'text-muted-foreground'
                     }`}
                   >
-                    {field.value ? (
-                      format(field.value, 'PPP')
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
+                    {formatDateOrPlaceholder(field.value)}
                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                   </Button>
                 </FormControl>
@@ -57,11 +61,10 @@ export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
                     field.onChange(date);
                     applyFilters(form.getValues());
                   }}
-                  disabled={(date) =>
-                    form.getValues('dateTo')
-                      ? date > form.getValues('dateTo')!
-                      : false
-                  }
+                  disabled={(date) => {
+                    const dateTo = form.getValues('dateTo');
+                    return dateTo ? date > dateTo : false;
+                  }}
                   initialFocus
                 />
               </PopoverContent>
@@ -99,11 +102,7 @@ export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
                       !field.value && 'text-muted-foreground'
                     }`}
                   >
-                    {field.value ? (
-                      format(field.value, 'PPP')
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
+                    {formatDateOrPlaceholder(field.value)}
                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                   </Button>
                 </FormControl>

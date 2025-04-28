@@ -30,3 +30,7 @@
 -- Process each image for content safety
 
 -- A way to recognize important events, and to give them a magnitude of importance, so that when scanning through a timeline of photos, it can sort by importance to select which image to show for a certain segment
+
+-- instead of using inner joins, see if there is a a more efficient way of making the request
+
+-- break up streamExifData and generateThubmnail into smaller functions

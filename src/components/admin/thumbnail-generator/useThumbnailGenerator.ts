@@ -1,19 +1,13 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { countMissingThumbnails } from '@/app/actions/thumbnails/countMissingThumbnails';
-import { getThumbnailStats } from '@/app/actions/thumbnails/getThumbnailStats';
-import { streamThumbnails } from '@/app/actions/thumbnails/streamThumbnails';
+import { useCallback, useEffect, useState } from 'react';
+import { countMissingThumbnails } from '@/app/actions/thumbnails/count-missing-thumbnails';
+import { getThumbnailStats } from '@/app/actions/thumbnails/get-thumbnail-stats';
+import { streamThumbnails } from '@/app/actions/thumbnails/stream-thumbnails';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import { useThrottle } from '@/hooks/useThrottle';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
-
-export type ThumbnailStats = {
-  totalCompatibleFiles: number;
-  filesWithThumbnails: number;
-  filesPending: number;
-} | null;
 
 export function useThumbnailGenerator() {
   // Track if we're processing all items
@@ -50,11 +44,16 @@ export function useThumbnailGenerator() {
     refreshStats,
     handleStartProcessing,
     handleCancel,
-  } = useProcessorBase<UnifiedProgress, UnifiedStats | null>({
+  } = useProcessorBase<UnifiedProgress, UnifiedStats>({
     fetchStats: async () => {
-      const result = await getThumbnailStats();
-      if (result) setThumbnailStatsRef(result);
-      return result;
+      const { data, error } = await getThumbnailStats();
+      
+      if (error || !data) {
+        throw error;
+      }
+      
+      setThumbnailStatsRef(data);
+      return data;
     },
     getStreamFunction,
     defaultBatchSize: Number.POSITIVE_INFINITY,
@@ -64,7 +63,7 @@ export function useThumbnailGenerator() {
         `Batch complete: Generated ${processed} thumbnails`,
       onCompleteEach: (): string => {
         const currentStats = thumbnailStatsRef;
-        return `All processing complete! Generated ${currentStats?.counts.success} thumbnails (${currentStats?.counts.failed} failed)`;
+        return `All processing complete! Generated ${currentStats?.counts.success || 0} thumbnails (${currentStats?.counts.failed || 0} failed)`;
       },
     },
   });
@@ -76,26 +75,33 @@ export function useThumbnailGenerator() {
       setTotalProcessed(0);
 
       // Check if there are thumbnails to generate
-      const totalToProcess = await countMissingThumbnails();
+      const { data, error, count } = await countMissingThumbnails();
+      
+      if (error) {
+        console.error('[Thumbnail Generator] Error counting missing thumbnails:', error);
+        return;
+      }
 
       // Set the total count for proper display
-      throttledSetTotalCount(totalToProcess);
+      throttledSetTotalCount(count || 0);
 
-      if (totalToProcess === 0) {
+      if (!data || count === 0) {
         return;
       }
 
       // Start processing with the processAll flag
       await handleStartProcessing(processAll);
     } catch (error: any) {
-      console.error('Error initiating thumbnail generation:', error);
+      console.error('[Thumbnail Generator] Error initiating thumbnail generation:', error);
     }
   };
 
-  // Update total processed count when progress changes
-  if (progress?.processedCount && progress.processedCount > totalProcessed) {
-    throttledSetTotalProcessed(progress.processedCount);
-  }
+  // Update total processed count when progress changes - moved to useEffect
+  useEffect(() => {
+    if (progress?.processedCount && progress.processedCount > totalProcessed) {
+      throttledSetTotalProcessed(progress.processedCount);
+    }
+  }, [progress?.processedCount, totalProcessed, throttledSetTotalProcessed]);
 
   // Ensure we have a valid total count for progress display
   const calculatedTotal = progress?.totalCount || totalCount || batchSize;

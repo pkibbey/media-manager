@@ -15,12 +15,9 @@ interface ExifProgress extends UnifiedProgress {
 export function useExifProcessor() {
   // Define stream function generator with extraction method
   const getStreamFunction = useCallback(
-    (options: { batchSize: number; method: string }) => {
+    (options: { batchSize: number; method: ExtractionMethod }) => {
       return () => {
-        return streamExifData({
-          extractionMethod: options.method as ExtractionMethod,
-          batchSize: options.batchSize,
-        });
+        return streamExifData(options);
       };
     },
     [],
@@ -32,8 +29,8 @@ export function useExifProcessor() {
     progress,
     hasError,
     errorSummary,
-    method: extractionMethod,
-    setMethod: setExtractionMethod,
+    method,
+    setMethod,
     batchSize,
     setBatchSize,
     processingStartTime,
@@ -43,17 +40,19 @@ export function useExifProcessor() {
     handleCancel,
   } = useProcessorBase<ExifProgress, UnifiedStats>({
     fetchStats: async () => {
-      try {
-        const result = await getExifStats();
-        return result;
-      } catch (error) {
+      console.log('fetchStats: ')
+      const { data, error } = await getExifStats();
+
+      if (!data || error) {
         console.error('[EXIF DEBUG] Error fetching stats:', error);
         throw error;
       }
+
+      return data;
     },
     getStreamFunction,
     defaultBatchSize: Number.POSITIVE_INFINITY,
-    defaultMethod: 'default',
+    defaultMethod: 'default' as ExtractionMethod,
     successMessage: {
       start: 'Starting EXIF processing...',
       onBatchComplete: (processed) =>
@@ -77,8 +76,8 @@ export function useExifProcessor() {
     progress,
     hasError,
     errorSummary,
-    extractionMethod,
-    setExtractionMethod,
+    method,
+    setMethod,
     batchSize,
     setBatchSize,
     processingStartTime,

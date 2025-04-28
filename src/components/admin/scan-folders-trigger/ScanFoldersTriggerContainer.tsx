@@ -26,7 +26,7 @@ export function ScanFoldersTriggerContainer() {
           </p>
         </div>
 
-        {!isScanning && (
+        {!isScanning && stats && (
           <UnifiedStatsDisplay
             stats={stats}
             title={''}

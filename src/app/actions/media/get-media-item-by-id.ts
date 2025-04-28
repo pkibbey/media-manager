@@ -1,23 +1,19 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { MediaItem } from '@/types/db-types';
+import type { Action, MediaItem } from '@/types/db-types';
 
 /**
- * Get a media item by ID with file type information and optional fields
+ * Get a media item by ID
  * @param id Media item ID
  * @returns Query result with media item data
  */
-export async function getMediaItemById(id: string): Promise<{
-  data: MediaItem | null;
-  error: any | null;
-}> {
+export async function getMediaItemById(id: string): Action<MediaItem> {
   const supabase = createServerSupabaseClient();
 
-  return supabase
+  return await supabase
     .from('media_items')
-    .select('*, file_types!inner(*)')
+    .select('*, file_types(*)')
     .eq('id', id)
-    .eq('file_types.ignore', false)
     .single();
 }

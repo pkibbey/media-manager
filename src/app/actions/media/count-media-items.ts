@@ -1,11 +1,12 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { Action, MediaItem } from '@/types/db-types';
 
 /**
  * Count media items with specific conditions
  * @param options Filter options for the count
- * @returns Count result
+ * @returns Count result with success status
  */
 export async function countMediaItems(
   options: {
@@ -15,10 +16,7 @@ export async function countMediaItems(
     hasThumbnail?: boolean;
     includeIgnored?: boolean;
   } = {},
-): Promise<{
-  count: number | null;
-  error: any | null;
-}> {
+): Action<MediaItem[]> {
   const supabase = createServerSupabaseClient();
 
   let query = supabase
@@ -53,5 +51,10 @@ export async function countMediaItems(
     }
   }
 
-  return query;
+  // Exclude ignored file types unless includeIgnored is true
+  if (!options.includeIgnored) {
+    query = query.eq('file_types.ignore', false);
+  }
+
+  return await query;
 }

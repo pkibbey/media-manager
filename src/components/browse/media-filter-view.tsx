@@ -34,7 +34,7 @@ export default function MediaFilterView({
       sortBy: 'date',
       sortOrder: 'desc',
       processed: 'all',
-      camera: '',
+      camera: 'all', // Changed from '' to 'all' for consistency
       hasLocation: 'all',
       hasThumbnail: 'all',
     },

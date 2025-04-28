@@ -3,6 +3,7 @@
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { resetAllThumbnails } from '@/app/actions/thumbnails/reset-all-thumbnails';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,32 +20,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { resetAllThumbnails } from '@/app/actions/thumbnails/resetAllThumbnails';
 
 export default function ResetThumbnails() {
   const [isLoading, setIsLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleReset = async () => {
-    try {
-      setIsLoading(true);
-      const result = await resetAllThumbnails();
+    setIsLoading(true);
+    const { error, statusText } = await resetAllThumbnails();
 
-      if (result.success) {
-        toast.success(result.message);
-      } else {
-        toast.error(result.message || 'Failed to reset thumbnails');
-      }
-
-      setDialogOpen(false);
-    } catch (error: any) {
-      toast.error(
-        'An unexpected error occurred while resetting thumbnails',
-        error.message,
-      );
-    } finally {
-      setIsLoading(false);
+    if (!error) {
+      toast.success(statusText || 'Thumbnails reset successfully');
+    } else {
+      toast.error(statusText || 'Failed to reset thumbnails');
     }
+
+    setDialogOpen(false);
+    setIsLoading(false);
   };
 
   return (

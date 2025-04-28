@@ -1,5 +1,5 @@
 import { updateProcessingState } from '@/app/actions/processing/update-processing-state';
-import type { ProgressStatus } from '@/types/progress-types';
+import type { ProgressStatus, UnifiedProgress } from '@/types/progress-types';
 
 /**
  * Handle an error during processing by updating the processing state
@@ -7,18 +7,18 @@ import type { ProgressStatus } from '@/types/progress-types';
  */
 export async function handleProcessingError({
   mediaItemId,
-  type,
+  progressType,
   errorMessage,
 }: {
   mediaItemId: string;
-  type: string;
+  progressType: string;
   errorMessage: string;
 }) {
   try {
     await updateProcessingState({
       mediaItemId,
       status: 'failure',
-      type,
+      progressType,
       errorMessage,
     });
   } catch (updateError) {
@@ -39,12 +39,12 @@ export async function handleProcessingError({
  */
 async function updateProcessingStateWithErrorHandling({
   mediaItemId,
-  type,
+  progressType,
   status,
   errorMessage,
 }: {
   mediaItemId: string;
-  type: string;
+  progressType: string;
   status: ProgressStatus;
   errorMessage: string;
 }): Promise<void> {
@@ -55,7 +55,7 @@ async function updateProcessingStateWithErrorHandling({
     await updateProcessingState({
       mediaItemId,
       status,
-      type,
+      progressType,
       errorMessage,
     });
   } catch (error) {
@@ -71,16 +71,16 @@ async function updateProcessingStateWithErrorHandling({
  */
 export async function markProcessingError({
   mediaItemId,
-  type,
+  progressType,
   errorMessage,
 }: {
   mediaItemId: string;
-  type: string;
+  progressType: string;
   errorMessage: string;
 }): Promise<void> {
   await updateProcessingStateWithErrorHandling({
     mediaItemId,
-    type,
+    progressType,
     status: 'failure',
     errorMessage,
   });
@@ -91,16 +91,16 @@ export async function markProcessingError({
  */
 export async function markProcessingSuccess({
   mediaItemId,
-  type,
+  progressType,
   errorMessage = 'Processing completed successfully',
 }: {
   mediaItemId: string;
-  type: string;
+  progressType: string;
   errorMessage?: string;
 }): Promise<void> {
   await updateProcessingStateWithErrorHandling({
     mediaItemId,
-    type,
+    progressType,
     status: 'complete',
     errorMessage,
   });
@@ -108,21 +108,51 @@ export async function markProcessingSuccess({
 
 /**
  * Mark a media item as being processed
- * Note: For the simplified model, we use null to indicate "in progress"
+ * Note: Status is set to "processing" to indicate item is currently being processed
  */
 export async function markProcessingStarted({
   mediaItemId,
-  type,
+  progressType,
   errorMessage = 'Processing started',
 }: {
   mediaItemId: string;
-  type: string;
+  progressType: string;
   errorMessage?: string;
 }): Promise<void> {
   await updateProcessingStateWithErrorHandling({
     mediaItemId,
-    type,
+    progressType,
     status: 'processing',
     errorMessage,
   });
+}
+
+/**
+ * Sends a progress update through a stream writer using the UnifiedProgress type.
+ * Calculates percentComplete automatically if totalCount and processedCount are provided.
+ */
+export async function sendProgress(
+  encoder: TextEncoder,
+  writer: WritableStreamDefaultWriter,
+  progress: Partial<UnifiedProgress>,
+) {
+  // Calculate percentage if not provided but counts are available
+  if (
+    progress.percentComplete === undefined &&
+    progress.totalCount !== undefined &&
+    progress.processedCount !== undefined &&
+    progress.totalCount > 0
+  ) {
+    progress.percentComplete = Math.min(
+      100,
+      Math.floor((progress.processedCount / progress.totalCount) * 100),
+    );
+  }
+
+  // Ensure timestamp is set
+  if (!progress.timestamp) {
+    progress.timestamp = Date.now();
+  }
+
+  await writer.write(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
 }

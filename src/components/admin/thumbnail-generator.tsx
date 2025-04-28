@@ -23,7 +23,7 @@ export default function ThumbnailGenerator() {
 
   return (
     <div className="flex flex-col overflow-hidden gap-4 space-y-4">
-      {!isProcessing && (
+      {!isProcessing && stats && (
         <UnifiedStatsDisplay
           stats={stats}
           title="Thumbnail Generator"

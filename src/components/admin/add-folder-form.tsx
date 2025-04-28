@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { addScanFolder } from '@/lib/query-helpers';
+import { addScanFolder } from '@/app/actions/scan/add-scan-folder';
 
 export default function AddFolderForm() {
   const [folderPath, setFolderPath] = useState('');
@@ -19,7 +19,7 @@ export default function AddFolderForm() {
     try {
       const { error } = await addScanFolder(folderPath, includeSubfolders);
       if (error) {
-        setError(error);
+        setError(error.message || 'Failed to add folder');
         return;
       }
       setMessage('Folder added successfully');

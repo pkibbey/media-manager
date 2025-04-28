@@ -1,8 +1,9 @@
 'use client';
 
 import { TrashIcon } from '@radix-ui/react-icons';
-import { useState } from 'react';
-import { removeScanFolder } from '@/lib/query-helpers';
+import { useCallback, useState } from 'react';
+import { removeScanFolder } from '@/app/actions/scan/remove-scan-folder';
+import { toast } from 'sonner';
 
 interface FolderRemoveButtonProps {
   folderId: number;
@@ -11,16 +12,19 @@ interface FolderRemoveButtonProps {
 export function FolderRemoveButton({ folderId }: FolderRemoveButtonProps) {
   const [isRemoving, setIsRemoving] = useState(false);
 
-  const handleRemove = async () => {
+  const handleRemove = useCallback(async () => {
     setIsRemoving(true);
-    try {
-      await removeScanFolder(folderId);
-    } catch (error) {
-      console.error('Error removing folder:', error);
-    } finally {
-      setIsRemoving(false);
+    
+    const {error, statusText} = await removeScanFolder(folderId);
+
+    if (!error) {
+      toast.success(statusText || 'Successfully removed folder from scan list');
+    } else {
+      toast.error(statusText || 'Failed to remove folder from scan list');
     }
-  };
+
+    setIsRemoving(false);    
+  }, [folderId]);
 
   return (
     <button

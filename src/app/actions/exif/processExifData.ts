@@ -51,23 +51,16 @@ export async function processExifData({
       // Use the new helper function for skipping items
       await markProcessingError({
         mediaItemId: mediaId,
-        type: 'exif',
+        progressType: 'exif',
         errorMessage: extraction.message || 'No EXIF data found in file',
       });
-
-      return {
-        success: false,
-        message:
-          extraction.message ||
-          'No EXIF data could be extracted, but item marked as processed',
-      };
     }
 
     try {
       // Update the exif processing state
       await markProcessingSuccess({
         mediaItemId: mediaId,
-        type: 'exif',
+        progressType: 'exif',
         errorMessage: 'EXIF data extracted successfully',
       });
 
@@ -85,8 +78,8 @@ export async function processExifData({
 
         return await handleProcessingError({
           mediaItemId: mediaId,
-          type: 'exif',
-          errorMessage: updateError,
+          progressType: 'exif',
+          errorMessage: String(updateError),
         });
       }
     } catch (error) {
@@ -96,7 +89,7 @@ export async function processExifData({
       // Use our new helper function for error processing
       return await handleProcessingError({
         mediaItemId: mediaId,
-        type: 'exif',
+        progressType: 'exif',
         errorMessage,
       });
     }
@@ -117,7 +110,7 @@ export async function processExifData({
     // Use our new helper function for error processing
     return await handleProcessingError({
       mediaItemId: mediaId,
-      type: 'exif',
+      progressType: 'exif',
       errorMessage,
     });
   }

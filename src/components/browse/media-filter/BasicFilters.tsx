@@ -61,7 +61,7 @@ export function BasicFilters({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Exif</FormLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select value={field.value || 'all'} onValueChange={field.onChange}>
               <SelectTrigger>
                 <SelectValue placeholder="ExifData status" />
               </SelectTrigger>
@@ -82,7 +82,7 @@ export function BasicFilters({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Thumbnail</FormLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select value={field.value || 'all'} onValueChange={field.onChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Thumbnail status" />
               </SelectTrigger>

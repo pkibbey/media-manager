@@ -21,21 +21,20 @@ export function FolderResetScanStatusButton({
     if (!isScanned) return; // Only allow resetting if the folder has been scanned
 
     setIsResetting(true);
-    try {
-      const result = await updateFolderScanStatus(folderId, true);
 
-      if (result.success) {
-        toast.success(
+    const { error, statusText } = await updateFolderScanStatus(folderId, true);
+
+    if (!error) {
+      toast.success(
+        statusText ||
           'Scan status reset - Folder will be included in the next scan.',
-        );
-      } else {
-        toast.error('Failed to reset scan status - An error occurred');
-      }
-    } catch (error: any) {
-      toast.error(`Failed to reset scan status${error.message}`);
-    } finally {
-      setIsResetting(false);
+      );
+    } else {
+      toast.error(
+        statusText || 'Failed to reset scan status - An error occurred',
+      );
     }
+    setIsResetting(false);
   };
 
   // Only show the button if the folder has been scanned

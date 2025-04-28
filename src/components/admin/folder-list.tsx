@@ -7,7 +7,7 @@ export default async function FolderList() {
   if (error) {
     return (
       <div className="p-4 border rounded-md bg-destructive/10 text-destructive">
-        Error loading folders: {error}
+        Error loading folders: {error.message || 'Unknown error'}
       </div>
     );
   }

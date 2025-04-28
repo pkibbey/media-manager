@@ -1,37 +1,41 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { Action } from '@/types/db-types';
 import type { ProgressStatus } from '@/types/progress-types';
 
 /**
- * Update processing state for a media item
- * @param processingState The processing state to update
- * @returns Update result
+ * Update the processing state for a media item
+ * @param mediaItemId Media item ID
+ * @param progressType Type of processing
+ * @param status Processing status ('success' or 'failure')
+ * @param message Optional status message
+ * @returns Operation result
  */
-export async function updateProcessingState(processingState: {
+export async function updateProcessingState({
+  mediaItemId,
+  progressType,
+  status,
+  errorMessage,
+}: {
   mediaItemId: string;
+  progressType: string;
   status: ProgressStatus;
-  type: string;
   errorMessage?: string;
-}): Promise<{
-  error: any | null;
-}> {
-  const { mediaItemId, status, type, errorMessage } = processingState;
+}): Action<null> {
   const supabase = createServerSupabaseClient();
 
-  const result = await supabase.from('processing_states').upsert(
+  return await supabase.from('processing_states').upsert(
     {
       media_item_id: mediaItemId,
-      type,
+      type: progressType,
       status,
-      processed_at: new Date().toISOString(),
-      error_message: errorMessage,
+      error_message: errorMessage || null,
+      updated_at: new Date().toISOString(),
     },
     {
       onConflict: 'media_item_id,type',
       ignoreDuplicates: false,
     },
   );
-
-  return result;
 }

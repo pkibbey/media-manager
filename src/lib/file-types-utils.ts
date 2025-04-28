@@ -1,5 +1,5 @@
+import { getAllFileTypes } from '@/app/actions/file-types/get-all-file-types';
 import type { FileType } from '@/types/db-types';
-import { getAllFileTypes } from './query-helpers';
 
 interface FileTypeInfo {
   ignoredExtensions: string[];
@@ -50,28 +50,28 @@ export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | 
   const ignoredIds: number[] = [];
 
   fileTypes.forEach((fileType) => {
-    const ext = fileType.extension.toLowerCase();
-    const category = fileType.category;
-
-    // Build the basic FileTypeInfo data
+    // Add to allFileTypes array
     allFileTypes.push({
-      extension: ext,
-      category: category,
+      extension: fileType.extension,
+      category: fileType.category || 'Other',
       ignore: fileType.ignore,
     });
 
+    // Process ignored extensions
     if (fileType.ignore) {
-      ignoredExtensions.push(ext);
+      ignoredExtensions.push(fileType.extension);
       ignoredIds.push(fileType.id);
     }
 
-    extensionToCategory[ext] = category;
+    // Map extension to category
+    extensionToCategory[fileType.extension] = fileType.category || 'Other';
 
-    // Add to the ID maps
+    // ID-based lookups
     idToFileType.set(fileType.id, fileType);
-    extensionToId.set(ext, fileType.id);
+    extensionToId.set(fileType.extension, fileType.id);
 
-    // Add to category-to-ids mapping
+    // Group by category
+    const category = fileType.category || 'Other';
     if (!categoryToIds[category]) {
       categoryToIds[category] = [];
     }
@@ -85,7 +85,7 @@ export async function getDetailedFileTypeInfo(): Promise<DetailedFileTypeInfo | 
     idToFileType,
     extensionToId,
     categoryToIds,
-    ignoredIds: ignoredIds.length > 0 ? ignoredIds : undefined,
+    ignoredIds,
   };
 }
 

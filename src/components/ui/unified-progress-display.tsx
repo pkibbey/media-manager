@@ -72,7 +72,7 @@ export function UnifiedProgressDisplay({
 }: UnifiedProgressDisplayProps) {
   // Don't show anything if there's no processing happening or completed
   if (!progress || !isProcessing) return null;
-  console.log('progress: ', progress);
+
   const total =
     (progress.processedCount || 0) +
     (progress.currentBatch || 1) * (progress.batchSize || BATCH_SIZE);
@@ -135,8 +135,8 @@ export function UnifiedProgressDisplay({
       {/* Metadata display (e.g., current file type) */}
       {!hideMetadata && progress.metadata && (
         <div className="text-xs items-center text-muted-foreground truncate flex justify-between gap-4">
-          {progress.metadata.processingType && (
-            <span>Processing type: {progress.metadata.processingType}</span>
+          {progress.metadata.progressType && (
+            <span>Processing type: {progress.metadata.progressType}</span>
           )}
           {progress.metadata.fileType && (
             <span className="px-2 py-1 bg-secondary rounded-md justify-end">

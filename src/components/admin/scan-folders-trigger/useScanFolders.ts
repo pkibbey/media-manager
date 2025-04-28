@@ -5,6 +5,7 @@ import { streamFolders } from '@/app/actions/scan/streamFolders';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
+import { getScanFolders } from '@/app/actions/scan/get-scan-folders';
 
 export function useScanFolders() {
   // Define stream function generator
@@ -21,24 +22,32 @@ export function useScanFolders() {
     handleStartProcessing,
     handleCancel,
     stats,
-    refreshStats,
-  } = useProcessorBase<UnifiedProgress, UnifiedStats>({
-    fetchStats: async () => {
-      // This would be replaced with a real API call when available
-      return {
-        status: 'success',
-        message: 'Scan stats retrieved',
-        counts: {
-          total: 0,
-          success: 0,
-          failed: 0,
+    refreshStats: fetchStats,
+  } = useProcessorBase<UnifiedProgress, UnifiedStats>({   
+     fetchStats: async () => {
+          const { data, error, count } = await getScanFolders();
+
+          if (error) {
+            console.error('[SCAN DEBUG] Error fetching scan folder stats:', error); // Corrected debug message
+            throw error;
+          }
+
+          // The stats here represent folders, not files processed by the scan.
+          // This might need adjustment depending on how stats are displayed.
+          return {
+            status: 'success',
+            message: 'Scan folders fetched successfully',
+            data: data, // Keep folder data if needed elsewhere
+            counts: {
+              total: count || 0, // Total number of folders configured
+              // These counts might not be directly applicable when just fetching folders.
+              // Setting them to 0 or reflecting folder status might be better.
+              success: 0,
+              failed: 0,
+              pending: count || 0, // Represents folders potentially needing scanning
+            },
+          };
         },
-        percentages: {
-          completed: 0,
-          error: 0,
-        },
-      };
-    },
     getStreamFunction,
     successMessage: {
       start: 'Starting folder scan...',
@@ -62,6 +71,6 @@ export function useScanFolders() {
     startScan,
     cancelScan: handleCancel,
     scanStats: stats,
-    refreshScanStats: refreshStats,
+    refreshScanStats: fetchStats,
   };
 }

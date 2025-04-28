@@ -2,7 +2,6 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { sendProgress } from '@/actions/processing/send-progress';
 import { BATCH_SIZE } from '@/lib/consts';
 import {
   getCategoryByExtension,
@@ -12,9 +11,10 @@ import {
   markProcessingError,
   markProcessingStarted,
   markProcessingSuccess,
+  sendProgress,
 } from '@/lib/processing-helpers';
+import type { ProgressType } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
-import { getFileTypeIdByExtension } from '../file-types/get-file-type-id-by-extension';
 import { upsertFileType } from '../file-types/upsert-file-type';
 import { insertMediaItem } from '../media/insert-media-item';
 import { updateMediaItem } from '../media/update-media-item';
@@ -85,11 +85,7 @@ export async function streamFolders(options: ScanOptions = {}) {
         return {
           totalCount: counters.discovered,
           processedCount: counters.total,
-          metadata: {
-            processingType: 'scan',
-            newFilesAdded: counters.newFilesAdded,
-            newFileTypes: Array.from(counters.newFileTypes),
-          },
+          progressType: 'scan' as ProgressType,
         };
       }
 
@@ -108,11 +104,7 @@ export async function streamFolders(options: ScanOptions = {}) {
           status: 'complete', // Use consistent status approach
           message:
             'No folders configured for scanning. Add folders in admin panel.',
-          totalCount: 0,
-          processedCount: 0,
-          metadata: {
-            processingType: 'scan',
-          },
+          ...getCommonProperties(),
         });
         return;
       }
@@ -121,18 +113,16 @@ export async function streamFolders(options: ScanOptions = {}) {
       await sendProgress(encoder, writer, {
         status: 'processing', // Use consistent status approach
         message: `Starting scan of ${foldersToScan.length} folder(s)...`,
-        metadata: {
-          processingType: 'scan',
-        },
+        ...getCommonProperties(),
       });
 
       // Get existing file types for reference
       const { data: existingFileTypes } = await getScanFileTypes();
 
-      // Create a map of extension -> category for quick lookup
-      const fileTypeMap = new Map<string, string>();
+      // Create a map of extension -> id for quick lookup
+      const fileTypeMap = new Map<string, number>();
       existingFileTypes?.forEach((type) => {
-        fileTypeMap.set(type.id, type.category);
+        fileTypeMap.set(type.extension, type.id);
       });
 
       // Process each folder
@@ -155,10 +145,7 @@ export async function streamFolders(options: ScanOptions = {}) {
             await sendProgress(encoder, writer, {
               status: 'failure',
               message: `Folder does not exist or is inaccessible. ${accessError}`,
-              metadata: {
-                processingType: 'scan',
-                folderPath: folder.path,
-              },
+              ...getCommonProperties(),
             });
             continue; // Skip to next folder
           }
@@ -167,10 +154,7 @@ export async function streamFolders(options: ScanOptions = {}) {
           await sendProgress(encoder, writer, {
             status: 'processing',
             message: `Scanning folder: ${folder.path}${folder.include_subfolders ? ' (including subfolders)' : ''}`,
-            metadata: {
-              processingType: 'scan',
-              folderPath: folder.path,
-            },
+            ...getCommonProperties(),
           });
 
           // Get all files in the folder (and optionally subfolders)
@@ -185,10 +169,6 @@ export async function streamFolders(options: ScanOptions = {}) {
             status: 'processing',
             message: `Found ${files.length} files in ${folder.path}`,
             ...getCommonProperties(),
-            metadata: {
-              processingType: 'scan',
-              folderPath: folder.path,
-            },
           });
 
           // Process files in batches to avoid timeout
@@ -201,10 +181,6 @@ export async function streamFolders(options: ScanOptions = {}) {
                 status: 'processing',
                 message: `Processing files ${i + 1} to ${Math.min(i + BATCH_SIZE, files.length)} of ${files.length} in ${folder.path}`,
                 ...getCommonProperties(),
-                metadata: {
-                  processingType: 'scan',
-                  folderPath: folder.path,
-                },
               });
             }
 
@@ -216,8 +192,8 @@ export async function streamFolders(options: ScanOptions = {}) {
                 if (existingFile?.id) {
                   await markProcessingError({
                     mediaItemId: existingFile.id,
-                    type: 'scan',
-                    error: 'Scan aborted by user',
+                    progressType: 'scan',
+                    errorMessage: 'Scan aborted by user',
                   });
                 }
                 // Break out of the file processing loop
@@ -261,11 +237,12 @@ export async function streamFolders(options: ScanOptions = {}) {
                   continue;
                 }
 
-                // Add or get file type in database
-                let fileTypeId: number | null = null;
+                // Get or add file type ID
+                let fileTypeId: number | null =
+                  fileTypeMap.get(fileExt) || null;
 
-                // Check if we've seen this extension before
-                if (!fileTypeMap.has(fileExt)) {
+                // If file type not found in map, create it
+                if (fileTypeId === null) {
                   // New file type found
                   counters.newFileTypes.add(fileExt);
 
@@ -273,7 +250,7 @@ export async function streamFolders(options: ScanOptions = {}) {
                   const category = getCategoryByExtension(fileExt);
                   const mimeType = getMimeTypeByExtension(fileExt);
 
-                  // Add to database
+                  // Add to database using upsert
                   const { data: newType, error: typeError } =
                     await upsertFileType(fileExt, category, mimeType);
 
@@ -284,20 +261,7 @@ export async function streamFolders(options: ScanOptions = {}) {
                     );
                   } else if (newType) {
                     fileTypeId = newType.id;
-                    fileTypeMap.set(fileExt, category);
-                  }
-                } else {
-                  // Get file type ID
-                  const { data: existingType, error: typeError } =
-                    await getFileTypeIdByExtension(fileExt);
-
-                  if (typeError) {
-                    console.error(
-                      `Error getting file type ID for ${fileExt}:`,
-                      typeError,
-                    );
-                  } else if (existingType) {
-                    fileTypeId = existingType.id;
+                    fileTypeMap.set(fileExt, newType.id);
                   }
                 }
 
@@ -323,8 +287,8 @@ export async function streamFolders(options: ScanOptions = {}) {
                   // Mark as processing
                   await markProcessingStarted({
                     mediaItemId: existingFile.id,
-                    type: 'scan',
-                    message: `Updating file: ${fileName}`,
+                    progressType: 'scan',
+                    errorMessage: `Updating file: ${fileName}`,
                   });
 
                   const { error: updateError } = await updateMediaItem(
@@ -341,8 +305,8 @@ export async function streamFolders(options: ScanOptions = {}) {
                     // Mark as error
                     await markProcessingError({
                       mediaItemId: existingFile.id,
-                      type: 'scan',
-                      error: `Failed to update file: ${updateError.message}`,
+                      progressType: 'scan',
+                      errorMessage: `Failed to update file: ${updateError.message}`,
                     });
                   } else {
                     counters.newFilesAdded++;
@@ -350,8 +314,7 @@ export async function streamFolders(options: ScanOptions = {}) {
                     // Mark as success
                     await markProcessingSuccess({
                       mediaItemId: existingFile.id,
-                      type: 'scan',
-                      message: 'File updated successfully',
+                      progressType: 'scan',
                     });
                   }
                 } else {
@@ -370,8 +333,8 @@ export async function streamFolders(options: ScanOptions = {}) {
                     // Mark as success for new items
                     await markProcessingSuccess({
                       mediaItemId: insertedItem.id,
-                      type: 'scan',
-                      message: 'File added successfully',
+                      progressType: 'scan',
+                      errorMessage: 'File added successfully',
                     });
                   } else {
                     console.error(
@@ -391,10 +354,6 @@ export async function streamFolders(options: ScanOptions = {}) {
                     status: 'processing',
                     message: `Processed ${counters.total} of ${counters.discovered} files`,
                     ...getCommonProperties(),
-                    metadata: {
-                      processingType: 'scan',
-                      folderPath: folder.path,
-                    },
                   });
                 }
               } catch (fileError: any) {
@@ -405,8 +364,8 @@ export async function streamFolders(options: ScanOptions = {}) {
                 if (existingFile?.id) {
                   await markProcessingError({
                     mediaItemId: existingFile.id,
-                    type: 'scan',
-                    error: `Error processing file: ${fileError.message || 'Unknown error'}`,
+                    progressType: 'scan',
+                    errorMessage: `Error processing file: ${fileError.message || 'Unknown error'}`,
                   });
                 }
 
@@ -433,10 +392,7 @@ export async function streamFolders(options: ScanOptions = {}) {
           await sendProgress(encoder, writer, {
             status: 'failure',
             message: `Error scanning folder: ${folder.path}`,
-            metadata: {
-              processingType: 'scan',
-              folderPath: folder.path,
-            },
+            ...getCommonProperties(),
           });
         }
       }
@@ -464,9 +420,9 @@ export async function streamFolders(options: ScanOptions = {}) {
       await sendProgress(encoder, writer, {
         status: 'failure',
         message: isAbortError ? 'Operation cancelled' : error.message,
-        metadata: {
-          processingType: 'scan',
-        },
+        totalCount: 0,
+        processedCount: 0,
+        progressType: 'scan' as ProgressType,
       });
       if (!writer.closed) {
         await writer.close();

@@ -1,21 +1,20 @@
 import type { FileType } from '@/types/db-types';
 import { FileTypeTable } from './FileTypeTable';
-import type { GroupedFileTypes } from './useFileTypeManager';
 
-type FileCategoriesProps = {
+export interface FileCategoriesProps {
   categories: string[];
-  groupedTypes: GroupedFileTypes;
+  groupedTypes: { [category: string]: FileType[] };
   draggingFileType: FileType | null;
   draggingOver: string | null;
   setDraggingOver: (category: string | null) => void;
   isUpdating: number | null;
   updatedTypes: Record<number, FileType>;
   handleDragStart: (fileType: FileType) => void;
-  handleDrop: (category: string) => Promise<void>;
+  handleDrop: (category: string) => void;
   handleToggleNativeDisplay: (fileType: FileType) => Promise<void>;
   handleToggleNeedsConversion: (fileType: FileType) => Promise<void>;
   handleToggleIgnore: (fileType: FileType) => Promise<void>;
-};
+}
 
 export function FileTypeCategories({
   categories,

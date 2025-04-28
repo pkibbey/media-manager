@@ -1,13 +1,13 @@
 'use server';
 
-import { sendProgress } from '@/actions/processing/send-progress';
 import {
   markProcessingError,
   markProcessingSuccess,
+  sendProgress,
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { UnifiedStats } from '@/types/unified-stats';
-import { generateThumbnail } from './generateThumbnail';
+import { generateThumbnail } from './generate-thumbnail';
 
 /**
  * Process all unprocessed thumbnails with streaming updates
@@ -41,9 +41,7 @@ export async function streamThumbnails({
           ? 'Processing aborted by user'
           : error?.message ||
             'An unknown error occurred during thumbnail generation',
-        metadata: {
-          processingType: 'thumbnail',
-        },
+        progressType: 'thumbnail',
       });
     })
     .finally(() => {
@@ -116,9 +114,7 @@ export async function streamThumbnails({
             processedCount: 0,
             successCount: 0,
             failureCount: 0,
-            metadata: {
-              processingType: 'thumbnail',
-            },
+            progressType: 'thumbnail',
           });
           return;
         }
@@ -143,8 +139,8 @@ export async function streamThumbnails({
             ? `Starting batch ${counters.currentBatch}: Processing ${unprocessedFiles.length} files...`
             : `Starting thumbnail generation for ${unprocessedFiles.length} files...`,
           ...getCommonProperties(),
+          progressType: 'thumbnail',
           metadata: {
-            processingType: 'thumbnail',
             fileType: unprocessedFiles[0]?.file_types?.extension,
           },
         });
@@ -155,8 +151,8 @@ export async function streamThumbnails({
             // Mark this item as aborted using our helper
             await markProcessingError({
               mediaItemId: media.id,
-              type: 'thumbnail',
-              error: 'Thumbnail generation aborted by user',
+              progressType: 'thumbnail',
+              errorMessage: 'Thumbnail generation aborted by user',
             });
             break;
           }
@@ -176,8 +172,8 @@ export async function streamThumbnails({
                 ? counters.success
                 : batchSuccessCount,
               failureCount: isInfinityMode ? counters.failed : batchFailedCount,
+              progressType: 'thumbnail',
               metadata: {
-                processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
               },
             });
@@ -196,8 +192,9 @@ export async function streamThumbnails({
               // Mark as success
               await markProcessingSuccess({
                 mediaItemId: media.id,
-                type: 'thumbnail',
-                message: result.message || 'Thumbnail generated successfully',
+                progressType: 'thumbnail',
+                errorMessage:
+                  result.message || 'Thumbnail generated successfully',
               });
             } else {
               batchFailedCount++;
@@ -206,8 +203,9 @@ export async function streamThumbnails({
               // Mark as error in the database using our helper
               await markProcessingError({
                 mediaItemId: media.id,
-                type: 'thumbnail',
-                error: result.message || 'Unknown thumbnail generation error',
+                progressType: 'thumbnail',
+                errorMessage:
+                  result.message || 'Unknown thumbnail generation error',
               });
             }
 
@@ -225,8 +223,8 @@ export async function streamThumbnails({
                 ? counters.success
                 : batchSuccessCount,
               failureCount: isInfinityMode ? counters.failed : batchFailedCount,
+              progressType: 'thumbnail',
               metadata: {
-                processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
               },
             });
@@ -241,8 +239,8 @@ export async function streamThumbnails({
               // Mark this item as aborted using our helper
               await markProcessingError({
                 mediaItemId: media.id,
-                type: 'thumbnail',
-                error: 'Thumbnail generation aborted by user',
+                progressType: 'thumbnail',
+                errorMessage: 'Thumbnail generation aborted by user',
               });
 
               await sendProgress(encoder, writer, {
@@ -254,8 +252,8 @@ export async function streamThumbnails({
                 processedCount: counters.total,
                 successCount: counters.success,
                 failureCount: counters.failed,
+                progressType: 'thumbnail',
                 metadata: {
-                  processingType: 'thumbnail',
                   fileType: media.file_types?.extension,
                 },
               });
@@ -276,8 +274,8 @@ export async function streamThumbnails({
             // Update the processing state to error using our helper
             await markProcessingError({
               mediaItemId: media.id,
-              type: 'thumbnail',
-              error:
+              progressType: 'thumbnail',
+              errorMessage:
                 error.message || 'Unknown error during thumbnail generation',
             });
 
@@ -295,8 +293,8 @@ export async function streamThumbnails({
                 ? counters.success
                 : batchSuccessCount,
               failureCount: isInfinityMode ? counters.failed : batchFailedCount,
+              progressType: 'thumbnail',
               metadata: {
-                processingType: 'thumbnail',
                 fileType: media.file_types?.extension,
               },
             });
@@ -314,9 +312,7 @@ export async function streamThumbnails({
             processedCount: counters.total,
             successCount: counters.success,
             failureCount: counters.failed,
-            metadata: {
-              processingType: 'thumbnail',
-            },
+            progressType: 'thumbnail',
           });
           break;
         }
@@ -330,9 +326,7 @@ export async function streamThumbnails({
             status: 'batch_complete',
             message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
             ...getCommonProperties(),
-            metadata: {
-              processingType: 'thumbnail',
-            },
+            progressType: 'thumbnail',
           });
         }
       }
@@ -350,9 +344,7 @@ export async function streamThumbnails({
         status: 'complete',
         message: finalMessage,
         ...getCommonProperties(),
-        metadata: {
-          processingType: 'thumbnail',
-        },
+        progressType: 'thumbnail',
       });
     } catch (error: any) {
       // Check if this was an abort error
@@ -365,9 +357,7 @@ export async function streamThumbnails({
           ? 'Processing aborted by user'
           : error?.message ||
             'An unknown error occurred during thumbnail generation',
-        metadata: {
-          processingType: 'thumbnail',
-        },
+        progressType: 'thumbnail',
       });
     }
   }
@@ -377,75 +367,101 @@ export async function streamThumbnails({
 async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
-  // First, get media items with no thumbnail path
-  const {
-    data: filesWithNoThumbnail,
-    error: noThumbError,
-    count: totalItems,
-  } = await supabase
-    .from('media_items')
-    .select('*, file_types!inner(*), processing_states!inner(*)', {
-      count: 'exact',
-    })
-    // Only generate thumbnails for images
-    // video thumbnails should be handled separately
-    .eq('file_types.category', 'image')
-    .in('file_types.category', ['image'])
-    .eq('file_types.ignore', false)
-    .neq('processing_states.type', 'thumbnail')
-    .limit(limit);
-
-  if (noThumbError) {
-    throw new Error('Failed to fetch files with no thumbnails');
-  }
-
-  // If we already have enough items, return them
-  if (filesWithNoThumbnail && filesWithNoThumbnail.length >= limit) {
-    return {
-      unprocessedFiles: filesWithNoThumbnail || [],
-      totalItems: totalItems || 0,
-    };
-  }
-
-  // Otherwise, also look for items with unsuccessful processing states
-  const remainingLimit = limit - (filesWithNoThumbnail?.length || 0);
-
-  if (remainingLimit <= 0) {
-    return {
-      unprocessedFiles: filesWithNoThumbnail || [],
-      totalItems: totalItems || 0,
-    };
-  }
-
-  const { data: filesWithUnsuccessfulStates, error: statesError } =
-    await supabase
+  try {
+    // First, get media items with no thumbnail path
+    const {
+      data: filesWithNoThumbnail,
+      error: noThumbError,
+      count: totalItems,
+    } = await supabase
       .from('media_items')
       .select('*, file_types!inner(*), processing_states!inner(*)', {
         count: 'exact',
       })
+      // Only generate thumbnails for images
+      // video thumbnails should be handled separately
+      .eq('file_types.category', 'image')
       .in('file_types.category', ['image'])
       .eq('file_types.ignore', false)
-      .eq('processing_states.type', 'thumbnail')
-      .neq('processing_states.status', '(success)');
+      .neq('processing_states.type', 'thumbnail')
+      .limit(limit);
 
-  if (statesError) {
-    console.error(
-      'Error fetching files with unsuccessful states:',
-      statesError,
-    );
-    // We still return the files we found earlier
+    if (noThumbError) {
+      console.error('Error fetching files with no thumbnail:', noThumbError);
+
+      return {
+        success: false,
+        unprocessedFiles: [],
+        totalItems: 0,
+        error: `Database error: ${noThumbError.message || 'Unknown database error'}`,
+      };
+    }
+
+    // If we already have enough items, return them
+    if (filesWithNoThumbnail && filesWithNoThumbnail.length >= limit) {
+      return {
+        success: true,
+        unprocessedFiles: filesWithNoThumbnail || [],
+        totalItems: totalItems || 0,
+      };
+    }
+
+    // Otherwise, also look for items with unsuccessful processing states
+    const remainingLimit = limit - (filesWithNoThumbnail?.length || 0);
+
+    if (remainingLimit <= 0) {
+      return {
+        success: true,
+        unprocessedFiles: filesWithNoThumbnail || [],
+        totalItems: totalItems || 0,
+      };
+    }
+
+    const { data: filesWithUnsuccessfulStates, error: statesError } =
+      await supabase
+        .from('media_items')
+        .select('*, file_types!inner(*), processing_states!inner(*)', {
+          count: 'exact',
+        })
+        .in('file_types.category', ['image'])
+        .eq('file_types.ignore', false)
+        .eq('processing_states.type', 'thumbnail')
+        .neq('processing_states.status', '(success)');
+
+    if (statesError) {
+      console.error(
+        'Error fetching files with unsuccessful states:',
+        statesError,
+      );
+
+      // We still return the files we found earlier
+      return {
+        success: true,
+        unprocessedFiles: filesWithNoThumbnail || [],
+        totalItems: totalItems || 0,
+        error: `Warning: Could not fetch files with unsuccessful states: ${statesError.message}`,
+      };
+    }
+
+    // Combine the results
     return {
-      unprocessedFiles: filesWithNoThumbnail || [],
+      success: true,
+      unprocessedFiles: [
+        ...(filesWithNoThumbnail || []),
+        ...(filesWithUnsuccessfulStates || []),
+      ],
       totalItems: totalItems || 0,
     };
+  } catch (error) {
+    console.error(
+      'Unexpected error fetching unprocessed files for thumbnails:',
+      error,
+    );
+    return {
+      success: false,
+      unprocessedFiles: [],
+      totalItems: 0,
+      error: `Failed to fetch unprocessed files: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
-
-  // Combine the results
-  return {
-    unprocessedFiles: [
-      ...(filesWithNoThumbnail || []),
-      ...(filesWithUnsuccessfulStates || []),
-    ],
-    totalItems: totalItems || 0,
-  };
 }

@@ -1,21 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import type { ExtractionMethod } from '@/types/exif';
 import { UnifiedProgressDisplay } from '../ui/unified-progress-display';
 import { UnifiedStatsDisplay } from '../ui/unified-stats-display';
 import { ExifActionButtons } from './exif-processor/ExifActionButtons';
 import { ExifErrorSummary } from './exif-processor/ExifErrorSummary';
 import { ExifProcessOptions } from './exif-processor/ExifProcessOptions';
 import { useExifProcessor } from './exif-processor/useExifProcessor';
+
 export default function ExifProcessor() {
-  const [extractionMethod, setExtractionMethod] =
-    useState<ExtractionMethod>('default');
   const {
     stats,
     isProcessing,
     progress,
     errorSummary,
+    method,
+    setMethod,
     batchSize,
     setBatchSize,
     processingStartTime,
@@ -26,7 +25,7 @@ export default function ExifProcessor() {
   return (
     <div className="overflow-hidden grid gap-4 space-y-4">
       <div className="overflow-hidden bg-neutral-400/20 rounded-md p-4">
-        {!isProcessing && (
+        {!isProcessing && stats && (
           <UnifiedStatsDisplay
             stats={stats}
             title="Exif Processor"
@@ -60,8 +59,8 @@ export default function ExifProcessor() {
       {!isProcessing && (
         <ExifProcessOptions
           progress={progress}
-          extractionMethod={extractionMethod}
-          setExtractionMethod={setExtractionMethod}
+          method={method}
+          setMethod={setMethod}
           batchSize={batchSize}
           setBatchSize={setBatchSize}
           isProcessing={isProcessing}
@@ -73,7 +72,7 @@ export default function ExifProcessor() {
         stats={stats}
         isProcessing={isProcessing}
         batchSize={batchSize}
-        extractionMethod={extractionMethod}
+        method={method}
         handleProcess={handleProcess}
         handleCancel={handleCancel}
       />

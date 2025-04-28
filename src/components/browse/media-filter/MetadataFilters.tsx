@@ -78,7 +78,7 @@ export function MetadataFilters({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Location Data</FormLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select value={field.value || 'all'} onValueChange={field.onChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Location data" />
               </SelectTrigger>

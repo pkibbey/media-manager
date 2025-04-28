@@ -14,6 +14,19 @@ type SortingFiltersProps = {
 };
 
 export function SortingFilters({ form }: SortingFiltersProps) {
+  // Map sort values to human-readable labels
+  const sortByLabels: Record<string, string> = {
+    date: 'Date',
+    name: 'Name',
+    size: 'Size',
+    type: 'Type',
+  };
+
+  const sortOrderLabels: Record<string, string> = {
+    asc: 'Ascending',
+    desc: 'Descending',
+  };
+
   return (
     <>
       {/* Sort By */}
@@ -26,14 +39,10 @@ export function SortingFilters({ form }: SortingFiltersProps) {
             <Select
               value={field.value || 'date'}
               onValueChange={field.onChange}
+              aria-label="Sort by field"
             >
               <SelectTrigger className="w-full">
-                <SelectValue>
-                  {field.value === 'date' && 'Date'}
-                  {field.value === 'name' && 'Name'}
-                  {field.value === 'size' && 'Size'}
-                  {field.value === 'type' && 'Type'}
-                </SelectValue>
+                <SelectValue>{sortByLabels[field.value || 'date']}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="date">Date</SelectItem>
@@ -56,11 +65,11 @@ export function SortingFilters({ form }: SortingFiltersProps) {
             <Select
               value={field.value || 'desc'}
               onValueChange={field.onChange}
+              aria-label="Sort order"
             >
               <SelectTrigger className="w-full">
                 <SelectValue>
-                  {field.value === 'asc' && 'Ascending'}
-                  {field.value === 'desc' && 'Descending'}
+                  {sortOrderLabels[field.value || 'desc']}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
