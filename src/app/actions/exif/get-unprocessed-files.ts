@@ -13,18 +13,7 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
   return await supabase
     .from('media_items')
     .select(
-      `
-        id, 
-        file_name,
-        file_path,
-        file_type_id,
-        file_types (
-          id, 
-          extension, 
-          category, 
-          ignore
-        )
-      `,
+      "*, processing_states(*), file_types(*)",
       {
         count: 'exact',
       },

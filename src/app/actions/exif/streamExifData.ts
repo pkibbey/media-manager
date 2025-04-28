@@ -136,7 +136,7 @@ export async function streamExifData({
           // Send error progress update
           await sendProgress(encoder, writer, {
             status: 'failure',
-            message: `Error fetching files: ${unprocessed.error}. Please try again later.`,
+            message: `Error fetching files: ${unprocessed.error.message}. Please try again later.`,
             ...getCommonProperties(),
             metadata: {
               method,
