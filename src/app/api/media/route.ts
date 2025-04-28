@@ -7,9 +7,9 @@ import ffmpeg from 'fluent-ffmpeg';
 import { lookup } from 'mime-types';
 import { type NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
+import { getMediaItemById } from '@/actions/media/get-media-item-by-id';
 import { fileTypeCache } from '@/lib/file-type-cache';
 import { isImage, isVideo, needsConversion } from '@/lib/utils';
-import { getMediaItemById } from '@/app/actions/media/get-media-item-by-id';
 
 // Cache directory for converted files
 const CACHE_DIR = path.join(process.cwd(), '.cache');

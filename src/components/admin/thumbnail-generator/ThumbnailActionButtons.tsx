@@ -3,8 +3,7 @@ import type { UnifiedStats } from '@/types/unified-stats';
 
 type ThumbnailActionButtonsProps = {
   isProcessing: boolean;
-  isProcessingAll: boolean;
-  stats: UnifiedStats | null;
+  stats: UnifiedStats;
   batchSize: number;
   onGenerateThumbnails: (processAll: boolean) => Promise<void>;
   onCancel: () => void;
@@ -12,7 +11,6 @@ type ThumbnailActionButtonsProps = {
 
 export function ThumbnailActionButtons({
   isProcessing,
-  isProcessingAll,
   stats,
   batchSize,
   onGenerateThumbnails,
@@ -31,9 +29,8 @@ export function ThumbnailActionButtons({
       >
         {!stats
           ? 'Loading...'
-          : isProcessing && !isProcessingAll
-            ? 'Generating...'
-            : `Generate ${Math.min(batchSize, filesPending)} Thumbnails`}
+          : isProcessing &&
+            `Generate ${Math.min(batchSize, filesPending)} Thumbnails`}
       </Button>
 
       {isProcessing && (

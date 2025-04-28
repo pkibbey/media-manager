@@ -34,8 +34,6 @@ interface ScanOptions {
  * @param options Optional scan options like ignoring small files and specifying a single folder ID to scan
  */
 export async function streamFolders(options: ScanOptions = {}) {
-  const encoder = new TextEncoder();
-
   // Create a transform stream to send progress updates
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
@@ -44,7 +42,7 @@ export async function streamFolders(options: ScanOptions = {}) {
   let aborted = false;
 
   // Start scanning in the background
-  scanFoldersInternal(writer, options);
+  scanFoldersInternal(writer, options, aborted);
 
   // Set up a cleanup function on the stream
   const originalCancel = stream.readable.cancel;
@@ -56,428 +54,432 @@ export async function streamFolders(options: ScanOptions = {}) {
 
   // Return the readable stream
   return stream.readable;
+}
 
-  async function scanFoldersInternal(
-    writer: WritableStreamDefaultWriter,
-    options: ScanOptions,
-  ) {
-    try {
-      const { folderId = null } = options;
+async function scanFoldersInternal(
+  writer: WritableStreamDefaultWriter,
+  options: ScanOptions,
+  aborted: boolean,
+) {
+  const encoder = new TextEncoder();
 
-      // Single stats object to track all counters
-      const counters: UnifiedStats['counts'] & {
-        newFilesAdded: number;
-        discovered: number;
-        newFileTypes: Set<string>;
-        currentBatch: number;
-      } = {
-        total: 0, // Total processed files
-        success: 0, // Successfully processed files (not used in scan)
-        failed: 0, // Failed files (not used in scan)
-        discovered: 0, // Total files discovered
-        newFilesAdded: 0, // New or updated files
-        newFileTypes: new Set<string>(), // New file types found
-        currentBatch: 1, // Current batch number
+  try {
+    const { folderId = null } = options;
+
+    // Single stats object to track all counters
+    const counters: UnifiedStats['counts'] & {
+      newFilesAdded: number;
+      totalAvailable: number; // Renamed from 'discovered' to match other files
+      processedCount: number;
+      newFileTypes: Set<string>;
+      currentBatch: number;
+    } = {
+      total: 0, // Will be set from the database query
+      success: 0, // Successfully processed files
+      failed: 0, // Failed files
+      totalAvailable: 0, // Total files discovered (renamed from 'discovered')
+      processedCount: 0, // Count of files actually processed
+      newFilesAdded: 0, // New or updated files
+      newFileTypes: new Set<string>(), // New file types found
+      currentBatch: 1, // Current batch number
+    };
+
+    // Helper function to get common properties for progress messages
+    function getCommonProperties() {
+      return {
+        totalCount: counters.totalAvailable,
+        processedCount: counters.processedCount,
+        successCount: counters.success, // Added to be consistent with other files
+        failureCount: counters.failed, // Added to be consistent with other files
+        progressType: 'scan' as ProgressType,
       };
+    }
 
-      // Helper function to get common properties for progress messages
-      function getCommonProperties() {
-        return {
-          totalCount: counters.discovered,
-          processedCount: counters.total,
-          progressType: 'scan' as ProgressType,
-        };
-      }
+    // Get folders to scan - either a specific folder or all folders
+    const { data: foldersToScan, error: foldersError } = await getFoldersToScan(
+      folderId || undefined,
+    );
 
-      // Get folders to scan - either a specific folder or all folders
-      const { data: foldersToScan, error: foldersError } =
-        await getFoldersToScan(folderId || undefined);
+    if (foldersError) {
+      throw new Error(`Error getting folders to scan: ${foldersError.message}`);
+    }
 
-      if (foldersError) {
-        throw new Error(
-          `Error getting folders to scan: ${foldersError.message}`,
-        );
-      }
+    if (!foldersToScan || foldersToScan.length === 0) {
+      await sendProgress(encoder, writer, {
+        status: 'complete', // Use consistent status approach
+        message:
+          'No folders configured for scanning. Add folders in admin panel.',
+        ...getCommonProperties(),
+      });
+      return;
+    }
 
-      if (!foldersToScan || foldersToScan.length === 0) {
+    // Send initial progress update
+    await sendProgress(encoder, writer, {
+      status: 'processing', // Use consistent status approach
+      message: `Starting scan of ${foldersToScan.length} folder(s)...`,
+      ...getCommonProperties(),
+    });
+
+    // Get existing file types for reference
+    const { data: existingFileTypes } = await getScanFileTypes();
+
+    // Create a map of extension -> id for quick lookup
+    const fileTypeMap = new Map<string, number>();
+    existingFileTypes?.forEach((type) => {
+      fileTypeMap.set(type.extension, type.id);
+    });
+
+    // Process each folder
+    for (const folder of foldersToScan) {
+      // Check if scan has been aborted before starting a new folder
+      if (aborted) {
         await sendProgress(encoder, writer, {
-          status: 'complete', // Use consistent status approach
-          message:
-            'No folders configured for scanning. Add folders in admin panel.',
+          status: 'failure',
+          message: 'Scan aborted by user',
           ...getCommonProperties(),
         });
         return;
       }
 
-      // Send initial progress update
-      await sendProgress(encoder, writer, {
-        status: 'processing', // Use consistent status approach
-        message: `Starting scan of ${foldersToScan.length} folder(s)...`,
-        ...getCommonProperties(),
-      });
-
-      // Get existing file types for reference
-      const { data: existingFileTypes } = await getScanFileTypes();
-
-      // Create a map of extension -> id for quick lookup
-      const fileTypeMap = new Map<string, number>();
-      existingFileTypes?.forEach((type) => {
-        fileTypeMap.set(type.extension, type.id);
-      });
-
-      // Process each folder
-      for (const folder of foldersToScan) {
-        // Check if scan has been aborted before starting a new folder
-        if (aborted) {
+      try {
+        // Check if folder exists
+        try {
+          await fs.access(folder.path);
+        } catch (accessError) {
           await sendProgress(encoder, writer, {
             status: 'failure',
-            message: 'Scan aborted by user',
+            message: `Folder does not exist or is inaccessible. ${accessError}`,
             ...getCommonProperties(),
           });
-          return;
+          continue; // Skip to next folder
         }
 
-        try {
-          // Check if folder exists
-          try {
-            await fs.access(folder.path);
-          } catch (accessError) {
+        // Send update that we're starting to scan this folder
+        await sendProgress(encoder, writer, {
+          status: 'processing',
+          message: `Scanning folder: ${folder.path}${folder.include_subfolders ? ' (including subfolders)' : ''}`,
+          ...getCommonProperties(),
+        });
+
+        // Get all files in the folder (and optionally subfolders)
+        const files = await getAllFiles(
+          folder.path,
+          folder.include_subfolders || false,
+        );
+
+        // Update discovered count and send update
+        counters.totalAvailable += files.length;
+        await sendProgress(encoder, writer, {
+          status: 'processing',
+          message: `Found ${files.length} files in ${folder.path}`,
+          ...getCommonProperties(),
+        });
+
+        // Process files in batches to avoid timeout
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+          const batch = files.slice(i, i + BATCH_SIZE);
+
+          // Send batch progress update
+          if (i > 0) {
             await sendProgress(encoder, writer, {
-              status: 'failure',
-              message: `Folder does not exist or is inaccessible. ${accessError}`,
+              status: 'processing',
+              message: `Processing files ${i + 1} to ${Math.min(i + BATCH_SIZE, files.length)} of ${files.length} in ${folder.path}`,
               ...getCommonProperties(),
             });
-            continue; // Skip to next folder
           }
 
-          // Send update that we're starting to scan this folder
-          await sendProgress(encoder, writer, {
-            status: 'processing',
-            message: `Scanning folder: ${folder.path}${folder.include_subfolders ? ' (including subfolders)' : ''}`,
-            ...getCommonProperties(),
-          });
-
-          // Get all files in the folder (and optionally subfolders)
-          const files = await getAllFiles(
-            folder.path,
-            folder.include_subfolders || false,
-          );
-
-          // Update discovered count and send update
-          counters.discovered += files.length;
-          await sendProgress(encoder, writer, {
-            status: 'processing',
-            message: `Found ${files.length} files in ${folder.path}`,
-            ...getCommonProperties(),
-          });
-
-          // Process files in batches to avoid timeout
-          for (let i = 0; i < files.length; i += BATCH_SIZE) {
-            const batch = files.slice(i, i + BATCH_SIZE);
-
-            // Send batch progress update
-            if (i > 0) {
-              await sendProgress(encoder, writer, {
-                status: 'processing',
-                message: `Processing files ${i + 1} to ${Math.min(i + BATCH_SIZE, files.length)} of ${files.length} in ${folder.path}`,
-                ...getCommonProperties(),
-              });
+          for (const file of batch) {
+            // Check for abort signal at the beginning of each file processing
+            if (aborted) {
+              // Mark any existing file as aborted if we were actively processing it
+              const { data: existingFile } = await checkFileExists(file.path);
+              if (existingFile?.id) {
+                await markProcessingError({
+                  mediaItemId: existingFile.id,
+                  progressType: 'scan',
+                  errorMessage: 'Scan aborted by user',
+                });
+              }
+              // Break out of the file processing loop
+              break;
             }
 
-            for (const file of batch) {
-              // Check for abort signal at the beginning of each file processing
-              if (aborted) {
-                // Mark any existing file as aborted if we were actively processing it
-                const { data: existingFile } = await checkFileExists(file.path);
-                if (existingFile?.id) {
-                  await markProcessingError({
-                    mediaItemId: existingFile.id,
-                    progressType: 'scan',
-                    errorMessage: 'Scan aborted by user',
-                  });
-                }
-                // Break out of the file processing loop
-                break;
+            try {
+              // Get file extension
+              const fileExt = path.extname(file.path).slice(1).toLowerCase();
+
+              // Skip if no extension
+              if (!fileExt) {
+                // Don't increment total counter here
+                continue;
               }
 
-              try {
-                // Get file extension
-                const fileExt = path.extname(file.path).slice(1).toLowerCase();
+              // Get file metadata
+              const stats = await fs.stat(file.path);
+              const fileName = path.basename(file.path);
+              const fileMtime = stats.mtime;
 
-                // Skip if no extension
-                if (!fileExt) {
-                  counters.total++;
-                  continue;
-                }
+              // Check if file already exists in database
+              const { data: existingFile, error: existingError } =
+                await checkFileExists(file.path);
 
-                // Get file metadata
-                const stats = await fs.stat(file.path);
-                const fileName = path.basename(file.path);
-                const fileMtime = stats.mtime;
+              if (existingError) {
+                console.error(
+                  `Error checking if file exists: ${file.path}`,
+                  existingError,
+                );
+              }
 
-                // Check if file already exists in database
-                const { data: existingFile, error: existingError } =
-                  await checkFileExists(file.path);
+              // Skip if file exists and hasn't changed
+              if (
+                existingFile?.modified_date &&
+                new Date(existingFile.modified_date).getTime() ===
+                  fileMtime.getTime() &&
+                existingFile.size_bytes === stats.size
+              ) {
+                // Don't increment total counter here
+                continue;
+              }
 
-                if (existingError) {
+              // Get or add file type ID
+              let fileTypeId: number | null = fileTypeMap.get(fileExt) || null;
+
+              // If file type not found in map, create it
+              if (fileTypeId === null) {
+                // New file type found
+                counters.newFileTypes.add(fileExt);
+
+                // Determine category and mime type automatically
+                const category = getCategoryByExtension(fileExt);
+                const mimeType = getMimeTypeByExtension(fileExt);
+
+                // Add to database using upsert
+                const { data: newType, error: typeError } =
+                  await upsertFileType(fileExt, category, mimeType);
+
+                if (typeError) {
                   console.error(
-                    `Error checking if file exists: ${file.path}`,
-                    existingError,
+                    `Error adding file type: ${fileExt}`,
+                    typeError,
                   );
+                } else if (newType) {
+                  fileTypeId = newType.id;
+                  fileTypeMap.set(fileExt, newType.id);
                 }
+              }
 
-                // Skip if file exists and hasn't changed
-                if (
-                  existingFile?.modified_date &&
-                  new Date(existingFile.modified_date).getTime() ===
-                    fileMtime.getTime() &&
-                  existingFile.size_bytes === stats.size
-                ) {
-                  counters.total++;
-                  continue;
-                }
+              if (fileTypeId === null) {
+                // If we couldn't get a file type ID, skip this file
+                continue;
+              }
 
-                // Get or add file type ID
-                let fileTypeId: number | null =
-                  fileTypeMap.get(fileExt) || null;
+              // Insert or update media item
+              const fileData = {
+                file_name: fileName,
+                file_path: file.path,
+                created_date: fileMtime.toISOString(),
+                modified_date: fileMtime.toISOString(),
+                size_bytes: stats.size,
+                file_type_id: fileTypeId,
+                folder_path: folder.path,
+              };
 
-                // If file type not found in map, create it
-                if (fileTypeId === null) {
-                  // New file type found
-                  counters.newFileTypes.add(fileExt);
+              if (existingFile) {
+                // Update existing file
+                // Mark as processing
+                await markProcessingStarted({
+                  mediaItemId: existingFile.id,
+                  progressType: 'scan',
+                  errorMessage: `Updating file: ${fileName}`,
+                });
 
-                  // Determine category and mime type automatically
-                  const category = getCategoryByExtension(fileExt);
-                  const mimeType = getMimeTypeByExtension(fileExt);
+                const { error: updateError } = await updateMediaItem(
+                  existingFile.id,
+                  fileData,
+                );
 
-                  // Add to database using upsert
-                  const { data: newType, error: typeError } =
-                    await upsertFileType(fileExt, category, mimeType);
-
-                  if (typeError) {
-                    console.error(
-                      `Error adding file type: ${fileExt}`,
-                      typeError,
-                    );
-                  } else if (newType) {
-                    fileTypeId = newType.id;
-                    fileTypeMap.set(fileExt, newType.id);
-                  }
-                }
-
-                if (fileTypeId === null) {
-                  // If we couldn't get a file type ID, skip this file
-                  counters.total++;
-                  continue;
-                }
-
-                // Insert or update media item
-                const fileData = {
-                  file_name: fileName,
-                  file_path: file.path,
-                  created_date: fileMtime.toISOString(),
-                  modified_date: fileMtime.toISOString(),
-                  size_bytes: stats.size,
-                  file_type_id: fileTypeId,
-                  folder_path: folder.path,
-                };
-
-                if (existingFile) {
-                  // Update existing file
-                  // Mark as processing
-                  await markProcessingStarted({
-                    mediaItemId: existingFile.id,
-                    progressType: 'scan',
-                    errorMessage: `Updating file: ${fileName}`,
-                  });
-
-                  const { error: updateError } = await updateMediaItem(
-                    existingFile.id,
-                    fileData,
+                if (updateError) {
+                  console.error(
+                    `Error updating media item: ${file.path}`,
+                    updateError,
                   );
 
-                  if (updateError) {
-                    console.error(
-                      `Error updating media item: ${file.path}`,
-                      updateError,
-                    );
-
-                    // Mark as error
-                    await markProcessingError({
-                      mediaItemId: existingFile.id,
-                      progressType: 'scan',
-                      errorMessage: `Failed to update file: ${updateError.message}`,
-                    });
-                  } else {
-                    counters.newFilesAdded++;
-
-                    // Mark as success
-                    await markProcessingSuccess({
-                      mediaItemId: existingFile.id,
-                      progressType: 'scan',
-                    });
-                  }
-                } else {
-                  // Insert new file
-                  const { data: insertedItem, error: insertError } =
-                    await insertMediaItem(fileData);
-
-                  if (insertError) {
-                    console.error(
-                      `Error inserting media item: ${file.path}`,
-                      insertError,
-                    );
-                  } else if (insertedItem) {
-                    counters.newFilesAdded++;
-
-                    // Mark as success for new items
-                    await markProcessingSuccess({
-                      mediaItemId: insertedItem.id,
-                      progressType: 'scan',
-                      errorMessage: 'File added successfully',
-                    });
-                  } else {
-                    console.error(
-                      `Failed to insert media item with no error: ${file.path}`,
-                    );
-                  }
-                }
-
-                counters.total++;
-
-                // Send updates every 25 files or on last file
-                if (
-                  counters.total % 25 === 0 ||
-                  counters.total === counters.discovered
-                ) {
-                  await sendProgress(encoder, writer, {
-                    status: 'processing',
-                    message: `Processed ${counters.total} of ${counters.discovered} files`,
-                    ...getCommonProperties(),
-                  });
-                }
-              } catch (fileError: any) {
-                console.error(`Error processing file: ${file.path}`, fileError);
-
-                // If we have an existingFile ID, mark the error in processing_states
-                const { data: existingFile } = await checkFileExists(file.path);
-                if (existingFile?.id) {
+                  // Mark as error
                   await markProcessingError({
                     mediaItemId: existingFile.id,
                     progressType: 'scan',
-                    errorMessage: `Error processing file: ${fileError.message || 'Unknown error'}`,
+                    errorMessage: `Failed to update file: ${updateError.message}`,
+                  });
+                } else {
+                  counters.newFilesAdded++;
+
+                  // Mark as success
+                  await markProcessingSuccess({
+                    mediaItemId: existingFile.id,
+                    progressType: 'scan',
                   });
                 }
+              } else {
+                // Insert new file
+                const { data: insertedItem, error: insertError } =
+                  await insertMediaItem(fileData);
 
-                counters.total++;
-                counters.failed++;
+                if (insertError) {
+                  console.error(
+                    `Error inserting media item: ${file.path}`,
+                    insertError,
+                  );
+                } else if (insertedItem) {
+                  counters.newFilesAdded++;
+
+                  // Mark as success for new items
+                  await markProcessingSuccess({
+                    mediaItemId: insertedItem.id,
+                    progressType: 'scan',
+                    errorMessage: 'File added successfully',
+                  });
+                } else {
+                  console.error(
+                    `Failed to insert media item with no error: ${file.path}`,
+                  );
+                }
               }
-            }
 
-            // At the end of each batch, if we have more batches to go
-            if (i + BATCH_SIZE < files.length) {
-              counters.currentBatch++;
-              await sendProgress(encoder, writer, {
-                status: 'batch_complete',
-                message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
-                ...getCommonProperties(),
-              });
+              counters.processedCount++;
+
+              // Send updates every 25 files or on last file
+              if (
+                counters.processedCount % 25 === 0 ||
+                counters.processedCount === counters.totalAvailable
+              ) {
+                await sendProgress(encoder, writer, {
+                  status: 'processing',
+                  message: `Processed ${counters.processedCount} of ${counters.totalAvailable} files`,
+                  ...getCommonProperties(),
+                });
+              }
+            } catch (fileError: any) {
+              console.error(`Error processing file: ${file.path}`, fileError);
+
+              // If we have an existingFile ID, mark the error in processing_states
+              const { data: existingFile } = await checkFileExists(file.path);
+              if (existingFile?.id) {
+                await markProcessingError({
+                  mediaItemId: existingFile.id,
+                  progressType: 'scan',
+                  errorMessage: `Error processing file: ${fileError.message || 'Unknown error'}`,
+                });
+              }
+
+              counters.processedCount++;
+              counters.failed++;
             }
           }
 
-          // Update folder last_scanned timestamp
-          await updateFolderLastScanned(folder.id);
-        } catch (folderError: any) {
-          console.error(`Error scanning folder ${folder.path}:`, folderError);
-          await sendProgress(encoder, writer, {
-            status: 'failure',
-            message: `Error scanning folder: ${folder.path}`,
-            ...getCommonProperties(),
-          });
+          // At the end of each batch, if we have more batches to go
+          if (i + BATCH_SIZE < files.length) {
+            counters.currentBatch++;
+            await sendProgress(encoder, writer, {
+              status: 'batch_complete',
+              message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
+              ...getCommonProperties(),
+            });
+          }
         }
+
+        // Update folder last_scanned timestamp
+        await updateFolderLastScanned(folder.id);
+      } catch (folderError: any) {
+        console.error(`Error scanning folder ${folder.path}:`, folderError);
+        await sendProgress(encoder, writer, {
+          status: 'failure',
+          message: `Error scanning folder: ${folder.path}`,
+          ...getCommonProperties(),
+        });
       }
+    }
 
-      // Send final progress update
-      await sendProgress(encoder, writer, {
-        status: 'complete',
-        message: `Scan completed. Processed ${counters.total} files, added ${counters.newFilesAdded} new/updated files.`,
-        ...getCommonProperties(),
-      });
+    // Send final progress update
+    await sendProgress(encoder, writer, {
+      status: 'complete',
+      message: `Scan completed. Processed ${counters.processedCount} files, added ${counters.newFilesAdded} new/updated files.`,
+      ...getCommonProperties(),
+    });
 
-      // Close the stream
-      if (!writer.closed) {
-        await writer.close();
-      }
-    } catch (error: any) {
-      console.error('Error during scan:', error);
+    // Close the stream
+    if (!writer.closed) {
+      await writer.close();
+    }
+  } catch (error: any) {
+    console.error('Error during scan:', error);
 
-      // Check if this is an abort error or if the scan was explicitly aborted
-      const isAbortError =
-        error.message?.includes('aborted') ||
-        error.name === 'AbortError' ||
-        aborted;
+    // Check if this is an abort error or if the scan was explicitly aborted
+    const isAbortError =
+      error.message?.includes('aborted') ||
+      error.name === 'AbortError' ||
+      aborted;
 
-      await sendProgress(encoder, writer, {
-        status: 'failure',
-        message: isAbortError ? 'Operation cancelled' : error.message,
-        totalCount: 0,
-        processedCount: 0,
-        progressType: 'scan' as ProgressType,
-      });
-      if (!writer.closed) {
-        await writer.close();
-      }
+    await sendProgress(encoder, writer, {
+      status: 'failure',
+      message: isAbortError ? 'Operation cancelled' : error.message,
+      totalCount: 0,
+      processedCount: 0,
+      progressType: 'scan' as ProgressType,
+    });
+    if (!writer.closed) {
+      await writer.close();
     }
   }
+}
 
-  async function getAllFiles(
-    dirPath: string,
-    includeSubfolders: boolean,
-  ): Promise<{ path: string }[]> {
-    const files: { path: string }[] = [];
+async function getAllFiles(
+  dirPath: string,
+  includeSubfolders: boolean,
+): Promise<{ path: string }[]> {
+  const files: { path: string }[] = [];
 
-    // If we don't need to include subfolders, just scan the top directory
-    if (!includeSubfolders) {
-      try {
-        const entries = await fs.readdir(dirPath, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isFile()) {
-            const fullPath = path.join(dirPath, entry.name);
-            files.push({ path: fullPath });
-          }
-        }
-      } catch (error) {
-        console.error(`Error reading directory ${dirPath}:`, error);
-      }
-      return files;
-    }
-
-    // For recursive scanning, use a queue-based approach to avoid stack overflow
-    const directories: string[] = [dirPath];
-
+  // If we don't need to include subfolders, just scan the top directory
+  if (!includeSubfolders) {
     try {
-      // Process directories in a queue to avoid deep recursion
-      while (directories.length > 0) {
-        const currentDir = directories.shift();
-        if (!currentDir) continue;
-
-        const entries = await fs.readdir(currentDir, { withFileTypes: true });
-
-        for (const entry of entries) {
-          const fullPath = path.join(currentDir, entry.name);
-
-          if (entry.isDirectory()) {
-            // Add to the queue instead of recursive call
-            directories.push(fullPath);
-          } else if (entry.isFile()) {
-            files.push({ path: fullPath });
-          }
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile()) {
+          const fullPath = path.join(dirPath, entry.name);
+          files.push({ path: fullPath });
         }
       }
     } catch (error) {
-      console.error('Error during directory scanning:', error);
+      console.error(`Error reading directory ${dirPath}:`, error);
     }
-
     return files;
   }
+
+  // For recursive scanning, use a queue-based approach to avoid stack overflow
+  const directories: string[] = [dirPath];
+
+  try {
+    // Process directories in a queue to avoid deep recursion
+    while (directories.length > 0) {
+      const currentDir = directories.shift();
+      if (!currentDir) continue;
+
+      const entries = await fs.readdir(currentDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(currentDir, entry.name);
+
+        if (entry.isDirectory()) {
+          // Add to the queue instead of recursive call
+          directories.push(fullPath);
+        } else if (entry.isFile()) {
+          files.push({ path: fullPath });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error during directory scanning:', error);
+  }
+
+  return files;
 }

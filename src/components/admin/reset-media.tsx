@@ -3,7 +3,7 @@
 import { RotateCounterClockwiseIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { clearAllProcessingStates } from '@/app/actions/exif/clear-all-processing-states';
+import { clearAllProcessingStates } from '@/actions/exif/clear-all-processing-states';
 import { Button } from '@/components/ui/button';
 import {
   Card,

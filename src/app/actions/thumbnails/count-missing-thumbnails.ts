@@ -17,6 +17,6 @@ export async function countMissingThumbnails() {
       head: true,
     })
     .in('file_types.category', ['image'])
-    .eq('file_types.ignore', false)
+    .is('file_types.ignore', false)
     .neq('processing_states.type', 'thumbnail');
 }

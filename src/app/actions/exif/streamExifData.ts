@@ -81,17 +81,24 @@ export async function streamExifData({
   }) {
     try {
       // Single stats object to track all counters
-      const counters: UnifiedStats['counts'] = {
-        total: 0, // Total processed (success + failed)
+      const counters: UnifiedStats['counts'] & {
+        totalAvailable: number; // Total available files in the database
+        processedCount: number; // Count of files processed in this session
+        currentBatch: number; // Current batch number
+      } = {
+        total: 0, // Will be set from the database query
         success: 0, // Successfully processed
         failed: 0, // Failed processing
+        processedCount: 0, // Files processed in this session
+        totalAvailable: 0, // Total available for processing
         currentBatch: 1, // Current batch number
       };
 
       // Helper function to get common properties for progress messages
       function getCommonProperties() {
         return {
-          totalCount: counters.total,
+          totalCount: counters.totalAvailable,
+          processedCount: counters.processedCount,
           successCount: counters.success,
           failureCount: counters.failed,
           currentBatch: counters.currentBatch,
@@ -148,8 +155,9 @@ export async function streamExifData({
 
         const unprocessedFiles = unprocessed.data || [];
 
-        // Set the total count of unprocessed files
-        counters.total = unprocessed.count || 0;
+        // Set the total count of unprocessed files from database
+        counters.totalAvailable = unprocessed.count || 0;
+        counters.total = counters.totalAvailable; // Update the standard total as well
 
         // If no files were returned and we're on batch 1, nothing to process at all
         if (unprocessedFiles.length === 0 && counters.currentBatch === 1) {
@@ -172,6 +180,7 @@ export async function streamExifData({
 
         for (const media of unprocessedFiles) {
           // Check for abort signal at the start of processing each file
+          console.log('aborted: ', aborted, media);
           if (aborted) {
             // Mark this item as aborted using our helper function
             await markProcessingError({
@@ -237,7 +246,7 @@ export async function streamExifData({
                 errorMessage: `Errored due to ${errorReason}`,
               });
 
-              counters.total++;
+              counters.processedCount++;
               counters.failed++;
 
               await sendProgress(encoder, writer, {
@@ -267,17 +276,6 @@ export async function streamExifData({
               mediaItemId: media.id,
               progressType: 'exif',
               errorMessage: `Processing started for ${media.file_name}`,
-            });
-
-            // Send update before processing each file
-            await sendProgress(encoder, writer, {
-              status: 'processing',
-              message: `Processing ${counters.total + 1}: ${media.file_name}`,
-              ...getCommonProperties(),
-              metadata: {
-                method,
-                fileType: media.file_types?.extension,
-              },
             });
 
             if (media.id) {
@@ -320,7 +318,7 @@ export async function streamExifData({
               });
 
               // Update counters
-              counters.total++;
+              counters.processedCount++;
               if (result.success) {
                 counters.success++;
               } else {
@@ -365,7 +363,7 @@ export async function streamExifData({
                 error?.message || 'Unknown error during EXIF processing',
             });
 
-            counters.total++;
+            counters.processedCount++;
             counters.failed++;
 
             // Send error update with only changed properties
@@ -417,7 +415,7 @@ export async function streamExifData({
       }
 
       // Prepare final message after all batches are processed
-      const finalMessage = `EXIF processing completed. Processed ${counters.total} files: ${counters.success} successful, ${counters.failed} failed.`;
+      const finalMessage = `EXIF processing completed. Processed ${counters.processedCount} files: ${counters.success} successful, ${counters.failed} failed.`;
 
       // Send final progress update with a clear completion status
       await sendProgress(encoder, writer, {

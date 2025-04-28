@@ -2,7 +2,7 @@
 
 import { ScanSearchIcon } from 'lucide-react';
 import { useState } from 'react';
-import { streamFolders } from '@/app/actions/scan/streamFolders';
+import { streamFolders } from '@/actions/scan/streamFolders';
 
 interface FolderScanButtonProps {
   folderId: number;

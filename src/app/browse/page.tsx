@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/media/media-list';
 import { Pagination } from '@/components/ui/pagination';
+
 import { PAGE_SIZE } from '@/lib/consts';
 import type { MediaItem } from '@/types/db-types';
 import type { MediaFilters } from '@/types/media-types';
@@ -141,29 +142,34 @@ export default function BrowsePage() {
 
       setError(null);
 
-      const result = await getMediaItems({
+      const { data, error, count } = await getMediaItems({
         filters,
         page: currentPage,
         pageSize: PAGE_SIZE,
       });
 
-      if (result.error) {
-        setError(result.error.message || 'An unknown error occurred');
+      if (error) {
+        setError(error.message || 'An unknown error occurred');
         // Only clear media items if there's an error
         setMediaItems([]);
       }
 
-      if (!result.error && result.data && result.pagination) {
-        setMediaItems(result.data);
-        setPagination(result.pagination);
+      if (!error && data) {
+        setMediaItems(data);
+        setPagination((prev) => ({
+          ...prev,
+          page: currentPage,
+          pageCount: Math.ceil((count || 0) / PAGE_SIZE),
+          total: count || 0,
+        }));
 
-        const maxSize = max(result.data.map((item) => item.size_bytes || 0));
+        const maxSize = max(data.map((item) => item.size_bytes || 0));
         setMaxFileSize(maxSize ? Math.ceil(maxSize / 1024 / 1024) : 100);
 
         // Extract unique camera models from media items with processed EXIF data
-        if (result.data.length > 0) {
+        if (data.length > 0) {
           const uniqueCameras = new Set<string>();
-          result.data.forEach((item) => {
+          data.forEach((item) => {
             // @ts-ignore
             if (item.exif_data?.Image?.Model) {
               // @ts-ignore

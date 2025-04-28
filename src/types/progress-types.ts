@@ -10,7 +10,7 @@ export interface BasicResult {
 /**
  * Valid status values for processing states
  */
-export type ProgressStatus = 'processing' | 'complete' | 'failure' | null;
+export type ProgressStatus = 'processing' | 'complete' | 'failure';
 
 export type ProgressType = 'exif' | 'thumbnail' | 'scan';
 
@@ -31,7 +31,6 @@ export interface UnifiedProgress {
 
   // Progress calculation
   progressType: ProgressType;
-  percentComplete?: number;
 
   // Performance metrics
   estimatedTimeRemaining?: number;
@@ -42,6 +41,7 @@ export interface UnifiedProgress {
   totalBatches?: number;
   isBatchComplete?: boolean;
   isFinalBatch?: boolean;
+  batchSize?: number;
 
   // Timing information
   timestamp?: number;

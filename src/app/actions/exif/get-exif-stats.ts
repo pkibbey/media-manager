@@ -23,7 +23,7 @@ export async function getExifStats(): Action<UnifiedStats> {
       count: 'exact',
       head: true,
     })
-    .eq('processing_states.status', 'success')
+    .eq('processing_states.status', 'complete')
     .eq('file_types.category', 'image')
     .is('file_types.ignore', false);
 

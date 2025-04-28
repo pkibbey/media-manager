@@ -8,7 +8,7 @@ import type { ProgressStatus } from '@/types/progress-types';
  * Update the processing state for a media item
  * @param mediaItemId Media item ID
  * @param progressType Type of processing
- * @param status Processing status ('success' or 'failure')
+ * @param status Processing status ('complete' or 'failure')
  * @param message Optional status message
  * @returns Operation result
  */

@@ -4,6 +4,7 @@ import { CheckIcon } from '@radix-ui/react-icons';
 import { BATCH_SIZE } from '@/lib/consts';
 import { cn } from '@/lib/utils';
 import type { UnifiedProgress } from '@/types/progress-types';
+import type { UnifiedStats } from '@/types/unified-stats';
 import { ProcessingTimeEstimator } from '../admin/processing-time-estimator';
 import { Progress } from './progress';
 
@@ -17,6 +18,11 @@ export interface UnifiedProgressDisplayProps {
    * Progress data for the current process
    */
   progress: UnifiedProgress | null;
+
+  /**
+   * Statistics data for the current process
+   */
+  stats: UnifiedStats;
 
   /**
    * Timestamp when processing started (for time estimation)
@@ -61,6 +67,7 @@ export interface UnifiedProgressDisplayProps {
  */
 export function UnifiedProgressDisplay({
   isProcessing,
+  stats,
   progress,
   processingStartTime,
   title,
@@ -73,18 +80,34 @@ export function UnifiedProgressDisplay({
   // Don't show anything if there's no processing happening or completed
   if (!progress || !isProcessing) return null;
 
-  const total =
-    (progress.processedCount || 0) +
-    (progress.currentBatch || 1) * (progress.batchSize || BATCH_SIZE);
-
-  // Calculate counts for display
+  // Calculate counts for display - fix operator precedence by adding values
   const totalCount = progress.totalCount || 0;
-  const successCount = progress.successCount || 0;
-  const failureCount = progress.failureCount || 0;
-  const percentComplete = progress.percentComplete || 0;
+  console.log('stats.counts.total: ', stats.counts.total);
+  console.log('progress.totalCount: ', progress.totalCount);
+  const successCount = (progress.successCount || 0) + stats.counts.success;
+  const failureCount = (progress.failureCount || 0) + stats.counts.failed;
+
+  // Remove console logs once fixed
+  // console.log('1. stats.counts.success: ', stats.counts.success);
+  // console.log('2. progress.successCount: ', progress.successCount);
+  // console.log('3. successCount: ', successCount);
+
+  // Only calculate percent if we have a valid total
+  const percentComplete =
+    totalCount > 0 ? ((successCount + failureCount) / totalCount) * 100 : 0;
+  // console.log('4. percentComplete: ', percentComplete);
+  console.log('percentComplete: ', percentComplete);
+
+  const currentBatch = progress.currentBatch || 1;
+  const batchSize = progress.batchSize || BATCH_SIZE;
 
   // Determine component state
   const isComplete = progress.status === 'complete' && !isProcessing;
+
+  const runningCount =
+    successCount +
+    failureCount +
+    (currentBatch > 1 ? batchSize * (currentBatch - 1) : 0);
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -93,7 +116,7 @@ export function UnifiedProgressDisplay({
         <div className="flex justify-between items-center gap-4 overflow-hidden">
           <h2 className="text-lg font-medium truncate">{title}</h2>
           <span className="text-sm text-muted-foreground shrink-0">
-            {total} / {totalCount} {itemsLabel}
+            {runningCount} / {totalCount} {itemsLabel}
           </span>
         </div>
       )}
@@ -103,7 +126,7 @@ export function UnifiedProgressDisplay({
         <span className="truncate">{progress.message}</span>
         {!title && (
           <span className="shrink-0">
-            {total} / {totalCount} {itemsLabel}
+            {runningCount} / {totalCount} {itemsLabel}
           </span>
         )}
       </div>
@@ -114,7 +137,7 @@ export function UnifiedProgressDisplay({
       {/* Statistics row */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
-          <span>Success: {successCount}</span>
+          <span>Success: {runningCount}</span>
           {failureCount > 0 && (
             <span className="text-destructive">Failed: {failureCount}</span>
           )}
@@ -135,8 +158,8 @@ export function UnifiedProgressDisplay({
       {/* Metadata display (e.g., current file type) */}
       {!hideMetadata && progress.metadata && (
         <div className="text-xs items-center text-muted-foreground truncate flex justify-between gap-4">
-          {progress.metadata.progressType && (
-            <span>Processing type: {progress.metadata.progressType}</span>
+          {progress.progressType && (
+            <span>Processing type: {progress.progressType}</span>
           )}
           {progress.metadata.fileType && (
             <span className="px-2 py-1 bg-secondary rounded-md justify-end">

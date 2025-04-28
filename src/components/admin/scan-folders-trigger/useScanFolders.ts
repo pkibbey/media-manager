@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback } from 'react';
-import { streamFolders } from '@/app/actions/scan/streamFolders';
+import { getScanFolders } from '@/actions/scan/get-scan-folders';
+import { streamFolders } from '@/actions/scan/streamFolders';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
-import { getScanFolders } from '@/app/actions/scan/get-scan-folders';
 
 export function useScanFolders() {
   // Define stream function generator
@@ -23,31 +23,27 @@ export function useScanFolders() {
     handleCancel,
     stats,
     refreshStats: fetchStats,
-  } = useProcessorBase<UnifiedProgress, UnifiedStats>({   
-     fetchStats: async () => {
-          const { data, error, count } = await getScanFolders();
+  } = useProcessorBase<UnifiedProgress, UnifiedStats>({
+    fetchStats: async () => {
+      const { data, error, count } = await getScanFolders();
+      console.log('error: ', error);
 
-          if (error) {
-            console.error('[SCAN DEBUG] Error fetching scan folder stats:', error); // Corrected debug message
-            throw error;
-          }
-
-          // The stats here represent folders, not files processed by the scan.
-          // This might need adjustment depending on how stats are displayed.
-          return {
-            status: 'success',
-            message: 'Scan folders fetched successfully',
-            data: data, // Keep folder data if needed elsewhere
-            counts: {
-              total: count || 0, // Total number of folders configured
-              // These counts might not be directly applicable when just fetching folders.
-              // Setting them to 0 or reflecting folder status might be better.
-              success: 0,
-              failed: 0,
-              pending: count || 0, // Represents folders potentially needing scanning
-            },
-          };
+      // The stats here represent folders, not files processed by the scan.
+      // This might need adjustment depending on how stats are displayed.
+      return {
+        status: 'processing',
+        message: 'Scan folders fetched successfully',
+        data: data, // Keep folder data if needed elsewhere
+        counts: {
+          total: count || 0, // Total number of folders configured
+          // These counts might not be directly applicable when just fetching folders.
+          // Setting them to 0 or reflecting folder status might be better.
+          success: 0,
+          failed: 0,
+          pending: count || 0, // Represents folders potentially needing scanning
         },
+      };
+    },
     getStreamFunction,
     successMessage: {
       start: 'Starting folder scan...',
@@ -71,6 +67,6 @@ export function useScanFolders() {
     startScan,
     cancelScan: handleCancel,
     scanStats: stats,
-    refreshScanStats: fetchStats,
+    fetchStats,
   };
 }

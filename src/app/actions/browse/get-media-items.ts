@@ -23,9 +23,7 @@ export async function getMediaItems({
   const supabase = createServerSupabaseClient();
   const offset = (page - 1) * pageSize;
 
-  let query = supabase
-    .from('media_items')
-    .select('*, file_types(*)')
+  let query = supabase.from('media_items').select('*, file_types(*)');
 
   // Apply category filter if provided
   if (filters?.type) {

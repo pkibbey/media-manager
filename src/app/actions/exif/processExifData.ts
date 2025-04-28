@@ -1,6 +1,6 @@
 'use server';
 
-import { getMediaItemById } from '@/app/actions/media/get-media-item-by-id';
+import { getMediaItemById } from '@/actions/media/get-media-item-by-id';
 import { extractAndSanitizeExifData } from '@/lib/exif-utils';
 import {
   handleProcessingError,

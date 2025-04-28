@@ -71,20 +71,22 @@ export async function streamThumbnails({
     try {
       // Single stats object to track all counters
       const counters: UnifiedStats['counts'] & {
-        discovered: number; // Track total discovered files
-        currentBatch: number; // Track current batch number
+        totalAvailable: number; // Total available files in the database
+        processedCount: number; // Count of files processed in this session
+        currentBatch: number; // Current batch number
       } = {
-        total: 0, // Total processed (success + failed)
+        total: 0, // Will be set from the database query
         success: 0, // Successfully processed
         failed: 0, // Failed processing
-        discovered: 0, // Total files discovered
+        totalAvailable: 0, // Total files discovered
+        processedCount: 0, // Files processed in this session
         currentBatch: 1, // Current batch number
       };
 
       function getCommonProperties() {
         return {
-          totalCount: counters.discovered,
-          processedCount: counters.total,
+          totalCount: counters.totalAvailable,
+          processedCount: counters.processedCount,
           successCount: counters.success,
           failureCount: counters.failed,
         };
@@ -125,12 +127,8 @@ export async function streamThumbnails({
           unprocessedFiles.length > 0 &&
           unprocessedFiles.length >= fetchSize;
 
-        counters.discovered += unprocessedFiles.length;
-
-        // Process each media file in this batch
-        let batchProcessedCount = 0;
-        let batchSuccessCount = 0;
-        let batchFailedCount = 0;
+        counters.totalAvailable = totalItems || 0;
+        counters.total = counters.totalAvailable;
 
         // Send initial progress update for this batch
         await sendProgress(encoder, writer, {
@@ -164,14 +162,10 @@ export async function streamThumbnails({
               message: isInfinityMode
                 ? `Batch ${counters.currentBatch}: Processing: ${media.file_name}`
                 : `Processing: ${media.file_name}`,
-              totalCount: totalItems, // Use totalItems from getUnprocessedFilesForThumbnails
-              processedCount: isInfinityMode
-                ? counters.total
-                : batchProcessedCount,
-              successCount: isInfinityMode
-                ? counters.success
-                : batchSuccessCount,
-              failureCount: isInfinityMode ? counters.failed : batchFailedCount,
+              totalCount: counters.totalAvailable,
+              processedCount: counters.processedCount,
+              successCount: counters.success,
+              failureCount: counters.failed,
               progressType: 'thumbnail',
               metadata: {
                 fileType: media.file_types?.extension,
@@ -182,11 +176,9 @@ export async function streamThumbnails({
             const result = await generateThumbnail(media.id);
 
             // Update counters
-            batchProcessedCount++;
-            counters.total++;
+            counters.processedCount++;
 
             if (result.success) {
-              batchSuccessCount++;
               counters.success++;
 
               // Mark as success
@@ -197,7 +189,6 @@ export async function streamThumbnails({
                   result.message || 'Thumbnail generated successfully',
               });
             } else {
-              batchFailedCount++;
               counters.failed++;
 
               // Mark as error in the database using our helper
@@ -213,16 +204,10 @@ export async function streamThumbnails({
             await sendProgress(encoder, writer, {
               status: 'processing',
               message: result.message,
-              totalCount: isInfinityMode
-                ? counters.discovered
-                : unprocessedFiles.length,
-              processedCount: isInfinityMode
-                ? counters.total
-                : batchProcessedCount,
-              successCount: isInfinityMode
-                ? counters.success
-                : batchSuccessCount,
-              failureCount: isInfinityMode ? counters.failed : batchFailedCount,
+              totalCount: counters.totalAvailable,
+              processedCount: counters.processedCount,
+              successCount: counters.success,
+              failureCount: counters.failed,
               progressType: 'thumbnail',
               metadata: {
                 fileType: media.file_types?.extension,
@@ -246,10 +231,8 @@ export async function streamThumbnails({
               await sendProgress(encoder, writer, {
                 status: 'failure',
                 message: 'Thumbnail generation aborted',
-                totalCount: isInfinityMode
-                  ? counters.discovered
-                  : unprocessedFiles.length,
-                processedCount: counters.total,
+                totalCount: counters.totalAvailable,
+                processedCount: counters.processedCount,
                 successCount: counters.success,
                 failureCount: counters.failed,
                 progressType: 'thumbnail',
@@ -266,9 +249,7 @@ export async function streamThumbnails({
               error,
             );
 
-            batchProcessedCount++;
-            batchFailedCount++;
-            counters.total++;
+            counters.processedCount++;
             counters.failed++;
 
             // Update the processing state to error using our helper
@@ -283,16 +264,10 @@ export async function streamThumbnails({
             await sendProgress(encoder, writer, {
               status: 'failure',
               message: `Error generating thumbnail: ${error.message}`,
-              totalCount: isInfinityMode
-                ? counters.discovered
-                : unprocessedFiles.length,
-              processedCount: isInfinityMode
-                ? counters.total
-                : batchProcessedCount,
-              successCount: isInfinityMode
-                ? counters.success
-                : batchSuccessCount,
-              failureCount: isInfinityMode ? counters.failed : batchFailedCount,
+              totalCount: counters.totalAvailable,
+              processedCount: counters.processedCount,
+              successCount: counters.success,
+              failureCount: counters.failed,
               progressType: 'thumbnail',
               metadata: {
                 fileType: media.file_types?.extension,
@@ -306,10 +281,8 @@ export async function streamThumbnails({
           await sendProgress(encoder, writer, {
             status: 'failure',
             message: 'Thumbnail generation aborted',
-            totalCount: isInfinityMode
-              ? counters.discovered
-              : unprocessedFiles.length,
-            processedCount: counters.total,
+            totalCount: counters.totalAvailable,
+            processedCount: counters.processedCount,
             successCount: counters.success,
             failureCount: counters.failed,
             progressType: 'thumbnail',
@@ -382,7 +355,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
       // video thumbnails should be handled separately
       .eq('file_types.category', 'image')
       .in('file_types.category', ['image'])
-      .eq('file_types.ignore', false)
+      .is('file_types.ignore', false)
       .neq('processing_states.type', 'thumbnail')
       .limit(limit);
 
@@ -424,7 +397,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
           count: 'exact',
         })
         .in('file_types.category', ['image'])
-        .eq('file_types.ignore', false)
+        .is('file_types.ignore', false)
         .eq('processing_states.type', 'thumbnail')
         .neq('processing_states.status', '(success)');
 

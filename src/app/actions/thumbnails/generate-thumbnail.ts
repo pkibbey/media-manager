@@ -31,12 +31,11 @@ export async function generateThumbnail(mediaId: string): Promise<
       .from('media_items')
       .select('*, file_types!inner(*)')
       .in('file_types.category', ['image'])
-      .eq('file_types.ignore', false)
+      .is('file_types.ignore', false)
       .eq('id', mediaId)
       .single();
 
     if (error) {
-      console.log('error: ', error);
       return {
         success: false,
         message: error.message,

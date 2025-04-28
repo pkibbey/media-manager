@@ -1,4 +1,4 @@
-import { getAllFileTypes } from '@/app/actions/file-types/get-all-file-types';
+import { getAllFileTypes } from '@/actions/file-types/get-all-file-types';
 import type { FileType } from '@/types/db-types';
 
 interface FileTypeInfo {

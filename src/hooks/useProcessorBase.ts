@@ -9,7 +9,7 @@ export type ProcessorOptions<TStats> = {
   /**
    * Function to fetch initial stats for the processor
    */
-  fetchStats: () => Promise<TStats | null>;
+  fetchStats: () => Promise<TStats>;
 
   /**
    * Function that returns a stream function to process items
@@ -57,7 +57,17 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
   // State management
   const [batchSize, setBatchSize] = useState(defaultBatchSize);
   const [method, setMethod] = useState(defaultMethod);
-  const [stats, setStats] = useState<TStats | null>(null);
+  const [stats, setStats] = useState<TStats>({
+    counts: {
+      total: 0,
+      success: 0,
+      failed: 0,
+    },
+    progress: {
+      current: 0,
+      total: 0,
+    },
+  } as TStats);
   const [processingStartTime, setProcessingStartTime] = useState<
     number | undefined
   >(undefined);
@@ -79,13 +89,61 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
       setStats(stats);
     } catch (error) {
       console.error('[PROCESSOR DEBUG] Error fetching stats:', error);
-      toast.error('Failed to fetch processing stats');
+
+      // Provide more details about the error
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Unknown error occurred while fetching stats';
+
+      toast.error(`Failed to fetch processing stats: ${errorMessage}`);
+
+      // Optionally update stats with error state
+      setStats(
+        (prev) =>
+          ({
+            ...prev,
+            status: 'error',
+            message: errorMessage,
+          }) as TStats,
+      );
     }
   }, [fetchStats]);
 
-  // Load stats on mount
+  // Fetch initial stats on mount - without dependency on refreshStats
+  // biome-ignore lint/correctness/useExhaustiveDependencies: This is a one-time fetch
   useEffect(() => {
-    refreshStats();
+    const fetchInitialStats = async () => {
+      try {
+        const initialStats = await fetchStats();
+        setStats(initialStats);
+      } catch (error) {
+        console.error(
+          '[PROCESSOR DEBUG] Error during initial stats fetch:',
+          error,
+        );
+
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'Unknown error occurred during initial stats load';
+
+        toast.error(`Failed to load initial stats: ${errorMessage}`);
+
+        // Set an error state in stats
+        setStats({
+          status: 'error',
+          message: 'Failed to load initial stats',
+          counts: {
+            total: 0,
+            success: 0,
+            failed: 0,
+          },
+        } as unknown as TStats);
+      }
+    };
+
+    fetchInitialStats();
   }, []);
 
   // Refresh stats when processing completes

@@ -16,24 +16,33 @@ export async function getThumbnailStats(): Action<UnifiedStats> {
     .from('media_items')
     .select('id, file_types!inner(*)', { count: 'exact', head: true })
     .eq('file_types.category', 'image')
-    .eq('file_types.ignore', false);
+    .is('file_types.ignore', false);
+
+  console.log('totalError: ', totalError);
 
   // Get success count - items with thumbnails
   const { error: successError, count: successCount } = await supabase
     .from('media_items')
-    .select('id', { count: 'exact', head: true })
+    .select('id, file_types!inner(*)', { count: 'exact', head: true })
     .not('thumbnail_path', 'is', null)
     .eq('file_types.category', 'image')
-    .eq('file_types.ignore', false);
+    .is('file_types.ignore', false);
+
+  console.log('successError: ', successError);
 
   // Get failure count
   const { error: failedError, count: failedCount } = await supabase
     .from('media_items')
-    .select('id, processing_states!inner(*)', { count: 'exact', head: true })
+    .select('id, file_types!inner(*), processing_states!inner(*)', {
+      count: 'exact',
+      head: true,
+    })
     .eq('processing_states.type', 'thumbnail')
     .eq('processing_states.status', 'failure')
     .eq('file_types.category', 'image')
-    .eq('file_types.ignore', false);
+    .is('file_types.ignore', false);
+
+  console.log('failedError: ', failedError);
 
   const hasErrors = Boolean(totalError || successError || failedError);
 

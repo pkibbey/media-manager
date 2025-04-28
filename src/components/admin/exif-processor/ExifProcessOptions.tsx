@@ -73,6 +73,7 @@ export function ExifProcessOptions({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="1">1</SelectItem>
+              <SelectItem value="10">10</SelectItem>
               <SelectItem value="25">25</SelectItem>
               <SelectItem value="100">100</SelectItem>
               <SelectItem value="500">500</SelectItem>

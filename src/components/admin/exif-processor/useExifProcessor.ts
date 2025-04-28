@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback } from 'react';
-import { getExifStats } from '@/app/actions/exif/get-exif-stats';
-import { streamExifData } from '@/app/actions/exif/streamExifData';
+import { getExifStats } from '@/actions/exif/get-exif-stats';
+import { streamExifData } from '@/actions/exif/streamExifData';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { ExtractionMethod } from '@/types/exif';
 import type { UnifiedProgress } from '@/types/progress-types';
@@ -40,7 +40,6 @@ export function useExifProcessor() {
     handleCancel,
   } = useProcessorBase<ExifProgress, UnifiedStats>({
     fetchStats: async () => {
-      console.log('fetchStats: ')
       const { data, error } = await getExifStats();
 
       if (!data || error) {

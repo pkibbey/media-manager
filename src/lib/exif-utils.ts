@@ -245,7 +245,7 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
   try {
     // Only select the fields we actually need to process EXIF data
     // This reduces the size of the response significantly
-    const { data, error, count } = await supabase
+    return await supabase
       .from('media_items')
       .select(
         `
@@ -269,11 +269,6 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
       .is('file_types.ignore', false)
       .is('processing_states', null)
       .limit(limit);
-
-    console.log('error: ', error);
-
-    // Return the results
-    return { data: data || [], count: count || 0 };
   } catch (error) {
     console.error('Error fetching unprocessed files:', error);
     throw new Error(

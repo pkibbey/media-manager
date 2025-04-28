@@ -34,3 +34,5 @@
 -- instead of using inner joins, see if there is a a more efficient way of making the request
 
 -- break up streamExifData and generateThubmnail into smaller functions
+
+-- fix abort controllers

@@ -3,7 +3,7 @@ import type { ExtractionMethod } from '@/types/exif';
 import type { UnifiedStats } from '@/types/unified-stats';
 
 type ExifActionButtonsProps = {
-  stats: UnifiedStats | null;
+  stats: UnifiedStats;
   isProcessing: boolean;
   batchSize: number;
   method: ExtractionMethod;

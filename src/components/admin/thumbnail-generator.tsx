@@ -10,7 +10,6 @@ import { useThumbnailGenerator } from './thumbnail-generator/useThumbnailGenerat
 export default function ThumbnailGenerator() {
   const {
     isProcessing,
-    isProcessingAll,
     progress,
     errorSummary,
     stats,
@@ -42,8 +41,9 @@ export default function ThumbnailGenerator() {
         />
       )}
 
-      {isProcessing && (
+      {isProcessing && stats && (
         <UnifiedProgressDisplay
+          stats={stats}
           isProcessing={isProcessing}
           progress={progress}
           processingStartTime={processingStartTime}
@@ -63,7 +63,6 @@ export default function ThumbnailGenerator() {
 
       <ThumbnailActionButtons
         isProcessing={isProcessing}
-        isProcessingAll={isProcessingAll}
         stats={stats}
         batchSize={batchSize}
         onGenerateThumbnails={handleGenerateThumbnails}

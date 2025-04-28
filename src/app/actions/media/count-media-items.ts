@@ -53,7 +53,7 @@ export async function countMediaItems(
 
   // Exclude ignored file types unless includeIgnored is true
   if (!options.includeIgnored) {
-    query = query.eq('file_types.ignore', false);
+    query = query.is('file_types.ignore', false);
   }
 
   return await query;

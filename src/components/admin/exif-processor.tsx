@@ -45,6 +45,7 @@ export default function ExifProcessor() {
 
         {isProcessing && (
           <UnifiedProgressDisplay
+            stats={stats}
             isProcessing={isProcessing}
             progress={progress}
             processingStartTime={processingStartTime}

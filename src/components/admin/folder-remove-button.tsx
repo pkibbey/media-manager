@@ -2,8 +2,8 @@
 
 import { TrashIcon } from '@radix-ui/react-icons';
 import { useCallback, useState } from 'react';
-import { removeScanFolder } from '@/app/actions/scan/remove-scan-folder';
 import { toast } from 'sonner';
+import { removeScanFolder } from '@/actions/scan/remove-scan-folder';
 
 interface FolderRemoveButtonProps {
   folderId: number;
@@ -14,8 +14,8 @@ export function FolderRemoveButton({ folderId }: FolderRemoveButtonProps) {
 
   const handleRemove = useCallback(async () => {
     setIsRemoving(true);
-    
-    const {error, statusText} = await removeScanFolder(folderId);
+
+    const { error, statusText } = await removeScanFolder(folderId);
 
     if (!error) {
       toast.success(statusText || 'Successfully removed folder from scan list');
@@ -23,7 +23,7 @@ export function FolderRemoveButton({ folderId }: FolderRemoveButtonProps) {
       toast.error(statusText || 'Failed to remove folder from scan list');
     }
 
-    setIsRemoving(false);    
+    setIsRemoving(false);
   }, [folderId]);
 
   return (

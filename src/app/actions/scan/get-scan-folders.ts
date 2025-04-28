@@ -10,5 +10,5 @@ import type { Action, ScanFolder } from '@/types/db-types';
 export async function getScanFolders(): Action<ScanFolder[]> {
   const supabase = createServerSupabaseClient();
 
-  return await supabase.from('scan_folders').select('*').order('path');
+  return await supabase.from('scan_folders').select('*').not('id', 'is', null);
 }

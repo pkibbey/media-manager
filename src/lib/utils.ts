@@ -497,15 +497,6 @@ export async function getFileCategory(
 }
 
 /**
- * Applies standard filters to a Supabase query to exclude ignored file types
- * @param query The Supabase query to modify
- * @returns The modified query with ignore filter applied
- */
-export function excludeIgnoredFileTypes(query: any): any {
-  return query.eq('file_types.ignore', false);
-}
-
-/**
  * Helper function to calculate percentages from counts
  */
 export function calculatePercentages(counts: UnifiedStats['counts']): {

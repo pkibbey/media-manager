@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { addScanFolder } from '@/app/actions/scan/add-scan-folder';
+import { addScanFolder } from '@/actions/scan/add-scan-folder';
 
 export default function AddFolderForm() {
   const [folderPath, setFolderPath] = useState('');

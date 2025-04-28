@@ -1,5 +1,5 @@
 import { GearIcon } from '@radix-ui/react-icons';
-import { getAllStats } from '@/app/actions/stats/get-all-stats';
+import { getAllStats } from '@/actions/stats/get-all-stats';
 import { calculatePercentages, formatBytes } from '@/lib/utils';
 
 export default async function AllMediaStats() {
