@@ -51,9 +51,9 @@ export function useThumbnailGenerator() {
   });
 
   // Handle thumbnail generation with option to process all
-  const handleGenerateThumbnails = async (processAll = false) => {
+  const handleGenerateThumbnails = async ({ processAll = false }) => {
     try {
-      await handleStartProcessing(processAll);
+      await handleStartProcessing({ processAll });
     } catch (error) {
       console.error(
         '[Thumbnail Generator] Error initiating thumbnail generation:',

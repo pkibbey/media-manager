@@ -136,11 +136,7 @@ export async function extractMetadata({
           // If Sharp didn't find EXIF data, try direct extraction
           const directResult = await extractMetadataDirectOnly(filePath);
           return { success: true, data: directResult };
-        } catch (sharpError) {
-          console.error(
-            `Sharp extraction failed for ${filePath}, trying direct:`,
-            sharpError,
-          );
+        } catch (_sharpError) {
           try {
             const directResult = await extractMetadataDirectOnly(filePath);
             return { success: true, data: directResult };
@@ -154,7 +150,6 @@ export async function extractMetadata({
         }
     }
   } catch (error) {
-    console.error(`EXIF extraction error for ${filePath}:`, error);
     return {
       success: false,
       data: null,

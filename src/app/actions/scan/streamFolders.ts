@@ -38,16 +38,12 @@ export async function streamFolders(options: ScanOptions = {}) {
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
-  // Track if the scan has been aborted
-  let aborted = false;
-
   // Start scanning in the background
-  scanFoldersInternal(writer, options, aborted);
+  scanFoldersInternal(writer, options);
 
   // Set up a cleanup function on the stream
   const originalCancel = stream.readable.cancel;
   stream.readable.cancel = async (message) => {
-    aborted = true;
     // Call the original cancel method
     return originalCancel?.call(stream.readable, message);
   };
@@ -59,7 +55,6 @@ export async function streamFolders(options: ScanOptions = {}) {
 async function scanFoldersInternal(
   writer: WritableStreamDefaultWriter,
   options: ScanOptions,
-  aborted: boolean,
 ) {
   const encoder = new TextEncoder();
 
@@ -132,16 +127,6 @@ async function scanFoldersInternal(
 
     // Process each folder
     for (const folder of foldersToScan) {
-      // Check if scan has been aborted before starting a new folder
-      if (aborted) {
-        await sendProgress(encoder, writer, {
-          status: 'failure',
-          message: 'Scan aborted by user',
-          ...getCommonProperties(),
-        });
-        return;
-      }
-
       try {
         // Check if folder exists
         try {
@@ -190,21 +175,6 @@ async function scanFoldersInternal(
           }
 
           for (const file of batch) {
-            // Check for abort signal at the beginning of each file processing
-            if (aborted) {
-              // Mark any existing file as aborted if we were actively processing it
-              const { data: existingFile } = await checkFileExists(file.path);
-              if (existingFile?.id) {
-                await markProcessingError({
-                  mediaItemId: existingFile.id,
-                  progressType: 'scan',
-                  errorMessage: 'Scan aborted by user',
-                });
-              }
-              // Break out of the file processing loop
-              break;
-            }
-
             try {
               // Get file extension
               const fileExt = path.extname(file.path).slice(1).toLowerCase();
@@ -221,15 +191,7 @@ async function scanFoldersInternal(
               const fileMtime = stats.mtime;
 
               // Check if file already exists in database
-              const { data: existingFile, error: existingError } =
-                await checkFileExists(file.path);
-
-              if (existingError) {
-                console.error(
-                  `Error checking if file exists: ${file.path}`,
-                  existingError,
-                );
-              }
+              const { data: existingFile } = await checkFileExists(file.path);
 
               // Skip if file exists and hasn't changed
               if (
@@ -258,12 +220,7 @@ async function scanFoldersInternal(
                 const { data: newType, error: typeError } =
                   await upsertFileType(fileExt, category, mimeType);
 
-                if (typeError) {
-                  console.error(
-                    `Error adding file type: ${fileExt}`,
-                    typeError,
-                  );
-                } else if (newType) {
+                if (!typeError && newType) {
                   fileTypeId = newType.id;
                   fileTypeMap.set(fileExt, newType.id);
                 }
@@ -300,11 +257,6 @@ async function scanFoldersInternal(
                 );
 
                 if (updateError) {
-                  console.error(
-                    `Error updating media item: ${file.path}`,
-                    updateError,
-                  );
-
                   // Mark as error
                   await markProcessingError({
                     mediaItemId: existingFile.id,
@@ -312,25 +264,20 @@ async function scanFoldersInternal(
                     errorMessage: `Failed to update file: ${updateError.message}`,
                   });
                 } else {
-                  counters.newFilesAdded++;
-
                   // Mark as success
                   await markProcessingSuccess({
                     mediaItemId: existingFile.id,
                     progressType: 'scan',
                   });
+
+                  counters.newFilesAdded++;
                 }
               } else {
                 // Insert new file
                 const { data: insertedItem, error: insertError } =
                   await insertMediaItem(fileData);
 
-                if (insertError) {
-                  console.error(
-                    `Error inserting media item: ${file.path}`,
-                    insertError,
-                  );
-                } else if (insertedItem) {
+                if (!insertError && insertedItem) {
                   counters.newFilesAdded++;
 
                   // Mark as success for new items
@@ -412,17 +359,9 @@ async function scanFoldersInternal(
       await writer.close();
     }
   } catch (error: any) {
-    console.error('Error during scan:', error);
-
-    // Check if this is an abort error or if the scan was explicitly aborted
-    const isAbortError =
-      error.message?.includes('aborted') ||
-      error.name === 'AbortError' ||
-      aborted;
-
     await sendProgress(encoder, writer, {
       status: 'failure',
-      message: isAbortError ? 'Operation cancelled' : error.message,
+      message: error?.message || 'Unknown error during scan',
       totalCount: 0,
       processedCount: 0,
       progressType: 'scan' as ProgressType,

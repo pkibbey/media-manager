@@ -5,7 +5,11 @@ type ThumbnailActionButtonsProps = {
   isProcessing: boolean;
   stats: UnifiedStats;
   batchSize: number;
-  onGenerateThumbnails: (processAll: boolean) => Promise<void>;
+  onGenerateThumbnails: ({
+    processAll,
+  }: {
+    processAll: boolean;
+  }) => Promise<void>;
   onCancel: () => void;
 };
 
@@ -24,7 +28,7 @@ export function ThumbnailActionButtons({
   return (
     <div className="flex gap-2 flex-wrap">
       <Button
-        onClick={() => onGenerateThumbnails(false)}
+        onClick={() => onGenerateThumbnails({ processAll: false })}
         disabled={isProcessing || !stats}
       >
         {!stats

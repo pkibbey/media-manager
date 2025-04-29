@@ -2,7 +2,7 @@
 
 -- fix the drag and drop in file types
 
--- server actions should be named pascal case and include revalidatePath
+-- server actions should be renamed to pascal case
 
 -- add ability to change UI scale (grid column sizes)
 
@@ -34,5 +34,3 @@
 -- instead of using inner joins, see if there is a a more efficient way of making the request
 
 -- break up streamExifData and generateThubmnail into smaller functions
-
--- fix abort controllers

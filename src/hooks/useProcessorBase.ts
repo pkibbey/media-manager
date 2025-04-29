@@ -161,7 +161,7 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
 
   // Start processing handler
   const handleStartProcessing = useCallback(
-    async (processAll = false) => {
+    async ({ processAll = false }) => {
       try {
         setHasError(false);
         setErrorSummary([]);

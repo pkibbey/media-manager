@@ -20,40 +20,20 @@ export async function streamThumbnails({
 }) {
   const encoder = new TextEncoder();
   const MAX_FETCH_SIZE = 1000; // Supabase's limit for fetch operations
-  let aborted = false;
 
   // Create a transform stream to send progress updates
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
   // Start processing in the background
-  processUnprocessedThumbnailsInternal({
+  await processUnprocessedThumbnailsInternal({
     writer,
     batchSize,
-  })
-    .catch(async (error) => {
-      const isAbortError =
-        error?.name === 'AbortError' || error?.message?.includes('abort');
-
-      await sendProgress(encoder, writer, {
-        status: 'failure',
-        message: isAbortError
-          ? 'Processing aborted by user'
-          : error?.message ||
-            'An unknown error occurred during thumbnail generation',
-        progressType: 'thumbnail',
-      });
-    })
-    .finally(() => {
-      if (!writer.closed) {
-        writer.close().catch(console.error);
-      }
-    });
+  });
 
   // Set up a cleanup function on the stream
   const originalCancel = stream.readable.cancel;
   stream.readable.cancel = async (message) => {
-    aborted = true;
     // Call the original cancel method
     return originalCancel?.call(stream.readable, message);
   };
@@ -97,7 +77,7 @@ export async function streamThumbnails({
       const fetchSize = isInfinityMode ? MAX_FETCH_SIZE : batchSize;
       let hasMoreItems = true;
 
-      while (hasMoreItems && !aborted) {
+      while (hasMoreItems) {
         // Get this batch of unprocessed files
         const { unprocessedFiles, totalItems } =
           await getUnprocessedFilesForThumbnails({
@@ -144,17 +124,6 @@ export async function streamThumbnails({
         });
 
         for (const media of unprocessedFiles) {
-          // Check for abort signal at the start of each iteration
-          if (aborted) {
-            // Mark this item as aborted using our helper
-            await markProcessingError({
-              mediaItemId: media.id,
-              progressType: 'thumbnail',
-              errorMessage: 'Thumbnail generation aborted by user',
-            });
-            break;
-          }
-
           try {
             // Send update before processing each file
             await sendProgress(encoder, writer, {
@@ -172,7 +141,7 @@ export async function streamThumbnails({
               },
             });
 
-            // Generate thumbnail - pass along the abort token
+            // Generate thumbnail
             const result = await generateThumbnail(media.id);
 
             // Update counters
@@ -214,41 +183,6 @@ export async function streamThumbnails({
               },
             });
           } catch (error: any) {
-            // Check if this was an abort error
-            if (
-              error.message?.includes('aborted') ||
-              error.name === 'AbortError'
-            ) {
-              aborted = true;
-
-              // Mark this item as aborted using our helper
-              await markProcessingError({
-                mediaItemId: media.id,
-                progressType: 'thumbnail',
-                errorMessage: 'Thumbnail generation aborted by user',
-              });
-
-              await sendProgress(encoder, writer, {
-                status: 'failure',
-                message: 'Thumbnail generation aborted',
-                totalCount: counters.totalAvailable,
-                processedCount: counters.processedCount,
-                successCount: counters.success,
-                failureCount: counters.failed,
-                progressType: 'thumbnail',
-                metadata: {
-                  fileType: media.file_types?.extension,
-                },
-              });
-
-              break;
-            }
-
-            console.error(
-              `Error processing thumbnail for ${media.file_path}:`,
-              error,
-            );
-
             counters.processedCount++;
             counters.failed++;
 
@@ -276,20 +210,6 @@ export async function streamThumbnails({
           }
         }
 
-        // Check for abort after completing the batch
-        if (aborted) {
-          await sendProgress(encoder, writer, {
-            status: 'failure',
-            message: 'Thumbnail generation aborted',
-            totalCount: counters.totalAvailable,
-            processedCount: counters.processedCount,
-            successCount: counters.success,
-            failureCount: counters.failed,
-            progressType: 'thumbnail',
-          });
-          break;
-        }
-
         // After finishing a batch, if we're in infinity mode and have more batches to go
         if (hasMoreItems) {
           counters.currentBatch++;
@@ -304,10 +224,6 @@ export async function streamThumbnails({
         }
       }
 
-      if (aborted) {
-        return; // Already sent the aborted status
-      }
-
       // Send final progress update
       const finalMessage = isInfinityMode
         ? `All processing completed. Generated ${counters.success} thumbnails (${counters.failed} failed)`
@@ -320,16 +236,11 @@ export async function streamThumbnails({
         progressType: 'thumbnail',
       });
     } catch (error: any) {
-      // Check if this was an abort error
-      const isAbortError =
-        error.message?.includes('aborted') || error.name === 'AbortError';
-
       await sendProgress(encoder, writer, {
         status: 'failure',
-        message: isAbortError
-          ? 'Processing aborted by user'
-          : error?.message ||
-            'An unknown error occurred during thumbnail generation',
+        message:
+          error?.message ||
+          'An unknown error occurred during thumbnail generation',
         progressType: 'thumbnail',
       });
     }

@@ -62,7 +62,7 @@ export function useExifProcessor() {
   // Handle process method with the simplified interface
   const handleProcess = async () => {
     try {
-      await handleStartProcessing(false);
+      await handleStartProcessing({ processAll: false });
     } catch (error) {
       console.error('[EXIF DEBUG] Error in handleProcess:', error);
     }

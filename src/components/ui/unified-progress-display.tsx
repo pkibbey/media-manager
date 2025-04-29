@@ -82,22 +82,12 @@ export function UnifiedProgressDisplay({
 
   // Calculate counts for display - fix operator precedence by adding values
   const totalCount = progress.totalCount || 0;
-  console.log('stats.counts.total: ', stats.counts.total);
-  console.log('progress.totalCount: ', progress.totalCount);
   const successCount = (progress.successCount || 0) + stats.counts.success;
   const failureCount = (progress.failureCount || 0) + stats.counts.failed;
-
-  // Remove console logs once fixed
-  // console.log('1. stats.counts.success: ', stats.counts.success);
-  // console.log('2. progress.successCount: ', progress.successCount);
-  // console.log('3. successCount: ', successCount);
 
   // Only calculate percent if we have a valid total
   const percentComplete =
     totalCount > 0 ? ((successCount + failureCount) / totalCount) * 100 : 0;
-  // console.log('4. percentComplete: ', percentComplete);
-  console.log('percentComplete: ', percentComplete);
-
   const currentBatch = progress.currentBatch || 1;
   const batchSize = progress.batchSize || BATCH_SIZE;
 

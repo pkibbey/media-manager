@@ -25,44 +25,21 @@ export async function streamExifData({
 }) {
   const encoder = new TextEncoder();
   const MAX_FETCH_SIZE = 1000; // Supabase's limit for fetch operations
-  let aborted = false;
 
   // Create a transform stream to send progress updates
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
   // Start processing in the background - passing options as a single object
-  processUnprocessedItemsInternal({
+  await processUnprocessedItemsInternal({
     writer,
     method,
     batchSize,
-  }).catch((error) => {
-    console.error('[SERVER] Error in processUnprocessedItemsInternal:', error);
-
-    // If the error is an abort, mark it accordingly
-    const isAbortError =
-      error?.name === 'AbortError' || error?.message?.includes('abort');
-
-    sendProgress(encoder, writer, {
-      status: 'failure',
-      message: isAbortError
-        ? 'Processing aborted by user'
-        : error?.message || 'An unknown error occurred during EXIF processing',
-      progressType: 'exif',
-      metadata: {
-        method,
-      },
-    }).finally(() => {
-      if (!writer.closed) {
-        writer.close().catch(console.error);
-      }
-    });
   });
 
   // Set up a cleanup function on the stream
   const originalCancel = stream.readable.cancel;
   stream.readable.cancel = async (message) => {
-    aborted = true;
     return originalCancel?.call(stream.readable, message);
   };
 
@@ -84,7 +61,6 @@ export async function streamExifData({
       const counters: UnifiedStats['counts'] & {
         totalAvailable: number; // Total available files in the database
         processedCount: number; // Count of files processed in this session
-        currentBatch: number; // Current batch number
       } = {
         total: 0, // Will be set from the database query
         success: 0, // Successfully processed
@@ -107,32 +83,12 @@ export async function streamExifData({
         };
       }
 
-      // Check abort immediately before starting the fetch process
-      if (aborted) {
-        await sendProgress(encoder, writer, {
-          status: 'failure',
-          message: 'Processing aborted by user',
-          ...getCommonProperties(),
-        });
-        return;
-      }
-
       // For Infinity mode, we'll use a loop to process in chunks
       const isInfinityMode = batchSize === Number.POSITIVE_INFINITY;
       const fetchSize = isInfinityMode ? MAX_FETCH_SIZE : batchSize;
       let hasMoreItems = true;
 
       while (hasMoreItems) {
-        // Check abort status at the start of each batch
-        if (aborted) {
-          await sendProgress(encoder, writer, {
-            status: 'failure',
-            message: 'Processing aborted by user',
-            ...getCommonProperties(),
-          });
-          return;
-        }
-
         // Get this batch of unprocessed files
         const unprocessed = await getUnprocessedFiles({
           limit: fetchSize,
@@ -179,24 +135,6 @@ export async function streamExifData({
           unprocessedFiles.length >= fetchSize;
 
         for (const media of unprocessedFiles) {
-          // Check for abort signal at the start of processing each file
-          console.log('aborted: ', aborted, media);
-          if (aborted) {
-            // Mark this item as aborted using our helper function
-            await markProcessingError({
-              mediaItemId: media.id,
-              progressType: 'exif',
-              errorMessage: 'Processing aborted by user',
-            });
-
-            await sendProgress(encoder, writer, {
-              status: 'failure',
-              message: 'Processing aborted by user',
-              ...getCommonProperties(),
-            });
-            return;
-          }
-
           try {
             // Check for ignored or unsupported file types
             let errorReason: string | null = null;
@@ -222,22 +160,6 @@ export async function streamExifData({
               errorReason = 'Unknown or missing file type';
             }
 
-            // Check for abort again after file type checks
-            if (aborted) {
-              await markProcessingError({
-                mediaItemId: media.id,
-                progressType: 'exif',
-                errorMessage: 'Processing aborted by user',
-              });
-
-              await sendProgress(encoder, writer, {
-                status: 'failure',
-                message: 'Processing aborted by user',
-                ...getCommonProperties(),
-              });
-              return;
-            }
-
             // If errorReason is set, mark as errored and continue
             if (errorReason) {
               await markProcessingError({
@@ -261,16 +183,6 @@ export async function streamExifData({
               continue;
             }
 
-            // Check abort again before marking as processing
-            if (aborted) {
-              await sendProgress(encoder, writer, {
-                status: 'failure',
-                message: 'Processing aborted by user',
-                ...getCommonProperties(),
-              });
-              return;
-            }
-
             // Mark as processing before we begin
             await markProcessingStarted({
               mediaItemId: media.id,
@@ -279,31 +191,10 @@ export async function streamExifData({
             });
 
             if (media.id) {
-              // Check abort before starting the actual EXIF processing
-              if (aborted) {
-                await markProcessingError({
-                  mediaItemId: media.id,
-                  progressType: 'exif',
-                  errorMessage: 'Processing aborted by user',
-                });
-
-                await sendProgress(encoder, writer, {
-                  status: 'failure',
-                  message: 'Processing aborted by user',
-                  ...getCommonProperties(),
-                });
-                return;
-              }
-
               const result = await processExifData({
                 mediaId: media.id,
                 method: method || 'default',
                 progressCallback: async (message) => {
-                  // Check for abort again during processing
-                  if (aborted) {
-                    throw new Error('Processing aborted by user');
-                  }
-
                   // Send granular progress updates with only message change
                   await sendProgress(encoder, writer, {
                     status: 'processing',
@@ -326,35 +217,6 @@ export async function streamExifData({
               }
             }
           } catch (error: any) {
-            // Check if this was an abort error
-            if (
-              error.name === 'AbortError' ||
-              error.message?.includes('aborted')
-            ) {
-              aborted = true;
-
-              // Mark this item as aborted using our helper function
-              await markProcessingError({
-                mediaItemId: media.id,
-                progressType: 'exif',
-                errorMessage: 'Processing aborted by user',
-              });
-
-              await sendProgress(encoder, writer, {
-                status: 'failure',
-                message: 'EXIF processing aborted by user',
-                ...getCommonProperties(),
-                metadata: {
-                  method,
-                  fileType: media.file_types?.extension,
-                },
-              });
-
-              return; // Only return from processing for abort errors
-            }
-
-            console.error(`Error processing file ${media.file_path}:`, error);
-
             // Use our helper function for error processing
             await markProcessingError({
               mediaItemId: media.id,
@@ -368,7 +230,7 @@ export async function streamExifData({
 
             // Send error update with only changed properties
             await sendProgress(encoder, writer, {
-              status: 'failure', // Changed from 'failure' to 'error' to indicate individual file error
+              status: 'failure',
               message: `Error processing file ${media.file_name}: ${error.message}. Continuing with next file...`,
               ...getCommonProperties(),
               metadata: {
@@ -376,22 +238,7 @@ export async function streamExifData({
                 fileType: media.file_types?.extension,
               },
             });
-
-            // No return statement here - this allows processing to continue with the next file
           }
-        }
-
-        // Check for abortion after batch processing
-        if (aborted) {
-          await sendProgress(encoder, writer, {
-            status: 'failure',
-            message: 'Processing aborted by user',
-            ...getCommonProperties(),
-            metadata: {
-              method,
-            },
-          });
-          return;
         }
 
         // After finishing a batch, if we're in infinity mode and have more batches to go
@@ -405,15 +252,6 @@ export async function streamExifData({
         }
       }
 
-      if (aborted) {
-        await sendProgress(encoder, writer, {
-          status: 'failure',
-          message: 'Processing aborted by user',
-          ...getCommonProperties(),
-        });
-        return;
-      }
-
       // Prepare final message after all batches are processed
       const finalMessage = `EXIF processing completed. Processed ${counters.processedCount} files: ${counters.success} successful, ${counters.failed} failed.`;
 
@@ -424,18 +262,10 @@ export async function streamExifData({
         ...getCommonProperties(),
       });
     } catch (error: any) {
-      console.error('[SERVER] Error during EXIF processing:', error);
-
-      // Check if this was an abort
-      const isAbortError =
-        error.name === 'AbortError' || error.message?.includes('aborted');
-
       await sendProgress(encoder, writer, {
         status: 'failure',
-        message: isAbortError
-          ? 'Processing aborted by user'
-          : error?.message ||
-            'An unknown error occurred during EXIF processing',
+        message:
+          error?.message || 'An unknown error occurred during EXIF processing',
         // Reset counts on final error
         processedCount: 0,
         successCount: 0,

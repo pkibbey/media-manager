@@ -55,7 +55,7 @@ export function useScanFolders() {
 
   // Simplified method to start scanning
   const startScan = () => {
-    handleStartProcessing(false);
+    handleStartProcessing({ processAll: false });
   };
 
   return {

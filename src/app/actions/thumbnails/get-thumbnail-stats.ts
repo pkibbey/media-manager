@@ -18,8 +18,6 @@ export async function getThumbnailStats(): Action<UnifiedStats> {
     .eq('file_types.category', 'image')
     .is('file_types.ignore', false);
 
-  console.log('totalError: ', totalError);
-
   // Get success count - items with thumbnails
   const { error: successError, count: successCount } = await supabase
     .from('media_items')
@@ -27,8 +25,6 @@ export async function getThumbnailStats(): Action<UnifiedStats> {
     .not('thumbnail_path', 'is', null)
     .eq('file_types.category', 'image')
     .is('file_types.ignore', false);
-
-  console.log('successError: ', successError);
 
   // Get failure count
   const { error: failedError, count: failedCount } = await supabase
@@ -41,8 +37,6 @@ export async function getThumbnailStats(): Action<UnifiedStats> {
     .eq('processing_states.status', 'failure')
     .eq('file_types.category', 'image')
     .is('file_types.ignore', false);
-
-  console.log('failedError: ', failedError);
 
   const hasErrors = Boolean(totalError || successError || failedError);
 
