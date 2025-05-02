@@ -26,8 +26,20 @@ export function useScanFolders() {
   } = useProcessorBase<UnifiedProgress, UnifiedStats>({
     fetchStats: async () => {
       const { data, error, count } = await getScanFolders();
-      console.log('error: ', error);
 
+      if (error) {
+        return {
+          status: 'error',
+          message: 'Error fetching scan folders',
+          error: error.message,
+          counts: {
+            total: 0,
+            success: 0,
+            failed: 0,
+            pending: 0,
+          },
+        };
+      }
       // The stats here represent folders, not files processed by the scan.
       // This might need adjustment depending on how stats are displayed.
       return {

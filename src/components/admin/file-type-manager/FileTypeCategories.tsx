@@ -31,7 +31,7 @@ export function FileTypeCategories({
   handleToggleIgnore,
 }: FileCategoriesProps) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
       {categories
         // Sort categories with "other" being last
         .sort((a, b) => {
@@ -42,16 +42,34 @@ export function FileTypeCategories({
         .map((category) => (
           <div
             key={category}
+            className={`rounded-md transition-colors ${
+              draggingOver === category && draggingFileType
+                ? 'ring-2 ring-primary ring-offset-2'
+                : ''
+            }`}
             onDragOver={(e) => {
               e.preventDefault();
+              e.stopPropagation();
+              // Ensure we set the correct drop effect
+              e.dataTransfer.dropEffect = 'move';
               if (draggingFileType && category !== draggingFileType.category) {
                 setDraggingOver(category);
               }
             }}
-            onDragLeave={() => setDraggingOver(null)}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setDraggingOver(null);
+            }}
             onDrop={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               handleDrop(category);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              if (draggingFileType && category !== draggingFileType.category) {
+                setDraggingOver(category);
+              }
             }}
           >
             <h4

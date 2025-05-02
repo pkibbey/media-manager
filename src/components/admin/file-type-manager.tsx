@@ -27,6 +27,7 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
     ignoredTypesCount,
     categories,
     handleDragStart,
+    handleDragEnd,
     handleDrop,
     handleCreateCategory,
     handleToggleIgnore,
@@ -43,7 +44,10 @@ export default function FileTypeManager({ fileTypes }: FileTypeManagerProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div
+      className="space-y-6"
+      onDragEnd={handleDragEnd} // Add the drag end handler to catch canceled drags
+    >
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">Manage File Types</h3>
         <div className="text-sm text-muted-foreground flex gap-2 items-center">

@@ -1,5 +1,4 @@
 import { type ClassValue, clsx } from 'clsx';
-import { format, formatDistanceToNow } from 'date-fns';
 import type { Exif } from 'exif-reader';
 import { twMerge } from 'tailwind-merge';
 import type { MediaItem } from '@/types/db-types';
@@ -11,50 +10,6 @@ import { fileTypeCache } from './file-type-cache';
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
-}
-
-/**
- * Format a date string to a human-readable format
- */
-export function formatDate(dateString: string, formatString = 'PP') {
-  try {
-    const date = new Date(dateString);
-    return format(date, formatString);
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return 'Invalid date';
-  }
-}
-
-/**
- * Format a date string to a relative time (e.g. "2 days ago")
- */
-export function formatRelativeTime(dateString: string) {
-  try {
-    const date = new Date(dateString);
-    return formatDistanceToNow(date, { addSuffix: true });
-  } catch (error) {
-    console.error('Error formatting relative time:', error);
-    return 'Invalid date';
-  }
-}
-
-/**
- * Check if a file format can be natively displayed in most browsers
- * @param fileTypeId The file type ID to check
- */
-export async function canDisplayNatively(
-  fileTypeId?: number | null,
-): Promise<boolean> {
-  // If fileTypeId is provided, use that instead
-  if (fileTypeId !== undefined && fileTypeId !== null) {
-    const fileType = await fileTypeCache.getFileTypeById(fileTypeId);
-    // Use the can_display_natively property if available
-    if (fileType?.can_display_natively !== null) {
-      return fileType?.can_display_natively === true;
-    }
-  }
-  return false;
 }
 
 /**

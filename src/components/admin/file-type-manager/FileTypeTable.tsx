@@ -21,14 +21,12 @@ export function FileTypeTable({
   handleToggleIgnore,
 }: FileTypeTableProps) {
   return (
-    <div className="border rounded-md overflow-auto h-45 relative">
+    <div className="border rounded-md overflow-auto relative">
       <table className="w-full">
         <thead className="bg-muted sticky top-0">
           <tr className="text-left text-xs">
             <th className="p-2">Extension</th>
-            <th className="p-2 text-center">Native</th>
-            <th className="p-2 text-center">Translate</th>
-            <th className="p-2 text-center">Ignore</th>
+            <th className="p-2 text-center">State</th>
           </tr>
         </thead>
         <tbody className="divide-y">

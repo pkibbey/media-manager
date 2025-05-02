@@ -52,6 +52,12 @@ export function useFileTypeManager(initialFileTypes: FileType[]) {
     setDraggingFileType(fileType);
   };
 
+  // Handle ending a drag operation (canceled or completed)
+  const handleDragEnd = () => {
+    setDraggingFileType(null);
+    setDraggingOver(null);
+  };
+
   // Handle dropping a file type into a category
   const handleDrop = async (category: string) => {
     if (!draggingFileType || draggingFileType.category === category) {
@@ -71,7 +77,7 @@ export function useFileTypeManager(initialFileTypes: FileType[]) {
         category: category,
       });
 
-      if (result.success) {
+      if (!result.error) {
         setUpdatedTypes({
           ...updatedTypes,
           [draggingFileType.id]: updatedFileType,
@@ -115,7 +121,7 @@ export function useFileTypeManager(initialFileTypes: FileType[]) {
         ignore: !fileType.ignore,
       });
 
-      if (result.success) {
+      if (!result.error) {
         setUpdatedTypes({
           ...updatedTypes,
           [fileType.id]: updatedFileType,
@@ -140,7 +146,7 @@ export function useFileTypeManager(initialFileTypes: FileType[]) {
         can_display_natively: !fileType.can_display_natively,
       });
 
-      if (result.success) {
+      if (!result.error) {
         setUpdatedTypes({
           ...updatedTypes,
           [fileType.id]: updatedFileType,
@@ -165,7 +171,7 @@ export function useFileTypeManager(initialFileTypes: FileType[]) {
         needs_conversion: !fileType.needs_conversion,
       });
 
-      if (result.success) {
+      if (!result.error) {
         setUpdatedTypes({
           ...updatedTypes,
           [fileType.id]: updatedFileType,
@@ -194,6 +200,7 @@ export function useFileTypeManager(initialFileTypes: FileType[]) {
     ignoredTypesCount,
     categories,
     handleDragStart,
+    handleDragEnd,
     handleDrop,
     handleCreateCategory,
     handleToggleIgnore,

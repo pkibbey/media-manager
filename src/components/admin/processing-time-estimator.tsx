@@ -35,6 +35,7 @@ export function ProcessingTimeEstimator({
   const lastProcessedCount = useRef<number>(0);
   const lastTimestamp = useRef<number>(Date.now());
 
+  // Get processed and remaining items safely
   const processed = useMemo(
     () => progress?.processedCount || 0,
     [progress?.processedCount],
