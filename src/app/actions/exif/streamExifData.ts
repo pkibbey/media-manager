@@ -30,20 +30,38 @@ export async function streamExifData({
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
-  // Start processing in the background - passing options as a single object
-  await processUnprocessedItemsInternal({
+  // Start processing in the background - DO NOT await this call
+  processUnprocessedItemsInternal({
     writer,
     method,
     batchSize,
+  }).catch(async (error) => {
+    // Catch errors from the background processing and send a final error message
+    console.error('Background processing error:', error);
+    try {
+      await sendProgress(encoder, writer, {
+        status: 'failure',
+        message: `Critical server error during processing: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        processedCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        totalCount: 0,
+      });
+    } catch (sendError) {
+      console.error('Error sending final error progress:', sendError);
+    } finally {
+      // Ensure the writer is closed even if sending the error fails
+      if (!writer.closed) {
+        try {
+          await writer.close();
+        } catch (closeError) {
+          console.error('Error closing writer after background error:', closeError);
+        }
+      }
+    }
   });
 
-  // Set up a cleanup function on the stream
-  const originalCancel = stream.readable.cancel;
-  stream.readable.cancel = async (message) => {
-    return originalCancel?.call(stream.readable, message);
-  };
-
-  // Return the readable stream
+  // Return the readable stream immediately
   return stream.readable;
 
   async function processUnprocessedItemsInternal({
@@ -262,6 +280,9 @@ export async function streamExifData({
         ...getCommonProperties(),
       });
     } catch (error: any) {
+      // Log the error caught within the processing function
+      console.error('Error within processUnprocessedItemsInternal try block:', error);
+      // Send a failure progress update through the stream
       await sendProgress(encoder, writer, {
         status: 'failure',
         message:
@@ -275,7 +296,11 @@ export async function streamExifData({
     } finally {
       // Close the stream to signal completion to the client
       if (!writer.closed) {
-        await writer.close();
+        try {
+          await writer.close();
+        } catch (closeError) {
+          console.error('Error closing writer in finally block:', closeError);
+        }
       }
     }
   }

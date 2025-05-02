@@ -12,8 +12,30 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
     useState<AbortController | null>(null);
   const [reader, setReader] =
     useState<ReadableStreamDefaultReader<Uint8Array> | null>(null);
-  // Add a ref to track if the reader is active
   const readerActiveRef = useRef(false);
+
+  // Helper function to safely clean up a reader
+  const cleanupReader = useCallback(
+    async (readerToCleanup: ReadableStreamDefaultReader<Uint8Array> | null) => {
+      if (!readerToCleanup) return;
+
+      readerActiveRef.current = false; // Mark as inactive
+
+        if (readerActiveRef.current && !readerToCleanup.closed) {
+          await readerToCleanup.cancel().catch((e) => {
+            // console.error('[STREAM DEBUG] Error during reader cancel:', e);
+          });
+        }
+        try {
+          readerToCleanup.releaseLock();
+        } catch (releaseError) {
+          // Ignore errors if the lock was already released
+        }
+        
+      setReader(null); // Clear the reader state
+    },
+    [], // Add empty dependency array for useCallback
+  );
 
   // Function to handle reading from a streaming server action
   const startProcessing = useCallback(
@@ -25,27 +47,28 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         onBatchComplete?: (processedCount: number) => void;
       } = {},
     ) => {
-      // Create a new AbortController for this request
       const newAbortController = new AbortController();
       setAbortController(newAbortController);
       setIsProcessing(true);
+      setProgress(null);
 
-      // Reset reader state at the start
       readerActiveRef.current = false;
 
       try {
-        // Call the server action to get a readable stream
         const stream = await streamFunc();
+
+        if (!stream || typeof stream.getReader !== 'function') {
+          throw new Error('streamFunc did not return a valid ReadableStream');
+        }
+
         const newReader = stream.getReader();
         setReader(newReader);
-        readerActiveRef.current = true; // Mark reader as active
+        readerActiveRef.current = true;
 
-        // Set up TextDecoder to decode the stream
         const decoder = new TextDecoder();
         const errorDetails: string[] = [];
 
         try {
-          // Start reading from the stream
           let done = false;
 
           while (!done && readerActiveRef.current) {
@@ -59,36 +82,33 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
 
               if (streamDone) {
                 readerActiveRef.current = false;
-              }
 
-              // Process the value only if we have one and reader is still active
-              if (value && readerActiveRef.current) {
-                // Extract and parse all 'data:' messages in the chunk
+                if (options.onCompleted) {
+                  options.onCompleted();
+                }
+
+                setIsProcessing(false);
+                setAbortController(null);
+                await cleanupReader(newReader);
+              } else if (value && readerActiveRef.current) {
                 const text = decoder.decode(value);
                 const messages = text.split('data: ');
 
                 for (const message of messages) {
-                  // If reader is no longer active, break the message processing
-                  if (!readerActiveRef.current) break;
-
                   const cleanedMessage = message
                     .trim()
                     .replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
 
-                  // Skip empty messages
                   if (!cleanedMessage) continue;
 
                   try {
-                    // Try to extract just the JSON part from the message
                     const jsonString = cleanedMessage
                       .replace(/^[^{]*/, '')
                       .replace(/[^}]*$/, '');
 
                     try {
-                      // First try simple JSON parsing
                       const data = JSON.parse(jsonString);
 
-                      // Update the progress state with the parsed data
                       setProgress((prev) => {
                         const newState = {
                           ...(prev || {}),
@@ -99,57 +119,26 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
 
                       const isComplete = data.status === 'complete';
 
-                      const isBatchComplete = data.status === 'batch_complete';
-
-                      const isError =
-                        data.status === 'error' || data.status === 'failure';
-
                       if (isComplete) {
-                        // Final completion
                         if (options.onCompleted) {
                           options.onCompleted();
                         }
-                        // Make sure to clean up and set processing to false when complete
                         setIsProcessing(false);
                         setAbortController(null);
-                        cleanupReader(newReader);
-                      } else if (
-                        isBatchComplete &&
-                        options.onBatchComplete &&
-                        data.processedCount
-                      ) {
-                        // Batch completion
-                        options.onBatchComplete(data.processedCount);
-                      } else if (isError) {
-                        // Error handling
-                        if (options.onError) {
-                          options.onError(data.message, errorDetails);
-                        }
-                        if (data.message) {
-                          errorDetails.push(data.message);
-                        }
-                      }
-
-                      // For backwards compatibility - can be removed after refactoring all code
-                      if (data.isFinalBatch) {
+                        await cleanupReader(newReader);
+                        done = true;
+                        break;
+                      } else if (data.isFinalBatch) {
                         if (options.onCompleted) {
                           options.onCompleted();
                         }
-                        // Clean up after completion
                         setIsProcessing(false);
                         setAbortController(null);
-                        cleanupReader(newReader);
-                      } else if (
-                        data.isBatchComplete &&
-                        !data.isFinalBatch &&
-                        options.onBatchComplete &&
-                        data.processedCount
-                      ) {
-                        options.onBatchComplete(data.processedCount);
+                        await cleanupReader(newReader);
+                        done = true;
+                        break;
                       }
                     } catch (_jsonParseError) {
-                      // If the simple extraction didn't work, try a more complex approach
-                      // Find the outermost valid JSON object in the message
                       try {
                         let validJson = null;
                         let stack = 0;
@@ -178,65 +167,42 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                           }
                         }
 
-                        // If we found valid JSON, update the progress
                         if (validJson) {
                           setProgress(
-                            (prev) =>
-                              ({
+                            (prev) => {
+                              const newState = {
                                 ...(prev || {}),
                                 ...validJson,
-                              }) as T,
+                              } as T;
+                              return newState;
+                            },
                           );
 
-                          // Handle different statuses in the fallback method too
                           const isComplete = validJson.status === 'complete';
-
-                          const isBatchComplete =
-                            validJson.status === 'batch_complete';
-
-                          const isError =
-                            validJson.status === 'error' ||
-                            validJson.status === 'failure';
 
                           if (isComplete) {
                             if (options.onCompleted) {
                               options.onCompleted();
                             }
-                            // Clean up after completion
                             setIsProcessing(false);
                             setAbortController(null);
-                            cleanupReader(newReader);
-                          } else if (
-                            isBatchComplete &&
-                            options.onBatchComplete &&
-                            validJson.processedCount
-                          ) {
-                            options.onBatchComplete(validJson.processedCount);
-                          } else if (isError && validJson.message) {
-                            errorDetails.push(validJson.message);
-                          }
-
-                          // Backward compatibility
-                          if (validJson.isFinalBatch) {
+                            await cleanupReader(newReader);
+                            done = true;
+                            break;
+                          } else if (validJson.isFinalBatch) {
                             if (options.onCompleted) {
                               options.onCompleted();
                             }
-                            // Clean up after completion
                             setIsProcessing(false);
                             setAbortController(null);
-                            cleanupReader(newReader);
-                          } else if (
-                            validJson.isBatchComplete &&
-                            !validJson.isFinalBatch &&
-                            options.onBatchComplete &&
-                            validJson.processedCount
-                          ) {
-                            options.onBatchComplete(validJson.processedCount);
+                            await cleanupReader(newReader);
+                            done = true;
+                            break;
                           }
                         }
                       } catch (fallbackError) {
                         console.error(
-                          '[STREAM DEBUG] Failed to parse message with fallback method:',
+                          'Failed to parse message with fallback method:',
                           fallbackError,
                           cleanedMessage,
                         );
@@ -244,96 +210,54 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                     }
                   } catch (parseError) {
                     console.error(
-                      '[STREAM DEBUG] Error parsing message:',
+                      'Error parsing message:',
                       parseError,
                       cleanedMessage,
                     );
                   }
+                  if (done) break;
                 }
               }
             } catch (readError: unknown) {
-              console.error(
-                '[STREAM DEBUG] Error reading from stream:',
-                readError,
-              );
-
-              // Check if this is a "reader released" type error
-              if (
-                typeof readError === 'object' &&
-                readError !== null &&
-                'message' in readError &&
-                typeof readError.message === 'string' &&
-                (readError.message.includes('released') ||
-                  readError.message.includes('locked'))
-              ) {
-                readerActiveRef.current = false;
-                break;
-              }
-
-              // For other errors, we might want to continue
+              console.error('Error reading from stream:', readError);
+              readerActiveRef.current = false;
+              done = true;
               if (options.onError) {
                 options.onError(readError);
               }
+              setIsProcessing(false);
+              setAbortController(null);
+              await cleanupReader(newReader);
+              break;
             }
           }
-
-          // Clean up reader
-          cleanupReader(newReader);
-          // Stream completed normally, set processing to false
-          setIsProcessing(false);
         } catch (error) {
-          console.error('[STREAM DEBUG] Stream reading error:', error);
+          console.error('Stream processing error:', error);
           if (options.onError) {
             options.onError(error);
           }
-        } finally {
-          // Safe cleanup in finally block
-          cleanupReader(newReader);
-          setAbortController(null);
           setIsProcessing(false);
+          setAbortController(null);
+          await cleanupReader(newReader);
+        } finally {
+          if (readerActiveRef.current === false && isProcessing) {
+            setIsProcessing(false);
+          }
         }
       } catch (error) {
-        console.error('[STREAM DEBUG] Error starting stream:', error);
+        console.error('Error starting stream:', error);
         if (options.onError) {
           options.onError(error);
         }
-        setAbortController(null);
         setIsProcessing(false);
+        setAbortController(null);
       }
     },
-    [],
-  );
-
-  // Helper function to safely clean up a reader
-  const cleanupReader = useCallback(
-    async (readerToCleanup: ReadableStreamDefaultReader<Uint8Array> | null) => {
-      if (!readerToCleanup) return;
-
-      readerActiveRef.current = false;
-
-      try {
-        if (!readerToCleanup.closed) {
-          readerToCleanup.cancel().catch((e) => {
-            console.error('[STREAM DEBUG] Error during reader cancel:', e);
-          });
-        }
-
-        await readerToCleanup.read();
-        if (!readerToCleanup.closed) {
-          readerToCleanup.releaseLock();
-        }
-      } catch (e) {
-        console.error('[STREAM DEBUG] Error during reader cleanup:', e);
-      }
-
-      setReader(null);
-    },
-    [],
+    [cleanupReader], // Keep dependency array minimal
   );
 
   // Function to cancel the current processing
   const stopProcessing = useCallback(async () => {
-    // Mark reader as inactive first to prevent further read attempts
     readerActiveRef.current = false;
 
     if (abortController) {
@@ -342,7 +266,7 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
     }
 
     if (reader) {
-      cleanupReader(reader);
+      await cleanupReader(reader);
     }
 
     setIsProcessing(false);
