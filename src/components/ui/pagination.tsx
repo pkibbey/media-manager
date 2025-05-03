@@ -1,49 +1,64 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon,
 } from '@radix-ui/react-icons';
-import Link from 'next/link';
 import type * as React from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface PaginationProps extends React.ComponentProps<'nav'> {
-  page: number;
-  pageCount: number;
+  pagination: PaginationObject;
   onPageChange?: (page: number) => void;
   showEdges?: boolean;
-  /**
-   * If provided, pagination will use Next.js Link components with this URL pattern instead of callbacks.
-   * Use {page} as a placeholder for the page number, e.g. "/products?page={page}"
-   */
-  urlPattern?: string;
 }
+
+export type PaginationObject = {
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  total: number;
+};
 
 /**
  * A unified pagination component that supports both client-side callbacks and URL-based navigation
  */
 export function Pagination({
-  page,
-  pageCount,
+  pagination,
   onPageChange,
   showEdges = true,
-  urlPattern,
-  className,
-  ...props
 }: PaginationProps) {
+  const { page, pageSize, pageCount, total } = pagination;
   // Don't render pagination for a single page
   if (pageCount <= 1) return null;
 
   // Handle navigation with either client-side callbacks or URL navigation
   const handleNavigation = (targetPage: number) => {
-    if (onPageChange && !urlPattern) {
+    if (onPageChange) {
       onPageChange(targetPage);
     }
-    // URL navigation is handled by the Link component
+  };
+
+  // Calculate current range of items being shown
+  const renderItemCountInfo = () => {
+    if (total === undefined) return null;
+
+    if (pageSize && page) {
+      const start = (page - 1) * pageSize + 1;
+      const end = Math.min(page * pageSize, total);
+      return (
+        <div className="text-sm text-muted-foreground">
+          Showing {start}-{end} of {total} items
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-sm text-muted-foreground">{total} items total</div>
+    );
   };
 
   // Generate page buttons to display
@@ -101,12 +116,6 @@ export function Pagination({
     return pages;
   };
 
-  // Helper to get URL for a specific page
-  const getPageUrl = (targetPage: number) => {
-    if (!urlPattern) return '#';
-    return urlPattern.replace('{page}', targetPage.toString());
-  };
-
   // Generate page buttons
   const pageButtons = getPageButtons();
 
@@ -119,23 +128,6 @@ export function Pagination({
     disabled?: boolean;
   }) => {
     const isActive = buttonPage === page;
-
-    if (urlPattern) {
-      return (
-        <Link href={disabled ? '#' : getPageUrl(buttonPage)}>
-          <Button
-            variant={isActive ? 'default' : 'outline'}
-            size="sm"
-            className={cn('min-w-[32px]', isActive && 'pointer-events-none')}
-            disabled={disabled}
-            aria-label={`Page ${buttonPage}`}
-            aria-current={isActive ? 'page' : undefined}
-          >
-            {buttonPage}
-          </Button>
-        </Link>
-      );
-    }
 
     return (
       <Button
@@ -164,21 +156,6 @@ export function Pagination({
     label: string;
     disabled?: boolean;
   }) => {
-    if (urlPattern) {
-      return (
-        <Link href={disabled ? '#' : getPageUrl(targetPage)}>
-          <Button
-            variant="outline"
-            size="icon"
-            disabled={disabled}
-            aria-label={label}
-          >
-            {icon}
-          </Button>
-        </Link>
-      );
-    }
-
     return (
       <Button
         variant="outline"
@@ -194,9 +171,8 @@ export function Pagination({
 
   return (
     <nav
-      className={cn('flex items-center justify-center space-x-2', className)}
+      className="flex items-center justify-center space-x-2"
       aria-label="Pagination"
-      {...props}
     >
       {showEdges && (
         <NavButton
@@ -245,6 +221,9 @@ export function Pagination({
           disabled={page === pageCount}
         />
       )}
+
+      {/* Item count info */}
+      {renderItemCountInfo()}
     </nav>
   );
 }

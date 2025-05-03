@@ -232,6 +232,20 @@ export type Database = {
           unorganized_count: number
         }[]
       }
+      get_thumbnail_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total: number
+          success: number
+          failed: number
+        }[]
+      }
+      get_unique_camera_models: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          camera_model: string
+        }[]
+      }
       get_unprocessed_exif_files: {
         Args: {
           exif_supported_ids: number[]
@@ -244,6 +258,22 @@ export type Database = {
           file_path: string
           file_type_id: number
           file_name: string
+        }[]
+      }
+      random_order_media_items: {
+        Args: { limit_count?: number }
+        Returns: {
+          created_date: string | null
+          exif_data: Json | null
+          file_name: string
+          file_path: string
+          file_type_id: number
+          folder_path: string
+          id: string
+          media_date: string | null
+          modified_date: string
+          size_bytes: number
+          thumbnail_path: string | null
         }[]
       }
       sum_file_sizes: {

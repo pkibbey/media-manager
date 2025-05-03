@@ -1,5 +1,6 @@
 'use server';
 
+import type { Tags } from 'exifreader';
 import { getMediaItemById } from '@/actions/media/get-media-item-by-id';
 import {
   extractAndSanitizeExifData,
@@ -26,7 +27,11 @@ export async function processExifData({
   mediaId: string;
   method: Method;
   progressCallback?: (message: string) => void;
-}) {
+}): Promise<{
+  success: boolean;
+  message: string;
+  exifData?: Tags;
+}> {
   try {
     // First get the to access its file path
     // Apply filter to exclude ignored file types
@@ -57,16 +62,14 @@ export async function processExifData({
         progressType: 'exif',
         errorMessage: extraction.message || 'No EXIF data found in file',
       });
+
+      return {
+        success: false,
+        message: extraction.message || 'No EXIF data found in file',
+      };
     }
 
     try {
-      // Update the exif processing state
-      await markProcessingSuccess({
-        mediaItemId: mediaId,
-        progressType: 'exif',
-        errorMessage: 'EXIF data extracted successfully',
-      });
-
       // Update the media record with the actual EXIF data
       progressCallback?.('Updating media item with EXIF data');
       const { error: updateError } = await updateMediaItem(mediaId, {
@@ -79,14 +82,20 @@ export async function processExifData({
         const errorMessage = `Database update error: ${updateError.message}`;
         progressCallback?.(errorMessage);
 
-        return await handleProcessingError({
+        await handleProcessingError({
           mediaItemId: mediaId,
           progressType: 'exif',
           errorMessage: String(updateError),
         });
+
+        return {
+          success: false,
+          message: errorMessage,
+        };
       }
 
-      // Check if there's a thumbnail buffer from the EXIF extraction
+      let thumbnailMessage = 'No EXIF thumbnail found';
+
       if (extraction.thumbnailBuffer) {
         progressCallback?.('EXIF thumbnail found, uploading to storage');
         try {
@@ -97,41 +106,49 @@ export async function processExifData({
           );
 
           if (thumbnailResult.success) {
-            progressCallback?.(
-              `EXIF thumbnail uploaded: ${thumbnailResult.thumbnailUrl}`,
-            );
+            thumbnailMessage = `EXIF thumbnail uploaded: ${thumbnailResult.thumbnailUrl}`;
+            progressCallback?.(thumbnailMessage);
           } else {
-            progressCallback?.(
-              `EXIF thumbnail upload failed: ${thumbnailResult.message}`,
-            );
+            thumbnailMessage = `EXIF thumbnail upload failed: ${thumbnailResult.message}`;
+            progressCallback?.(thumbnailMessage);
             // Don't fail the entire process if just the thumbnail upload fails
             // Consider it a soft error
           }
         } catch (thumbnailError) {
-          progressCallback?.(
-            `Error uploading EXIF thumbnail: ${thumbnailError instanceof Error ? thumbnailError.message : String(thumbnailError)}`,
-          );
+          thumbnailMessage = `Error uploading EXIF thumbnail: ${thumbnailError instanceof Error ? thumbnailError.message : String(thumbnailError)}`;
+          progressCallback?.(thumbnailMessage);
           // Again, don't fail the entire process
         }
       }
+
+      // Now that all operations are complete, mark as successful
+      await markProcessingSuccess({
+        mediaItemId: mediaId,
+        progressType: 'exif',
+        errorMessage: `EXIF data extracted successfully. ${thumbnailMessage}`,
+      });
+
+      progressCallback?.('EXIF data extraction completed successfully');
+      return {
+        success: true,
+        message: 'EXIF data extracted and stored successfully',
+        exifData: extraction.exifData,
+      };
     } catch (error) {
       const errorMessage = `Database update error: ${error instanceof Error ? error.message : 'Unknown error'}`;
       progressCallback?.(errorMessage);
 
       // Use our new helper function for error processing
-      return await handleProcessingError({
+      await handleProcessingError({
         mediaItemId: mediaId,
         progressType: 'exif',
         errorMessage,
       });
+      return {
+        success: false,
+        message: errorMessage,
+      };
     }
-
-    progressCallback?.('EXIF data extraction completed successfully');
-    return {
-      success: true,
-      message: 'EXIF data extracted and stored successfully',
-      exifData: extraction.exifData,
-    };
   } catch (error) {
     const errorMessage =
       error instanceof Error
@@ -140,10 +157,15 @@ export async function processExifData({
     progressCallback?.(`Error processing EXIF: ${errorMessage}`);
 
     // Use our new helper function for error processing
-    return await handleProcessingError({
+    await handleProcessingError({
       mediaItemId: mediaId,
       progressType: 'exif',
       errorMessage,
     });
+
+    return {
+      success: false,
+      message: errorMessage,
+    };
   }
 }

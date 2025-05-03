@@ -13,3 +13,5 @@ export const BATCH_SIZE = 100;
  * This is used for generating thumbnails
  */
 export const THUMBNAIL_SIZE = 300;
+
+export const MAX_FILE_SIZE_IN_MB = 1024 * 4; // 4GB

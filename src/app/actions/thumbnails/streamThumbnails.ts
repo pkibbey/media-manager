@@ -6,6 +6,7 @@ import {
   sendProgress,
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { ProgressType } from '@/types/progress-types';
 import type { Method, UnifiedStats } from '@/types/unified-stats';
 import { generateThumbnail } from './generate-thumbnail';
 
@@ -33,7 +34,6 @@ export async function streamThumbnails({
     batchSize,
     method,
   }).catch(async (error) => {
-    // Catch errors from the background processing and send a final error message
     console.error('Background processing error:', error);
     try {
       await sendProgress(encoder, writer, {
@@ -102,6 +102,9 @@ export async function streamThumbnails({
           processedCount: counters.processedCount,
           successCount: counters.success,
           failureCount: counters.failed,
+          currentBatch: counters.currentBatch,
+          batchSize: Math.min(batchSize, MAX_FETCH_SIZE), // Ensure batch size doesn't exceed max fetch size
+          progressType: 'thumbnail' as ProgressType,
         };
       }
 
@@ -112,62 +115,45 @@ export async function streamThumbnails({
 
       while (hasMoreItems) {
         // Get this batch of unprocessed files
-        const { unprocessedFiles, totalItems } =
-          await getUnprocessedFilesForThumbnails({
-            limit: fetchSize,
+        const unprocessed = await getUnprocessedFilesForThumbnails({
+          limit: fetchSize,
+        });
+
+        // Check for errors in the response
+        if (unprocessed.error) {
+          // Send error progress update
+          await sendProgress(encoder, writer, {
+            status: 'failure',
+            message: `Error fetching files: ${unprocessed.error.message}. Please try again later.`,
+            ...getCommonProperties(),
+            metadata: {
+              method,
+            },
           });
 
+          return; // Exit processing due to this critical error
+        }
+
+        const unprocessedFiles = unprocessed.data || [];
+
+        // Set the total count of unprocessed files from database
+        counters.totalAvailable = unprocessed.count || 0;
+        counters.total = counters.totalAvailable; // Update the standard total as well
+
         // If no files were returned and we're on batch 1, nothing to process at all
-        if (
-          unprocessedFiles === undefined ||
-          (unprocessedFiles.length === 0 && counters.currentBatch === 1)
-        ) {
+        if (unprocessedFiles.length === 0 && counters.currentBatch === 1) {
           await sendProgress(encoder, writer, {
             status: 'failure',
             message: 'No files to process',
-            totalCount: totalItems,
-            processedCount: 0,
-            successCount: 0,
-            failureCount: 0,
-            progressType: 'thumbnail',
+            ...getCommonProperties(),
+            metadata: {
+              method,
+            },
           });
           return;
         }
 
-        // If we're in Infinity mode, we'll keep going until no more files are found
-        hasMoreItems =
-          isInfinityMode &&
-          unprocessedFiles.length > 0 &&
-          unprocessedFiles.length >= fetchSize;
-
-        counters.totalAvailable = totalItems || 0;
-        counters.total = counters.totalAvailable;
-
-        // Include method in message
-        const methodLabel =
-          {
-            default: 'Full Processing',
-            'embedded-preview': 'Using Embedded Previews',
-            'downscale-only': 'Downscale Only',
-            'direct-only': 'Direct Only',
-            'marker-only': 'Marker Only',
-            'sharp-only': 'Sharp Only',
-          }[method] || 'Full Processing';
-
-        // Send initial progress update for this batch
-        await sendProgress(encoder, writer, {
-          status: 'processing',
-          message: isInfinityMode
-            ? `Starting batch ${counters.currentBatch}: Processing ${unprocessedFiles.length} files with ${methodLabel}...`
-            : `Starting thumbnail generation for ${unprocessedFiles.length} files with ${methodLabel}...`,
-          ...getCommonProperties(),
-          progressType: 'thumbnail',
-          metadata: {
-            method,
-            fileType: unprocessedFiles[0]?.file_types?.extension,
-          },
-        });
-
+        // Process each file in this batch
         for (const media of unprocessedFiles) {
           try {
             // Send update before processing each file
@@ -176,14 +162,9 @@ export async function streamThumbnails({
               message: isInfinityMode
                 ? `Batch ${counters.currentBatch}: Processing: ${media.file_name}`
                 : `Processing: ${media.file_name}`,
-              totalCount: counters.totalAvailable,
-              processedCount: counters.processedCount,
-              successCount: counters.success,
-              failureCount: counters.failed,
-              progressType: 'thumbnail',
+              ...getCommonProperties(),
               metadata: {
                 method,
-                fileType: media.file_types?.extension,
               },
             });
 
@@ -195,7 +176,6 @@ export async function streamThumbnails({
 
             if (result.success) {
               counters.success++;
-
               // Mark as success
               await markProcessingSuccess({
                 mediaItemId: media.id,
@@ -205,7 +185,9 @@ export async function streamThumbnails({
               });
             } else {
               counters.failed++;
-
+              console.error(
+                `[streamThumbnails] [Batch ${counters.currentBatch}] Failed: ${media.file_name} - ${result.message}`,
+              );
               // Mark as error in the database using our helper
               await markProcessingError({
                 mediaItemId: media.id,
@@ -219,20 +201,18 @@ export async function streamThumbnails({
             await sendProgress(encoder, writer, {
               status: 'processing',
               message: result.message,
-              totalCount: counters.totalAvailable,
-              processedCount: counters.processedCount,
-              successCount: counters.success,
-              failureCount: counters.failed,
-              progressType: 'thumbnail',
+              ...getCommonProperties(),
               metadata: {
                 method,
-                fileType: media.file_types?.extension,
               },
             });
           } catch (error: any) {
             counters.processedCount++;
             counters.failed++;
-
+            console.error(
+              `[streamThumbnails] [Batch ${counters.currentBatch}] Exception for ${media.file_name}:`,
+              error,
+            );
             // Update the processing state to error using our helper
             await markProcessingError({
               mediaItemId: media.id,
@@ -245,23 +225,20 @@ export async function streamThumbnails({
             await sendProgress(encoder, writer, {
               status: 'failure',
               message: `Error generating thumbnail: ${error.message}`,
-              totalCount: counters.totalAvailable,
-              processedCount: counters.processedCount,
-              successCount: counters.success,
-              failureCount: counters.failed,
-              progressType: 'thumbnail',
+              ...getCommonProperties(),
               metadata: {
                 method,
-                fileType: media.file_types?.extension,
               },
             });
           }
         }
 
         // After finishing a batch, if we're in infinity mode and have more batches to go
-        if (hasMoreItems) {
+        // If not infinity mode, exit the loop after the first batch
+        if (!isInfinityMode || unprocessedFiles.length < fetchSize) {
+          hasMoreItems = false;
+        } else {
           counters.currentBatch++;
-
           // Send a batch completion update
           await sendProgress(encoder, writer, {
             status: 'batch_complete',
@@ -290,16 +267,38 @@ export async function streamThumbnails({
         },
       });
     } catch (error: any) {
+      // Log the error caught within the processing function
+      console.error(
+        '[streamThumbnails] Unhandled error in batch processing:',
+        error,
+      );
+      // Send a failure progress update through the stream
       await sendProgress(encoder, writer, {
         status: 'failure',
         message:
           error?.message ||
           'An unknown error occurred during thumbnail generation',
+        processedCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        totalCount: 0,
         progressType: 'thumbnail',
         metadata: {
           method,
         },
       });
+    } finally {
+      // Close the stream to signal completion to the client
+      if (!writer.closed) {
+        try {
+          await writer.close();
+        } catch (closeError) {
+          console.error(
+            '[streamThumbnails] Error closing writer in finally block:',
+            closeError,
+          );
+        }
+      }
     }
   }
 }
@@ -308,90 +307,18 @@ export async function streamThumbnails({
 async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
-  try {
-    // First, get media items with no thumbnail path
-    const {
-      data: filesWithNoThumbnail,
-      error: noThumbError,
-      count: totalItems,
-    } = await supabase
-      .from('media_items')
-      .select('*, file_types!inner(*), processing_states!inner(*)', {
+  // First, get media items with no thumbnail path and no processing state
+  return await supabase
+    .from('media_items')
+    .select(
+      '*, file_types!inner(category, ignore), processing_states!inner(type)', // Select relevant fields
+      {
         count: 'exact',
-      })
-      // Only generate thumbnails for images
-      // video thumbnails should be handled separately
-      .eq('file_types.category', 'image')
-      .in('file_types.category', ['image'])
-      .is('file_types.ignore', false)
-      .neq('processing_states.type', 'thumbnail')
-      .limit(limit);
-
-    if (noThumbError) {
-      return {
-        success: false,
-        unprocessedFiles: [],
-        totalItems: 0,
-        error: `Database error: ${noThumbError.message || 'Unknown database error'}`,
-      };
-    }
-
-    // If we already have enough items, return them
-    if (filesWithNoThumbnail && filesWithNoThumbnail.length >= limit) {
-      return {
-        success: true,
-        unprocessedFiles: filesWithNoThumbnail || [],
-        totalItems: totalItems || 0,
-      };
-    }
-
-    // Otherwise, also look for items with unsuccessful processing states
-    const remainingLimit = limit - (filesWithNoThumbnail?.length || 0);
-
-    if (remainingLimit <= 0) {
-      return {
-        success: true,
-        unprocessedFiles: filesWithNoThumbnail || [],
-        totalItems: totalItems || 0,
-      };
-    }
-
-    const { data: filesWithUnsuccessfulStates, error: statesError } =
-      await supabase
-        .from('media_items')
-        .select('*, file_types!inner(*), processing_states!inner(*)', {
-          count: 'exact',
-        })
-        .in('file_types.category', ['image'])
-        .is('file_types.ignore', false)
-        .eq('processing_states.type', 'thumbnail')
-        .neq('processing_states.status', '(success)');
-
-    if (statesError) {
-      // We still return the files we found earlier
-      return {
-        success: true,
-        unprocessedFiles: filesWithNoThumbnail || [],
-        totalItems: totalItems || 0,
-        error: `Warning: Could not fetch files with unsuccessful states: ${statesError.message}`,
-      };
-    }
-
-    // Combine the results
-    return {
-      success: true,
-      unprocessedFiles: [
-        ...(filesWithNoThumbnail || []),
-        ...(filesWithUnsuccessfulStates || []),
-      ],
-      totalItems: totalItems || 0,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      unprocessedFiles: [],
-      totalItems: 0,
-      error: `Failed to fetch unprocessed files: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
+      },
+    )
+    .eq('file_types.category', 'image')
+    .is('file_types.ignore', false)
+    .is('thumbnail_path', null)
+    .not('processing_states.type', 'eq', 'thumbnail')
+    .limit(limit);
 }

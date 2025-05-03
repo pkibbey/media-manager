@@ -39,13 +39,17 @@ export async function generateThumbnail(
     // Get the media item details
     const { data: mediaItem, error } = await supabase
       .from('media_items')
-      .select('*, file_types!inner(*)') // Fixed: Removed exif_data(*) as it's not a related table
+      .select('*, file_types!inner(*)')
       .in('file_types.category', ['image'])
       .is('file_types.ignore', false)
       .eq('id', mediaId)
       .single();
 
     if (error) {
+      console.error(
+        `[generateThumbnail] Failed to fetch media item ${mediaId}:`,
+        error.message,
+      );
       return {
         success: false,
         message: error.message,
@@ -56,7 +60,9 @@ export async function generateThumbnail(
     try {
       await fs.access(mediaItem.file_path);
     } catch (_error) {
-      // Update processing state using helper function
+      console.error(
+        `[generateThumbnail] File not found: ${mediaItem.file_path}`,
+      );
       await markProcessingError({
         mediaItemId: mediaId,
         progressType: 'thumbnail',
@@ -73,17 +79,13 @@ export async function generateThumbnail(
 
     try {
       if (method === 'embedded-preview') {
-        // Try to extract embedded preview from EXIF data
         thumbnailBuffer = await generateEmbeddedPreviewThumbnail(mediaItem);
       } else if (method === 'downscale-only') {
-        // Simple downscaling without additional processing
         thumbnailBuffer = await generateDownscaleThumbnail(mediaItem);
       } else {
-        // Default method - full processing
         thumbnailBuffer = await generateDefaultThumbnail(mediaItem);
       }
     } catch (thumbnailError) {
-      // Mark as error using helper function
       await markProcessingError({
         mediaItemId: mediaId,
         progressType: 'thumbnail',
@@ -109,7 +111,10 @@ export async function generateThumbnail(
         });
 
       if (storageError) {
-        // Mark as error using helper function
+        console.error(
+          `[generateThumbnail] Storage upload failed for ${fileName}:`,
+          storageError.message,
+        );
         await markProcessingError({
           mediaItemId: mediaId,
           progressType: 'thumbnail',
@@ -123,7 +128,10 @@ export async function generateThumbnail(
         };
       }
     } catch (uploadError) {
-      // Mark as upload error using helper function
+      console.error(
+        `[generateThumbnail] Exception during upload for ${fileName}:`,
+        uploadError,
+      );
       await markProcessingError({
         mediaItemId: mediaId,
         progressType: 'thumbnail',
@@ -151,10 +159,11 @@ export async function generateThumbnail(
       .eq('id', mediaId);
 
     if (updateMediaItemError) {
-      // Attempt to delete the potentially orphaned thumbnail from storage
+      console.error(
+        `[generateThumbnail] Failed to update media_items for ${mediaId}:`,
+        updateMediaItemError.message,
+      );
       await supabase.storage.from('thumbnails').remove([fileName]);
-
-      // Mark as error using helper function
       await markProcessingError({
         mediaItemId: mediaId,
         progressType: 'thumbnail',
@@ -176,10 +185,10 @@ export async function generateThumbnail(
         errorMessage: `Thumbnail generated successfully using ${method} method`,
       });
     } catch (updateProcessingStateError) {
-      // Don't try to upsert again - that would cause another unique constraint violation
-      // Instead, just log the error and return
-
-      // Return success=true because the thumbnail IS available, despite the state tracking issue.
+      console.error(
+        `[generateThumbnail] Failed to update processing state for ${mediaId}:`,
+        updateProcessingStateError,
+      );
       return {
         success: true, // Thumbnail is generated and linked
         message: `Thumbnail generated, but failed to update processing state. ${updateProcessingStateError}`,
@@ -195,7 +204,10 @@ export async function generateThumbnail(
       fileName: mediaItem.file_name,
     };
   } catch (error: any) {
-    // Try to mark as error in processing_states table using helper function
+    console.error(
+      `[generateThumbnail] Unhandled exception for ${mediaId}:`,
+      error,
+    );
     try {
       await markProcessingError({
         mediaItemId: mediaId,
@@ -237,9 +249,7 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
         .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
         .webp({ quality: 80 })
         .toBuffer();
-    } catch (heicError) {
-      throw heicError;
-    }
+    } catch (_heicError) {}
   }
 
   // Special handling for TIFF files that might cause errors

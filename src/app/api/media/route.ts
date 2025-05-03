@@ -95,11 +95,7 @@ export async function GET(request: NextRequest) {
           'Cache-Control': 'public, max-age=604800', // Cache for 7 days
         },
       });
-    } catch (error) {
-      console.error(
-        'Converted file not found in cache, performing conversion:',
-        error,
-      );
+    } catch (_error) {
       // Converted file doesn't exist in cache, perform conversion
       if (isImageFile) {
         try {
@@ -120,9 +116,8 @@ export async function GET(request: NextRequest) {
             },
           });
         } catch (err) {
-          console.error('Error converting image:', err);
           return NextResponse.json(
-            { error: 'Error converting image' },
+            { error: `Error converting image - ${err}` },
             { status: 500 },
           );
         }

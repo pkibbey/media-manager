@@ -10,52 +10,32 @@ import type { UnifiedStats } from '@/types/unified-stats';
 export async function getExifStats(): Action<UnifiedStats> {
   const supabase = createServerSupabaseClient();
 
-  const { error: allMediaItemsError, count: allMediaItemsCount } =
-    await supabase
-      .from('media_items')
-      .select('id, file_types!inner(*)', { count: 'exact', head: true })
-      .eq('file_types.category', 'image')
-      .is('file_types.ignore', false);
+  // Call the RPC function instead of making multiple separate queries
+  const { data, error } = await supabase.rpc('get_exif_stats');
 
-  const { error: successError, count: successCount } = await supabase
-    .from('media_items')
-    .select('id, file_types!inner(*), processing_states!inner(*)', {
-      count: 'exact',
-      head: true,
-    })
-    .eq('processing_states.status', 'complete')
-    .eq('file_types.category', 'image')
-    .is('file_types.ignore', false);
-
-  const { error: failedError, count: failedCount } = await supabase
-    .from('media_items')
-    .select('id, file_types!inner(*), processing_states!inner(*)', {
-      count: 'exact',
-      head: true,
-    })
-    .eq('processing_states.status', 'failure')
-    .eq('file_types.category', 'image')
-    .is('file_types.ignore', false);
-
-  const hasErrors = Boolean(allMediaItemsError || successError || failedError);
-
-  const counts = {
-    total: allMediaItemsCount || 0,
-    success: successCount || 0,
-    failed: failedCount || 0,
-  };
-
-  if (hasErrors) {
+  // Check for any errors in the query
+  if (error || !data || data.length === 0) {
     return {
       data: {
-        status: 'error',
-        message: `Failed to fetch EXIF stats: ${allMediaItemsError?.message || ''} ${successError?.message || ''} ${failedError?.message || ''}`,
-        counts,
+        status: 'failure',
+        message: `Failed to fetch thumbnail stats: ${error?.message || 'No data returned'}`,
+        counts: {
+          total: 0,
+          success: 0,
+          failed: 0,
+        },
       },
-      error: allMediaItemsError || successError || failedError,
+      error,
       count: null,
     };
   }
+  // Extract stats from the first row of data returned by the function
+  const stats = data[0];
+  const counts = {
+    total: stats.total || 0,
+    success: stats.success || 0,
+    failed: stats.failed || 0,
+  };
 
   return {
     data: {
@@ -64,6 +44,6 @@ export async function getExifStats(): Action<UnifiedStats> {
       counts,
     },
     error: null,
-    count: allMediaItemsCount,
+    count: counts.total,
   };
 }

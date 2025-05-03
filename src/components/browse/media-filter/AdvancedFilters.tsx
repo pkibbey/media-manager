@@ -10,7 +10,6 @@ type AdvancedFiltersProps = {
   form: UseFormReturn<MediaFilters>;
   applyFilters: (values: MediaFilters) => void;
   totalCount: number;
-  maxFileSize: number;
   availableCameras: string[];
   handleReset: () => void;
   isAdvancedOpen: boolean;
@@ -20,7 +19,6 @@ export function AdvancedFilters({
   form,
   applyFilters,
   totalCount,
-  maxFileSize,
   availableCameras,
   handleReset,
   isAdvancedOpen,
@@ -39,11 +37,7 @@ export function AdvancedFilters({
       <DateRangeFilter form={form} applyFilters={applyFilters} />
 
       {/* File Size Range */}
-      <FileSizeFilter
-        form={form}
-        maxFileSize={maxFileSize}
-        applyFilters={applyFilters}
-      />
+      <FileSizeFilter form={form} applyFilters={applyFilters} />
 
       {/* Summary and Actions */}
       <div className="col-span-full">

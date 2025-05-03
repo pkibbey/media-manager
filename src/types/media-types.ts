@@ -8,10 +8,10 @@ export interface MediaFilters {
   dateTo: Date | null;
   minSize: number;
   maxSize: number;
-  sortBy: 'date' | 'name' | 'size' | 'type';
+  sortBy: 'created_date' | 'file_name' | 'size_bytes';
   sortOrder: 'asc' | 'desc';
   processed: 'all' | 'yes' | 'no';
-  camera: 'all' | string; // Updated type to reflect that 'all' is a special value
+  camera: 'all' | string;
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';
 }
@@ -23,32 +23,4 @@ export type AllMediaStats = {
   totalCount: number;
   failureCount: number;
   totalSizeBytes: number;
-};
-
-export type DetailedMediaStats = {
-  itemsByCategory: Record<string, number>;
-  itemsByExtension: Record<string, number>;
-};
-
-export interface MediaItemsFilter {
-  search?: string;
-  type?: 'all' | 'image' | 'video' | 'data';
-  sortBy?: 'date' | 'name' | 'size' | 'type';
-  sortOrder?: 'asc' | 'desc';
-  hasThumbnail?: 'all' | 'yes' | 'no';
-}
-
-export type FailedFile = {
-  id: string;
-  file_name: string;
-  file_path: string;
-  error: string | null;
-  extension: string;
-  size_bytes?: number;
-};
-
-export type ErrorCategory = {
-  type: string;
-  count: number;
-  examples: FailedFile[];
 };

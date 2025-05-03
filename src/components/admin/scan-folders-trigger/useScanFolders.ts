@@ -29,7 +29,7 @@ export function useScanFolders() {
 
       if (error) {
         return {
-          status: 'error',
+          status: 'failure',
           message: 'Error fetching scan folders',
           error: error.message,
           counts: {

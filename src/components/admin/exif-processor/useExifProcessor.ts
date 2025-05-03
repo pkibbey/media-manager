@@ -41,7 +41,7 @@ export function useExifProcessor() {
   } = useProcessorBase<ExifProgress, UnifiedStats>({
     fetchStats: async () => {
       const { data, error } = await getExifStats();
-
+      
       if (!data || error) {
         console.error('[EXIF DEBUG] Error fetching stats:', error);
         throw error;

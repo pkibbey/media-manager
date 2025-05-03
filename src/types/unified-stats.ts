@@ -4,7 +4,7 @@ import type { ThumbnailMethod } from './thumbnail-types';
 /**
  * Simplified processing status type
  */
-export type StatsStatus = 'processing' | 'success' | 'error';
+export type StatsStatus = 'processing' | 'success' | 'failure';
 
 /**
  * UnifiedStats - A standardized stats type for all stats-related functions across the application
@@ -22,7 +22,7 @@ export interface UnifiedStats {
   message: string;
 
   /**
-   * An optional error message if status is 'error'
+   * An optional error message if status is 'failure'
    */
   error?: string;
 

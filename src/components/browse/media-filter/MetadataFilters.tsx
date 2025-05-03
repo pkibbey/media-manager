@@ -70,27 +70,6 @@ export function MetadataFilters({
           </FormItem>
         )}
       />
-
-      {/* Location Data */}
-      <FormField
-        control={form.control}
-        name="hasLocation"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Location Data</FormLabel>
-            <Select value={field.value || 'all'} onValueChange={field.onChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Location data" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any file</SelectItem>
-                <SelectItem value="yes">Has location</SelectItem>
-                <SelectItem value="no">No location</SelectItem>
-              </SelectContent>
-            </Select>
-          </FormItem>
-        )}
-      />
     </>
   );
 }

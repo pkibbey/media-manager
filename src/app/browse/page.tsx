@@ -1,11 +1,10 @@
 'use client';
 
-import { max } from 'lodash';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import MediaFilterView from '@/components/browse/media-filter-view';
 import MediaList from '@/components/media/media-list';
-import { Pagination } from '@/components/ui/pagination';
+import { Pagination, type PaginationObject } from '@/components/ui/pagination';
 
 import { PAGE_SIZE } from '@/lib/consts';
 import type { MediaItem } from '@/types/db-types';
@@ -19,8 +18,8 @@ const defaultFilters: MediaFilters = {
   dateFrom: null,
   dateTo: null,
   minSize: 0,
-  maxSize: 100,
-  sortBy: 'date',
+  maxSize: 1024 * 1024 * 4,
+  sortBy: 'created_date',
   sortOrder: 'desc',
   processed: 'all',
   camera: 'all',
@@ -37,14 +36,12 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState<PaginationObject>({
     page: 1,
     pageSize: PAGE_SIZE,
     pageCount: 1,
     total: 0,
   });
-  const [maxFileSize, setMaxFileSize] = useState(100);
-  const [availableCameras, setAvailableCameras] = useState<string[]>([]);
 
   // Parse page from URL on initial load
   useEffect(() => {
@@ -126,7 +123,6 @@ export default function BrowsePage() {
     // Update filters with parsed values
     setFilters((filters) => ({
       ...filters,
-      ...defaultFilters,
       ...parsedFilters,
     }));
   }, [searchParams]);
@@ -162,24 +158,6 @@ export default function BrowsePage() {
           pageCount: Math.ceil((count || 0) / PAGE_SIZE),
           total: count || 0,
         }));
-
-        const maxSize = max(data.map((item) => item.size_bytes || 0));
-        setMaxFileSize(maxSize ? Math.ceil(maxSize / 1024 / 1024) : 100);
-
-        // Extract unique camera models from media items with processed EXIF data
-        if (data.length > 0) {
-          const uniqueCameras = new Set<string>();
-          data.forEach((item) => {
-            // @ts-ignore
-            if (item.exif_data?.Image?.Model) {
-              // @ts-ignore
-              uniqueCameras.add(item.exif_data.Image.Model);
-            }
-          });
-
-          const cameras = Array.from(uniqueCameras);
-          setAvailableCameras(cameras);
-        }
       }
 
       setLoading(false);
@@ -218,8 +196,7 @@ export default function BrowsePage() {
 
         <MediaFilterView
           totalCount={pagination.total}
-          maxFileSize={maxFileSize}
-          availableCameras={availableCameras}
+          availableCameras={[]}
           onFiltersChange={handleFiltersChange}
         />
 
@@ -237,8 +214,7 @@ export default function BrowsePage() {
             {pagination.pageCount > 1 && (
               <div className="mt-6">
                 <Pagination
-                  page={pagination.page}
-                  pageCount={pagination.pageCount}
+                  pagination={pagination}
                   onPageChange={handlePageChange}
                 />
               </div>

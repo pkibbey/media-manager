@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Form } from '@/components/ui/form';
+import { MAX_FILE_SIZE_IN_MB } from '@/lib/consts';
 import type { MediaFilters } from '@/types/media-types';
 import { AdvancedFilters } from './media-filter/AdvancedFilters';
 import { BasicFilters } from './media-filter/BasicFilters';
@@ -11,14 +12,12 @@ import { useMediaFilters } from './media-filter/useMediaFilters';
 interface MediaFiltersProps {
   totalCount?: number;
   availableCameras?: string[];
-  maxFileSize?: number;
   onFiltersChange: (filters: MediaFilters) => void;
 }
 
 export default function MediaFilterView({
   totalCount = 0,
   availableCameras = [],
-  maxFileSize = 100,
   onFiltersChange,
 }: MediaFiltersProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
@@ -30,11 +29,11 @@ export default function MediaFilterView({
       dateFrom: null,
       dateTo: null,
       minSize: 0,
-      maxSize: maxFileSize,
-      sortBy: 'date',
+      maxSize: MAX_FILE_SIZE_IN_MB,
+      sortBy: 'created_date',
       sortOrder: 'desc',
       processed: 'all',
-      camera: 'all', // Changed from '' to 'all' for consistency
+      camera: 'all',
       hasLocation: 'all',
       hasThumbnail: 'all',
     },
@@ -42,7 +41,7 @@ export default function MediaFilterView({
 
   const { applyFilters, handleReset, debouncedApplyFilters } = useMediaFilters({
     form,
-    maxFileSize,
+    maxFileSize: MAX_FILE_SIZE_IN_MB,
     onFiltersChange,
   });
 
@@ -64,7 +63,6 @@ export default function MediaFilterView({
           form={form}
           applyFilters={applyFilters}
           totalCount={totalCount}
-          maxFileSize={maxFileSize}
           availableCameras={availableCameras}
           handleReset={handleReset}
           isAdvancedOpen={isAdvancedOpen}

@@ -37,18 +37,19 @@ export function SortingFilters({ form }: SortingFiltersProps) {
           <FormItem>
             <FormLabel>Sort By</FormLabel>
             <Select
-              value={field.value || 'date'}
+              value={field.value || 'created_date'}
               onValueChange={field.onChange}
               aria-label="Sort by field"
             >
               <SelectTrigger className="w-full">
-                <SelectValue>{sortByLabels[field.value || 'date']}</SelectValue>
+                <SelectValue>
+                  {sortByLabels[field.value || 'created_date']}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="date">Date</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="size">Size</SelectItem>
-                <SelectItem value="type">Type</SelectItem>
+                <SelectItem value="created_date">Date</SelectItem>
+                <SelectItem value="file_name">Name</SelectItem>
+                <SelectItem value="size_bytes">Size</SelectItem>
               </SelectContent>
             </Select>
           </FormItem>

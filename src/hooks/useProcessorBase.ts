@@ -103,7 +103,7 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
         (prev) =>
           ({
             ...prev,
-            status: 'error',
+            status: 'failure',
             message: errorMessage,
           }) as TStats,
       );
@@ -132,7 +132,7 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
 
         // Set an error state in stats
         setStats({
-          status: 'error',
+          status: 'failure',
           message: 'Failed to load initial stats',
           counts: {
             total: 0,

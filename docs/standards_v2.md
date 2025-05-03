@@ -60,7 +60,7 @@ The application uses a standardized `UnifiedStats` interface for consistent stat
 ```typescript
 // Reference to original document: TypeScript Usage section
 export interface UnifiedStats {
-  status: 'processing' | 'success' | 'error';
+  status: 'processing' | 'success' | 'failure';
   message?: string;
   error?: string;
   counts: {
@@ -128,12 +128,12 @@ export async function markProcessingError({
   try {
     await updateProcessingState({
       media_item_id: mediaItemId,
-      status: 'error',
+      status: 'failure',
       type,
       error_message: errorMessage,
     });
   } catch (updateError) {
-    console.error(`Failed to update processing state to 'error':`, updateError);
+    console.error(`Failed to update processing state to 'failure':`, updateError);
   }
 }
 ```

@@ -1,22 +1,18 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Slider } from '@/components/ui/slider';
+import { MAX_FILE_SIZE_IN_MB } from '@/lib/consts';
 import type { MediaFilters } from '@/types/media-types';
 
 type FileSizeFilterProps = {
   form: UseFormReturn<MediaFilters>;
-  maxFileSize: number;
   applyFilters: (values: MediaFilters) => void;
 };
 
-export function FileSizeFilter({
-  form,
-  maxFileSize,
-  applyFilters,
-}: FileSizeFilterProps) {
+export function FileSizeFilter({ form, applyFilters }: FileSizeFilterProps) {
   // Get form values with fallbacks to prevent undefined values
   const minSize = form.getValues('minSize') ?? 0;
-  const maxSize = form.getValues('maxSize') ?? maxFileSize;
+  const maxSize = form.getValues('maxSize') ?? MAX_FILE_SIZE_IN_MB;
 
   return (
     <FormField
@@ -32,7 +28,7 @@ export function FileSizeFilter({
           </div>
           <Slider
             min={0}
-            max={maxFileSize}
+            max={MAX_FILE_SIZE_IN_MB}
             step={1}
             value={[minSize, maxSize]}
             onValueChange={(values) => {

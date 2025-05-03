@@ -81,7 +81,10 @@ export function UnifiedStatsDisplay({
 }: UnifiedStatsDisplayProps) {
   // Calculate progress percentage
   const progressValue = stats?.counts?.total
-    ? Math.round((stats.counts.success * 100) / stats.counts.total)
+    ? Math.round(
+        ((stats.counts.success + stats.counts.failed) * 100) /
+          stats.counts.total,
+      )
     : 0;
 
   // Calculate total processed files
@@ -185,7 +188,7 @@ export function UnifiedStatsDisplay({
         )}
 
         {/* Show status message if present */}
-        {stats?.message && stats.status !== 'error' && (
+        {stats?.message && stats.status !== 'failure' && (
           <span className="block mt-2 text-info">{stats.message}</span>
         )}
       </div>

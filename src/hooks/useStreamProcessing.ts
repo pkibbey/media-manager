@@ -19,11 +19,12 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
     async (readerToCleanup: ReadableStreamDefaultReader<Uint8Array> | null) => {
       if (!readerToCleanup) return;
 
-      readerActiveRef.current = false; // Mark as inactive
-
-      if (readerActiveRef.current && !readerToCleanup.closed) {
+      if (!readerToCleanup.closed) {
         await readerToCleanup.cancel();
       }
+      
+      readerActiveRef.current = false; // Mark as inactive after cancel attempt
+      
       try {
         readerToCleanup.releaseLock();
       } catch (_releaseError) {
@@ -35,6 +36,22 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
     [], // Add empty dependency array for useCallback
   );
 
+  // Function to cancel the current processing
+  const stopProcessing = useCallback(async () => {
+    readerActiveRef.current = false;
+
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
+
+    if (reader) {
+      await cleanupReader(reader);
+    }
+
+    setIsProcessing(false);
+  }, [abortController, reader, cleanupReader]);
+
   // Function to handle reading from a streaming server action
   const startProcessing = useCallback(
     async (
@@ -45,16 +62,53 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         onBatchComplete?: (processedCount: number) => void;
       } = {},
     ) => {
+      // Check if already processing
       if (isProcessing) {
-        console.warn('Already processing a stream, ignoring new request.');
-        return;
+        console.warn('Already processing a stream, canceling previous and starting new request.');
+        // Clean up existing processing before starting a new one
+        await stopProcessing();
       }
+      
       const newAbortController = new AbortController();
       setAbortController(newAbortController);
       setIsProcessing(true);
       setProgress(null);
 
       readerActiveRef.current = false;
+
+      // Helper to process parsed data, update state, and check for completion
+      const processParsedData = (data: any): boolean => {
+        let completed = false;
+        setProgress((prev) => {
+          const newState = {
+            ...(prev || {}),
+            ...data,
+          } as T;
+          
+          // Call onBatchComplete if a batch was processed and the handler exists
+          if (options.onBatchComplete && 
+              'processed' in data && typeof data.processed === 'number' && 
+              (!prev || !('processed' in prev) || data.processed !== prev.processed)) {
+            options.onBatchComplete(data.processed);
+          }
+          
+          return newState;
+        });
+
+        const isComplete = data.status === 'complete';
+        const isFinal = data.isFinalBatch;
+
+        if (isComplete || isFinal) {
+          if (options.onCompleted) {
+            options.onCompleted();
+          }
+          setIsProcessing(false);
+          setAbortController(null);
+          completed = true;
+        }
+        return completed;
+      };
+
 
       try {
         const stream = await streamFunc();
@@ -109,34 +163,7 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
 
                     try {
                       const data = JSON.parse(jsonString);
-
-                      setProgress((prev) => {
-                        const newState = {
-                          ...(prev || {}),
-                          ...data,
-                        } as T;
-                        return newState;
-                      });
-
-                      const isComplete = data.status === 'complete';
-
-                      if (isComplete) {
-                        if (options.onCompleted) {
-                          options.onCompleted();
-                        }
-                        setIsProcessing(false);
-                        setAbortController(null);
-                        await cleanupReader(newReader);
-                        done = true;
-                        break;
-                      }
-
-                      if (data.isFinalBatch) {
-                        if (options.onCompleted) {
-                          options.onCompleted();
-                        }
-                        setIsProcessing(false);
-                        setAbortController(null);
+                      if (processParsedData(data)) {
                         await cleanupReader(newReader);
                         done = true;
                         break;
@@ -171,33 +198,7 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                         }
 
                         if (validJson) {
-                          setProgress((prev) => {
-                            const newState = {
-                              ...(prev || {}),
-                              ...validJson,
-                            } as T;
-                            return newState;
-                          });
-
-                          const isComplete = validJson.status === 'complete';
-
-                          if (isComplete) {
-                            if (options.onCompleted) {
-                              options.onCompleted();
-                            }
-                            setIsProcessing(false);
-                            setAbortController(null);
-                            await cleanupReader(newReader);
-                            done = true;
-                            break;
-                          }
-
-                          if (validJson.isFinalBatch) {
-                            if (options.onCompleted) {
-                              options.onCompleted();
-                            }
-                            setIsProcessing(false);
-                            setAbortController(null);
+                          if (processParsedData(validJson)) {
                             await cleanupReader(newReader);
                             done = true;
                             break;
@@ -256,24 +257,8 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         setAbortController(null);
       }
     },
-    [cleanupReader, isProcessing], // Keep dependency array minimal
+    [cleanupReader, stopProcessing, isProcessing], // Add isProcessing to dependency array
   );
-
-  // Function to cancel the current processing
-  const stopProcessing = useCallback(async () => {
-    readerActiveRef.current = false;
-
-    if (abortController) {
-      abortController.abort();
-      setAbortController(null);
-    }
-
-    if (reader) {
-      await cleanupReader(reader);
-    }
-
-    setIsProcessing(false);
-  }, [abortController, reader, cleanupReader]);
 
   return {
     isProcessing,

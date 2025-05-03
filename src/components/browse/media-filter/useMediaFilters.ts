@@ -29,7 +29,7 @@ export function useMediaFilters({
         const validatedValues = {
           ...values,
           type: values.type || 'all',
-          sortBy: values.sortBy || 'date',
+          sortBy: values.sortBy || 'created_date',
           sortOrder: values.sortOrder || 'desc',
           maxSize: values.maxSize !== undefined ? values.maxSize : maxFileSize,
         };
@@ -48,7 +48,7 @@ export function useMediaFilters({
           params.set('minSize', String(validatedValues.minSize));
         if (validatedValues.maxSize < maxFileSize)
           params.set('maxSize', String(validatedValues.maxSize));
-        if (validatedValues.sortBy !== 'date')
+        if (validatedValues.sortBy !== 'created_date')
           params.set('sortBy', validatedValues.sortBy);
         if (validatedValues.sortOrder !== 'desc')
           params.set('sortOrder', validatedValues.sortOrder);
@@ -56,8 +56,6 @@ export function useMediaFilters({
           params.set('processed', validatedValues.processed);
         if (validatedValues.camera && validatedValues.camera !== 'all')
           params.set('camera', validatedValues.camera);
-        if (validatedValues.hasLocation !== 'all')
-          params.set('hasLocation', validatedValues.hasLocation);
         if (validatedValues.hasThumbnail !== 'all')
           params.set('hasThumbnail', validatedValues.hasThumbnail);
 
@@ -113,7 +111,10 @@ export function useMediaFilters({
     }
 
     const sortBy = searchParams.get('sortBy');
-    if (sortBy && ['date', 'name', 'size', 'type'].includes(sortBy)) {
+    if (
+      sortBy &&
+      ['created_date', 'file_name', 'size_bytes', 'type'].includes(sortBy)
+    ) {
       formValues.sortBy = sortBy as MediaFilters['sortBy'];
     }
 
@@ -150,10 +151,10 @@ export function useMediaFilters({
       minSize: formValues.minSize !== undefined ? formValues.minSize : 0,
       maxSize:
         formValues.maxSize !== undefined ? formValues.maxSize : maxFileSize,
-      sortBy: formValues.sortBy || 'date',
+      sortBy: formValues.sortBy || 'created_date',
       sortOrder: formValues.sortOrder || 'desc',
       processed: formValues.processed || 'all',
-      camera: formValues.camera || 'all', // Changed from '' to 'all'
+      camera: formValues.camera || 'all',
       hasLocation: formValues.hasLocation || 'all',
       hasThumbnail: formValues.hasThumbnail || 'all',
     });
@@ -188,7 +189,7 @@ export function useMediaFilters({
       dateTo: null,
       minSize: 0,
       maxSize: maxFileSize,
-      sortBy: 'date',
+      sortBy: 'created_date',
       sortOrder: 'desc',
       processed: 'all',
       camera: 'all', // Changed from empty string to 'all'

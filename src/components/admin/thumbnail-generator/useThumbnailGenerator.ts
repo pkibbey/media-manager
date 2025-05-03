@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
-import { streamThumbnails } from '@/actions/thumbnails/stream-thumbnails';
+import { streamThumbnails } from '@/actions/thumbnails/streamThumbnails';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { Method, UnifiedStats } from '@/types/unified-stats';
