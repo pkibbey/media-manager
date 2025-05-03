@@ -96,8 +96,6 @@ export async function processExifData({
             extraction.thumbnailBuffer,
           );
 
-          console.log('thumbnailResult: ', thumbnailResult);
-
           if (thumbnailResult.success) {
             progressCallback?.(
               `EXIF thumbnail uploaded: ${thumbnailResult.thumbnailUrl}`,

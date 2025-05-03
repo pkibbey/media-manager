@@ -328,8 +328,6 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
       .limit(limit);
 
     if (noThumbError) {
-      console.error('Error fetching files with no thumbnail:', noThumbError);
-
       return {
         success: false,
         unprocessedFiles: [],
@@ -370,11 +368,6 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
         .neq('processing_states.status', '(success)');
 
     if (statesError) {
-      console.error(
-        'Error fetching files with unsuccessful states:',
-        statesError,
-      );
-
       // We still return the files we found earlier
       return {
         success: true,
@@ -394,10 +387,6 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
       totalItems: totalItems || 0,
     };
   } catch (error) {
-    console.error(
-      'Unexpected error fetching unprocessed files for thumbnails:',
-      error,
-    );
     return {
       success: false,
       unprocessedFiles: [],

@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/style/noUnusedTemplateLiteral: <explanation> */
+/** biome-ignore-all lint/style/noUselessElse: <explanation> */
 'use server';
 
 import { exec } from 'node:child_process';
@@ -30,41 +32,30 @@ export async function generateThumbnail(
   }
 > {
   const { method = 'default' } = options;
-  console.log(`[Thumbnail] Starting generateThumbnail for mediaId: ${mediaId} with method: ${method}`);
 
   try {
     const supabase = createServerSupabaseClient();
 
     // Get the media item details
-    console.log(`[Thumbnail] Fetching media item details for ID: ${mediaId}`);
     const { data: mediaItem, error } = await supabase
       .from('media_items')
-      .select('*, file_types!inner(*), exif_data(*)')
+      .select('*, file_types!inner(*)') // Fixed: Removed exif_data(*) as it's not a related table
       .in('file_types.category', ['image'])
       .is('file_types.ignore', false)
       .eq('id', mediaId)
       .single();
 
     if (error) {
-      console.error(`[Thumbnail] Error fetching media item: ${error.message}`);
       return {
         success: false,
         message: error.message,
       };
     }
 
-    console.log(`[Thumbnail] Retrieved media item: ${mediaItem.file_name} (${mediaItem.file_path})`);
-    console.log(`[Thumbnail] File type: ${mediaItem.file_types?.extension}, size: ${mediaItem.size_bytes || 'unknown'} bytes`);
-
     // Check if file exists
     try {
       await fs.access(mediaItem.file_path);
-      console.log(`[Thumbnail] File exists at path: ${mediaItem.file_path}`);
-    } catch (error) {
-      console.error(
-        `[Thumbnail] File not found: ${mediaItem.file_path} - ${error}`,
-      );
-
+    } catch (_error) {
       // Update processing state using helper function
       await markProcessingError({
         mediaItemId: mediaId,
@@ -81,29 +72,17 @@ export async function generateThumbnail(
     let thumbnailBuffer: Buffer;
 
     try {
-      console.log(`[Thumbnail] Starting to generate thumbnail buffer using '${method}' method for ${mediaItem.file_name}`);
-      
       if (method === 'embedded-preview') {
         // Try to extract embedded preview from EXIF data
-        console.log(`[Thumbnail] Attempting to use embedded preview from EXIF for ${mediaItem.file_name}`);
         thumbnailBuffer = await generateEmbeddedPreviewThumbnail(mediaItem);
       } else if (method === 'downscale-only') {
         // Simple downscaling without additional processing
-        console.log(`[Thumbnail] Using downscale-only method for ${mediaItem.file_name}`);
         thumbnailBuffer = await generateDownscaleThumbnail(mediaItem);
       } else {
         // Default method - full processing
-        console.log(`[Thumbnail] Using default full processing method for ${mediaItem.file_name}`);
         thumbnailBuffer = await generateDefaultThumbnail(mediaItem);
       }
-      
-      console.log(`[Thumbnail] Successfully generated thumbnail buffer for ${mediaItem.file_name}, size: ${thumbnailBuffer.length} bytes`);
     } catch (thumbnailError) {
-      console.error(
-        `[Thumbnail] Error generating thumbnail for ${mediaItem.file_path} with method ${method}:`,
-        thumbnailError,
-      );
-
       // Mark as error using helper function
       await markProcessingError({
         mediaItemId: mediaId,
@@ -120,10 +99,8 @@ export async function generateThumbnail(
 
     // Upload to Supabase Storage
     const fileName = `${mediaId}_thumb.webp`;
-    console.log(`[Thumbnail] Starting upload to Supabase storage with filename: ${fileName}`);
 
     try {
-      console.log(`[Thumbnail] Uploading buffer of size ${thumbnailBuffer.length} bytes to storage bucket 'thumbnails'`);
       const { error: storageError } = await supabase.storage
         .from('thumbnails')
         .upload(fileName, thumbnailBuffer, {
@@ -132,11 +109,6 @@ export async function generateThumbnail(
         });
 
       if (storageError) {
-        console.error(
-          `[Thumbnail] Error uploading thumbnail to storage for ${mediaItem.file_path}:`,
-          storageError,
-        );
-
         // Mark as error using helper function
         await markProcessingError({
           mediaItemId: mediaId,
@@ -150,13 +122,7 @@ export async function generateThumbnail(
           fileName: mediaItem.file_name,
         };
       }
-      console.log(`[Thumbnail] Successfully uploaded thumbnail to storage for ${mediaItem.file_name}`);
     } catch (uploadError) {
-      console.error(
-        `[Thumbnail] Exception during thumbnail upload for ${mediaItem.file_path}:`,
-        uploadError,
-      );
-
       // Mark as upload error using helper function
       await markProcessingError({
         mediaItemId: mediaId,
@@ -172,29 +138,21 @@ export async function generateThumbnail(
     }
 
     // Get the public URL for the uploaded thumbnail
-    console.log(`[Thumbnail] Getting public URL for uploaded thumbnail: ${fileName}`);
     const { data: publicUrlData } = supabase.storage
       .from('thumbnails')
       .getPublicUrl(fileName);
 
     const thumbnailUrl = publicUrlData.publicUrl;
-    console.log(`[Thumbnail] Public URL generated: ${thumbnailUrl}`);
 
     // Update the media_items table with the thumbnail path FIRST
-    console.log(`[Thumbnail] Updating media_items table with thumbnail URL for media ID: ${mediaId}`);
     const { error: updateMediaItemError } = await supabase
       .from('media_items')
       .update({ thumbnail_path: thumbnailUrl })
       .eq('id', mediaId);
 
     if (updateMediaItemError) {
-      console.error(
-        `[Thumbnail] Error updating media_items table for ${mediaId}:`,
-        updateMediaItemError,
-      );
       // Attempt to delete the potentially orphaned thumbnail from storage
       await supabase.storage.from('thumbnails').remove([fileName]);
-      console.log(`[Thumbnail] Removed orphaned thumbnail from storage after DB update failure: ${fileName}`);
 
       // Mark as error using helper function
       await markProcessingError({
@@ -209,36 +167,27 @@ export async function generateThumbnail(
         fileName: mediaItem.file_name,
       };
     }
-    console.log(`[Thumbnail] Successfully updated media_items table with thumbnail URL for ${mediaItem.file_name}`);
 
     // Update the processing state with success status using helper function
     try {
-      console.log(`[Thumbnail] Marking processing as successful for media ID: ${mediaId}`);
       await markProcessingSuccess({
         mediaItemId: mediaId,
         progressType: 'thumbnail',
         errorMessage: `Thumbnail generated successfully using ${method} method`,
       });
-      console.log(`[Thumbnail] Successfully updated processing state to 'complete' for ${mediaItem.file_name}`);
     } catch (updateProcessingStateError) {
-      console.error(
-        `[Thumbnail] Error updating processing_states for ${mediaId}:`,
-        updateProcessingStateError,
-      );
-
       // Don't try to upsert again - that would cause another unique constraint violation
       // Instead, just log the error and return
 
       // Return success=true because the thumbnail IS available, despite the state tracking issue.
       return {
         success: true, // Thumbnail is generated and linked
-        message: 'Thumbnail generated, but failed to update processing state.',
+        message: `Thumbnail generated, but failed to update processing state. ${updateProcessingStateError}`,
         thumbnailUrl,
         fileName: mediaItem.file_name,
       };
     }
 
-    console.log(`[Thumbnail] Complete thumbnail generation process succeeded for ${mediaItem.file_name}`);
     return {
       success: true,
       message: `Thumbnail generated and stored successfully using ${method} method`,
@@ -246,7 +195,6 @@ export async function generateThumbnail(
       fileName: mediaItem.file_name,
     };
   } catch (error: any) {
-    console.error('[Thumbnail] Error generating thumbnail:', error);
     // Try to mark as error in processing_states table using helper function
     try {
       await markProcessingError({
@@ -254,11 +202,8 @@ export async function generateThumbnail(
         progressType: 'thumbnail',
         errorMessage: 'Unhandled exception',
       });
-    } catch (dbError) {
-      console.error(
-        '[Thumbnail] Failed to mark item as error after exception:',
-        dbError,
-      );
+    } catch (_dbError) {
+      // Silently continue if we couldn't mark the error
     }
 
     return {
@@ -279,18 +224,22 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
     const tempFileName = `${path.basename(mediaItem.file_path, '.heic')}_temp.jpg`;
     const tempOutputPath = path.join(tempDir, tempFileName);
 
-    // Convert HEIC to JPEG using our robust multi-method converter
-    const jpegBuffer = await convertHeicToJpeg(
-      mediaItem.file_path,
-      tempOutputPath,
-    );
+    try {
+      // Convert HEIC to JPEG using our robust multi-method converter
+      const jpegBuffer = await convertHeicToJpeg(
+        mediaItem.file_path,
+        tempOutputPath,
+      );
 
-    // Use sharp to create thumbnail from the JPEG buffer
-    return await sharp(jpegBuffer, { failOnError: false })
-      .rotate()
-      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
-      .webp({ quality: 80 })
-      .toBuffer();
+      // Use sharp to create thumbnail from the JPEG buffer
+      return await sharp(jpegBuffer, { failOnError: false })
+        .rotate()
+        .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
+        .webp({ quality: 80 })
+        .toBuffer();
+    } catch (heicError) {
+      throw heicError;
+    }
   }
 
   // Special handling for TIFF files that might cause errors
@@ -300,7 +249,7 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
   ) {
     try {
       // First attempt: try with tiff-specific options
-      return await sharp(mediaItem.file_path, {
+      const result = await sharp(mediaItem.file_path, {
         limitInputPixels: 30000 * 30000,
         failOnError: false,
         pages: 0, // Only read the first page of multi-page TIFFs
@@ -312,11 +261,9 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
         })
         .webp({ quality: 80, effort: 2 })
         .toBuffer();
-    } catch (tiffError) {
-      console.warn(
-        `[Thumbnail] First TIFF approach failed for ${mediaItem.file_path}, trying fallback method`,
-      );
 
+      return result;
+    } catch (tiffError) {
       // If the normal approach fails, try using ImageMagick if available
       if (process.platform === 'darwin' || process.platform === 'linux') {
         const execAsync = promisify(exec);
@@ -329,6 +276,7 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
           await execAsync(
             `magick convert "${mediaItem.file_path}[0]" -quality 90 "${tempOutputPath}"`,
           );
+
           const jpegBuffer = await fs.readFile(tempOutputPath);
 
           // Create thumbnail from the JPEG
@@ -339,14 +287,10 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
             .toBuffer();
 
           // Clean up temp file
-          await fs.unlink(tempOutputPath).catch(console.error);
+          await fs.unlink(tempOutputPath).catch(() => {});
 
           return result;
         } catch (magickError) {
-          console.error(
-            '[Thumbnail] ImageMagick TIFF conversion failed:',
-            magickError,
-          );
           // Re-throw to be caught by outer catch block
           throw new Error(
             `TIFF processing failed: ${magickError instanceof Error ? magickError.message : 'Unknown error'}`,
@@ -360,17 +304,25 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
   }
 
   // For all other image formats, use Sharp directly with enhanced error handling
-  return await sharp(mediaItem.file_path, {
-    limitInputPixels: 30000 * 30000, // Allow reasonably large images
-    failOnError: false, // Don't fail on corrupt images or unsupported features
-  })
-    .rotate()
-    .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
-      fit: 'cover',
-      fastShrinkOnLoad: true, // Enable fast shrink optimization
-    })
-    .webp({ quality: 80, effort: 2 }) // Lower effort = faster processing
-    .toBuffer();
+  try {
+    const sharpInstance = sharp(mediaItem.file_path, {
+      limitInputPixels: 30000 * 30000, // Allow reasonably large images
+      failOnError: false, // Don't fail on corrupt images or unsupported features
+    });
+
+    const result = await sharpInstance
+      .rotate()
+      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+        fit: 'cover',
+        fastShrinkOnLoad: true, // Enable fast shrink optimization
+      })
+      .webp({ quality: 80, effort: 2 }) // Lower effort = faster processing
+      .toBuffer();
+
+    return result;
+  } catch (sharpError) {
+    throw sharpError;
+  }
 }
 
 /**
@@ -379,49 +331,23 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
 async function generateEmbeddedPreviewThumbnail(
   mediaItem: MediaItem,
 ): Promise<Buffer> {
+  // EXIF data is a property of the media item itself, not a separate related table
   const exifData = mediaItem.exif_data as unknown as Tags;
+
   // First, check if we have EXIF data with embedded preview
   if (exifData) {
     try {
       // Convert base64 preview to buffer
-      return Buffer.from(exifData.Thumbnail?.base64 || '', 'base64');
-    } catch (previewError) {
-      console.warn(
-        `[Thumbnail] Failed to use embedded preview, falling back to default method: ${previewError}`,
-      );
-    }
-  }
-
-  // If no preview available or processing failed, try to extract thumbnail from EXIF
-  try {
-    const metadata = await sharp(mediaItem.file_path).metadata();
-    if (metadata.hasProfile && metadata.hasProfile === true) {
-      // Extract the thumbnail from EXIF if present
-      const thumbnailBuffer = await sharp(mediaItem.file_path)
-        .withMetadata()
-        .toBuffer({ resolveWithObject: true })
-        .then(({ data }) => {
-          return sharp(data).extractChannel('alpha').toBuffer();
-        })
-        .catch(() => null);
-
-      if (thumbnailBuffer) {
-        return await sharp(thumbnailBuffer)
-          .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
-          .webp({ quality: 80 })
-          .toBuffer();
+      if (exifData.Thumbnail?.base64) {
+        const buffer = Buffer.from(exifData.Thumbnail.base64, 'base64');
+        return buffer;
       }
+    } catch (_previewError) {
+      // Continue to fallback
     }
-  } catch (exifError) {
-    console.warn(
-      `[Thumbnail] Failed to extract EXIF thumbnail, falling back to default method: ${exifError}`,
-    );
   }
 
   // Fallback to default method if embedded preview extraction failed
-  console.log(
-    `[Thumbnail] No embedded preview found for ${mediaItem.file_name}, using downscale-only method instead`,
-  );
   return await generateDownscaleThumbnail(mediaItem);
 }
 
@@ -429,18 +355,26 @@ async function generateEmbeddedPreviewThumbnail(
  * Generate thumbnail by simple downscaling without additional processing
  */
 async function generateDownscaleThumbnail(mediaItem: any): Promise<Buffer> {
-  return await sharp(mediaItem.file_path, {
-    limitInputPixels: 30000 * 30000,
-    failOnError: false,
-  })
-    // Skip auto-rotation to save processing time
-    .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
-      fit: 'cover',
-      fastShrinkOnLoad: true,
-      // Faster but lower quality algorithms
-      kernel: 'nearest',
+  try {
+    const result = await sharp(mediaItem.file_path, {
+      limitInputPixels: 30000 * 30000,
+      failOnError: false,
     })
-    // Lower quality, faster processing
-    .webp({ quality: 70, effort: 1 })
-    .toBuffer();
+      // Skip auto-rotation to save processing time
+      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+        fit: 'cover',
+        fastShrinkOnLoad: true,
+        // Faster but lower quality algorithms
+        kernel: 'nearest',
+      })
+      // Lower quality, faster processing
+      .webp({ quality: 70, effort: 1 })
+      .toBuffer();
+
+    return result;
+  } catch (error) {
+    throw new Error(
+      `Downscale thumbnail generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+  }
 }

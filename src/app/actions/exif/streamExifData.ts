@@ -11,8 +11,6 @@ import type { UnifiedStats } from '@/types/unified-stats';
 import { getUnprocessedFiles } from './get-unprocessed-files';
 import { processExifData } from './processExifData';
 
-const ENABLE_METRICS = false;
-
 /**
  * Process all unprocessed items with streaming updates
  * This function returns a ReadableStream that emits progress updates
@@ -111,17 +109,10 @@ export async function streamExifData({
       let hasMoreItems = true;
 
       while (hasMoreItems) {
-        const batchStartTime = performance.now();
-
         // Before fetching files
-        const queryStartTime = performance.now();
         const unprocessed = await getUnprocessedFiles({
           limit: fetchSize,
         });
-        const queryTime = performance.now() - queryStartTime;
-        console.log(
-          `Time to fetch ${unprocessed.data?.length} files: ${queryTime.toFixed(2)}ms`,
-        );
 
         // Check for errors in the response
         if (unprocessed.error) {
@@ -164,26 +155,15 @@ export async function streamExifData({
           unprocessedFiles.length >= fetchSize;
 
         for (const media of unprocessedFiles) {
-          // Start a timer for this specific file
-          const fileStartTime = ENABLE_METRICS ? performance.now() : 0;
-          let processingTime = 0;
-          let databaseTime = 0;
-
           try {
             // Time database operations
-            const dbStartTime = ENABLE_METRICS ? performance.now() : 0;
             await markProcessingStarted({
               mediaItemId: media.id,
               progressType: 'exif',
               errorMessage: `Processing started for ${media.file_name}`,
             });
-            if (ENABLE_METRICS) databaseTime += performance.now() - dbStartTime;
 
             if (media.id) {
-              // Time actual processing
-              const processingStartTime = ENABLE_METRICS
-                ? performance.now()
-                : 0;
               const result = await processExifData({
                 mediaId: media.id,
                 method: method || 'default',
@@ -200,26 +180,6 @@ export async function streamExifData({
                   });
                 },
               });
-              if (ENABLE_METRICS)
-                processingTime = performance.now() - processingStartTime;
-
-              // Log metrics for this file
-              if (ENABLE_METRICS) {
-                const totalTime = performance.now() - fileStartTime;
-                console.log(`File metrics for ${media.file_name}:`, {
-                  totalTimeMs: totalTime.toFixed(2),
-                  processingTimeMs: processingTime.toFixed(2),
-                  databaseTimeMs: databaseTime.toFixed(2),
-                  otherTimeMs: (
-                    totalTime -
-                    processingTime -
-                    databaseTime
-                  ).toFixed(2),
-                  fileType: media.file_types?.extension,
-                  fileSize: media.size_bytes,
-                  method,
-                });
-              }
 
               // Update counters
               counters.processedCount++;
@@ -253,28 +213,6 @@ export async function streamExifData({
             });
           }
         }
-
-        // At the end of each batch
-        const batchEndTime = performance.now();
-        console.log(`Batch ${counters.currentBatch} metrics:`, {
-          filesProcessed: unprocessedFiles.length,
-          totalTimeSeconds: ((batchEndTime - batchStartTime) / 1000).toFixed(2),
-          filesPerSecond: (
-            unprocessedFiles.length /
-            ((batchEndTime - batchStartTime) / 1000)
-          ).toFixed(2),
-          successRate:
-            ((counters.success / counters.processedCount) * 100).toFixed(2) +
-            '%',
-        });
-
-        // Log memory usage
-        const memoryUsage = process.memoryUsage();
-        console.log('Memory usage:', {
-          rss: `${Math.round(memoryUsage.rss / 1024 / 1024)}MB`,
-          heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
-          heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
-        });
 
         // After finishing a batch, if we're in infinity mode and have more batches to go
         if (hasMoreItems) {
