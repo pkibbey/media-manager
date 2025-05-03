@@ -13,42 +13,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Check if a file needs conversion to be displayed on web
- * @param fileTypeId The file type ID to check
- */
-export async function needsConversion(
-  fileTypeId?: number | null,
-): Promise<boolean> {
-  if (fileTypeId !== undefined && fileTypeId !== null) {
-    return fileTypeCache.needsConversionById(fileTypeId);
-  }
-
-  return false;
-}
-
-/**
- * Check if a file is an image
- * @param fileTypeId The file type ID to check
- */
-export async function isImage(fileTypeId?: number | null): Promise<boolean> {
-  if (fileTypeId !== undefined && fileTypeId !== null) {
-    return fileTypeCache.isImageById(fileTypeId);
-  }
-  return false;
-}
-
-/**
- * Check if a file is a video
- * @param fileTypeId The file type ID to check
- */
-export async function isVideo(fileTypeId?: number | null): Promise<boolean> {
-  if (fileTypeId !== undefined && fileTypeId !== null) {
-    return fileTypeCache.isVideoById(fileTypeId);
-  }
-  return false;
-}
-
-/**
  * Get a keyboard-accessible index from arrow key navigation in a grid
  */
 export function getKeyboardNavigationIndex(

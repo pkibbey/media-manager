@@ -37,7 +37,8 @@
       "a11y": {
         "useButtonType": "off",
         "useSemanticElements": "off",
-        "noNoninteractiveTabindex": "off"
+        "noNoninteractiveTabindex": "off",
+        "useMediaCaption": "off"
       },
       "correctness": {
         "noUnusedImports": "error",

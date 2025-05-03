@@ -31,8 +31,9 @@ export async function getMediaItems({
     })
     .eq('file_types.ignore', false);
 
+  console.log('filters: ', filters);
   // Apply camera filter if provided
-  if (filters.camera && filters.camera !== 'all') {    
+  if (filters.camera && filters.camera !== 'all') {
     query = query.eq('camera', filters.camera);
   }
 
@@ -47,36 +48,36 @@ export async function getMediaItems({
   }
 
   // Apply category filter if provided
-  if (filters.type && filters.type !== 'all') {    
+  if (filters.type && filters.type !== 'all') {
     query = query.eq('file_types.category', filters.type);
   }
 
   // Apply thumbnail filter if provided
-  if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {    
+  if (filters.hasThumbnail && filters.hasThumbnail !== 'all') {
     if (filters.hasThumbnail === 'yes') {
-      query = query.is('thumbnail', true);
+      query = query.not('thumbnail_path', 'is', null);
     } else {
-      query = query.is('thumbnail', false);
+      query = query.is('thumbnail_path', null);
     }
   }
 
   // Apply size filters if provided
-  if (filters.minSize) {    
-    query = query.gte('size_bytes', filters.minSize);
+  if (filters.minSize) {
+    query = query.gte('size_bytes', filters.minSize * 1024 * 1024); // Convert MB to bytes
   }
 
-  if (filters.maxSize && filters.maxSize < 1024 * 1024 * 4) {    
+  if (filters.maxSize && filters.maxSize < 1024 * 1024 * 4) {
     query = query.lte('size_bytes', filters.maxSize);
   }
 
   // Apply search filter if provided
-  if (filters.search) {    
+  if (filters.search) {
     const search = filters.search.toLowerCase();
     query = query.ilike('file_name', `%${search}%`);
   }
 
   // Apply type filter if provided
-  if (filters.type && filters.type !== 'all') {    
+  if (filters.type && filters.type !== 'all') {
     query = query.eq('file_types.category', filters.type);
   }
 

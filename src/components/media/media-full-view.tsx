@@ -1,7 +1,7 @@
 'use client';
 
 import type { Tags } from 'exifreader';
-import { FileIcon, VideoIcon } from 'lucide-react';
+import { FileIcon } from 'lucide-react';
 import Image from 'next/image';
 import { memo } from 'react';
 import useWindowWidth from '@/hooks/useWindowWidth';
@@ -96,11 +96,16 @@ const MediaFullView = memo(
             />
           </div>
         ) : isVid ? (
-          <div className="w-full h-full relative bg-black flex items-center justify-center">
-            <VideoIcon className="h-16 w-16 text-white opacity-50 group-hover:opacity-75 transition-opacity" />
-            <div className="absolute bottom-4 right-4 bg-black/60 text-white text-sm rounded px-2 py-1">
-              VIDEO
-            </div>
+          <div
+            className={`w-[${windowWidth}px] h-[${Math.round((windowWidth / 16) * 9)}px] relative ${containerClass}`}
+          >
+            <video
+              src={`/api/media?id=${item.id}`}
+              className="w-full h-full object-cover"
+              loop
+              playsInline
+              controls
+            />
           </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center">

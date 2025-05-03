@@ -8,7 +8,6 @@ import { lookup } from 'mime-types';
 import { type NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { getMediaItemById } from '@/actions/media/get-media-item-by-id';
-import { isImage, isVideo, needsConversion } from '@/lib/utils';
 
 // Cache directory for converted files
 const CACHE_DIR = path.join(process.cwd(), '.cache');
@@ -24,7 +23,6 @@ try {
 
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
-  // const thumbnail = request.nextUrl.searchParams.get('thumbnail') === 'true'; // REMOVED
 
   if (!id) {
     return NextResponse.json({ error: 'Missing media id' }, { status: 400 });
@@ -33,6 +31,7 @@ export async function GET(request: NextRequest) {
   try {
     // Get the media item by ID
     const { data: mediaItem, error } = await getMediaItemById(id);
+    console.log('mediaItem: ', mediaItem);
 
     if (error || !mediaItem) {
       console.error('Error fetching media item:', error);
@@ -59,9 +58,19 @@ export async function GET(request: NextRequest) {
       .substring(1)
       .toLowerCase();
 
-    const requiresConversion = await needsConversion(mediaItem.file_type_id);
-    const isImageFile = await isImage(mediaItem.file_type_id);
-    const isVideoFile = await isVideo(mediaItem.file_type_id);
+    // Get file type information directly from the database
+    const fileType = mediaItem.file_types;
+
+    if (!fileType) {
+      return NextResponse.json(
+        { error: 'File type information not found' },
+        { status: 500 },
+      );
+    }
+
+    const isImageFile = fileType.category === 'image';
+    const isVideoFile = fileType.category === 'video';
+    const requiresConversion = fileType.needs_conversion === true;
     const mimeType = lookup(fileExtension) || 'application/octet-stream';
 
     // If no conversion needed, serve the original file
