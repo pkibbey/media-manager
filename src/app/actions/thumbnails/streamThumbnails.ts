@@ -185,9 +185,6 @@ export async function streamThumbnails({
               });
             } else {
               counters.failed++;
-              console.error(
-                `[streamThumbnails] [Batch ${counters.currentBatch}] Failed: ${media.file_name} - ${result.message}`,
-              );
               // Mark as error in the database using our helper
               await markProcessingError({
                 mediaItemId: media.id,
@@ -209,10 +206,6 @@ export async function streamThumbnails({
           } catch (error: any) {
             counters.processedCount++;
             counters.failed++;
-            console.error(
-              `[streamThumbnails] [Batch ${counters.currentBatch}] Exception for ${media.file_name}:`,
-              error,
-            );
             // Update the processing state to error using our helper
             await markProcessingError({
               mediaItemId: media.id,
@@ -267,11 +260,6 @@ export async function streamThumbnails({
         },
       });
     } catch (error: any) {
-      // Log the error caught within the processing function
-      console.error(
-        '[streamThumbnails] Unhandled error in batch processing:',
-        error,
-      );
       // Send a failure progress update through the stream
       await sendProgress(encoder, writer, {
         status: 'failure',
@@ -292,12 +280,7 @@ export async function streamThumbnails({
       if (!writer.closed) {
         try {
           await writer.close();
-        } catch (closeError) {
-          console.error(
-            '[streamThumbnails] Error closing writer in finally block:',
-            closeError,
-          );
-        }
+        } catch (_closeError) {}
       }
     }
   }
@@ -307,18 +290,15 @@ export async function streamThumbnails({
 async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
-  // First, get media items with no thumbnail path and no processing state
-  return await supabase
-    .from('media_items')
-    .select(
-      '*, file_types!inner(category, ignore), processing_states!inner(type)', // Select relevant fields
-      {
-        count: 'exact',
-      },
-    )
-    .eq('file_types.category', 'image')
-    .is('file_types.ignore', false)
-    .is('thumbnail_path', null)
-    .not('processing_states.type', 'eq', 'thumbnail')
-    .limit(limit);
+  // Call the RPC function instead of making direct queries
+  const { data, error, count } = await supabase
+    .rpc('get_unprocessed_thumbnail_files', { limit_count: limit })
+    .select('*');
+
+  // Format the response to match the expected structure from the original function
+  return {
+    data,
+    error,
+    count: data?.length || 0,
+  };
 }

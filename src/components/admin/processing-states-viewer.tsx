@@ -165,9 +165,8 @@ export function ProcessingStatesViewer() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="failure">Failure</SelectItem>
+                <SelectItem value="complete">Complete</SelectItem>
               </SelectContent>
             </Select>
           </div>

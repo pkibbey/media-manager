@@ -1,5 +1,5 @@
 import fsSync from 'node:fs';
-import { createReadStream } from 'node:fs';
+import { createReadStream, statSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -31,7 +31,6 @@ export async function GET(request: NextRequest) {
   try {
     // Get the media item by ID
     const { data: mediaItem, error } = await getMediaItemById(id);
-    console.log('mediaItem: ', mediaItem);
 
     if (error || !mediaItem) {
       console.error('Error fetching media item:', error);
@@ -73,10 +72,23 @@ export async function GET(request: NextRequest) {
     const requiresConversion = fileType.needs_conversion === true;
     const mimeType = lookup(fileExtension) || 'application/octet-stream';
 
-    // If no conversion needed, serve the original file
-    if (!requiresConversion) {
-      const fileData = await fs.readFile(mediaItem.file_path);
+    // Get the Range header for streaming support
+    const rangeHeader = request.headers.get('range');
 
+    // If no conversion needed
+    if (!requiresConversion) {
+      // For videos, handle range requests to enable streaming
+      if (isVideoFile && rangeHeader) {
+        return streamVideoFile(
+          mediaItem.file_path,
+          rangeHeader,
+          mimeType,
+          mediaItem.file_name,
+        );
+      }
+
+      // For other files or when no range header, serve the entire file
+      const fileData = await fs.readFile(mediaItem.file_path);
       return new NextResponse(fileData, {
         headers: {
           'Content-Type': mimeType,
@@ -95,8 +107,18 @@ export async function GET(request: NextRequest) {
     try {
       // Check if converted file already exists in cache
       await fs.access(cachedFilePath);
-      const convertedData = await fs.readFile(cachedFilePath);
 
+      // If it's a video and we have a range header, stream it
+      if (isVideoFile && rangeHeader) {
+        return streamVideoFile(
+          cachedFilePath,
+          rangeHeader,
+          'video/mp4',
+          `${mediaItem.file_name}.mp4`,
+        );
+      }
+      // Otherwise serve the entire file
+      const convertedData = await fs.readFile(cachedFilePath);
       return new NextResponse(convertedData, {
         headers: {
           'Content-Type': isImageFile ? 'image/webp' : 'video/mp4',
@@ -131,7 +153,7 @@ export async function GET(request: NextRequest) {
           );
         }
       } else if (isVideoFile) {
-        // Video conversion logic (unchanged)
+        // Video conversion logic
         return new Promise((resolve) => {
           const tempOutputPath = path.join(tmpdir(), `${id}_${Date.now()}.mp4`);
           ffmpeg(mediaItem.file_path)
@@ -143,43 +165,36 @@ export async function GET(request: NextRequest) {
                 // Copy to cache for future requests
                 await fs.copyFile(tempOutputPath, cachedFilePath);
 
-                // Stream the file back to the client
-                const fileStream = createReadStream(tempOutputPath);
-                const chunks: Buffer[] = [];
-
-                fileStream.on('data', (chunk) => {
-                  if (Buffer.isBuffer(chunk)) {
-                    chunks.push(chunk);
-                  } else {
-                    chunks.push(Buffer.from(chunk));
-                  }
-                });
-                fileStream.on('end', () => {
-                  const videoBuffer = Buffer.concat(chunks);
+                // If we have a range header, stream the converted file
+                if (rangeHeader) {
+                  resolve(
+                    streamVideoFile(
+                      cachedFilePath,
+                      rangeHeader,
+                      'video/mp4',
+                      `${mediaItem.file_name}.mp4`,
+                    ),
+                  );
+                  // Clean up the temporary file asynchronously
+                  fs.unlink(tempOutputPath).catch(console.error);
+                } else {
+                  // If no range request, read the entire file and send it
+                  const fileBuffer = await fs.readFile(tempOutputPath);
 
                   // Clean up the temporary file
                   fs.unlink(tempOutputPath).catch(console.error);
 
                   resolve(
-                    new NextResponse(videoBuffer, {
+                    new NextResponse(fileBuffer, {
                       headers: {
                         'Content-Type': 'video/mp4',
                         'Content-Disposition': `inline; filename="${encodeURIComponent(mediaItem.file_name)}.mp4"`,
                         'Cache-Control': 'public, max-age=604800', // Cache for 7 days
+                        'Accept-Ranges': 'bytes', // Indicate we support range requests
                       },
                     }),
                   );
-                });
-
-                fileStream.on('error', (err) => {
-                  console.error('Error reading converted video:', err);
-                  resolve(
-                    NextResponse.json(
-                      { error: 'Error reading converted video' },
-                      { status: 500 },
-                    ),
-                  );
-                });
+                }
               } catch (err) {
                 console.error('Error handling converted video:', err);
                 resolve(
@@ -224,4 +239,54 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * Stream a video file with support for HTTP Range requests
+ * This enables efficient video streaming in browsers
+ */
+function streamVideoFile(
+  filePath: string,
+  rangeHeader: string,
+  contentType: string,
+  fileName: string,
+): NextResponse {
+  // Get file stats
+  const stat = statSync(filePath);
+  const fileSize = stat.size;
+
+  // Parse range
+  // Example: "bytes=32324-"
+  const parts = rangeHeader.replace(/bytes=/, '').split('-');
+  const start = Number.parseInt(parts[0], 10);
+  const end = parts[1] ? Number.parseInt(parts[1], 10) : fileSize - 1;
+
+  // Handle invalid ranges
+  if (isNaN(start) || start < 0 || start >= fileSize) {
+    return new NextResponse('Invalid range', {
+      status: 416, // Range Not Satisfiable
+      headers: {
+        'Content-Range': `bytes */${fileSize}`,
+      },
+    });
+  }
+
+  // Calculate the chunk size
+  const chunkSize = end - start + 1;
+
+  // Create the stream
+  const stream = createReadStream(filePath, { start, end });
+
+  // Stream the content
+  return new NextResponse(stream as any, {
+    status: 206, // Partial Content
+    headers: {
+      'Content-Type': contentType,
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': `${chunkSize}`,
+      'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`,
+      'Cache-Control': 'public, max-age=86400', // Cache for 1 day
+    },
+  });
 }

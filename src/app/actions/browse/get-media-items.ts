@@ -31,7 +31,6 @@ export async function getMediaItems({
     })
     .eq('file_types.ignore', false);
 
-  console.log('filters: ', filters);
   // Apply camera filter if provided
   if (filters.camera && filters.camera !== 'all') {
     query = query.eq('camera', filters.camera);

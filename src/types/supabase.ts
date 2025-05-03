@@ -187,38 +187,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      count_compatible_media_items: {
-        Args: { compatible_extensions?: string[] }
-        Returns: {
-          total_count: number
-          by_extension: Json
-        }[]
-      }
-      count_folder_media: {
-        Args: { target_folder: string; include_subfolders: boolean }
-        Returns: {
-          current_folder_count: number
-          subfolder_count: number
-        }[]
-      }
-      count_unprocessed_exif_files: {
-        Args: { exif_supported_ids: number[]; ignored_ids?: number[] }
-        Returns: number
-      }
       get_exif_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
           total: number
           success: number
           failed: number
-        }[]
-      }
-      get_extension_statistics: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          extension: string
-          count: number
-          category: string
         }[]
       }
       get_media_statistics: {
@@ -246,18 +220,15 @@ export type Database = {
           camera_model: string
         }[]
       }
-      get_unprocessed_exif_files: {
-        Args: {
-          exif_supported_ids: number[]
-          ignored_ids?: number[]
-          page_number?: number
-          page_size?: number
-        }
+      get_unprocessed_thumbnail_files: {
+        Args: { limit_count: number }
         Returns: {
           id: string
+          file_name: string
           file_path: string
           file_type_id: number
-          file_name: string
+          thumbnail_path: string
+          file_types: Json
         }[]
       }
       random_order_media_items: {
