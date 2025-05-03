@@ -3,7 +3,6 @@
 import { UnifiedProgressDisplay } from '../ui/unified-progress-display';
 import { UnifiedStatsDisplay } from '../ui/unified-stats-display';
 import { ExifActionButtons } from './exif-processor/ExifActionButtons';
-import { ExifErrorSummary } from './exif-processor/ExifErrorSummary';
 import { ExifProcessOptions } from './exif-processor/ExifProcessOptions';
 import { useExifProcessor } from './exif-processor/useExifProcessor';
 
@@ -12,7 +11,6 @@ export default function ExifProcessor() {
     stats,
     isProcessing,
     progress,
-    errorSummary,
     method,
     setMethod,
     batchSize,
@@ -77,8 +75,6 @@ export default function ExifProcessor() {
         handleProcess={handleProcess}
         handleCancel={handleCancel}
       />
-
-      <ExifErrorSummary progress={progress} errorSummary={errorSummary} />
     </div>
   );
 }

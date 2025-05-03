@@ -11,7 +11,7 @@ import type { UnifiedStats } from '@/types/unified-stats';
 import { getUnprocessedFiles } from './get-unprocessed-files';
 import { processExifData } from './processExifData';
 
-const ENABLE_METRICS = true;
+const ENABLE_METRICS = false;
 
 /**
  * Process all unprocessed items with streaming updates
