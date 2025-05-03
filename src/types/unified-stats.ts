@@ -1,3 +1,6 @@
+import type { ExtractionMethod } from './exif';
+import type { ThumbnailMethod } from './thumbnail-types';
+
 /**
  * Simplified processing status type
  */
@@ -48,3 +51,5 @@ export interface UnifiedStats {
     currentBatch?: number;
   };
 }
+
+export type Method = ThumbnailMethod | ExtractionMethod;

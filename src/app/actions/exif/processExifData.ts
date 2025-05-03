@@ -1,14 +1,17 @@
 'use server';
 
 import { getMediaItemById } from '@/actions/media/get-media-item-by-id';
-import { extractAndSanitizeExifData } from '@/lib/exif-utils';
+import {
+  extractAndSanitizeExifData,
+  uploadExifThumbnail,
+} from '@/lib/exif-utils';
 import {
   handleProcessingError,
   markProcessingError,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
-import type { ExtractionMethod } from '@/types/exif';
 import type { Json } from '@/types/supabase';
+import type { Method } from '@/types/unified-stats';
 import { updateMediaItem } from '../media/update-media-item';
 
 /**
@@ -21,7 +24,7 @@ export async function processExifData({
   progressCallback,
 }: {
   mediaId: string;
-  method: ExtractionMethod;
+  method: Method;
   progressCallback?: (message: string) => void;
 }) {
   try {
@@ -81,6 +84,37 @@ export async function processExifData({
           progressType: 'exif',
           errorMessage: String(updateError),
         });
+      }
+
+      // Check if there's a thumbnail buffer from the EXIF extraction
+      if (extraction.thumbnailBuffer) {
+        progressCallback?.('EXIF thumbnail found, uploading to storage');
+        try {
+          // Upload the thumbnail
+          const thumbnailResult = await uploadExifThumbnail(
+            mediaId,
+            extraction.thumbnailBuffer,
+          );
+
+          console.log('thumbnailResult: ', thumbnailResult);
+
+          if (thumbnailResult.success) {
+            progressCallback?.(
+              `EXIF thumbnail uploaded: ${thumbnailResult.thumbnailUrl}`,
+            );
+          } else {
+            progressCallback?.(
+              `EXIF thumbnail upload failed: ${thumbnailResult.message}`,
+            );
+            // Don't fail the entire process if just the thumbnail upload fails
+            // Consider it a soft error
+          }
+        } catch (thumbnailError) {
+          progressCallback?.(
+            `Error uploading EXIF thumbnail: ${thumbnailError instanceof Error ? thumbnailError.message : String(thumbnailError)}`,
+          );
+          // Again, don't fail the entire process
+        }
       }
     } catch (error) {
       const errorMessage = `Database update error: ${error instanceof Error ? error.message : 'Unknown error'}`;

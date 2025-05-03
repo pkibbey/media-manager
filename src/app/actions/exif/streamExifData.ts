@@ -5,8 +5,8 @@ import {
   markProcessingStarted,
   sendProgress,
 } from '@/lib/processing-helpers';
-import type { ExtractionMethod } from '@/types/exif';
 import type { ProgressType } from '@/types/progress-types';
+import type { Method } from '@/types/unified-stats';
 import type { UnifiedStats } from '@/types/unified-stats';
 import { getUnprocessedFiles } from './get-unprocessed-files';
 import { processExifData } from './processExifData';
@@ -21,7 +21,7 @@ export async function streamExifData({
   method,
   batchSize,
 }: {
-  method: ExtractionMethod;
+  method: Method;
   batchSize: number;
 }) {
   const encoder = new TextEncoder();
@@ -74,7 +74,7 @@ export async function streamExifData({
     batchSize,
   }: {
     writer: WritableStreamDefaultWriter;
-    method?: ExtractionMethod;
+    method?: Method;
     batchSize: number;
     progressType?: ProgressType;
   }) {

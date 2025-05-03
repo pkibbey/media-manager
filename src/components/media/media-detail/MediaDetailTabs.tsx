@@ -1,4 +1,4 @@
-import type { Exif } from 'exif-reader';
+import type { Tags } from 'exifreader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { MediaItem } from '@/types/db-types';
@@ -8,7 +8,7 @@ import { MediaDetailInfo } from './MediaDetailInfo';
 type MediaDetailTabsProps = {
   item: MediaItem;
   category: string | null;
-  exifData: Exif | null;
+  exifData: Tags | null;
   isImageFile: boolean;
 };
 

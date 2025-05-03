@@ -1,11 +1,11 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import path from 'node:path';
-import exifReader, { type Exif } from 'exif-reader';
+import ExifReader from 'exifreader';
+import type { Tags } from 'exifreader';
 import sharp from 'sharp';
 import { sanitizeExifData } from '@/lib/utils';
-import type { ExtractionMethod } from '@/types/exif';
+import type { Method } from '@/types/unified-stats';
 import { createServerSupabaseClient } from './supabase';
 
 /**
@@ -13,27 +13,14 @@ import { createServerSupabaseClient } from './supabase';
  */
 async function extractMetadataWithSharp(
   filePath: string,
-): Promise<Exif | null> {
-  const extension = path.extname(filePath).toLowerCase();
-  const supportedExtensions = [
-    '.jpg',
-    '.jpeg',
-    '.png',
-    '.webp',
-    '.tiff',
-    '.gif',
-    '.avif',
-  ];
+): Promise<Tags | null> {
+  const metadata = await sharp(filePath).metadata();
 
-  if (supportedExtensions.includes(extension)) {
-    const metadata = await sharp(filePath).metadata();
-
-    if (metadata.exif) {
-      // Parse EXIF buffer from Sharp
-      return exifReader(metadata.exif);
-    }
+  if (metadata.exif) {
+    // Parse EXIF buffer from Sharp
+    const tags = ExifReader.load(metadata.exif);
+    return tags;
   }
-
   return null;
 }
 
@@ -42,9 +29,17 @@ async function extractMetadataWithSharp(
  */
 async function extractMetadataDirectOnly(
   filePath: string,
-): Promise<Exif | null> {
-  const fileBuffer = await fs.readFile(filePath);
-  return exifReader(fileBuffer);
+): Promise<{ tags: Tags | null; thumbnailBuffer?: Buffer }> {
+  const tags = await ExifReader.load(filePath);
+
+  // Check if there's a thumbnail in the EXIF data
+  let thumbnailBuffer: Buffer | undefined = undefined;
+  if (tags.Thumbnail?.base64) {
+    // Extract the thumbnail buffer
+    thumbnailBuffer = Buffer.from(tags.Thumbnail.base64, 'base64');
+  }
+
+  return { tags, thumbnailBuffer };
 }
 
 /**
@@ -52,7 +47,7 @@ async function extractMetadataDirectOnly(
  */
 async function extractMetadataMarkerOnly(
   filePath: string,
-): Promise<Exif | null> {
+): Promise<Tags | null> {
   const fileBuffer = await fs.readFile(filePath);
   // JPEG files typically have EXIF data starting after the APP1 marker (0xFFE1)
   const app1Marker = Buffer.from([0xff, 0xe1]);
@@ -61,7 +56,7 @@ async function extractMetadataMarkerOnly(
   if (markerIndex !== -1) {
     // Extract EXIF data block - skip the marker (2 bytes) and length (2 bytes)
     const exifBlock = fileBuffer.slice(markerIndex + 4);
-    return exifReader(exifBlock);
+    return ExifReader.load(exifBlock);
   }
   return null;
 }
@@ -77,8 +72,13 @@ export async function extractMetadata({
   method,
 }: {
   filePath: string;
-  method: ExtractionMethod;
-}): Promise<{ success: boolean; data: Exif | null; error?: string }> {
+  method: Method;
+}): Promise<{
+  success: boolean;
+  data: Tags | null;
+  error?: string;
+  thumbnailBuffer?: Buffer;
+}> {
   try {
     // First check if the file exists
     try {
@@ -97,7 +97,11 @@ export async function extractMetadata({
       case 'direct-only':
         try {
           const result = await extractMetadataDirectOnly(filePath);
-          return { success: true, data: result };
+          return {
+            success: true,
+            data: result.tags,
+            thumbnailBuffer: result.thumbnailBuffer,
+          };
         } catch (err) {
           return {
             success: false,
@@ -135,11 +139,19 @@ export async function extractMetadata({
 
           // If Sharp didn't find EXIF data, try direct extraction
           const directResult = await extractMetadataDirectOnly(filePath);
-          return { success: true, data: directResult };
+          return {
+            success: true,
+            data: directResult.tags,
+            thumbnailBuffer: directResult.thumbnailBuffer,
+          };
         } catch (_sharpError) {
           try {
             const directResult = await extractMetadataDirectOnly(filePath);
-            return { success: true, data: directResult };
+            return {
+              success: true,
+              data: directResult.tags,
+              thumbnailBuffer: directResult.thumbnailBuffer,
+            };
           } catch (directError) {
             return {
               success: false,
@@ -160,14 +172,15 @@ export async function extractMetadata({
 
 export async function extractAndSanitizeExifData(
   filePath: string,
-  method: ExtractionMethod,
+  method: Method,
   progressCallback?: (message: string) => void,
 ): Promise<{
   success: boolean;
-  exifData: Exif | null;
-  sanitizedExifData: Exif | null;
+  exifData: Tags | null;
+  sanitizedExifData: Tags | null;
   mediaDate: string | null;
   message: string;
+  thumbnailBuffer?: Buffer;
 }> {
   progressCallback?.(
     `Extracting metadata using ${method} method from ${filePath}`,
@@ -211,8 +224,8 @@ export async function extractAndSanitizeExifData(
 
     // Get media date from EXIF
     const mediaDate =
-      exifResult.data.Photo?.DateTimeOriginal?.toISOString() ||
-      exifResult.data.Image?.DateTime?.toISOString() ||
+      exifResult.data?.DateTimeOriginal?.description ||
+      exifResult.data?.DateTime?.description ||
       null;
 
     return {
@@ -221,6 +234,7 @@ export async function extractAndSanitizeExifData(
       sanitizedExifData,
       mediaDate,
       message: 'EXIF data extracted and sanitized successfully',
+      thumbnailBuffer: exifResult.thumbnailBuffer,
     };
   } catch (error) {
     return {
@@ -229,6 +243,80 @@ export async function extractAndSanitizeExifData(
       sanitizedExifData: null,
       mediaDate: null,
       message: `EXIF extraction error: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+/**
+ * Uploads a thumbnail buffer to Supabase storage
+ * @param mediaId ID of the media item
+ * @param thumbnailBuffer Buffer containing the thumbnail image
+ * @returns Object containing success status, message, and thumbnail URL if successful
+ */
+export async function uploadExifThumbnail(
+  mediaId: string,
+  thumbnailBuffer: Buffer,
+): Promise<{ success: boolean; thumbnailUrl?: string; message: string }> {
+  try {
+    const supabase = createServerSupabaseClient();
+
+    // Process the thumbnail to ensure consistent format and quality
+    const processedThumbnail = await sharp(thumbnailBuffer, {
+      failOnError: false,
+    })
+      .resize(300, 300, { fit: 'cover' })
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    // Upload to Supabase Storage
+    const fileName = `${mediaId}_exif_thumb.webp`;
+
+    const { error: storageError } = await supabase.storage
+      .from('thumbnails')
+      .upload(fileName, processedThumbnail, {
+        contentType: 'image/webp',
+        upsert: true,
+      });
+
+    if (storageError) {
+      return {
+        success: false,
+        message: `Failed to upload EXIF thumbnail: ${storageError.message}`,
+      };
+    }
+
+    // Get the public URL for the uploaded thumbnail
+    const { data: publicUrlData } = supabase.storage
+      .from('thumbnails')
+      .getPublicUrl(fileName);
+
+    const thumbnailUrl = publicUrlData.publicUrl;
+
+    // Update the media_items table with the thumbnail path
+    const { error: updateMediaItemError } = await supabase
+      .from('media_items')
+      .update({ thumbnail_path: thumbnailUrl })
+      .eq('id', mediaId);
+
+    if (updateMediaItemError) {
+      // Attempt to delete the potentially orphaned thumbnail from storage
+      await supabase.storage.from('thumbnails').remove([fileName]);
+
+      return {
+        success: false,
+        message: `Uploaded thumbnail but failed to update media item record: ${updateMediaItemError.message}`,
+      };
+    }
+
+    return {
+      success: true,
+      thumbnailUrl,
+      message: 'EXIF thumbnail extracted, processed and stored successfully',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Error processing or uploading EXIF thumbnail: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }

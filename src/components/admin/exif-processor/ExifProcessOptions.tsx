@@ -6,13 +6,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { ExtractionMethod } from '@/types/exif';
 import type { UnifiedProgress } from '@/types/progress-types';
+import type { Method } from '@/types/unified-stats';
 
 type ExifProcessOptionsProps = {
   progress: UnifiedProgress | null;
-  method: ExtractionMethod;
-  setMethod: (method: ExtractionMethod) => void;
+  method: Method;
+  setMethod: (method: Method) => void;
   batchSize: number;
   setBatchSize: (size: number) => void;
   isProcessing: boolean;
@@ -35,7 +35,7 @@ export function ExifProcessOptions({
           </Label>
           <Select
             value={method}
-            onValueChange={(value) => setMethod(value as ExtractionMethod)}
+            onValueChange={(value) => setMethod(value as Method)}
             disabled={isProcessing || progress?.totalCount === 0}
           >
             <SelectTrigger className="w-full text-sm" id="method">

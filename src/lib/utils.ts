@@ -1,5 +1,5 @@
 import { type ClassValue, clsx } from 'clsx';
-import type { Exif } from 'exif-reader';
+import type { Tags } from 'exifreader';
 import { twMerge } from 'tailwind-merge';
 import type { MediaItem } from '@/types/db-types';
 import type { UnifiedStats } from '@/types/unified-stats';
@@ -92,7 +92,7 @@ export function formatBytes(bytes: number): string {
  * Sanitize EXIF data for storage in database
  * Removes circular references and converts Date objects to ISO strings
  */
-export function sanitizeExifData(exifData: any): any {
+export function sanitizeExifData(exifData: Tags | null | undefined): any {
   if (!exifData) return null;
 
   const processed = new Set();
@@ -247,17 +247,66 @@ export function extractDateFromFilename(filename: string): Date | null {
 }
 
 /**
- * Generate a Google Maps URL from coordinates
+ * Generate a Google Maps URL from EXIF GPS tags
  */
 export function getGoogleMapsUrl(
-  latitude?: number,
-  longitude?: number,
+  latitude?: Tags['GPSLatitude'],
+  longitude?: Tags['GPSLongitude'],
 ): string | null {
-  if (latitude === undefined || longitude === undefined) {
+  const lat = dmsToDecimal(latitude);
+  const lon = dmsToDecimal(longitude);
+  if (lat === null || lon === null) {
     return null;
   }
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+}
 
-  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+// Helper to convert EXIF GPS tags ([ [deg,1], [min,1], [sec,1] ]) to decimal
+function dmsToDecimal(
+  dmsTag: Tags['GPSLatitude'] | Tags['GPSLongitude'],
+): number | null {
+  if (
+    !dmsTag ||
+    !Array.isArray(dmsTag.value) ||
+    dmsTag.value.length !== 3 ||
+    !Array.isArray(dmsTag.value[0]) ||
+    !Array.isArray(dmsTag.value[1]) ||
+    !Array.isArray(dmsTag.value[2])
+  ) {
+    return null;
+  }
+  const dms = dmsTag.value as [
+    [number, number],
+    [number, number],
+    [number, number],
+  ];
+  const [deg, min, sec] = dms;
+  const degrees = deg[0] / deg[1];
+  const minutes = min[0] / min[1];
+  const seconds = sec[0] / sec[1];
+  return degrees + minutes / 60 + seconds / 3600;
+}
+
+/**
+ * Helper function to convert GPS coordinates from DMS format to decimal degrees
+ */
+export function calculateGpsDecimal(
+  coordinates: Tags['GPSLatitude'] | Tags['GPSLongitude'],
+  ref: Tags['GPSLatitudeRef'] | Tags['GPSLongitudeRef'],
+): number | undefined {
+  if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) {
+    return undefined;
+  }
+
+  // Calculate decimal degrees from degrees, minutes, seconds
+  let decimal = coordinates[0] + coordinates[1] / 60 + coordinates[2] / 3600;
+
+  // Apply negative value for South or West references
+  if (String(ref) === 'S' || String(ref) === 'W') {
+    decimal = -decimal;
+  }
+
+  return decimal;
 }
 
 /**
@@ -267,18 +316,30 @@ export function getGoogleMapsUrl(
  * @returns Formatted coordinates string
  */
 export function formatGpsCoordinates(
-  latitude?: number,
-  longitude?: number,
+  latitude?: Tags['GPSLatitude'],
+  longitude?: Tags['GPSLongitude'],
 ): string | null {
-  if (latitude === undefined || longitude === undefined) {
+  if (
+    !latitude ||
+    !longitude ||
+    !Array.isArray(latitude.value) ||
+    !Array.isArray(longitude.value)
+  ) {
     return null;
   }
 
-  const latDir = latitude >= 0 ? 'N' : 'S';
-  const lonDir = longitude >= 0 ? 'E' : 'W';
+  const lat = dmsToDecimal(latitude);
+  const lon = dmsToDecimal(longitude);
 
-  const absLat = Math.abs(latitude);
-  const absLon = Math.abs(longitude);
+  if (lat === null || lon === null) {
+    return null;
+  }
+
+  const latDir = lat >= 0 ? 'N' : 'S';
+  const lonDir = lon >= 0 ? 'E' : 'W';
+
+  const absLat = Math.abs(lat);
+  const absLon = Math.abs(lon);
 
   return `${absLat.toFixed(6)}° ${latDir}, ${absLon.toFixed(6)}° ${lonDir}`;
 }
@@ -288,11 +349,11 @@ export function formatGpsCoordinates(
  * @param exifData The EXIF data object
  * @returns Formatted camera string or undefined if not available
  */
-export function formatCameraInfo(exifData?: Exif | null): string | undefined {
+export function formatCameraInfo(exifData?: Tags | null): string | undefined {
   if (!exifData || !exifData.Image) return undefined;
 
-  const make = exifData.Image.Make?.toString().trim();
-  const model = exifData.Image.Model?.toString().trim();
+  const make = exifData.Make?.toString().trim();
+  const model = exifData.Model?.toString().trim();
 
   if (make && model) {
     // Remove redundant manufacturer name from model if present
@@ -310,24 +371,18 @@ export function formatCameraInfo(exifData?: Exif | null): string | undefined {
  * @param exifData The EXIF data object
  * @returns Formatted lens string or undefined if not available
  */
-export function formatLensInfo(exifData?: Exif | null): string | undefined {
+export function formatLensInfo(exifData?: Tags | null): string | undefined {
   if (!exifData) return undefined;
 
   // Lens information is typically stored in Photo section
-  const lensModel = exifData.Photo?.LensModel?.toString().trim();
-  const lensMake = exifData.Photo?.LensMake?.toString().trim();
+  const lensModel = exifData.LensModel?.toString().trim();
+  const lensMake = exifData.LensMake?.toString().trim();
 
   if (lensModel) {
     if (lensMake && !lensModel.includes(lensMake)) {
       return `${lensMake} ${lensModel}`;
     }
     return lensModel;
-  }
-
-  // If no specific lens model, try LensInfo array
-  const lensInfo = exifData.Photo?.LensSpecification;
-  if (Array.isArray(lensInfo) && lensInfo.length > 0) {
-    return `${lensInfo[0]}-${lensInfo[1]}mm f/${lensInfo[2]}-${lensInfo[3]}`;
   }
 
   return undefined;
@@ -338,21 +393,23 @@ export function formatLensInfo(exifData?: Exif | null): string | undefined {
  * @param exifData The EXIF data object
  * @returns Formatted exposure string or undefined if not available
  */
-export function formatExposureInfo(exifData?: Exif | null): string | undefined {
+export function formatExposureInfo(exifData?: Tags | null): string | undefined {
   if (!exifData) return undefined;
 
   const parts: string[] = [];
 
   // Format aperture (f-stop)
-  if (exifData.Photo?.ApertureValue) {
-    parts.push(`ƒ/${exifData.Photo.ApertureValue.toFixed(1)}`);
-  } else if (exifData.Photo?.FNumber) {
-    parts.push(`ƒ/${exifData.Photo.FNumber.toFixed(1)}`);
+  if (exifData.ApertureValue) {
+    parts.push(`ƒ/${Number(exifData.ApertureValue).toFixed(1)}`);
+  }
+
+  if (exifData.FNumber) {
+    parts.push(`ƒ/${Number(exifData.FNumber).toFixed(1)}`);
   }
 
   // Format shutter speed
-  if (exifData.Photo?.ShutterSpeedValue) {
-    const shutterSpeed = exifData.Photo.ShutterSpeedValue;
+  if (exifData.ShutterSpeedValue) {
+    const shutterSpeed = exifData.ShutterSpeedValue;
     // ShutterSpeedValue is often stored as APEX value (log2-based)
     // Convert from APEX to seconds: 2^(-ShutterSpeedValue)
     // biome-ignore lint/style/useExponentiationOperator: <explanation>
@@ -365,8 +422,8 @@ export function formatExposureInfo(exifData?: Exif | null): string | undefined {
     } else {
       parts.push(`${seconds.toFixed(1)}s`);
     }
-  } else if (exifData.Photo?.ExposureTime) {
-    const exposureTime = exifData.Photo.ExposureTime;
+  } else if (exifData.ExposureTime) {
+    const exposureTime = Number(exifData.ExposureTime);
     if (exposureTime < 1) {
       const denominator = Math.round(1 / exposureTime);
       parts.push(`1/${denominator}s`);
@@ -376,10 +433,10 @@ export function formatExposureInfo(exifData?: Exif | null): string | undefined {
   }
 
   // Format ISO
-  if (exifData.Photo?.ISOSpeedRatings) {
-    const iso = Array.isArray(exifData.Photo.ISOSpeedRatings)
-      ? exifData.Photo.ISOSpeedRatings[0]
-      : exifData.Photo.ISOSpeedRatings;
+  if (exifData.ISOSpeedRatings) {
+    const iso = Array.isArray(exifData.ISOSpeedRatings)
+      ? exifData.ISOSpeedRatings[0]
+      : exifData.ISOSpeedRatings;
     parts.push(`ISO ${iso}`);
   }
 
@@ -391,11 +448,11 @@ export function formatExposureInfo(exifData?: Exif | null): string | undefined {
  * @param exifData The EXIF data object
  * @returns Formatted focal length string or undefined if not available
  */
-export function formatFocalLength(exifData?: Exif | null): string | undefined {
+export function formatFocalLength(exifData?: Tags | null): string | undefined {
   if (!exifData || !exifData.Photo) return undefined;
 
-  const focalLength = exifData.Photo.FocalLength;
-  const focalLengthIn35mm = exifData.Photo.FocalLengthIn35mmFilm;
+  const focalLength = Number(exifData.FocalLength);
+  const focalLengthIn35mm = Number(exifData.FocalLengthIn35mmFilm);
 
   if (focalLength) {
     if (focalLengthIn35mm && focalLength !== focalLengthIn35mm) {
@@ -410,10 +467,10 @@ export function formatFocalLength(exifData?: Exif | null): string | undefined {
 /**
  * Helper function to properly type exif_data from database
  * @param item MediaItem from database
- * @returns Strongly typed Exif object or null
+ * @returns Strongly typed T object or null
  */
-export function getExifData(item: MediaItem): Exif | null {
-  return item.exif_data as Exif | null;
+export function getExifData(item: MediaItem): Tags | null {
+  return item.exif_data as Tags | null;
 }
 
 /**

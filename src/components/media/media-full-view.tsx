@@ -1,6 +1,6 @@
 'use client';
 
-import type { Exif } from 'exif-reader';
+import type { Tags } from 'exifreader';
 import { FileIcon, VideoIcon } from 'lucide-react';
 import Image from 'next/image';
 import { memo } from 'react';
@@ -13,7 +13,7 @@ interface MediaFullViewProps {
   zoomMode?: boolean;
 }
 
-function calculateAspectRatio(exifData: Exif | null): {
+function calculateAspectRatio(exifData: Tags | null): {
   width: number;
   height: number;
 } {
@@ -22,14 +22,14 @@ function calculateAspectRatio(exifData: Exif | null): {
   }
 
   // Try to get dimensions from Image tags
-  const width = exifData.Image?.ImageWidth || 0;
-  const height = exifData.Image?.ImageLength || 0;
+  const width = Number(exifData.ImageWidth) || 0;
+  const height = Number(exifData.ImageHeight) || 0;
 
   // Fallback to Photo tags if Image tags are not available
   if (width === 0 && height === 0) {
     return {
-      width: exifData.Photo?.PixelXDimension || 0,
-      height: exifData.Photo?.PixelYDimension || 0,
+      width: Number(exifData.PixelXDimension) || 0,
+      height: Number(exifData.PixelYDimension) || 0,
     };
   }
 
@@ -44,13 +44,21 @@ const MediaFullView = memo(
     zoomMode = false,
   }: MediaFullViewProps) {
     const windowWidth = useWindowWidth();
-    const exifData = item.exif_data as Exif | null;
-    const orientation = exifData?.Image?.Orientation || undefined;
+    const exifData = item.exif_data as Tags | null;
+    const orientation = exifData?.Orientation || undefined;
     const { height, width } = calculateAspectRatio(exifData);
     const aspectRatio = width / height;
 
     // Determine if image is rotated 90/270 degrees based on EXIF
-    const isRotated = orientation === 6 || orientation === 8;
+    const isRotated =
+      orientation?.description === 'Rotate 90 CW' ||
+      orientation?.description === 'Rotate 270 CW';
+
+    // A check for flipped images (180 degrees)
+    const isFlipped =
+      orientation?.description === 'Downwards' ||
+      orientation?.description === 'Upwards';
+    if (isFlipped) console.log('isFlipped: ', isFlipped);
 
     // Apply special class for rotated images in zoom mode
     const containerClass = zoomMode && isRotated ? 'rotated-image' : '';

@@ -83,6 +83,9 @@ importers:
       exif-reader:
         specifier: ^2.0.2
         version: 2.0.2
+      exifreader:
+        specifier: ^4.30.0
+        version: 4.30.0
       fluent-ffmpeg:
         specifier: ^2.1.3
         version: 2.1.3
@@ -99,8 +102,8 @@ importers:
         specifier: ^4.17.21
         version: 4.17.21
       lucide-react:
-        specifier: 0.505.0
-        version: 0.505.0(react@19.1.0)
+        specifier: 0.507.0
+        version: 0.507.0(react@19.1.0)
       mime-types:
         specifier: ^3.0.1
         version: 3.0.1
@@ -132,8 +135,11 @@ importers:
         specifier: 3.2.0
         version: 3.2.0
       tw-animate-css:
-        specifier: ^1.2.8
-        version: 1.2.8
+        specifier: ^1.2.9
+        version: 1.2.9
+      xmldom:
+        specifier: ^0.6.0
+        version: 0.6.0
       zod:
         specifier: 3.24.3
         version: 3.24.3
@@ -1454,6 +1460,10 @@ packages:
     resolution: {integrity: sha512-e4kQK9mP8ntpo3dACWirGod/hHv4qO5JMj9a/0a2AZto7b4persj5YP7t1Er372gTtYFTYxNhMx34jRvHooglw==}
     engines: {node: '>=16'}
 
+  '@xmldom/xmldom@0.9.8':
+    resolution: {integrity: sha512-p96FSY54r+WJ50FIOsCOjyj/wavs8921hG5+kVMmZgKcvIKxMXHTrjNJvRgWa/zuX3B6t2lijLNFaOyuxUH+2A==}
+    engines: {node: '>=14.6'}
+
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
     engines: {node: '>=6.5'}
@@ -1687,6 +1697,9 @@ packages:
   exif-reader@2.0.2:
     resolution: {integrity: sha512-CVFqcwdwFe2GnbbW7/Q7sUhVP5Ilaw7fuXQc6ad3AbX20uGfHhXTpkF/hQHPrtOuys9elFVgsUkvwfhfvjDa1A==}
 
+  exifreader@4.30.0:
+    resolution: {integrity: sha512-de0tdPkASObswrGtn9fxroP3MiTgDxVu6/wAPQ7cBEdLwgek82s+ox7QT7Sl3ufKM5U1CapN9LWkQfDAKM37Bg==}
+
   expr-eval@2.0.2:
     resolution: {integrity: sha512-4EMSHGOPSwAfBiibw3ndnP0AvjDWLsMvGOvWEZ2F96IGk0bIVdjQisOHxReSkE13mHcfbuCiXw+G4y0zv6N8Eg==}
 
@@ -1919,6 +1932,14 @@ packages:
       openai:
         optional: true
 
+  langsmith@0.3.25:
+    resolution: {integrity: sha512-KuJu89VY3DmCdFvlVxQG4owQl546Z6pQc6TbhsyP77MkVJgZr8yvevZvvcXDWIpT2o2s52c9Aww2XVOH6GmHxQ==}
+    peerDependencies:
+      openai: '*'
+    peerDependenciesMeta:
+      openai:
+        optional: true
+
   libheif-js@1.18.2:
     resolution: {integrity: sha512-4Nk0dKhhRfVS4mECcX2jSDpNU6gcHQLneJjkGQq61N8COGtjSpSA3CI+1Q3kUYv5Vf+SwIqUtaDSdU6JO37c6w==}
     engines: {node: '>=8.0.0'}
@@ -2014,8 +2035,8 @@ packages:
   lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
-  lucide-react@0.505.0:
-    resolution: {integrity: sha512-CblOqNBI1aIJqTIBx42CbBf7omVukYtYEy43eZLkm0CTrOO1tgumeuL/RrjwzXRaWonlcJYYTtBE70STDH3pvg==}
+  lucide-react@0.507.0:
+    resolution: {integrity: sha512-XfgE6gvAHwAtnbUvWiTTHx4S3VGR+cUJHEc0vrh9Ogu672I1Tue2+Cp/8JJqpytgcBHAB1FVI297W4XGNwc2dQ==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -2364,8 +2385,8 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
-  tw-animate-css@1.2.8:
-    resolution: {integrity: sha512-AxSnYRvyFnAiZCUndS3zQZhNfV/B77ZhJ+O7d3K6wfg/jKJY+yv6ahuyXwnyaYA9UdLqnpCwhTRv9pPTBnPR2g==}
+  tw-animate-css@1.2.9:
+    resolution: {integrity: sha512-9O4k1at9pMQff9EAcCEuy1UNO43JmaPQvq+0lwza9Y0BQ6LB38NiMj+qHqjoQf40355MX+gs6wtlR6H9WsSXFg==}
 
   typescript@5.8.3:
     resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
@@ -2446,6 +2467,10 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  xmldom@0.6.0:
+    resolution: {integrity: sha512-iAcin401y58LckRZ0TkI4k0VSM1Qg0KGSc3i8rU+xrxe19A/BN1zHyVSJY7uoutVlaTSzYyk/v5AmkewAP7jtg==}
+    engines: {node: '>=10.0.0'}
 
   yaml@2.7.1:
     resolution: {integrity: sha512-10ULxpnOCQXxJvBgxsn9ptjq6uviG/htZKk9veJGhlqn3w/DxQ631zFF+nlQXLwmImeS5amR2dl2U8sg6U9jsQ==}
@@ -2710,7 +2735,7 @@ snapshots:
       camelcase: 6.3.0
       decamelize: 1.2.0
       js-tiktoken: 1.0.20
-      langsmith: 0.3.24(openai@4.96.2(ws@8.18.1)(zod@3.24.3))
+      langsmith: 0.3.25(openai@4.96.2(ws@8.18.1)(zod@3.24.3))
       mustache: 4.2.0
       p-queue: 6.6.2
       p-retry: 4.6.2
@@ -3375,6 +3400,9 @@ snapshots:
       satori: 0.12.2
       yoga-wasm-web: 0.3.3
 
+  '@xmldom/xmldom@0.9.8':
+    optional: true
+
   abort-controller@3.0.0:
     dependencies:
       event-target-shim: 5.0.1
@@ -3412,7 +3440,7 @@ snapshots:
   axios@1.9.0(debug@4.4.0):
     dependencies:
       follow-redirects: 1.15.9(debug@4.4.0)
-      form-data: 4.0.0
+      form-data: 4.0.2
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
       - debug
@@ -3574,6 +3602,10 @@ snapshots:
   events@3.3.0: {}
 
   exif-reader@2.0.2: {}
+
+  exifreader@4.30.0:
+    optionalDependencies:
+      '@xmldom/xmldom': 0.9.8
 
   expr-eval@2.0.2: {}
 
@@ -3798,6 +3830,18 @@ snapshots:
     optionalDependencies:
       openai: 4.96.2(ws@8.18.1)(zod@3.24.3)
 
+  langsmith@0.3.25(openai@4.96.2(ws@8.18.1)(zod@3.24.3)):
+    dependencies:
+      '@types/uuid': 10.0.0
+      chalk: 4.1.2
+      console-table-printer: 2.12.1
+      p-queue: 6.6.2
+      p-retry: 4.6.2
+      semver: 7.7.1
+      uuid: 10.0.0
+    optionalDependencies:
+      openai: 4.96.2(ws@8.18.1)(zod@3.24.3)
+
   libheif-js@1.18.2: {}
 
   lightningcss-darwin-arm64@1.29.2:
@@ -3866,7 +3910,7 @@ snapshots:
 
   lodash@4.17.21: {}
 
-  lucide-react@0.505.0(react@19.1.0):
+  lucide-react@0.507.0(react@19.1.0):
     dependencies:
       react: 19.1.0
 
@@ -4201,7 +4245,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tw-animate-css@1.2.8: {}
+  tw-animate-css@1.2.9: {}
 
   typescript@5.8.3: {}
 
@@ -4260,6 +4304,8 @@ snapshots:
       isexe: 2.0.0
 
   ws@8.18.1: {}
+
+  xmldom@0.6.0: {}
 
   yaml@2.7.1: {}
 

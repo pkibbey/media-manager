@@ -1,5 +1,8 @@
 'use client';
 
+import { ExternalLinkIcon, GlobeIcon } from '@radix-ui/react-icons';
+import { format } from 'date-fns';
+import type { Tags } from 'exifreader';
 import {
   Card,
   CardContent,
@@ -13,35 +16,10 @@ import {
   formatGpsCoordinates,
   getGoogleMapsUrl,
 } from '@/lib/utils';
-import { ExternalLinkIcon, GlobeIcon } from '@radix-ui/react-icons';
-import { format } from 'date-fns';
-import type { Exif } from 'exif-reader';
 
 interface ExifDataDisplayProps {
-  exifData: Exif;
+  exifData: Tags;
   mediaDate?: string | null;
-}
-
-/**
- * Helper function to convert GPS coordinates from DMS format to decimal degrees
- */
-function calculateGpsDecimal(
-  coordinates: number[] | undefined,
-  ref: string | undefined,
-): number | undefined {
-  if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) {
-    return undefined;
-  }
-
-  // Calculate decimal degrees from degrees, minutes, seconds
-  let decimal = coordinates[0] + coordinates[1] / 60 + coordinates[2] / 3600;
-
-  // Apply negative value for South or West references
-  if (ref === 'S' || ref === 'W') {
-    decimal = -decimal;
-  }
-
-  return decimal;
 }
 
 export default function ExifDataDisplay({
@@ -52,17 +30,15 @@ export default function ExifDataDisplay({
   const formattedDate = mediaDate ? format(new Date(mediaDate), 'PPpp') : null;
 
   // Extract exifData fields using proper Exif type nested properties
-  const cameraModel = exifData.Image?.Model
-    ? exifData.Image?.Make
-      ? `${exifData.Image.Make.toString().trim()} ${exifData.Image.Model.toString().trim()}`
-      : exifData.Image.Model.toString().trim()
-    : exifData.Image?.Make?.toString().trim();
+  const cameraModel = exifData.Model
+    ? exifData.Make
+      ? `${exifData.Make.toString().trim()} ${exifData.Model.toString().trim()}`
+      : exifData.Model.toString().trim()
+    : exifData.Make?.toString().trim();
 
   const lens =
-    exifData.Photo?.LensModel?.toString().trim() ||
-    (exifData.Photo?.LensSpecification
-      ? `${exifData.Photo.LensSpecification[0]}-${exifData.Photo.LensSpecification[1]}mm f/${exifData.Photo.LensSpecification[2]}-${exifData.Photo.LensSpecification[3]}`
-      : null);
+    exifData.LensModel?.toString().trim() ||
+    (exifData.LensSpecification ? String(exifData.LensSpecification) : null);
 
   // Use formatExposureInfo utility function instead of manual formatting
   const exposureInfo = formatExposureInfo(exifData);
@@ -72,38 +48,20 @@ export default function ExifDataDisplay({
 
   // Format the GPS coordinates if available
   const formattedCoordinates =
-    exifData.GPSInfo?.GPSLatitude && exifData.GPSInfo?.GPSLongitude
-      ? formatGpsCoordinates(
-          calculateGpsDecimal(
-            exifData.GPSInfo.GPSLatitude,
-            exifData.GPSInfo.GPSLatitudeRef,
-          ),
-          calculateGpsDecimal(
-            exifData.GPSInfo.GPSLongitude,
-            exifData.GPSInfo.GPSLongitudeRef,
-          ),
-        )
+    exifData.GPSLatitude?.description && exifData.GPSLongitude?.description
+      ? formatGpsCoordinates(exifData.GPSLatitude, exifData.GPSLongitude)
       : null;
 
   // Get Google Maps URL if coordinates are available
   const mapsUrl =
-    exifData.GPSInfo?.GPSLatitude && exifData.GPSInfo?.GPSLongitude
-      ? getGoogleMapsUrl(
-          calculateGpsDecimal(
-            exifData.GPSInfo.GPSLatitude,
-            exifData.GPSInfo.GPSLatitudeRef,
-          ),
-          calculateGpsDecimal(
-            exifData.GPSInfo.GPSLongitude,
-            exifData.GPSInfo.GPSLongitudeRef,
-          ),
-        )
+    exifData.GPSLatitude && exifData.GPSLongitude
+      ? getGoogleMapsUrl(exifData.GPSLatitude, exifData.GPSLongitude)
       : null;
 
   // Format dimensions
   const formattedDimensions =
-    exifData.Image?.ImageWidth && exifData.Image?.ImageLength
-      ? `${exifData.Image.ImageWidth} × ${exifData.Image.ImageLength}`
+    exifData.ImageWidth && exifData.ImageLength
+      ? `${exifData.ImageWidth} × ${exifData.ImageLength}`
       : null;
 
   return (

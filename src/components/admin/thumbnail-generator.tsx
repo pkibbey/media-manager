@@ -3,8 +3,8 @@
 import { UnifiedProgressDisplay } from '../ui/unified-progress-display';
 import { UnifiedStatsDisplay } from '../ui/unified-stats-display';
 import { ThumbnailActionButtons } from './thumbnail-generator/ThumbnailActionButtons';
-import { ThumbnailBatchControls } from './thumbnail-generator/ThumbnailBatchControls';
 import { ThumbnailErrorSummary } from './thumbnail-generator/ThumbnailErrorSummary';
+import { ThumbnailProcessOptions } from './thumbnail-generator/ThumbnailProcessOptions';
 import { useThumbnailGenerator } from './thumbnail-generator/useThumbnailGenerator';
 
 export default function ThumbnailGenerator() {
@@ -16,6 +16,8 @@ export default function ThumbnailGenerator() {
     processingStartTime,
     batchSize,
     setBatchSize,
+    method,
+    setMethod,
     handleGenerateThumbnails,
     handleCancel,
   } = useThumbnailGenerator();
@@ -54,17 +56,23 @@ export default function ThumbnailGenerator() {
       )}
 
       {!isProcessing && (
-        <ThumbnailBatchControls
-          batchSize={batchSize}
-          setBatchSize={setBatchSize}
-          isProcessing={isProcessing}
-        />
+        <div className="flex flex-col gap-4">
+          <ThumbnailProcessOptions
+            progress={progress}
+            method={method}
+            setMethod={setMethod}
+            batchSize={batchSize}
+            setBatchSize={setBatchSize}
+            isProcessing={isProcessing}
+          />
+        </div>
       )}
 
       <ThumbnailActionButtons
         isProcessing={isProcessing}
         stats={stats}
         batchSize={batchSize}
+        method={method}
         onGenerateThumbnails={handleGenerateThumbnails}
         onCancel={handleCancel}
       />

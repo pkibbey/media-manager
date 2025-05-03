@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { BATCH_SIZE } from '@/lib/consts';
-import type { ExtractionMethod } from '@/types/exif';
 import type { UnifiedProgress } from '@/types/progress-types';
+import type { Method } from '@/types/unified-stats';
 import { useStreamProcessing } from './useStreamProcessing';
 
 export type ProcessorOptions<TStats> = {
@@ -16,7 +16,7 @@ export type ProcessorOptions<TStats> = {
    */
   getStreamFunction: (options: {
     batchSize: number;
-    method: ExtractionMethod;
+    method: Method;
   }) => () => Promise<ReadableStream>;
 
   /**
@@ -27,7 +27,7 @@ export type ProcessorOptions<TStats> = {
   /**
    * Default processing method
    */
-  defaultMethod?: ExtractionMethod;
+  defaultMethod?: Method;
 
   /**
    * Success messages to display during processing
@@ -47,7 +47,7 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
   fetchStats,
   getStreamFunction,
   defaultBatchSize = BATCH_SIZE,
-  defaultMethod = 'default' as ExtractionMethod,
+  defaultMethod = 'default' as Method,
   successMessage = {
     start: 'Starting processing...',
     // onBatchComplete: (processed) => `Processed ${processed} items`,
@@ -56,7 +56,7 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
 }: ProcessorOptions<TStats>) {
   // State management
   const [batchSize, setBatchSize] = useState(defaultBatchSize);
-  const [method, setMethod] = useState(defaultMethod);
+  const [method, setMethod] = useState<Method>(defaultMethod);
   const [stats, setStats] = useState<TStats>({
     counts: {
       total: 0,

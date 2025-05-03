@@ -6,7 +6,7 @@ import {
   sendProgress,
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import type { UnifiedStats } from '@/types/unified-stats';
+import type { Method, UnifiedStats } from '@/types/unified-stats';
 import { generateThumbnail } from './generate-thumbnail';
 
 /**
@@ -15,8 +15,10 @@ import { generateThumbnail } from './generate-thumbnail';
  */
 export async function streamThumbnails({
   batchSize = 100,
+  method = 'default',
 }: {
   batchSize?: number;
+  method?: Method;
 }) {
   const encoder = new TextEncoder();
   const MAX_FETCH_SIZE = 1000; // Supabase's limit for fetch operations
@@ -25,10 +27,39 @@ export async function streamThumbnails({
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
-  // Start processing in the background
-  await processUnprocessedThumbnailsInternal({
+  // Start processing in the background - DO NOT await this call
+  processUnprocessedThumbnailsInternal({
     writer,
     batchSize,
+    method,
+  }).catch(async (error) => {
+    // Catch errors from the background processing and send a final error message
+    console.error('Background processing error:', error);
+    try {
+      await sendProgress(encoder, writer, {
+        status: 'failure',
+        message: `Critical server error during processing: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        processedCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        totalCount: 0,
+        progressType: 'thumbnail',
+      });
+    } catch (sendError) {
+      console.error('Error sending final error progress:', sendError);
+    } finally {
+      // Ensure the writer is closed even if sending the error fails
+      if (!writer.closed) {
+        try {
+          await writer.close();
+        } catch (closeError) {
+          console.error(
+            'Error closing writer after background error:',
+            closeError,
+          );
+        }
+      }
+    }
   });
 
   // Set up a cleanup function on the stream
@@ -38,15 +69,17 @@ export async function streamThumbnails({
     return originalCancel?.call(stream.readable, message);
   };
 
-  // Return the readable stream
+  // Return the readable stream immediately
   return stream.readable;
 
   async function processUnprocessedThumbnailsInternal({
     writer,
     batchSize,
+    method,
   }: {
     writer: WritableStreamDefaultWriter;
     batchSize: number;
+    method: Method;
   }) {
     try {
       // Single stats object to track all counters
@@ -110,15 +143,27 @@ export async function streamThumbnails({
         counters.totalAvailable = totalItems || 0;
         counters.total = counters.totalAvailable;
 
+        // Include method in message
+        const methodLabel =
+          {
+            default: 'Full Processing',
+            'embedded-preview': 'Using Embedded Previews',
+            'downscale-only': 'Downscale Only',
+            'direct-only': 'Direct Only',
+            'marker-only': 'Marker Only',
+            'sharp-only': 'Sharp Only',
+          }[method] || 'Full Processing';
+
         // Send initial progress update for this batch
         await sendProgress(encoder, writer, {
           status: 'processing',
           message: isInfinityMode
-            ? `Starting batch ${counters.currentBatch}: Processing ${unprocessedFiles.length} files...`
-            : `Starting thumbnail generation for ${unprocessedFiles.length} files...`,
+            ? `Starting batch ${counters.currentBatch}: Processing ${unprocessedFiles.length} files with ${methodLabel}...`
+            : `Starting thumbnail generation for ${unprocessedFiles.length} files with ${methodLabel}...`,
           ...getCommonProperties(),
           progressType: 'thumbnail',
           metadata: {
+            method,
             fileType: unprocessedFiles[0]?.file_types?.extension,
           },
         });
@@ -137,12 +182,13 @@ export async function streamThumbnails({
               failureCount: counters.failed,
               progressType: 'thumbnail',
               metadata: {
+                method,
                 fileType: media.file_types?.extension,
               },
             });
 
-            // Generate thumbnail
-            const result = await generateThumbnail(media.id);
+            // Generate thumbnail with the specified method
+            const result = await generateThumbnail(media.id, { method });
 
             // Update counters
             counters.processedCount++;
@@ -179,6 +225,7 @@ export async function streamThumbnails({
               failureCount: counters.failed,
               progressType: 'thumbnail',
               metadata: {
+                method,
                 fileType: media.file_types?.extension,
               },
             });
@@ -204,6 +251,7 @@ export async function streamThumbnails({
               failureCount: counters.failed,
               progressType: 'thumbnail',
               metadata: {
+                method,
                 fileType: media.file_types?.extension,
               },
             });
@@ -220,20 +268,26 @@ export async function streamThumbnails({
             message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
             ...getCommonProperties(),
             progressType: 'thumbnail',
+            metadata: {
+              method,
+            },
           });
         }
       }
 
       // Send final progress update
       const finalMessage = isInfinityMode
-        ? `All processing completed. Generated ${counters.success} thumbnails (${counters.failed} failed)`
-        : `Thumbnail generation completed. Generated ${counters.success} thumbnails (${counters.failed} failed)`;
+        ? `All processing completed. Generated ${counters.success} thumbnails (${counters.failed} failed) using ${method}`
+        : `Thumbnail generation completed. Generated ${counters.success} thumbnails (${counters.failed} failed) using ${method}`;
 
       await sendProgress(encoder, writer, {
         status: 'complete',
         message: finalMessage,
         ...getCommonProperties(),
         progressType: 'thumbnail',
+        metadata: {
+          method,
+        },
       });
     } catch (error: any) {
       await sendProgress(encoder, writer, {
@@ -242,6 +296,9 @@ export async function streamThumbnails({
           error?.message ||
           'An unknown error occurred during thumbnail generation',
         progressType: 'thumbnail',
+        metadata: {
+          method,
+        },
       });
     }
   }

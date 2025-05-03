@@ -1,4 +1,9 @@
 /**
+ * ThumbnailMethod - Enumeration of available thumbnail generation methods
+ */
+export type ThumbnailMethod = 'default' | 'embedded-preview' | 'downscale-only';
+
+/**
  * Options for thumbnail generation
  */
 export type ThumbnailGenerationOptions = {

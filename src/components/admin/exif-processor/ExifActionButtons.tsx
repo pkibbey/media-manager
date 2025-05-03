@@ -1,12 +1,11 @@
 import { Button } from '@/components/ui/button';
-import type { ExtractionMethod } from '@/types/exif';
-import type { UnifiedStats } from '@/types/unified-stats';
+import type { Method, UnifiedStats } from '@/types/unified-stats';
 
 type ExifActionButtonsProps = {
   stats: UnifiedStats;
   isProcessing: boolean;
   batchSize: number;
-  method: ExtractionMethod;
+  method: Method;
   handleProcess: () => Promise<void>;
   handleCancel: () => void;
 };
