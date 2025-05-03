@@ -13,13 +13,13 @@ export async function getExifStats(): Action<UnifiedStats> {
   const { error: allMediaItemsError, count: allMediaItemsCount } =
     await supabase
       .from('media_items')
-      .select('id, file_types(*)', { count: 'exact', head: true })
+      .select('id, file_types!inner(*)', { count: 'exact', head: true })
       .eq('file_types.category', 'image')
       .is('file_types.ignore', false);
 
   const { error: successError, count: successCount } = await supabase
     .from('media_items')
-    .select('id, file_types(*), processing_states!inner(*)', {
+    .select('id, file_types!inner(*), processing_states!inner(*)', {
       count: 'exact',
       head: true,
     })
@@ -29,7 +29,7 @@ export async function getExifStats(): Action<UnifiedStats> {
 
   const { error: failedError, count: failedCount } = await supabase
     .from('media_items')
-    .select('id, file_types(*), processing_states!inner(*)', {
+    .select('id, file_types!inner(*), processing_states!inner(*)', {
       count: 'exact',
       head: true,
     })

@@ -21,17 +21,15 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
 
       readerActiveRef.current = false; // Mark as inactive
 
-        if (readerActiveRef.current && !readerToCleanup.closed) {
-          await readerToCleanup.cancel().catch((e) => {
-            // console.error('[STREAM DEBUG] Error during reader cancel:', e);
-          });
-        }
-        try {
-          readerToCleanup.releaseLock();
-        } catch (releaseError) {
-          // Ignore errors if the lock was already released
-        }
-        
+      if (readerActiveRef.current && !readerToCleanup.closed) {
+        await readerToCleanup.cancel();
+      }
+      try {
+        readerToCleanup.releaseLock();
+      } catch (_releaseError) {
+        // Ignore errors if the lock was already released
+      }
+
       setReader(null); // Clear the reader state
     },
     [], // Add empty dependency array for useCallback
@@ -47,6 +45,10 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         onBatchComplete?: (processedCount: number) => void;
       } = {},
     ) => {
+      if (isProcessing) {
+        console.warn('Already processing a stream, ignoring new request.');
+        return;
+      }
       const newAbortController = new AbortController();
       setAbortController(newAbortController);
       setIsProcessing(true);
@@ -66,7 +68,6 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         readerActiveRef.current = true;
 
         const decoder = new TextDecoder();
-        const errorDetails: string[] = [];
 
         try {
           let done = false;
@@ -128,7 +129,9 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                         await cleanupReader(newReader);
                         done = true;
                         break;
-                      } else if (data.isFinalBatch) {
+                      }
+
+                      if (data.isFinalBatch) {
                         if (options.onCompleted) {
                           options.onCompleted();
                         }
@@ -168,15 +171,13 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                         }
 
                         if (validJson) {
-                          setProgress(
-                            (prev) => {
-                              const newState = {
-                                ...(prev || {}),
-                                ...validJson,
-                              } as T;
-                              return newState;
-                            },
-                          );
+                          setProgress((prev) => {
+                            const newState = {
+                              ...(prev || {}),
+                              ...validJson,
+                            } as T;
+                            return newState;
+                          });
 
                           const isComplete = validJson.status === 'complete';
 
@@ -189,7 +190,9 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                             await cleanupReader(newReader);
                             done = true;
                             break;
-                          } else if (validJson.isFinalBatch) {
+                          }
+
+                          if (validJson.isFinalBatch) {
                             if (options.onCompleted) {
                               options.onCompleted();
                             }
@@ -253,7 +256,7 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         setAbortController(null);
       }
     },
-    [cleanupReader], // Keep dependency array minimal
+    [cleanupReader, isProcessing], // Keep dependency array minimal
   );
 
   // Function to cancel the current processing

@@ -23,11 +23,15 @@ export async function getMediaItems({
   const supabase = createServerSupabaseClient();
   const offset = (page - 1) * pageSize;
 
-  let query = supabase.from('media_items').select('*, file_types(*)');
+  // First, get file type ids that aren't ignored
+  let query = supabase
+    .from('media_items')
+    .select('*, file_types!inner(*)', { count: 'exact' })
+    .eq('file_types.ignore', false);
 
   // Apply category filter if provided
-  if (filters?.type) {
-    query = query.eq('file_types.category', filters?.type);
+  if (filters?.type && filters.type !== 'all') {
+    query = query.eq('file_types.category', filters.type);
   }
 
   // Apply pagination

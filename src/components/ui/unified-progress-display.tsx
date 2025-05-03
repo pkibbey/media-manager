@@ -1,7 +1,6 @@
 'use client';
 
 import { CheckIcon } from '@radix-ui/react-icons';
-import { BATCH_SIZE } from '@/lib/consts';
 import { cn } from '@/lib/utils';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
@@ -81,23 +80,21 @@ export function UnifiedProgressDisplay({
   if (!progress || !isProcessing) return null;
 
   // Calculate counts for display - fix operator precedence by adding values
-  const totalCount = progress.totalCount || 0;
+  // Use the overall total from stats, not just the progress total
+  const totalCount = stats.counts.total || 0;
   const successCount = (progress.successCount || 0) + stats.counts.success;
   const failureCount = (progress.failureCount || 0) + stats.counts.failed;
 
   // Only calculate percent if we have a valid total
   const percentComplete =
     totalCount > 0 ? ((successCount + failureCount) / totalCount) * 100 : 0;
-  const currentBatch = progress.currentBatch || 1;
-  const batchSize = progress.batchSize || BATCH_SIZE;
 
   // Determine component state
   const isComplete = progress.status === 'complete' && !isProcessing;
 
-  const runningCount =
-    successCount +
-    failureCount +
-    (currentBatch > 1 ? batchSize * (currentBatch - 1) : 0);
+  // This running count represents the total processed so far (success + failure)
+  // It's used for the overall "X / Y" display.
+  const runningCount = successCount + failureCount;
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -127,7 +124,8 @@ export function UnifiedProgressDisplay({
       {/* Statistics row */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
-          <span>Success: {runningCount}</span>
+          {/* Use successCount here for the specific success count */}
+          <span>Success: {successCount}</span>
           {failureCount > 0 && (
             <span className="text-destructive">Failed: {failureCount}</span>
           )}
@@ -163,6 +161,7 @@ export function UnifiedProgressDisplay({
       {isComplete && !hideSuccessMessage && (
         <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md text-sm">
           <CheckIcon className="h-4 w-4 text-primary" />
+          {/* Use successCount here as well */}
           <span>
             Successfully processed {successCount} {itemsLabel}
             {failureCount > 0 && ` (${failureCount} failed)`}

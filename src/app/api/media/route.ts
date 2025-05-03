@@ -8,7 +8,6 @@ import { lookup } from 'mime-types';
 import { type NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { getMediaItemById } from '@/actions/media/get-media-item-by-id';
-import { fileTypeCache } from '@/lib/file-type-cache';
 import { isImage, isVideo, needsConversion } from '@/lib/utils';
 
 // Cache directory for converted files
@@ -60,30 +59,10 @@ export async function GET(request: NextRequest) {
       .substring(1)
       .toLowerCase();
 
-    // Determine file type properties using file_type_id when available
-    let requiresConversion = false;
-    let isImageFile = false;
-    let isVideoFile = false;
-    let mimeType = '';
-
-    // Use file_type_id if available, otherwise fall back to extension
-    if (mediaItem.file_type_id) {
-      requiresConversion = await fileTypeCache.needsConversionById(
-        mediaItem.file_type_id,
-      );
-      isImageFile = await fileTypeCache.isImageById(mediaItem.file_type_id);
-      isVideoFile = await fileTypeCache.isVideoById(mediaItem.file_type_id);
-      mimeType =
-        (await fileTypeCache.getMimeTypeById(mediaItem.file_type_id)) ||
-        lookup(fileExtension) ||
-        'application/octet-stream';
-    } else {
-      // Fall back to extension-based checks
-      requiresConversion = await needsConversion(mediaItem.file_type_id);
-      isImageFile = await isImage(mediaItem.file_type_id);
-      isVideoFile = await isVideo(mediaItem.file_type_id);
-      mimeType = lookup(fileExtension) || 'application/octet-stream';
-    }
+    const requiresConversion = await needsConversion(mediaItem.file_type_id);
+    const isImageFile = await isImage(mediaItem.file_type_id);
+    const isVideoFile = await isVideo(mediaItem.file_type_id);
+    const mimeType = lookup(fileExtension) || 'application/octet-stream';
 
     // If no conversion needed, serve the original file
     if (!requiresConversion) {

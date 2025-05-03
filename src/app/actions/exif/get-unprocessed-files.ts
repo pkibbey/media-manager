@@ -12,7 +12,7 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
 
   return await supabase
     .from('media_items')
-    .select('*, processing_states(*), file_types(*)', {
+    .select('*, processing_states(*), file_types!inner(*)', {
       count: 'exact',
     })
     // Only get image files that aren't ignored

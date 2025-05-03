@@ -4,7 +4,10 @@ import type { Database } from './supabase';
 /**
  * MediaItem represents a media item stored in the database
  */
-export type MediaItem = Database['public']['Tables']['media_items']['Row'];
+export type MediaItem = Database['public']['Tables']['media_items']['Row'] & {
+  file_types?: FileType;
+  processing_states?: ProcessingState | null;
+};
 
 /**
  * FileType represents a file type/extension configuration stored in the database

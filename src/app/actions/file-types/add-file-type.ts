@@ -1,6 +1,5 @@
 'use server';
 
-import { fileTypeCache } from '@/lib/file-type-cache';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { Action, FileType } from '@/types/db-types';
 
@@ -19,11 +18,6 @@ export async function addFileType(
     .insert(fileType)
     .select('*')
     .single();
-
-  // Clear the file type cache to ensure fresh data
-  if (!response.error) {
-    fileTypeCache.clearCache();
-  }
 
   return response;
 }

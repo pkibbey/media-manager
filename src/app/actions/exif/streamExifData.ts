@@ -1,6 +1,5 @@
 'use server';
 
-import { fileTypeCache } from '@/lib/file-type-cache';
 import {
   markProcessingError,
   markProcessingStarted,
@@ -11,6 +10,8 @@ import type { ProgressType } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
 import { getUnprocessedFiles } from './get-unprocessed-files';
 import { processExifData } from './processExifData';
+
+const ENABLE_METRICS = true;
 
 /**
  * Process all unprocessed items with streaming updates
@@ -55,7 +56,10 @@ export async function streamExifData({
         try {
           await writer.close();
         } catch (closeError) {
-          console.error('Error closing writer after background error:', closeError);
+          console.error(
+            'Error closing writer after background error:',
+            closeError,
+          );
         }
       }
     }
@@ -107,10 +111,17 @@ export async function streamExifData({
       let hasMoreItems = true;
 
       while (hasMoreItems) {
-        // Get this batch of unprocessed files
+        const batchStartTime = performance.now();
+
+        // Before fetching files
+        const queryStartTime = performance.now();
         const unprocessed = await getUnprocessedFiles({
           limit: fetchSize,
         });
+        const queryTime = performance.now() - queryStartTime;
+        console.log(
+          `Time to fetch ${unprocessed.data?.length} files: ${queryTime.toFixed(2)}ms`,
+        );
 
         // Check for errors in the response
         if (unprocessed.error) {
@@ -153,62 +164,26 @@ export async function streamExifData({
           unprocessedFiles.length >= fetchSize;
 
         for (const media of unprocessedFiles) {
+          // Start a timer for this specific file
+          const fileStartTime = ENABLE_METRICS ? performance.now() : 0;
+          let processingTime = 0;
+          let databaseTime = 0;
+
           try {
-            // Check for ignored or unsupported file types
-            let errorReason: string | null = null;
-            const fileTypeId = media.file_type_id ?? media.file_types?.id;
-            const fileExt = media.file_types?.extension;
-            if (fileTypeId) {
-              const fileType = await fileTypeCache.getFileTypeById(fileTypeId);
-              if (fileType?.ignore) {
-                errorReason = 'Ignored file type';
-              }
-            } else if (fileExt) {
-              // If no fileTypeId, fallback to extension check
-              const info = await fileTypeCache.getDetailedInfo();
-              if (info?.ignoredExtensions.includes(fileExt.toLowerCase())) {
-                errorReason = 'Ignored file type';
-              } else if (
-                !info ||
-                !info.extensionToCategory[fileExt.toLowerCase()]
-              ) {
-                errorReason = 'Unsupported file type';
-              }
-            } else {
-              errorReason = 'Unknown or missing file type';
-            }
-
-            // If errorReason is set, mark as errored and continue
-            if (errorReason) {
-              await markProcessingError({
-                mediaItemId: media.id,
-                progressType: 'exif',
-                errorMessage: `Errored due to ${errorReason}`,
-              });
-
-              counters.processedCount++;
-              counters.failed++;
-
-              await sendProgress(encoder, writer, {
-                status: 'failure',
-                message: `Errored: ${errorReason} (${media.file_name})`,
-                ...getCommonProperties(),
-                metadata: {
-                  method,
-                  fileType: media.file_types?.extension,
-                },
-              });
-              continue;
-            }
-
-            // Mark as processing before we begin
+            // Time database operations
+            const dbStartTime = ENABLE_METRICS ? performance.now() : 0;
             await markProcessingStarted({
               mediaItemId: media.id,
               progressType: 'exif',
               errorMessage: `Processing started for ${media.file_name}`,
             });
+            if (ENABLE_METRICS) databaseTime += performance.now() - dbStartTime;
 
             if (media.id) {
+              // Time actual processing
+              const processingStartTime = ENABLE_METRICS
+                ? performance.now()
+                : 0;
               const result = await processExifData({
                 mediaId: media.id,
                 method: method || 'default',
@@ -225,6 +200,26 @@ export async function streamExifData({
                   });
                 },
               });
+              if (ENABLE_METRICS)
+                processingTime = performance.now() - processingStartTime;
+
+              // Log metrics for this file
+              if (ENABLE_METRICS) {
+                const totalTime = performance.now() - fileStartTime;
+                console.log(`File metrics for ${media.file_name}:`, {
+                  totalTimeMs: totalTime.toFixed(2),
+                  processingTimeMs: processingTime.toFixed(2),
+                  databaseTimeMs: databaseTime.toFixed(2),
+                  otherTimeMs: (
+                    totalTime -
+                    processingTime -
+                    databaseTime
+                  ).toFixed(2),
+                  fileType: media.file_types?.extension,
+                  fileSize: media.size_bytes,
+                  method,
+                });
+              }
 
               // Update counters
               counters.processedCount++;
@@ -259,6 +254,28 @@ export async function streamExifData({
           }
         }
 
+        // At the end of each batch
+        const batchEndTime = performance.now();
+        console.log(`Batch ${counters.currentBatch} metrics:`, {
+          filesProcessed: unprocessedFiles.length,
+          totalTimeSeconds: ((batchEndTime - batchStartTime) / 1000).toFixed(2),
+          filesPerSecond: (
+            unprocessedFiles.length /
+            ((batchEndTime - batchStartTime) / 1000)
+          ).toFixed(2),
+          successRate:
+            ((counters.success / counters.processedCount) * 100).toFixed(2) +
+            '%',
+        });
+
+        // Log memory usage
+        const memoryUsage = process.memoryUsage();
+        console.log('Memory usage:', {
+          rss: `${Math.round(memoryUsage.rss / 1024 / 1024)}MB`,
+          heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
+          heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
+        });
+
         // After finishing a batch, if we're in infinity mode and have more batches to go
         if (hasMoreItems) {
           // Send a batch completion update with minimal properties
@@ -281,7 +298,10 @@ export async function streamExifData({
       });
     } catch (error: any) {
       // Log the error caught within the processing function
-      console.error('Error within processUnprocessedItemsInternal try block:', error);
+      console.error(
+        'Error within processUnprocessedItemsInternal try block:',
+        error,
+      );
       // Send a failure progress update through the stream
       await sendProgress(encoder, writer, {
         status: 'failure',
