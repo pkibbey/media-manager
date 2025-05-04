@@ -52,8 +52,8 @@ export function useMediaFilters({
           params.set('sortBy', validatedValues.sortBy);
         if (validatedValues.sortOrder !== 'desc')
           params.set('sortOrder', validatedValues.sortOrder);
-        if (validatedValues.processed !== 'all')
-          params.set('processed', validatedValues.processed);
+        if (validatedValues.hasExif !== 'all')
+          params.set('hasExif', validatedValues.hasExif);
         if (validatedValues.camera && validatedValues.camera !== 'all')
           params.set('camera', validatedValues.camera);
         if (validatedValues.hasThumbnail !== 'all')
@@ -123,9 +123,9 @@ export function useMediaFilters({
       formValues.sortOrder = sortOrder as MediaFilters['sortOrder'];
     }
 
-    const processed = searchParams.get('processed');
-    if (processed && ['all', 'yes', 'no'].includes(processed)) {
-      formValues.processed = processed as MediaFilters['processed'];
+    const hasExif = searchParams.get('hasExif');
+    if (hasExif && ['all', 'yes', 'no'].includes(hasExif)) {
+      formValues.hasExif = hasExif as MediaFilters['hasExif'];
     }
 
     const camera = searchParams.get('camera');
@@ -153,7 +153,7 @@ export function useMediaFilters({
         formValues.maxSize !== undefined ? formValues.maxSize : maxFileSize,
       sortBy: formValues.sortBy || 'created_date',
       sortOrder: formValues.sortOrder || 'desc',
-      processed: formValues.processed || 'all',
+      hasExif: formValues.hasExif || 'all',
       camera: formValues.camera || 'all',
       hasLocation: formValues.hasLocation || 'all',
       hasThumbnail: formValues.hasThumbnail || 'all',
@@ -191,7 +191,7 @@ export function useMediaFilters({
       maxSize: maxFileSize,
       sortBy: 'created_date',
       sortOrder: 'desc',
-      processed: 'all',
+      hasExif: 'all',
       camera: 'all', // Changed from empty string to 'all'
       hasLocation: 'all',
       hasThumbnail: 'all',

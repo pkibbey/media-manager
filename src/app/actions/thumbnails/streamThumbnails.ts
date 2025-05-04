@@ -291,14 +291,7 @@ async function getUnprocessedFilesForThumbnails({ limit }: { limit: number }) {
   const supabase = createServerSupabaseClient();
 
   // Call the RPC function instead of making direct queries
-  const { data, error, count } = await supabase
-    .rpc('get_unprocessed_thumbnail_files', { limit_count: limit })
-    .select('*');
-
-  // Format the response to match the expected structure from the original function
-  return {
-    data,
-    error,
-    count: data?.length || 0,
-  };
+  return await supabase.rpc('get_unprocessed_thumbnail_files', {
+    limit_count: limit,
+  });
 }

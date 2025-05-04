@@ -10,7 +10,6 @@ type AdvancedFiltersProps = {
   form: UseFormReturn<MediaFilters>;
   applyFilters: (values: MediaFilters) => void;
   totalCount: number;
-  availableCameras: string[];
   handleReset: () => void;
   isAdvancedOpen: boolean;
 };
@@ -19,7 +18,6 @@ export function AdvancedFilters({
   form,
   applyFilters,
   totalCount,
-  availableCameras,
   handleReset,
   isAdvancedOpen,
 }: AdvancedFiltersProps) {
@@ -28,7 +26,7 @@ export function AdvancedFilters({
   return (
     <div className="grid grid-cols-2 gap-4 auto-rows-max content-start pt-4 border-t mt-4">
       {/* Media Type, Camera and Location filters */}
-      <MetadataFilters form={form} availableCameras={availableCameras} />
+      <MetadataFilters form={form} />
 
       {/* Sort By and Sort Order filters */}
       <SortingFilters form={form} />

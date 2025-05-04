@@ -11,13 +11,9 @@ import type { MediaFilters } from '@/types/media-types';
 
 type MetadataFiltersProps = {
   form: UseFormReturn<MediaFilters>;
-  availableCameras: string[];
 };
 
-export function MetadataFilters({
-  form,
-  availableCameras,
-}: MetadataFiltersProps) {
+export function MetadataFilters({ form }: MetadataFiltersProps) {
   return (
     <>
       {/* Media Type */}
@@ -41,30 +37,6 @@ export function MetadataFilters({
                 <SelectItem value="image">Images</SelectItem>
                 <SelectItem value="video">Videos</SelectItem>
                 <SelectItem value="data">Data files</SelectItem>
-              </SelectContent>
-            </Select>
-          </FormItem>
-        )}
-      />
-
-      {/* Camera Selection */}
-      <FormField
-        control={form.control}
-        name="camera"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Camera</FormLabel>
-            <Select value={field.value || 'all'} onValueChange={field.onChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Any Camera" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any Camera</SelectItem>
-                {availableCameras.map((camera) => (
-                  <SelectItem key={camera} value={camera}>
-                    {camera}
-                  </SelectItem>
-                ))}
               </SelectContent>
             </Select>
           </FormItem>

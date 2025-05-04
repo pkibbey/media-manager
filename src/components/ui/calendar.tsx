@@ -1,9 +1,9 @@
 'use client';
 
+import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type * as React from 'react';
 import { DayPicker } from 'react-day-picker';
-
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -16,22 +16,29 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      captionLayout="dropdown"
+      formatters={{
+        formatCaption: (date, options) => format(date, 'LLLL yyyy', options),
+      }}
+      fixedWeeks
       className={cn('p-3', className)}
       classNames={{
-        months: 'flex flex-col sm:flex-row gap-2',
+        months: 'flex flex-col sm:flex-row px-6',
         month: 'flex flex-col gap-4',
         month_caption: 'flex justify-center pt-1 relative items-center w-full',
-        caption_label: 'text-sm font-medium',
+        caption_label: 'hidden text-sm font-medium',
+        dropdown_root: 'flex gap-1',
+        dropdowns: 'flex flex-1 justify-between gap-1',
         nav: 'flex items-center gap-1',
         button_previous: cn(
           buttonVariants({ variant: 'outline' }),
           'size-7 bg-transparent p-0 opacity-50 hover:opacity-100',
-          'absolute left-1',
+          'absolute left-2',
         ),
         button_next: cn(
           buttonVariants({ variant: 'outline' }),
           'size-7 bg-transparent p-0 opacity-50 hover:opacity-100',
-          'absolute right-1',
+          'absolute right-2',
         ),
         month_grid: 'w-full border-collapse space-x-1',
         weekdays: 'flex',
@@ -60,7 +67,7 @@ function Calendar({
         disabled: 'text-muted-foreground opacity-50',
         range_middle:
           'aria-selected:bg-accent aria-selected:text-accent-foreground',
-        hidden: 'invisible',
+        hidden: 'invisible aria-hidden',
         ...classNames,
       }}
       components={{

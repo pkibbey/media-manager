@@ -57,18 +57,18 @@ export function BasicFilters({
       {/* EXIF Processing Status */}
       <FormField
         control={form.control}
-        name="processed"
+        name="hasExif"
         render={({ field }) => (
           <FormItem>
             <FormLabel>Exif</FormLabel>
             <Select value={field.value || 'all'} onValueChange={field.onChange}>
-              <SelectTrigger>
+              <SelectTrigger className="mb-0">
                 <SelectValue placeholder="ExifData status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All files</SelectItem>
-                <SelectItem value="yes">Processed</SelectItem>
-                <SelectItem value="no">Not processed</SelectItem>
+                <SelectItem value="yes">With exif</SelectItem>
+                <SelectItem value="no">Without exif</SelectItem>
               </SelectContent>
             </Select>
           </FormItem>
@@ -83,7 +83,7 @@ export function BasicFilters({
           <FormItem>
             <FormLabel>Thumbnail</FormLabel>
             <Select value={field.value || 'all'} onValueChange={field.onChange}>
-              <SelectTrigger>
+              <SelectTrigger className="mb-0">
                 <SelectValue placeholder="Thumbnail status" />
               </SelectTrigger>
               <SelectContent>

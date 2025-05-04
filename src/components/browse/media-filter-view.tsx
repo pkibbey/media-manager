@@ -11,13 +11,11 @@ import { useMediaFilters } from './media-filter/useMediaFilters';
 
 interface MediaFiltersProps {
   totalCount?: number;
-  availableCameras?: string[];
   onFiltersChange: (filters: MediaFilters) => void;
 }
 
 export default function MediaFilterView({
   totalCount = 0,
-  availableCameras = [],
   onFiltersChange,
 }: MediaFiltersProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
@@ -32,7 +30,7 @@ export default function MediaFilterView({
       maxSize: MAX_FILE_SIZE_IN_MB,
       sortBy: 'created_date',
       sortOrder: 'desc',
-      processed: 'all',
+      hasExif: 'all',
       camera: 'all',
       hasLocation: 'all',
       hasThumbnail: 'all',
@@ -63,7 +61,6 @@ export default function MediaFilterView({
           form={form}
           applyFilters={applyFilters}
           totalCount={totalCount}
-          availableCameras={availableCameras}
           handleReset={handleReset}
           isAdvancedOpen={isAdvancedOpen}
         />

@@ -1,13 +1,5 @@
 # Less Important
 
--- fix the drag and drop in file types
-
--- server actions should be renamed to pascal case
-
--- add ability to change UI scale (grid column sizes)
-
--- update the UI to be able to quick process the selected photos
-
 -- Enabled images to be marked for deletion
 
 -- check that all the descrutive admin actions only remove the content they are supposed to

@@ -187,12 +187,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clear_all_exif_data: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          affected_rows: number
+          status: string
+        }[]
+      }
       get_exif_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
           total: number
           success: number
           failed: number
+        }[]
+      }
+      get_media_items: {
+        Args: {
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_type?: string
+          p_date_from?: string
+          p_date_to?: string
+          p_min_size?: number
+          p_max_size?: number
+          p_sort_by?: string
+          p_sort_order?: string
+          p_has_exif?: string
+          p_camera?: string
+          p_has_location?: string
+          p_has_thumbnail?: string
+        }
+        Returns: {
+          items: Json
+          total_count: number
         }[]
       }
       get_media_statistics: {

@@ -10,7 +10,7 @@ export interface MediaFilters {
   maxSize: number;
   sortBy: 'created_date' | 'file_name' | 'size_bytes';
   sortOrder: 'asc' | 'desc';
-  processed: 'all' | 'yes' | 'no';
+  hasExif: 'all' | 'yes' | 'no';
   camera: 'all' | string;
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';
