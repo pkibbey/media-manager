@@ -9,8 +9,11 @@ import type { MediaItem } from '@/types/db-types';
 
 interface MediaFullViewProps {
   item: MediaItem;
+  zoomMode: boolean;
+  toggleZoomMode: () => void;
+  category: string | null;
+  exifData: Tags | null;
   className?: string;
-  zoomMode?: boolean;
 }
 
 function calculateAspectRatio(exifData: Tags | null): {
@@ -18,18 +21,18 @@ function calculateAspectRatio(exifData: Tags | null): {
   height: number;
 } {
   if (!exifData) {
-    return { width: 0, height: 0 };
+    return { width: 900, height: 1440 };
   }
 
   // Try to get dimensions from Image tags
-  const width = Number(exifData.ImageWidth) || 0;
-  const height = Number(exifData.ImageHeight) || 0;
+  const width = exifData['Image Width']?.value || 900;
+  const height = exifData['Image Height']?.value || 1440;
 
   // Fallback to Photo tags if Image tags are not available
   if (width === 0 && height === 0) {
     return {
-      width: Number(exifData.PixelXDimension) || 0,
-      height: Number(exifData.PixelYDimension) || 0,
+      width: Number(exifData.PixelXDimension?.value) || 900,
+      height: Number(exifData.PixelYDimension?.value) || 1440,
     };
   }
 
@@ -42,12 +45,15 @@ const MediaFullView = memo(
     item,
     className = '',
     zoomMode = false,
+    toggleZoomMode,
+    category,
+    exifData,
   }: MediaFullViewProps) {
     const windowWidth = useWindowWidth();
-    const exifData = item.exif_data as Tags | null;
     const orientation = exifData?.Orientation || undefined;
     const { height, width } = calculateAspectRatio(exifData);
     const aspectRatio = width / height;
+    console.log('aspectRatio: ', aspectRatio)
 
     // Determine if image is rotated 90/270 degrees based on EXIF
     const isRotated =
@@ -63,7 +69,6 @@ const MediaFullView = memo(
     // Apply special class for rotated images in zoom mode
     const containerClass = zoomMode && isRotated ? 'rotated-image' : '';
 
-    const category = item.file_types?.category || 'file';
     const isImg = category === 'image';
     const isVid = category === 'video';
 
@@ -72,6 +77,7 @@ const MediaFullView = memo(
         {isImg && item.file_path ? (
           <div
             className={`w-[${windowWidth}px] h-[${Math.round(windowWidth / aspectRatio)}px] relative ${containerClass}`}
+            key={`full-image-${item.id}`} // Add unique key to force re-rendering
           >
             <Image
               src={`/api/media?id=${item.id}`}
@@ -86,11 +92,23 @@ const MediaFullView = memo(
               onError={(e) => {
                 // Fallback for failed thumbnails
                 const target = e.target as HTMLImageElement;
-                target.onerror = null;
-                target.style.display = 'none';
-                // Force parent to show fallback
+                target.onerror = null; // Prevent infinite error loops
+                
+                // Show fallback content inside the container instead of hiding the image
                 if (target.parentElement) {
-                  target.parentElement.classList.add('thumbnail-error');
+                  // Create fallback element
+                  const fallback = document.createElement('div');
+                  fallback.className = 'flex flex-col items-center justify-center w-full h-full bg-muted/20';
+                  fallback.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span class="text-sm text-muted-foreground mt-2">Image failed to load</span>
+                  `;
+                  
+                  // Replace the image with the fallback
+                  target.style.display = 'none';
+                  target.parentElement.appendChild(fallback);
                 }
               }}
             />
@@ -98,6 +116,7 @@ const MediaFullView = memo(
         ) : isVid ? (
           <div
             className={`w-[${windowWidth}px] h-[${Math.round((windowWidth / 16) * 9)}px] relative ${containerClass}`}
+            key={`full-video-${item.id}`} // Add unique key to force re-rendering
           >
             <video
               src={`/api/media?id=${item.id}`}
