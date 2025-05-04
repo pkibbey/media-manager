@@ -1,16 +1,8 @@
-# Less Important
-
--- check that all the descrutive admin actions only remove the content they are supposed to
-
--- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder
-
 # Much Less Important
 
-- Improve the performance of the database queries
+-- Improve the performance of the database queries
 
--- Generate video thumbnails
-
--- Add a second standards doc update - v2
+-- Add another standards doc update - v3
 
 -- compare to see how graphql would work with this - would it be much easier to work with?
 
@@ -24,3 +16,7 @@
 -- instead of using inner joins, see if there is a a more efficient way of making the request
 
 -- break up streamExifData and generateThubmnail into smaller functions
+
+-- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder
+
+-- process failed exif and failed thumbnails - examine the reasons in groups

@@ -22,9 +22,10 @@ const defaultFilters: MediaFilters = {
   sortBy: 'created_date',
   sortOrder: 'desc',
   hasExif: 'all',
-  camera: 'all',
   hasLocation: 'all',
   hasThumbnail: 'all',
+  includeDeleted: false,
+  includeHidden: false,
 };
 
 export default function BrowsePage() {
@@ -104,10 +105,14 @@ export default function BrowsePage() {
     if (hasExif && ['all', 'yes', 'no'].includes(hasExif)) {
       parsedFilters.hasExif = hasExif as MediaFilters['hasExif'];
     }
+    const includeDeleted = searchParams.get('includeDeleted');
+    if (includeDeleted && ['true', 'false'].includes(includeDeleted)) {
+      parsedFilters.includeDeleted = includeDeleted === 'true';
+    }
 
-    const camera = searchParams.get('camera');
-    if (camera) {
-      parsedFilters.camera = camera;
+    const includeHidden = searchParams.get('includeHidden');
+    if (includeHidden && ['true', 'false'].includes(includeHidden)) {
+      parsedFilters.includeHidden = includeHidden === 'true';
     }
 
     const hasLocation = searchParams.get('hasLocation');

@@ -54,8 +54,6 @@ export function useMediaFilters({
           params.set('sortOrder', validatedValues.sortOrder);
         if (validatedValues.hasExif !== 'all')
           params.set('hasExif', validatedValues.hasExif);
-        if (validatedValues.camera && validatedValues.camera !== 'all')
-          params.set('camera', validatedValues.camera);
         if (validatedValues.hasThumbnail !== 'all')
           params.set('hasThumbnail', validatedValues.hasThumbnail);
 
@@ -128,11 +126,6 @@ export function useMediaFilters({
       formValues.hasExif = hasExif as MediaFilters['hasExif'];
     }
 
-    const camera = searchParams.get('camera');
-    if (camera) {
-      formValues.camera = camera;
-    }
-
     const hasLocation = searchParams.get('hasLocation');
     if (hasLocation && ['all', 'yes', 'no'].includes(hasLocation)) {
       formValues.hasLocation = hasLocation as MediaFilters['hasLocation'];
@@ -154,9 +147,10 @@ export function useMediaFilters({
       sortBy: formValues.sortBy || 'created_date',
       sortOrder: formValues.sortOrder || 'desc',
       hasExif: formValues.hasExif || 'all',
-      camera: formValues.camera || 'all',
       hasLocation: formValues.hasLocation || 'all',
       hasThumbnail: formValues.hasThumbnail || 'all',
+      includeDeleted: formValues.includeDeleted,
+      includeHidden: formValues.includeHidden,
     });
 
     const currentFormValues = form.getValues();
@@ -187,9 +181,10 @@ export function useMediaFilters({
       sortBy: 'created_date',
       sortOrder: 'desc',
       hasExif: 'all',
-      camera: 'all', // Changed from empty string to 'all'
       hasLocation: 'all',
       hasThumbnail: 'all',
+      includeDeleted: false,
+      includeHidden: false,
     };
 
     form.reset(defaultValues);

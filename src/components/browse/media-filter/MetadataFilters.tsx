@@ -14,7 +14,10 @@ type MetadataFiltersProps = {
   debouncedApplyFilters: (values: MediaFilters) => void;
 };
 
-export function MetadataFilters({ form, debouncedApplyFilters }: MetadataFiltersProps) {
+export function MetadataFilters({
+  form,
+  debouncedApplyFilters,
+}: MetadataFiltersProps) {
   return (
     <>
       {/* Media Type */}
@@ -24,14 +27,14 @@ export function MetadataFilters({ form, debouncedApplyFilters }: MetadataFilters
         render={({ field }) => (
           <FormItem>
             <FormLabel>Media Type</FormLabel>
-            <Select 
-              value={field.value || 'all'} 
+            <Select
+              value={field.value || 'all'}
               onValueChange={(value) => {
                 field.onChange(value);
                 debouncedApplyFilters(form.getValues());
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full mb-0">
                 <SelectValue>
                   {field.value === 'all' && 'All types'}
                   {field.value === 'image' && 'Images'}

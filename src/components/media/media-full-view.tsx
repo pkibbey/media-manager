@@ -53,7 +53,6 @@ const MediaFullView = memo(
     const orientation = exifData?.Orientation || undefined;
     const { height, width } = calculateAspectRatio(exifData);
     const aspectRatio = width / height;
-    console.log('aspectRatio: ', aspectRatio)
 
     // Determine if image is rotated 90/270 degrees based on EXIF
     const isRotated =
@@ -93,19 +92,20 @@ const MediaFullView = memo(
                 // Fallback for failed thumbnails
                 const target = e.target as HTMLImageElement;
                 target.onerror = null; // Prevent infinite error loops
-                
+
                 // Show fallback content inside the container instead of hiding the image
                 if (target.parentElement) {
                   // Create fallback element
                   const fallback = document.createElement('div');
-                  fallback.className = 'flex flex-col items-center justify-center w-full h-full bg-muted/20';
+                  fallback.className =
+                    'flex flex-col items-center justify-center w-full h-full bg-muted/20';
                   fallback.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <span class="text-sm text-muted-foreground mt-2">Image failed to load</span>
                   `;
-                  
+
                   // Replace the image with the fallback
                   target.style.display = 'none';
                   target.parentElement.appendChild(fallback);

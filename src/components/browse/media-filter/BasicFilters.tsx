@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { MediaFilters } from '@/types/media-types';
+import { MetadataFilters } from './MetadataFilters';
 
 type BasicFiltersProps = {
   form: UseFormReturn<MediaFilters>;
@@ -94,6 +95,12 @@ export function BasicFilters({
             </Select>
           </FormItem>
         )}
+      />
+
+      {/* Media Type, Camera and Location filters */}
+      <MetadataFilters
+        form={form}
+        debouncedApplyFilters={debouncedApplyFilters}
       />
 
       {/* Advanced Filters Toggle */}

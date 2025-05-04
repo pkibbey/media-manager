@@ -1,12 +1,12 @@
-/** biome-ignore-all lint/style/noUnusedTemplateLiteral: <explanation> */
-/** biome-ignore-all lint/style/noUselessElse: <explanation> */
 'use server';
 
 import { exec } from 'node:child_process';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { Tags } from 'exifreader';
+import ffmpeg from 'fluent-ffmpeg';
 import sharp from 'sharp';
 import { THUMBNAIL_SIZE } from '@/lib/consts';
 import {
@@ -40,7 +40,7 @@ export async function generateThumbnail(
     const { data: mediaItem, error } = await supabase
       .from('media_items')
       .select('*, file_types!inner(*)')
-      .in('file_types.category', ['image'])
+      .in('file_types.category', ['image', 'video']) // Include videos as well
       .is('file_types.ignore', false)
       .eq('id', mediaId)
       .single();
@@ -78,12 +78,20 @@ export async function generateThumbnail(
     let thumbnailBuffer: Buffer;
 
     try {
-      if (method === 'embedded-preview') {
-        thumbnailBuffer = await generateEmbeddedPreviewThumbnail(mediaItem);
-      } else if (method === 'downscale-only') {
-        thumbnailBuffer = await generateDownscaleThumbnail(mediaItem);
+      const isVideo = mediaItem.file_types?.category === 'video';
+
+      if (isVideo) {
+        // For videos, always use the video thumbnail generator regardless of method
+        thumbnailBuffer = await generateVideoThumbnail(mediaItem);
       } else {
-        thumbnailBuffer = await generateDefaultThumbnail(mediaItem);
+        // For images, use the selected method
+        if (method === 'embedded-preview') {
+          thumbnailBuffer = await generateEmbeddedPreviewThumbnail(mediaItem);
+        } else if (method === 'downscale-only') {
+          thumbnailBuffer = await generateDownscaleThumbnail(mediaItem);
+        } else {
+          thumbnailBuffer = await generateDefaultThumbnail(mediaItem);
+        }
       }
     } catch (thumbnailError) {
       await markProcessingError({
@@ -223,6 +231,74 @@ export async function generateThumbnail(
       message: `Error generating thumbnail: ${error.message}`,
     };
   }
+}
+
+/**
+ * Generate thumbnail for video files using FFmpeg
+ * Extracts a frame at 10% of the video duration for better representation
+ */
+async function generateVideoThumbnail(mediaItem: MediaItem): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create a temporary output path
+      const tempDir = os.tmpdir();
+      const tempOutputPath = path.join(
+        tempDir,
+        `${mediaItem.id}_video_thumb.jpg`,
+      );
+
+      // Use FFmpeg to extract a frame at 10% of video duration
+      ffmpeg(mediaItem.file_path)
+        .on('error', (err) => {
+          console.error('[VideoThumbnail] FFmpeg error:', err);
+          reject(new Error(`Failed to extract video frame: ${err.message}`));
+        })
+        .on('end', async () => {
+          try {
+            // Read the extracted frame
+            const thumbBuffer = await fs.readFile(tempOutputPath);
+
+            // Process with Sharp to ensure proper sizing and format
+            const processedThumb = await sharp(thumbBuffer)
+              .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+                fit: 'cover',
+                position: 'centre',
+              })
+              .webp({ quality: 80 })
+              .toBuffer();
+
+            // Clean up temp file
+            fs.unlink(tempOutputPath).catch((err) =>
+              console.error(
+                `[VideoThumbnail] Failed to clean up temp file: ${err}`,
+              ),
+            );
+
+            resolve(processedThumb);
+          } catch (err) {
+            reject(
+              new Error(
+                `Failed to process video thumbnail: ${err instanceof Error ? err.message : String(err)}`,
+              ),
+            );
+          }
+        })
+        .screenshots({
+          count: 1,
+          folder: tempDir,
+          filename: `${mediaItem.id}_video_thumb.jpg`,
+          // Take screenshot at 10% of the video duration for a better representation
+          timestamps: ['10%'],
+          size: `${THUMBNAIL_SIZE}x?`,
+        });
+    } catch (error) {
+      reject(
+        new Error(
+          `Video thumbnail error: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
+    }
+  });
 }
 
 /**

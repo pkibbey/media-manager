@@ -31,7 +31,6 @@ export default function MediaFilterView({
       sortBy: 'created_date',
       sortOrder: 'desc',
       hasExif: 'all',
-      camera: 'all',
       hasLocation: 'all',
       hasThumbnail: 'all',
     },
