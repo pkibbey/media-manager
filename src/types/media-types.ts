@@ -2,7 +2,7 @@
  * Media filtering options for browsing and searching media items
  */
 export interface MediaFilters {
-  search?: string;
+  search: string;
   type: 'all' | 'image' | 'video' | 'data';
   dateFrom: Date | null;
   dateTo: Date | null;
@@ -11,9 +11,11 @@ export interface MediaFilters {
   sortBy: 'created_date' | 'file_name' | 'size_bytes';
   sortOrder: 'asc' | 'desc';
   hasExif: 'all' | 'yes' | 'no';
-  camera: 'all' | string;
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';
+  includeHidden: boolean;
+  includeDeleted: boolean;
+
 }
 
 /**

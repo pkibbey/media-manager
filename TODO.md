@@ -1,7 +1,5 @@
 # Less Important
 
--- Enabled images to be marked for deletion
-
 -- check that all the descrutive admin actions only remove the content they are supposed to
 
 -- scan tab should also show a progress meter, and perhaps allow scanning in batches, or per folder

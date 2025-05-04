@@ -76,6 +76,8 @@ export type Database = {
           file_type_id: number
           folder_path: string
           id: string
+          is_deleted: boolean
+          is_hidden: boolean
           media_date: string | null
           modified_date: string
           size_bytes: number
@@ -89,6 +91,8 @@ export type Database = {
           file_type_id: number
           folder_path: string
           id?: string
+          is_deleted?: boolean
+          is_hidden?: boolean
           media_date?: string | null
           modified_date: string
           size_bytes: number
@@ -102,6 +106,8 @@ export type Database = {
           file_type_id?: number
           folder_path?: string
           id?: string
+          is_deleted?: boolean
+          is_hidden?: boolean
           media_date?: string | null
           modified_date?: string
           size_bytes?: number
@@ -215,9 +221,10 @@ export type Database = {
           p_sort_by?: string
           p_sort_order?: string
           p_has_exif?: string
-          p_camera?: string
           p_has_location?: string
           p_has_thumbnail?: string
+          p_include_hidden?: boolean
+          p_include_deleted?: boolean
         }
         Returns: {
           items: Json
@@ -270,6 +277,8 @@ export type Database = {
           file_type_id: number
           folder_path: string
           id: string
+          is_deleted: boolean
+          is_hidden: boolean
           media_date: string | null
           modified_date: string
           size_bytes: number
@@ -281,6 +290,14 @@ export type Database = {
         Returns: {
           sum: number
         }[]
+      }
+      update_media_visibility: {
+        Args: {
+          p_media_id: string
+          p_is_deleted?: boolean
+          p_is_hidden?: boolean
+        }
+        Returns: undefined
       }
     }
     Enums: {

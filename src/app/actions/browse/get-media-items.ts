@@ -9,16 +9,22 @@ import type { MediaFilters } from '@/types/media-types';
  * @param page Page number (1-based)
  * @param pageSize Number of items per page
  * @param filters Filter options for media items
+ * @param includeHidden Whether to include hidden items (default: false)
+ * @param includeDeleted Whether to include deleted items (default: false)
  * @returns Action result with media items array and count
  */
 export async function getMediaItems({
   page = 1,
   pageSize = 20,
   filters,
+  includeHidden = false,
+  includeDeleted = false,
 }: {
   page: number;
   pageSize: number;
   filters: MediaFilters;
+  includeHidden?: boolean;
+  includeDeleted?: boolean;
 }) {
   const supabase = createServerSupabaseClient();
 
@@ -34,7 +40,7 @@ export async function getMediaItems({
   // Make sure sort parameters have defined values
   const sortBy = filters.sortBy || 'created_date';
   const sortOrder = filters.sortOrder || 'desc';
-  
+
   // Call the RPC function with all parameters
   const { data, error } = await supabase.rpc('get_media_items', {
     p_page: page,
@@ -48,11 +54,12 @@ export async function getMediaItems({
     p_sort_by: sortBy,
     p_sort_order: sortOrder,
     p_has_exif: filters.hasExif === 'all' ? undefined : filters.hasExif,
-    p_camera: filters.camera === 'all' ? undefined : filters.camera,
     p_has_location:
       filters.hasLocation === 'all' ? undefined : filters.hasLocation,
     p_has_thumbnail:
       filters.hasThumbnail === 'all' ? undefined : filters.hasThumbnail,
+    p_include_hidden: filters.includeHidden ? includeHidden : undefined,
+    p_include_deleted: filters.includeDeleted ? includeDeleted : undefined,
   });
 
   if (error) {
