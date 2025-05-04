@@ -21,7 +21,7 @@ const defaultFilters: MediaFilters = {
   maxSize: 1024 * 1024 * 4,
   sortBy: 'created_date',
   sortOrder: 'desc',
-  processed: 'all',
+  hasExif: 'all',
   camera: 'all',
   hasLocation: 'all',
   hasThumbnail: 'all',
@@ -100,9 +100,9 @@ export default function BrowsePage() {
       parsedFilters.sortOrder = sortOrder as MediaFilters['sortOrder'];
     }
 
-    const processed = searchParams.get('processed');
-    if (processed && ['all', 'yes', 'no'].includes(processed)) {
-      parsedFilters.processed = processed as MediaFilters['processed'];
+    const hasExif = searchParams.get('hasExif');
+    if (hasExif && ['all', 'yes', 'no'].includes(hasExif)) {
+      parsedFilters.hasExif = hasExif as MediaFilters['hasExif'];
     }
 
     const camera = searchParams.get('camera');
@@ -196,7 +196,6 @@ export default function BrowsePage() {
 
         <MediaFilterView
           totalCount={pagination.total}
-          availableCameras={[]}
           onFiltersChange={handleFiltersChange}
         />
 

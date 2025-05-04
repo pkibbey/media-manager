@@ -32,7 +32,7 @@ export function MediaDetailContainer({
             zoomMode ? 'media-zoom-mode' : ''
           }`}
         >
-          <MediaFullView item={selectedItem} zoomMode={zoomMode} />
+          <MediaFullView item={selectedItem} zoomMode={zoomMode} toggleZoomMode={toggleZoomMode} category={category}  exifData={exifData} />
         </div>
       </div>
 

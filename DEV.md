@@ -7,3 +7,5 @@ The exif data object is too big, we should consider this in db optimizations whe
 Following the "single responsibility principle" with one function per file
 
 dont trust the extension for the file type - read the file
+
+sharp is the best exif processing tool, and probably the best thubmnail generator too

@@ -169,16 +169,11 @@ export function useMediaFilters({
   useEffect(() => {
     const subscription = form.watch((values) => {
       const completeValues = values as MediaFilters;
-
-      const timeoutId = setTimeout(() => {
-        applyFilters(completeValues);
-      }, 300);
-
-      return () => clearTimeout(timeoutId);
+      debouncedApplyFilters(completeValues);
     });
 
     return () => subscription.unsubscribe();
-  }, [form, applyFilters]);
+  }, [form, debouncedApplyFilters]);
 
   // Reset all filters to defaults
   const handleReset = useCallback(() => {

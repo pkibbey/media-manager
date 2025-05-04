@@ -11,7 +11,6 @@ CREATE OR REPLACE FUNCTION public.get_media_items(
   p_sort_by TEXT DEFAULT 'created_date',
   p_sort_order TEXT DEFAULT 'desc',
   p_has_exif TEXT DEFAULT 'all',
-  p_camera TEXT DEFAULT 'all',
   p_has_location TEXT DEFAULT 'all',
   p_has_thumbnail TEXT DEFAULT 'all'
 )
@@ -28,6 +27,7 @@ DECLARE
   v_count_query text;
   v_filter_conditions text := ' WHERE file_types.ignore = false';
   v_count BIGINT;
+  v_sort_column text;
 BEGIN
   -- Calculate offset
   v_offset := (p_page - 1) * p_page_size;
@@ -43,21 +43,14 @@ BEGIN
     media_items.size_bytes,
     media_items.exif_data,
     media_items.thumbnail_path,
-    media_items.camera,
+    media_items.folder_path,
     file_types.id as file_type_id,
     file_types.extension,
-    file_types.mimetype,
     file_types.category,
-    file_types.description,
     file_types.ignore
   FROM media_items 
   INNER JOIN file_types ON media_items.file_type_id = file_types.id';
-  
-  -- Apply camera filter
-  IF p_camera IS NOT NULL AND p_camera <> 'all' THEN
-    v_filter_conditions := v_filter_conditions || ' AND camera = ' || quote_literal(p_camera);
-  END IF;
-  
+    
   -- Apply date filters
   IF p_date_from IS NOT NULL THEN
     v_filter_conditions := v_filter_conditions || ' AND created_date >= ' || quote_literal(p_date_from);
@@ -126,20 +119,36 @@ BEGIN
   -- to match the column in the DISTINCT ON clause
   v_query := v_query || ' ORDER BY media_items.id';
   
-  -- Add additional sorting after the DISTINCT ON ordering
-  IF p_sort_by IS NOT NULL THEN
-    v_query := v_query || ', ' || quote_ident(p_sort_by);
-    
-    -- Add sort order
-    IF p_sort_order = 'asc' THEN
-      v_query := v_query || ' ASC';
-    ELSE
-      v_query := v_query || ' DESC';
-    END IF;
+  -- Map sorting parameter to actual column name
+  -- This ensures we use the correct table prefix for columns
+  IF p_sort_by = 'created_date' THEN
+    v_sort_column := 'media_items.created_date';
+  ELSIF p_sort_by = 'file_name' THEN
+    v_sort_column := 'media_items.file_name';
+  ELSIF p_sort_by = 'size_bytes' THEN
+    v_sort_column := 'media_items.size_bytes';
+  ELSIF p_sort_by = 'type' THEN
+    v_sort_column := 'file_types.category';
+  ELSE
+    -- Default to created_date if an invalid sort column is provided
+    v_sort_column := 'media_items.created_date';
+  END IF;
+  
+  -- Add sort column and direction
+  v_query := v_query || ', ' || v_sort_column;
+  
+  -- Add sort order
+  IF p_sort_order = 'asc' THEN
+    v_query := v_query || ' ASC';
+  ELSE
+    v_query := v_query || ' DESC';
   END IF;
   
   -- Add pagination
   v_query := v_query || ' LIMIT ' || p_page_size::text || ' OFFSET ' || v_offset::text;
+  
+  -- For debugging
+  RAISE NOTICE 'SQL Query: %', v_query;
   
   -- Return the results as a single row with two columns:
   -- 1. items: a JSON array of media items

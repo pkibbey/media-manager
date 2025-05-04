@@ -31,6 +31,10 @@ export async function getMediaItems({
   // Calculate max size in MB - replace byte conversion with direct MB value
   const maxSize = filters.maxSize < 1024 * 1024 * 4 ? filters.maxSize : null;
 
+  // Make sure sort parameters have defined values
+  const sortBy = filters.sortBy || 'created_date';
+  const sortOrder = filters.sortOrder || 'desc';
+  
   // Call the RPC function with all parameters
   const { data, error } = await supabase.rpc('get_media_items', {
     p_page: page,
@@ -41,8 +45,8 @@ export async function getMediaItems({
     p_date_to: dateTo || undefined,
     p_min_size: filters.minSize || undefined,
     p_max_size: maxSize || undefined,
-    p_sort_by: filters.sortBy || 'created_date',
-    p_sort_order: filters.sortOrder,
+    p_sort_by: sortBy,
+    p_sort_order: sortOrder,
     p_has_exif: filters.hasExif === 'all' ? undefined : filters.hasExif,
     p_camera: filters.camera === 'all' ? undefined : filters.camera,
     p_has_location:

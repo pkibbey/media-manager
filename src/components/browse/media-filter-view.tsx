@@ -59,6 +59,7 @@ export default function MediaFilterView({
 
         <AdvancedFilters
           form={form}
+          debouncedApplyFilters={debouncedApplyFilters}
           applyFilters={applyFilters}
           totalCount={totalCount}
           handleReset={handleReset}

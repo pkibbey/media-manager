@@ -17,6 +17,6 @@ export async function getUnprocessedFiles({ limit }: { limit: number }) {
     })
     .eq('file_types.category', 'image')
     .is('file_types.ignore', false)
-    .is('processing_states', null)
+    .not('processing_states.type', 'eq', 'exif')
     .limit(limit);
 }

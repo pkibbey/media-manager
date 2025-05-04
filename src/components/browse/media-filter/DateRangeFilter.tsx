@@ -18,10 +18,10 @@ import type { MediaFilters } from '@/types/media-types';
 
 type DateRangeFilterProps = {
   form: UseFormReturn<MediaFilters>;
-  applyFilters: (values: MediaFilters) => void;
+  debouncedApplyFilters: (values: MediaFilters) => void;
 };
 
-export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
+export function DateRangeFilter({ form, debouncedApplyFilters }: DateRangeFilterProps) {
   // Helper to safely format date or return placeholder
   const formatDateOrPlaceholder = (date: Date | null) => {
     if (!date || isNaN(date.getTime())) {
@@ -59,7 +59,7 @@ export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
                   selected={field.value || undefined}
                   onSelect={(date) => {
                     field.onChange(date);
-                    applyFilters(form.getValues());
+                    debouncedApplyFilters(form.getValues());
                   }}
                   disabled={(date) => {
                     const dateTo = form.getValues('dateTo');
@@ -76,7 +76,7 @@ export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
                 className="mt-1 text-xs h-auto py-1"
                 onClick={() => {
                   field.onChange(null);
-                  applyFilters(form.getValues());
+                  debouncedApplyFilters(form.getValues());
                 }}
               >
                 Clear
@@ -113,7 +113,7 @@ export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
                   selected={field.value || undefined}
                   onSelect={(date) => {
                     field.onChange(date);
-                    applyFilters(form.getValues());
+                    debouncedApplyFilters(form.getValues());
                   }}
                   disabled={(date) =>
                     form.getValues('dateFrom')
@@ -131,7 +131,7 @@ export function DateRangeFilter({ form, applyFilters }: DateRangeFilterProps) {
                 className="mt-1 text-xs h-auto py-1"
                 onClick={() => {
                   field.onChange(null);
-                  applyFilters(form.getValues());
+                  debouncedApplyFilters(form.getValues());
                 }}
               >
                 Clear

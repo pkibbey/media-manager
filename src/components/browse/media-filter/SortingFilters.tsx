@@ -11,9 +11,10 @@ import type { MediaFilters } from '@/types/media-types';
 
 type SortingFiltersProps = {
   form: UseFormReturn<MediaFilters>;
+  debouncedApplyFilters: (values: MediaFilters) => void;
 };
 
-export function SortingFilters({ form }: SortingFiltersProps) {
+export function SortingFilters({ form, debouncedApplyFilters }: SortingFiltersProps) {
   // Map sort values to human-readable labels
   const sortByLabels: Record<string, string> = {
     date: 'Date',
@@ -38,7 +39,10 @@ export function SortingFilters({ form }: SortingFiltersProps) {
             <FormLabel>Sort By</FormLabel>
             <Select
               value={field.value || 'created_date'}
-              onValueChange={field.onChange}
+              onValueChange={(value) => {
+                field.onChange(value);
+                debouncedApplyFilters(form.getValues());
+              }}
               aria-label="Sort by field"
             >
               <SelectTrigger className="w-full">
@@ -65,7 +69,10 @@ export function SortingFilters({ form }: SortingFiltersProps) {
             <FormLabel>Sort Order</FormLabel>
             <Select
               value={field.value || 'desc'}
-              onValueChange={field.onChange}
+              onValueChange={(value) => {
+                field.onChange(value);
+                debouncedApplyFilters(form.getValues());
+              }}
               aria-label="Sort order"
             >
               <SelectTrigger className="w-full">

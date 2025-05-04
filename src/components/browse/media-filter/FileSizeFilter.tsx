@@ -6,10 +6,10 @@ import type { MediaFilters } from '@/types/media-types';
 
 type FileSizeFilterProps = {
   form: UseFormReturn<MediaFilters>;
-  applyFilters: (values: MediaFilters) => void;
+  debouncedApplyFilters: (values: MediaFilters) => void;
 };
 
-export function FileSizeFilter({ form, applyFilters }: FileSizeFilterProps) {
+export function FileSizeFilter({ form, debouncedApplyFilters }: FileSizeFilterProps) {
   // Get form values with fallbacks to prevent undefined values
   const minSize = form.getValues('minSize') ?? 0;
   const maxSize = form.getValues('maxSize') ?? MAX_FILE_SIZE_IN_MB;
@@ -38,7 +38,7 @@ export function FileSizeFilter({ form, applyFilters }: FileSizeFilterProps) {
             onValueCommit={(values) => {
               form.setValue('minSize', values[0]);
               form.setValue('maxSize', values[1]);
-              applyFilters(form.getValues());
+              debouncedApplyFilters(form.getValues());
             }}
             className="py-4"
           />

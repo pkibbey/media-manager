@@ -11,9 +11,10 @@ import type { MediaFilters } from '@/types/media-types';
 
 type MetadataFiltersProps = {
   form: UseFormReturn<MediaFilters>;
+  debouncedApplyFilters: (values: MediaFilters) => void;
 };
 
-export function MetadataFilters({ form }: MetadataFiltersProps) {
+export function MetadataFilters({ form, debouncedApplyFilters }: MetadataFiltersProps) {
   return (
     <>
       {/* Media Type */}
@@ -23,8 +24,14 @@ export function MetadataFilters({ form }: MetadataFiltersProps) {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Media Type</FormLabel>
-            <Select value={field.value || 'all'} onValueChange={field.onChange}>
-              <SelectTrigger className="w-[150px]">
+            <Select 
+              value={field.value || 'all'} 
+              onValueChange={(value) => {
+                field.onChange(value);
+                debouncedApplyFilters(form.getValues());
+              }}
+            >
+              <SelectTrigger className="w-full">
                 <SelectValue>
                   {field.value === 'all' && 'All types'}
                   {field.value === 'image' && 'Images'}
