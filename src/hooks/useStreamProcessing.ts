@@ -190,56 +190,12 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                       .replace(/^[^{]*/, '')
                       .replace(/[^}]*$/, '');
 
-                    try {
-                      const data = JSON.parse(jsonString);
-                      if (processParsedData(data)) {
-                        await cleanupReader(newReader);
-                        done = true;
-                        break;
-                      }
-                    } catch (_jsonParseError) {
-                      try {
-                        let validJson = null;
-                        let stack = 0;
-                        let startIdx = -1;
+                    const data = JSON.parse(jsonString);
 
-                        for (let i = 0; i < cleanedMessage.length; i++) {
-                          if (cleanedMessage[i] === '{') {
-                            if (stack === 0) {
-                              startIdx = i;
-                            }
-                            stack++;
-                          } else if (cleanedMessage[i] === '}') {
-                            stack--;
-                            if (stack === 0 && startIdx !== -1) {
-                              const potentialJson = cleanedMessage.substring(
-                                startIdx,
-                                i + 1,
-                              );
-                              try {
-                                const data = JSON.parse(potentialJson);
-                                validJson = data;
-                              } catch {
-                                // Not valid JSON, keep looking
-                              }
-                            }
-                          }
-                        }
-
-                        if (validJson) {
-                          if (processParsedData(validJson)) {
-                            await cleanupReader(newReader);
-                            done = true;
-                            break;
-                          }
-                        }
-                      } catch (fallbackError) {
-                        console.error(
-                          'Failed to parse message with fallback method:',
-                          fallbackError,
-                          cleanedMessage,
-                        );
-                      }
+                    if (processParsedData(data)) {
+                      await cleanupReader(newReader);
+                      done = true;
+                      break;
                     }
                   } catch (parseError) {
                     console.error(

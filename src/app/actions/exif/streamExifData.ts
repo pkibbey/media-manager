@@ -3,7 +3,6 @@
 import {
   markProcessingError,
   markProcessingStarted,
-  markProcessingSuccess,
   sendProgress,
 } from '@/lib/processing-helpers';
 import type { ProgressType } from '@/types/progress-types';
@@ -175,7 +174,6 @@ export async function streamExifData({
                     ...getCommonProperties(),
                     metadata: {
                       method,
-                      fileType: media.file_types?.extension,
                     },
                   });
                 },
@@ -185,24 +183,8 @@ export async function streamExifData({
               counters.processedCount++;
               if (result.success) {
                 counters.success++;
-                // Double-check that the success state is set
-                // This is a safety check in case processExifData didn't set it for some reason
-                await markProcessingSuccess({
-                  mediaItemId: media.id,
-                  progressType: 'exif',
-                  errorMessage: `EXIF data processed successfully for ${media.file_name}`,
-                });
               } else {
                 counters.failed++;
-                // Double-check that the error state is set
-                // processExifData should have set this, but adding here for safety
-                await markProcessingError({
-                  mediaItemId: media.id,
-                  progressType: 'exif',
-                  errorMessage:
-                    result?.message ||
-                    `Failed to process EXIF data for ${media.file_name}`,
-                });
               }
             }
           } catch (error: any) {
@@ -224,7 +206,6 @@ export async function streamExifData({
               ...getCommonProperties(),
               metadata: {
                 method,
-                fileType: media.file_types?.extension,
               },
             });
           }
