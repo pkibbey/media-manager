@@ -42,7 +42,6 @@ export function useExifProcessor() {
       const { data, error } = await getExifStats();
 
       if (!data || error) {
-        console.error('[EXIF DEBUG] Error fetching stats:', error);
         throw error;
       }
 
