@@ -3,9 +3,7 @@
 import path from 'node:path';
 import { getMediaItemById } from '@/actions/media/get-media-item-by-id';
 import {
-  handleProcessingError,
   markProcessingError,
-  markProcessingStarted,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
@@ -31,12 +29,6 @@ export async function processImageAnalysis({
   colors?: string[];
 }> {
   try {
-    // Mark processing as started
-    await markProcessingStarted({
-      mediaItemId: mediaId,
-      progressType: 'analysis',
-    });
-
     progressCallback?.('Fetching media item details');
 
     // Get the media item to access its file path
@@ -143,7 +135,7 @@ export async function processImageAnalysis({
     progressCallback?.(errorMessage);
 
     // Use our helper function for error processing
-    await handleProcessingError({
+    await markProcessingError({
       mediaItemId: mediaId,
       progressType: 'analysis',
       errorMessage,

@@ -1,67 +1,5 @@
 import { updateProcessingState } from '@/actions/processing/update-processing-state';
-import type { ProgressStatus, UnifiedProgress } from '@/types/progress-types';
-
-/**
- * Handle an error during processing by updating the processing state
- * and returning a result object
- */
-export async function handleProcessingError({
-  mediaItemId,
-  progressType,
-  errorMessage,
-}: {
-  mediaItemId: string;
-  progressType: string;
-  errorMessage: string;
-}) {
-  try {
-    await updateProcessingState({
-      mediaItemId,
-      status: 'failure',
-      progressType,
-      errorMessage,
-    });
-  } catch (updateError) {
-    console.error(
-      `Failed to update processing state to 'failure':`,
-      updateError,
-    );
-  }
-
-  return {
-    success: false,
-    error: errorMessage,
-  };
-}
-
-/**
- * Generic helper function to update processing state with consistent error handling
- */
-async function updateProcessingStateWithErrorHandling({
-  mediaItemId,
-  progressType,
-  status,
-  errorMessage,
-}: {
-  mediaItemId: string;
-  progressType: string;
-  status: ProgressStatus;
-  errorMessage: string;
-}): Promise<void> {
-  try {
-    await updateProcessingState({
-      mediaItemId,
-      status,
-      progressType,
-      errorMessage,
-    });
-  } catch (error) {
-    console.error(
-      `Failed to update processing state for media item ${mediaItemId}:`,
-      error,
-    );
-  }
-}
+import type { UnifiedProgress } from '@/types/progress-types';
 
 /**
  * Mark a media item as having an error or failure during processing
@@ -75,7 +13,7 @@ export async function markProcessingError({
   progressType: string;
   errorMessage: string;
 }): Promise<void> {
-  await updateProcessingStateWithErrorHandling({
+  await updateProcessingState({
     mediaItemId,
     progressType,
     status: 'failure',
@@ -95,7 +33,7 @@ export async function markProcessingSuccess({
   progressType: string;
   errorMessage?: string;
 }): Promise<void> {
-  await updateProcessingStateWithErrorHandling({
+  await updateProcessingState({
     mediaItemId,
     progressType,
     status: 'complete',
@@ -104,30 +42,9 @@ export async function markProcessingSuccess({
 }
 
 /**
- * Mark a media item as being processed
- * Note: Status is set to "processing" to indicate item is currently being processed
- */
-export async function markProcessingStarted({
-  mediaItemId,
-  progressType,
-  errorMessage = 'Processing started',
-}: {
-  mediaItemId: string;
-  progressType: string;
-  errorMessage?: string;
-}): Promise<void> {
-  await updateProcessingStateWithErrorHandling({
-    mediaItemId,
-    progressType,
-    status: 'processing',
-    errorMessage,
-  });
-}
-
-/**
  * Sends a progress update through a stream writer using the UnifiedProgress type.
  */
-export async function sendProgress(
+export async function sendStreamProgress(
   encoder: TextEncoder,
   writer: WritableStreamDefaultWriter,
   progress: Partial<UnifiedProgress>,

@@ -2,8 +2,7 @@
 
 import {
   markProcessingError,
-  markProcessingStarted,
-  sendProgress,
+  sendStreamProgress,
 } from '@/lib/processing-helpers';
 import type { ProgressType } from '@/types/progress-types';
 import type { Method, UnifiedStats } from '@/types/unified-stats';
@@ -37,7 +36,7 @@ export async function streamExifData({
     // Catch errors from the background processing and send a final error message
     console.error('Background processing error:', error);
     try {
-      await sendProgress(encoder, writer, {
+      await sendStreamProgress(encoder, writer, {
         status: 'failure',
         message: `Critical server error during processing: ${error instanceof Error ? error.message : 'Unknown error'}`,
         processedCount: 0,
@@ -116,7 +115,7 @@ export async function streamExifData({
         // Check for errors in the response
         if (unprocessed.error) {
           // Send error progress update
-          await sendProgress(encoder, writer, {
+          await sendStreamProgress(encoder, writer, {
             status: 'failure',
             message: `Error fetching files: ${unprocessed.error.message}. Please try again later.`,
             ...getCommonProperties(),
@@ -136,7 +135,7 @@ export async function streamExifData({
 
         // If no files were returned and we're on batch 1, nothing to process at all
         if (unprocessedFiles.length === 0 && counters.currentBatch === 1) {
-          await sendProgress(encoder, writer, {
+          await sendStreamProgress(encoder, writer, {
             status: 'failure',
             message: 'No files to process',
             ...getCommonProperties(),
@@ -155,20 +154,13 @@ export async function streamExifData({
 
         for (const media of unprocessedFiles) {
           try {
-            // Time database operations
-            await markProcessingStarted({
-              mediaItemId: media.id,
-              progressType: 'exif',
-              errorMessage: `Processing started for ${media.file_name}`,
-            });
-
             if (media.id) {
               const result = await processExifData({
                 mediaId: media.id,
                 method: method || 'default',
                 progressCallback: async (message) => {
                   // Send granular progress updates with only message change
-                  await sendProgress(encoder, writer, {
+                  await sendStreamProgress(encoder, writer, {
                     status: 'processing',
                     message: `${message} - ${media.file_name}`,
                     ...getCommonProperties(),
@@ -200,7 +192,7 @@ export async function streamExifData({
             counters.failed++;
 
             // Send error update with only changed properties
-            await sendProgress(encoder, writer, {
+            await sendStreamProgress(encoder, writer, {
               status: 'failure',
               message: `Error processing file ${media.file_name}: ${error.message}. Continuing with next file...`,
               ...getCommonProperties(),
@@ -214,7 +206,7 @@ export async function streamExifData({
         // After finishing a batch, if we're in infinity mode and have more batches to go
         if (hasMoreItems) {
           // Send a batch completion update with minimal properties
-          await sendProgress(encoder, writer, {
+          await sendStreamProgress(encoder, writer, {
             status: 'batch_complete', // Use status instead of a separate flag
             message: `Finished batch ${Number(counters.currentBatch)}. Continuing with next batch...`,
             ...getCommonProperties(),
@@ -226,7 +218,7 @@ export async function streamExifData({
       const finalMessage = `EXIF processing completed. Processed ${counters.processedCount} files: ${counters.success} successful, ${counters.failed} failed.`;
 
       // Send final progress update with a clear completion status
-      await sendProgress(encoder, writer, {
+      await sendStreamProgress(encoder, writer, {
         status: 'complete', // Use status instead of a separate flag
         message: finalMessage,
         ...getCommonProperties(),
@@ -238,7 +230,7 @@ export async function streamExifData({
         error,
       );
       // Send a failure progress update through the stream
-      await sendProgress(encoder, writer, {
+      await sendStreamProgress(encoder, writer, {
         status: 'failure',
         message:
           error?.message || 'An unknown error occurred during EXIF processing',

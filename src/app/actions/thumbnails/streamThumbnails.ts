@@ -3,7 +3,7 @@
 import {
   markProcessingError,
   markProcessingSuccess,
-  sendProgress,
+  sendStreamProgress,
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ProgressType } from '@/types/progress-types';
@@ -36,7 +36,7 @@ export async function streamThumbnails({
   }).catch(async (error) => {
     console.error('Background processing error:', error);
     try {
-      await sendProgress(encoder, writer, {
+      await sendStreamProgress(encoder, writer, {
         status: 'failure',
         message: `Critical server error during processing: ${error instanceof Error ? error.message : 'Unknown error'}`,
         processedCount: 0,
@@ -122,7 +122,7 @@ export async function streamThumbnails({
         // Check for errors in the response
         if (unprocessed.error) {
           // Send error progress update
-          await sendProgress(encoder, writer, {
+          await sendStreamProgress(encoder, writer, {
             status: 'failure',
             message: `Error fetching files: ${unprocessed.error.message}. Please try again later.`,
             ...getCommonProperties(),
@@ -142,7 +142,7 @@ export async function streamThumbnails({
 
         // If no files were returned and we're on batch 1, nothing to process at all
         if (unprocessedFiles.length === 0 && counters.currentBatch === 1) {
-          await sendProgress(encoder, writer, {
+          await sendStreamProgress(encoder, writer, {
             status: 'failure',
             message: 'No files to process',
             ...getCommonProperties(),
@@ -157,7 +157,7 @@ export async function streamThumbnails({
         for (const media of unprocessedFiles) {
           try {
             // Send update before processing each file
-            await sendProgress(encoder, writer, {
+            await sendStreamProgress(encoder, writer, {
               status: 'processing',
               message: isInfinityMode
                 ? `Batch ${counters.currentBatch}: Processing: ${media.file_name}`
@@ -195,7 +195,7 @@ export async function streamThumbnails({
             }
 
             // Send progress update
-            await sendProgress(encoder, writer, {
+            await sendStreamProgress(encoder, writer, {
               status: 'processing',
               message: result.message,
               ...getCommonProperties(),
@@ -215,7 +215,7 @@ export async function streamThumbnails({
             });
 
             // Send error update
-            await sendProgress(encoder, writer, {
+            await sendStreamProgress(encoder, writer, {
               status: 'failure',
               message: `Error generating thumbnail: ${error.message}`,
               ...getCommonProperties(),
@@ -233,7 +233,7 @@ export async function streamThumbnails({
         } else {
           counters.currentBatch++;
           // Send a batch completion update
-          await sendProgress(encoder, writer, {
+          await sendStreamProgress(encoder, writer, {
             status: 'batch_complete',
             message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
             ...getCommonProperties(),
@@ -250,7 +250,7 @@ export async function streamThumbnails({
         ? `All processing completed. Generated ${counters.success} thumbnails (${counters.failed} failed) using ${method}`
         : `Thumbnail generation completed. Generated ${counters.success} thumbnails (${counters.failed} failed) using ${method}`;
 
-      await sendProgress(encoder, writer, {
+      await sendStreamProgress(encoder, writer, {
         status: 'complete',
         message: finalMessage,
         ...getCommonProperties(),
@@ -261,7 +261,7 @@ export async function streamThumbnails({
       });
     } catch (error: any) {
       // Send a failure progress update through the stream
-      await sendProgress(encoder, writer, {
+      await sendStreamProgress(encoder, writer, {
         status: 'failure',
         message:
           error?.message ||

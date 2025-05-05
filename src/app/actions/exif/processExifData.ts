@@ -9,7 +9,6 @@ import {
   uploadExifThumbnail,
 } from '@/lib/exif-utils';
 import {
-  handleProcessingError,
   markProcessingError,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
@@ -81,11 +80,12 @@ export async function processExifData({
         media_date: extraction.mediaDate,
       });
 
+      console.log('updateError: ', updateError);
       if (updateError) {
         // Instead of throwing, handle it directly
         const errorMessage = `Database update error: ${updateError.message}`;
         progressCallback?.(errorMessage);
-        await handleProcessingError({
+        await markProcessingError({
           mediaItemId: mediaId,
           progressType: 'exif',
           errorMessage: String(updateError),
@@ -141,7 +141,7 @@ export async function processExifData({
       progressCallback?.(errorMessage);
       console.error('[EXIF] Error updating media item:', error);
       // Use our new helper function for error processing
-      await handleProcessingError({
+      await markProcessingError({
         mediaItemId: mediaId,
         progressType: 'exif',
         errorMessage,
@@ -159,7 +159,7 @@ export async function processExifData({
         : 'Unknown error processing EXIF data';
     progressCallback?.(`Error processing EXIF: ${errorMessage}`);
     // Use our new helper function for error processing
-    await handleProcessingError({
+    await markProcessingError({
       mediaItemId: mediaId,
       progressType: 'exif',
       errorMessage,

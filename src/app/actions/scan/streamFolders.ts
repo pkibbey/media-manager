@@ -9,9 +9,8 @@ import {
 } from '@/lib/file-types-utils';
 import {
   markProcessingError,
-  markProcessingStarted,
   markProcessingSuccess,
-  sendProgress,
+  sendStreamProgress,
 } from '@/lib/processing-helpers';
 import type { ProgressType } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
@@ -100,7 +99,7 @@ async function scanFoldersInternal(
     }
 
     if (!foldersToScan || foldersToScan.length === 0) {
-      await sendProgress(encoder, writer, {
+      await sendStreamProgress(encoder, writer, {
         status: 'complete', // Use consistent status approach
         message:
           'No folders configured for scanning. Add folders in admin panel.',
@@ -110,7 +109,7 @@ async function scanFoldersInternal(
     }
 
     // Send initial progress update
-    await sendProgress(encoder, writer, {
+    await sendStreamProgress(encoder, writer, {
       status: 'processing', // Use consistent status approach
       message: `Starting scan of ${foldersToScan.length} folder(s)...`,
       ...getCommonProperties(),
@@ -132,7 +131,7 @@ async function scanFoldersInternal(
         try {
           await fs.access(folder.path);
         } catch (accessError) {
-          await sendProgress(encoder, writer, {
+          await sendStreamProgress(encoder, writer, {
             status: 'failure',
             message: `Folder does not exist or is inaccessible. ${accessError}`,
             ...getCommonProperties(),
@@ -141,7 +140,7 @@ async function scanFoldersInternal(
         }
 
         // Send update that we're starting to scan this folder
-        await sendProgress(encoder, writer, {
+        await sendStreamProgress(encoder, writer, {
           status: 'processing',
           message: `Scanning folder: ${folder.path}${folder.include_subfolders ? ' (including subfolders)' : ''}`,
           ...getCommonProperties(),
@@ -155,7 +154,7 @@ async function scanFoldersInternal(
 
         // Update discovered count and send update
         counters.totalAvailable += files.length;
-        await sendProgress(encoder, writer, {
+        await sendStreamProgress(encoder, writer, {
           status: 'processing',
           message: `Found ${files.length} files in ${folder.path}`,
           ...getCommonProperties(),
@@ -167,7 +166,7 @@ async function scanFoldersInternal(
 
           // Send batch progress update
           if (i > 0) {
-            await sendProgress(encoder, writer, {
+            await sendStreamProgress(encoder, writer, {
               status: 'processing',
               message: `Processing files ${i + 1} to ${Math.min(i + BATCH_SIZE, files.length)} of ${files.length} in ${folder.path}`,
               ...getCommonProperties(),
@@ -244,13 +243,6 @@ async function scanFoldersInternal(
 
               if (existingFile) {
                 // Update existing file
-                // Mark as processing
-                await markProcessingStarted({
-                  mediaItemId: existingFile.id,
-                  progressType: 'scan',
-                  errorMessage: `Updating file: ${fileName}`,
-                });
-
                 const { error: updateError } = await updateMediaItem(
                   existingFile.id,
                   fileData,
@@ -300,7 +292,7 @@ async function scanFoldersInternal(
                 counters.processedCount % 25 === 0 ||
                 counters.processedCount === counters.totalAvailable
               ) {
-                await sendProgress(encoder, writer, {
+                await sendStreamProgress(encoder, writer, {
                   status: 'processing',
                   message: `Processed ${counters.processedCount} of ${counters.totalAvailable} files`,
                   ...getCommonProperties(),
@@ -327,7 +319,7 @@ async function scanFoldersInternal(
           // At the end of each batch, if we have more batches to go
           if (i + BATCH_SIZE < files.length) {
             counters.currentBatch++;
-            await sendProgress(encoder, writer, {
+            await sendStreamProgress(encoder, writer, {
               status: 'batch_complete',
               message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
               ...getCommonProperties(),
@@ -339,7 +331,7 @@ async function scanFoldersInternal(
         await updateFolderLastScanned(folder.id);
       } catch (folderError: any) {
         console.error(`Error scanning folder ${folder.path}:`, folderError);
-        await sendProgress(encoder, writer, {
+        await sendStreamProgress(encoder, writer, {
           status: 'failure',
           message: `Error scanning folder: ${folder.path}`,
           ...getCommonProperties(),
@@ -348,7 +340,7 @@ async function scanFoldersInternal(
     }
 
     // Send final progress update
-    await sendProgress(encoder, writer, {
+    await sendStreamProgress(encoder, writer, {
       status: 'complete',
       message: `Scan completed. Processed ${counters.processedCount} files, added ${counters.newFilesAdded} new/updated files.`,
       ...getCommonProperties(),
@@ -359,7 +351,7 @@ async function scanFoldersInternal(
       await writer.close();
     }
   } catch (error: any) {
-    await sendProgress(encoder, writer, {
+    await sendStreamProgress(encoder, writer, {
       status: 'failure',
       message: error?.message || 'Unknown error during scan',
       totalCount: 0,
