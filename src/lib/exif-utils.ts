@@ -174,7 +174,6 @@ export async function extractMetadata({
 export async function extractAndSanitizeExifData(
   filePath: string,
   method: Method,
-  progressCallback?: (message: string) => void,
 ): Promise<{
   success: boolean;
   exifData: Tags | null;
@@ -183,10 +182,6 @@ export async function extractAndSanitizeExifData(
   message: string;
   thumbnailBuffer?: Buffer;
 }> {
-  progressCallback?.(
-    `Extracting metadata using ${method} method from ${filePath}`,
-  );
-
   try {
     // Check if file exists before attempting extraction
     try {
@@ -216,9 +211,6 @@ export async function extractAndSanitizeExifData(
         message: exifResult.error || 'No EXIF data found',
       };
     }
-
-    // Import sanitizeExifData function
-    progressCallback?.('Sanitizing EXIF data');
 
     // Sanitize EXIF data before storing it
     const sanitizedExifData = sanitizeExifData(exifResult.data);

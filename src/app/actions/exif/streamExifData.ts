@@ -72,7 +72,6 @@ export async function streamExifData({
     writer: WritableStreamDefaultWriter;
     method?: Method;
     batchSize: number;
-    progressType?: ProgressType;
   }) {
     try {
       // Single stats object to track all counters

@@ -5,7 +5,6 @@ import { UnifiedStatsDisplay } from '../ui/unified-stats-display';
 import { ThumbnailActionButtons } from './thumbnail-generator/ThumbnailActionButtons';
 import { ThumbnailErrorSummary } from './thumbnail-generator/ThumbnailErrorSummary';
 import { ThumbnailProcessOptions } from './thumbnail-generator/ThumbnailProcessOptions';
-import { ThumbnailValidator } from './thumbnail-generator/ThumbnailValidator';
 import { useThumbnailGenerator } from './thumbnail-generator/useThumbnailGenerator';
 
 export default function ThumbnailGenerator() {
@@ -82,8 +81,6 @@ export default function ThumbnailGenerator() {
         failureCount={progress?.failureCount || 0}
         errorSummary={errorSummary}
       />
-
-      {!isProcessing && <ThumbnailValidator />}
     </div>
   );
 }

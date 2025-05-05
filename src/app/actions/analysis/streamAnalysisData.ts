@@ -1,6 +1,7 @@
 'use server';
 
 import { TransformStream } from 'node:stream/web';
+import { sendStreamProgress } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { ProgressType } from '@/types/progress-types';
 import type { Method } from '@/types/unified-stats';
@@ -55,6 +56,7 @@ export async function streamAnalysisData({
   batchSize: number;
 }) {
   // Setup transform stream for progress updates
+  const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
 
@@ -100,7 +102,13 @@ export async function streamAnalysisData({
           message: `Failed to fetch unprocessed files: ${error}`,
           metadata: { method },
         });
-        await writer.close();
+        if (!writer.closed) {
+          try {
+            await writer.close();
+          } catch (closeError) {
+            console.error('Error closing writer in finally block:', closeError);
+          }
+        }
         return;
       }
 
@@ -125,7 +133,13 @@ export async function streamAnalysisData({
           ...getCommonProperties(),
           message: 'No images to analyze',
         });
-        await writer.close();
+        if (!writer.closed) {
+          try {
+            await writer.close();
+          } catch (closeError) {
+            console.error('Error closing writer in finally block:', closeError);
+          }
+        }
         return;
       }
 
@@ -146,14 +160,13 @@ export async function streamAnalysisData({
           const result = await processImageAnalysis({
             mediaId: media.id,
             method,
-            progressCallback: (message) => {
-              // Send detailed progress message
-              writer.write({
-                ...getCommonProperties(),
+            progressCallback: async (message) => {
+              await sendStreamProgress(encoder, writer, {
+                status: 'processing',
                 message: `${message} - ${media.file_name}`,
+                ...getCommonProperties(),
                 metadata: {
                   method,
-                  fileType: media.file_types?.extension,
                 },
               });
             },
@@ -219,7 +232,13 @@ export async function streamAnalysisData({
       });
     } finally {
       // Always close the writer when done
-      await writer.close();
+      if (!writer.closed) {
+        try {
+          await writer.close();
+        } catch (closeError) {
+          console.error('Error closing writer in finally block:', closeError);
+        }
+      }
     }
   }
 }

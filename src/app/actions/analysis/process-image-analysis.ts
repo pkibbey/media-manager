@@ -29,15 +29,12 @@ export async function processImageAnalysis({
   colors?: string[];
 }> {
   try {
-    progressCallback?.('Fetching media item details');
-
     // Get the media item to access its file path
     const { data: mediaItem, error: fetchError } =
       await getMediaItemById(mediaId);
 
     if (fetchError || !mediaItem) {
       const errorMessage = fetchError?.message || 'Media item not found';
-      progressCallback?.(errorMessage);
 
       await markProcessingError({
         mediaItemId: mediaId,
@@ -51,8 +48,6 @@ export async function processImageAnalysis({
       };
     }
 
-    progressCallback?.(`Analyzing image using ${method} method (placeholder)`);
-
     let analysisResult: {
       keywords: string[];
       objects: string[];
@@ -65,22 +60,11 @@ export async function processImageAnalysis({
       analysisResult = await analyzeImagePlaceholder(
         mediaItem.file_path,
         method,
-        progressCallback,
       );
-    } catch (analysisError) {
-      const errorMessage =
-        analysisError instanceof Error
-          ? `Analysis error: ${analysisError.message}`
-          : 'Unknown error during analysis processing';
-
-      progressCallback?.(`Error in analysis processing: ${errorMessage}`);
-      console.error('[Analysis] Placeholder processing failed:', analysisError);
-
+    } catch (_analysisError) {
       // Fallback to basic simulated analysis if placeholder fails (unlikely but good practice)
       analysisResult = await simulateImageAnalysis(mediaItem.file_path, method);
     }
-
-    progressCallback?.('Storing analysis results');
 
     // Store the results in the database
     const supabase = createServerSupabaseClient();
@@ -98,7 +82,6 @@ export async function processImageAnalysis({
 
     if (upsertError) {
       const errorMessage = `Failed to store analysis results: ${upsertError.message}`;
-      progressCallback?.(errorMessage);
 
       await markProcessingError({
         mediaItemId: mediaId,
@@ -132,8 +115,6 @@ export async function processImageAnalysis({
         ? error.message
         : 'Unknown error during image analysis';
 
-    progressCallback?.(errorMessage);
-
     // Use our helper function for error processing
     await markProcessingError({
       mediaItemId: mediaId,
@@ -155,22 +136,17 @@ export async function processImageAnalysis({
 async function analyzeImagePlaceholder(
   filePath: string,
   method: Method,
-  progressCallback?: (message: string) => void,
 ): Promise<{
   keywords: string[];
   objects: string[];
   sceneType: string;
   colors: string[];
 }> {
-  progressCallback?.('Running placeholder analysis');
-
   // Use the existing simulateImageAnalysis function as the placeholder
   const result = await simulateImageAnalysis(filePath, method);
 
   // Add a specific keyword to indicate placeholder usage
   result.keywords.push('placeholder-analysis');
-
-  progressCallback?.('Placeholder analysis finished');
 
   return {
     ...result,

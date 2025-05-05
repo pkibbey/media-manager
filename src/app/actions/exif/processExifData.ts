@@ -54,37 +54,33 @@ export async function processExifData({
     const extraction = await extractAndSanitizeExifData(
       mediaItem.file_path,
       method,
-      progressCallback,
     );
 
     // If no EXIF data found, update processing state accordingly
     if (!extraction.success || !extraction.exifData) {
-      progressCallback?.('No EXIF data found in file');
-      // Use the new helper function for skipping items
+      const errorMessage = extraction.message || 'No EXIF data found in file';
+
       await markProcessingError({
         mediaItemId: mediaId,
         progressType: 'exif',
-        errorMessage: extraction.message || 'No EXIF data found in file',
+        errorMessage,
       });
       return {
         success: false,
-        message: extraction.message || 'No EXIF data found in file',
+        message: errorMessage,
       };
     }
 
     try {
       // Update the media record with the actual EXIF data
-      progressCallback?.('Updating media item with EXIF data');
       const { error: updateError } = await updateMediaItem(mediaId, {
         exif_data: extraction.sanitizedExifData as Json,
         media_date: extraction.mediaDate,
       });
 
-      console.log('updateError: ', updateError);
       if (updateError) {
-        // Instead of throwing, handle it directly
         const errorMessage = `Database update error: ${updateError.message}`;
-        progressCallback?.(errorMessage);
+
         await markProcessingError({
           mediaItemId: mediaId,
           progressType: 'exif',
@@ -99,7 +95,6 @@ export async function processExifData({
       let thumbnailMessage = 'No EXIF thumbnail found';
 
       if (extraction.thumbnailBuffer) {
-        progressCallback?.('EXIF thumbnail found, uploading to storage');
         try {
           // Upload the thumbnail
           const thumbnailResult = await uploadExifThumbnail(
@@ -108,20 +103,18 @@ export async function processExifData({
           );
           if (thumbnailResult.success) {
             thumbnailMessage = `EXIF thumbnail uploaded: ${thumbnailResult.thumbnailUrl}`;
-            progressCallback?.(thumbnailMessage);
           } else {
             thumbnailMessage = `EXIF thumbnail upload failed: ${thumbnailResult.message}`;
-            progressCallback?.(thumbnailMessage);
             // Don't fail the entire process if just the thumbnail upload fails
             // Consider it a soft error
           }
         } catch (thumbnailError) {
           thumbnailMessage = `Error uploading EXIF thumbnail: ${thumbnailError instanceof Error ? thumbnailError.message : String(thumbnailError)}`;
-          progressCallback?.(thumbnailMessage);
-          console.error(`[EXIF] Error uploading thumbnail:`, thumbnailError);
-          // Again, don't fail the entire process
+          // Don't return here, or it will fail the entire process
         }
       }
+
+      progressCallback?.(thumbnailMessage);
 
       // Now that all operations are complete, mark as successful
       await markProcessingSuccess({
@@ -130,7 +123,6 @@ export async function processExifData({
         errorMessage: `EXIF data extracted successfully. ${thumbnailMessage}`,
       });
 
-      progressCallback?.('EXIF data extraction completed successfully');
       return {
         success: true,
         message: 'EXIF data extracted and stored successfully',
@@ -138,9 +130,7 @@ export async function processExifData({
       };
     } catch (error) {
       const errorMessage = `Database update error: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      progressCallback?.(errorMessage);
-      console.error('[EXIF] Error updating media item:', error);
-      // Use our new helper function for error processing
+
       await markProcessingError({
         mediaItemId: mediaId,
         progressType: 'exif',
@@ -152,13 +142,11 @@ export async function processExifData({
       };
     }
   } catch (error) {
-    console.error('[EXIF] Fatal error in processExifData:', error);
     const errorMessage =
       error instanceof Error
         ? error.message
         : 'Unknown error processing EXIF data';
-    progressCallback?.(`Error processing EXIF: ${errorMessage}`);
-    // Use our new helper function for error processing
+
     await markProcessingError({
       mediaItemId: mediaId,
       progressType: 'exif',
