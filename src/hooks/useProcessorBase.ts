@@ -28,15 +28,6 @@ export type ProcessorOptions<TStats> = {
    * Default processing method
    */
   defaultMethod?: Method;
-
-  /**
-   * Success messages to display during processing
-   */
-  successMessage?: {
-    start?: string;
-    onBatchComplete?: (processed: number) => string;
-    onCompleteEach?: () => string;
-  };
 };
 
 /**
@@ -48,11 +39,6 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
   getStreamFunction,
   defaultBatchSize = BATCH_SIZE,
   defaultMethod = 'default' as Method,
-  successMessage = {
-    start: 'Starting processing...',
-    // onBatchComplete: (processed) => `Processed ${processed} items`,
-    // onCompleteEach: () => 'Processing completed',
-  },
 }: ProcessorOptions<TStats>) {
   // State management
   const [batchSize, setBatchSize] = useState(defaultBatchSize);
@@ -159,6 +145,30 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
     }
   }, [isProcessing, refreshStats, wasProcessing]);
 
+  // Extracted function to handle processing errors
+  const handleProcessingError = useCallback(
+    (error: unknown, errorDetails: unknown) => {
+      console.error(
+        '[PROCESSOR DEBUG] Stream processing error:',
+        error,
+        'details:',
+        errorDetails,
+      );
+      setHasError(true);
+
+      if (errorDetails && Array.isArray(errorDetails)) {
+        setErrorSummary(errorDetails);
+      } else if (typeof error === 'string') {
+        setErrorSummary([error]);
+      } else if (error instanceof Error) {
+        setErrorSummary([error.message]);
+      }
+
+      toast.error('Error during processing. Check console for details.');
+    },
+    [],
+  );
+
   // Start processing handler
   const handleStartProcessing = useCallback(
     async ({ processAll = false }) => {
@@ -168,7 +178,7 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
         setProcessingStartTime(Date.now());
 
         // Display start message
-        toast.info(successMessage.start || 'Starting processing...');
+        toast.info('Starting processing...');
 
         // Get stream function with current settings
         const actualBatchSize = processAll
@@ -181,39 +191,8 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
 
         // Start streaming process
         await startStream(streamFn, {
-          onCompleted: () => {
-            // When complete, show success message
-            if (successMessage.onCompleteEach) {
-              toast.success(successMessage.onCompleteEach());
-            }
-
-            // Refresh stats after completion
-            refreshStats();
-          },
-          onError: (error, errorDetails) => {
-            console.error(
-              '[PROCESSOR DEBUG] Stream processing error:',
-              error,
-              'details:',
-              errorDetails,
-            );
-            setHasError(true);
-
-            if (errorDetails && Array.isArray(errorDetails)) {
-              setErrorSummary(errorDetails);
-            } else if (typeof error === 'string') {
-              setErrorSummary([error]);
-            } else if (error instanceof Error) {
-              setErrorSummary([error.message]);
-            }
-
-            toast.error('Error during processing. Check console for details.');
-          },
-          onBatchComplete: (processedCount) => {
-            if (successMessage.onBatchComplete) {
-              toast.success(successMessage.onBatchComplete(processedCount));
-            }
-          },
+          onCompleted: refreshStats,
+          onError: handleProcessingError,
         });
       } catch (error) {
         console.error('[PROCESSOR DEBUG] Failed to start processing:', error);
@@ -227,7 +206,7 @@ export function useProcessorBase<TProgress extends UnifiedProgress, TStats>({
       method,
       startStream,
       getStreamFunction,
-      successMessage,
+      handleProcessingError,
     ],
   );
 

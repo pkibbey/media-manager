@@ -46,10 +46,7 @@ export function formatBytes(bytes: number): string {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   if (bytes === 0) return '0 Bytes';
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${
-    // biome-ignore lint/style/useExponentiationOperator: <explanation>
-    (bytes / Math.pow(1024, i)).toFixed(2)
-  } ${sizes[i]}`;
+  return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`;
 }
 
 /**
@@ -376,8 +373,7 @@ export function formatExposureInfo(exifData?: Tags | null): string | undefined {
     const shutterSpeed = exifData.ShutterSpeedValue;
     // ShutterSpeedValue is often stored as APEX value (log2-based)
     // Convert from APEX to seconds: 2^(-ShutterSpeedValue)
-    // biome-ignore lint/style/useExponentiationOperator: <explanation>
-    const seconds = Math.pow(2, -shutterSpeed);
+    const seconds = 2 ** -shutterSpeed;
 
     if (seconds < 1) {
       // Calculate denominator for fraction (1/x)

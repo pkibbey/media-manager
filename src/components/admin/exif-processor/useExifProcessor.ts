@@ -51,11 +51,6 @@ export function useExifProcessor() {
     getStreamFunction,
     defaultBatchSize: Number.POSITIVE_INFINITY,
     defaultMethod: 'default' as Method,
-    successMessage: {
-      start: 'Starting EXIF processing...',
-      onBatchComplete: (processed) =>
-        `Batch complete: ${processed} files processed`,
-    },
   });
 
   // Handle process method with the simplified interface

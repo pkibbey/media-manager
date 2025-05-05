@@ -22,9 +22,9 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
       if (!readerToCleanup.closed) {
         await readerToCleanup.cancel();
       }
-      
+
       readerActiveRef.current = false; // Mark as inactive after cancel attempt
-      
+
       try {
         readerToCleanup.releaseLock();
       } catch (_releaseError) {
@@ -52,6 +52,42 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
     setIsProcessing(false);
   }, [abortController, reader, cleanupReader]);
 
+  // Standardized error recovery function
+  const handleStreamError = useCallback(
+    async (
+      error: unknown,
+      options: {
+        onCompleted?: () => void;
+        onError?: (error: any, errorDetails?: any) => void;
+      },
+      reader: ReadableStreamDefaultReader<Uint8Array> | null,
+    ) => {
+      await cleanupReader(reader);
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown processing error';
+
+      setProgress((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'failure',
+              message: `Processing failed: ${errorMessage}`,
+            }
+          : null,
+      );
+
+      console.error('[Stream Processing Error]', error);
+
+      if (options.onError) {
+        options.onError(errorMessage, error);
+      }
+
+      setIsProcessing(false);
+    },
+    [cleanupReader],
+  );
+
   // Function to handle reading from a streaming server action
   const startProcessing = useCallback(
     async (
@@ -59,16 +95,17 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
       options: {
         onCompleted?: () => void;
         onError?: (error: any, errorDetails?: any) => void;
-        onBatchComplete?: (processedCount: number) => void;
       } = {},
     ) => {
       // Check if already processing
       if (isProcessing) {
-        console.warn('Already processing a stream, canceling previous and starting new request.');
+        console.warn(
+          'Already processing a stream, canceling previous and starting new request.',
+        );
         // Clean up existing processing before starting a new one
         await stopProcessing();
       }
-      
+
       const newAbortController = new AbortController();
       setAbortController(newAbortController);
       setIsProcessing(true);
@@ -84,14 +121,7 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
             ...(prev || {}),
             ...data,
           } as T;
-          
-          // Call onBatchComplete if a batch was processed and the handler exists
-          if (options.onBatchComplete && 
-              'processed' in data && typeof data.processed === 'number' && 
-              (!prev || !('processed' in prev) || data.processed !== prev.processed)) {
-            options.onBatchComplete(data.processed);
-          }
-          
+
           return newState;
         });
 
@@ -108,7 +138,6 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
         }
         return completed;
       };
-
 
       try {
         const stream = await streamFunc();
@@ -223,41 +252,22 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
                 }
               }
             } catch (readError: unknown) {
-              console.error('Error reading from stream:', readError);
-              readerActiveRef.current = false;
-              done = true;
-              if (options.onError) {
-                options.onError(readError);
-              }
-              setIsProcessing(false);
-              setAbortController(null);
-              await cleanupReader(newReader);
+              await handleStreamError(readError, options, newReader);
               break;
             }
           }
         } catch (error) {
-          console.error('Stream processing error:', error);
-          if (options.onError) {
-            options.onError(error);
-          }
-          setIsProcessing(false);
-          setAbortController(null);
-          await cleanupReader(newReader);
+          await handleStreamError(error, options, newReader);
         } finally {
           if (readerActiveRef.current === false && isProcessing) {
             setIsProcessing(false);
           }
         }
       } catch (error) {
-        console.error('Error starting stream:', error);
-        if (options.onError) {
-          options.onError(error);
-        }
-        setIsProcessing(false);
-        setAbortController(null);
+        await handleStreamError(error, options, null);
       }
     },
-    [cleanupReader, stopProcessing, isProcessing], // Add isProcessing to dependency array
+    [cleanupReader, stopProcessing, isProcessing, handleStreamError],
   );
 
   return {

@@ -49,13 +49,6 @@ export function useThumbnailGenerator() {
     getStreamFunction,
     defaultBatchSize: Number.POSITIVE_INFINITY,
     defaultMethod: 'default' as Method,
-    successMessage: {
-      start: 'Starting thumbnail generation...',
-      onBatchComplete: (processed: number): string =>
-        `Batch complete: Generated ${processed} thumbnails`,
-      onCompleteEach: (): string =>
-        'Thumbnail generation completed successfully',
-    },
   });
 
   // Handle thumbnail generation with option to process all

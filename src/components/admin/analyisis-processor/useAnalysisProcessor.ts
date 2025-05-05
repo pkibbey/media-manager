@@ -37,12 +37,6 @@ export function useAnalysisProcessor() {
     getStreamFunction,
     defaultBatchSize: 50,
     defaultMethod: 'default' as Method,
-    successMessage: {
-      start: 'Starting image analysis...',
-      onBatchComplete: (processed) =>
-        `Batch complete: Analyzed ${processed} images`,
-      onCompleteEach: () => 'Image analysis completed successfully',
-    },
   });
 
   // Handle analysis with option to process all

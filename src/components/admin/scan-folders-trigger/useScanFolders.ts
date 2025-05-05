@@ -57,12 +57,6 @@ export function useScanFolders() {
       };
     },
     getStreamFunction,
-    successMessage: {
-      start: 'Starting folder scan...',
-      onBatchComplete: (processed) =>
-        `Scan complete: Processed ${processed} files`,
-      onCompleteEach: () => 'Folder scan completed successfully',
-    },
   });
 
   // Simplified method to start scanning
