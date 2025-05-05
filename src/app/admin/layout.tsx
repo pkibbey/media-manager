@@ -8,6 +8,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { href: '/admin/file-types', label: 'File Types' },
     { href: '/admin/exif', label: 'Exif' },
     { href: '/admin/thumbnails', label: 'Thumbnails' },
+    { href: '/admin/analysis', label: 'Analysis' },
     { href: '/admin/stats', label: 'Stats' },
   ];
 

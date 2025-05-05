@@ -1,8 +1,9 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import ExifReader from 'exifreader';
+import { parse } from 'date-fns';
 import type { Tags } from 'exifreader';
+import ExifReader from 'exifreader';
 import sharp from 'sharp';
 import { sanitizeExifData } from '@/lib/utils';
 import type { Method } from '@/types/unified-stats';
@@ -223,10 +224,14 @@ export async function extractAndSanitizeExifData(
     const sanitizedExifData = sanitizeExifData(exifResult.data);
 
     // Get media date from EXIF
-    const mediaDate =
-      exifResult.data?.DateTimeOriginal?.description ||
-      exifResult.data?.DateTime?.description ||
-      null;
+    const mediaDate = parse(
+      String(
+        exifResult.data?.DateTimeOriginal?.value ||
+          exifResult.data?.DateTime?.value,
+      ),
+      'yyyy:MM:dd HH:mm:ss',
+      new Date(),
+    ).toISOString();
 
     return {
       success: true,

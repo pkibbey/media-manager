@@ -1,6 +1,6 @@
 # Media Manager - Standards Amendment v2
 
-This document serves as an amendment to the [original standards document](./standards.md) based on a review of the current implementation patterns and evolved best practices in the codebase.
+This document serves as an amendment to the [original standards document](./standards_v1.md) based on a review of the current implementation patterns and evolved best practices in the codebase.
 
 ## Table of Contents
 

@@ -1,6 +1,6 @@
 # Media Manager - Standards Amendment v3
 
-This document serves as the third amendment to the Media Manager coding standards, building upon the [original standards document](./standards.md) and the [V2 amendment](./standards_v2.md). It reflects the continued evolution of patterns and practices observed in the codebase.
+This document serves as the third amendment to the Media Manager coding standards, building upon the [original standards document](./standards_v1.md) and the [V2 amendment](./standards_v2.md). It reflects the continued evolution of patterns and practices observed in the codebase.
 
 ## Table of Contents
 

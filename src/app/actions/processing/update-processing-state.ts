@@ -1,5 +1,6 @@
 'use server';
 
+import { format } from 'date-fns';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import type { Action } from '@/types/db-types';
 import type { ProgressStatus } from '@/types/progress-types';
@@ -31,7 +32,7 @@ export async function updateProcessingState({
       type: progressType,
       status,
       error_message: errorMessage || null,
-      updated_at: new Date().toISOString(),
+      updated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
     },
     {
       onConflict: 'media_item_id,type',

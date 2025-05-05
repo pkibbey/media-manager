@@ -4,7 +4,7 @@ import type { ThumbnailMethod } from './thumbnail-types';
 /**
  * Simplified processing status type
  */
-export type StatsStatus = 'processing' | 'success' | 'failure';
+export type StatsStatus = 'processing' | 'complete' | 'failure';
 
 /**
  * UnifiedStats - A standardized stats type for all stats-related functions across the application
@@ -52,4 +52,6 @@ export interface UnifiedStats {
   };
 }
 
-export type Method = ThumbnailMethod | ExtractionMethod;
+type AnalysisMethod = 'comprehensive' | 'detailed' | 'basic' | 'fast';
+
+export type Method = ThumbnailMethod | ExtractionMethod | AnalysisMethod;

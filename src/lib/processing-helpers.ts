@@ -48,9 +48,6 @@ async function updateProcessingStateWithErrorHandling({
   status: ProgressStatus;
   errorMessage: string;
 }): Promise<void> {
-  // Skip if status is null (in progress)
-  if (status === null) return;
-
   try {
     await updateProcessingState({
       mediaItemId,

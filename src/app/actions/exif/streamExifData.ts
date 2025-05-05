@@ -7,8 +7,7 @@ import {
   sendProgress,
 } from '@/lib/processing-helpers';
 import type { ProgressType } from '@/types/progress-types';
-import type { Method } from '@/types/unified-stats';
-import type { UnifiedStats } from '@/types/unified-stats';
+import type { Method, UnifiedStats } from '@/types/unified-stats';
 import { getUnprocessedFiles } from './get-unprocessed-files';
 import { processExifData } from './processExifData';
 

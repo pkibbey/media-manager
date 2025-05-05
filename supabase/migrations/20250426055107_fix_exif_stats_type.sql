@@ -16,7 +16,7 @@ BEGIN
     ))::int AS total,
     (count(*) FILTER (
       WHERE ft.category IN ('image') AND ft.ignore = false
-        AND ps.type = 'exif' AND ps.status = 'success'
+        AND ps.type = 'exif' AND ps.status = 'complete'
     ))::int AS success,
     (count(*) FILTER (
       WHERE ft.category IN ('image') AND ft.ignore = false

@@ -16,7 +16,8 @@ BEGIN
     ) AS total,
     count(*) FILTER (
       WHERE ft.category IN ('image', 'video') AND ft.ignore = false
-        AND ps.type = 'exif' AND ps.status = 'success'
+        AND ps.type = 'exif' AND ps.status = 'complete'
+        
     ) AS success,
     count(*) FILTER (
       WHERE ft.category IN ('image', 'video') AND ft.ignore = false

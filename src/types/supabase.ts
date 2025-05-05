@@ -67,6 +67,59 @@ export type Database = {
         }
         Relationships: []
       }
+      image_analysis: {
+        Row: {
+          colors: string[]
+          created_at: string | null
+          id: number
+          keywords: string[]
+          media_item_id: string
+          objects: string[]
+          processing_completed: string | null
+          processing_error: string | null
+          processing_started: string | null
+          processing_state: string
+          scene_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          colors?: string[]
+          created_at?: string | null
+          id?: number
+          keywords?: string[]
+          media_item_id: string
+          objects?: string[]
+          processing_completed?: string | null
+          processing_error?: string | null
+          processing_started?: string | null
+          processing_state?: string
+          scene_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          colors?: string[]
+          created_at?: string | null
+          id?: number
+          keywords?: string[]
+          media_item_id?: string
+          objects?: string[]
+          processing_completed?: string | null
+          processing_error?: string | null
+          processing_started?: string | null
+          processing_state?: string
+          scene_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_analysis_media_item_id_fkey"
+            columns: ["media_item_id"]
+            isOneToOne: false
+            referencedRelation: "media_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_items: {
         Row: {
           created_date: string | null
@@ -200,6 +253,16 @@ export type Database = {
           status: string
         }[]
       }
+      get_analysis_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total: number
+          success: number
+          failed: number
+          pending: number
+          completion_percentage: number
+        }[]
+      }
       get_exif_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -254,6 +317,25 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           camera_model: string
+        }[]
+      }
+      get_unprocessed_analysis_files: {
+        Args: { limit_param: number }
+        Returns: {
+          id: string
+          file_name: string
+          file_path: string
+          file_types: Json
+        }[]
+      }
+      get_unprocessed_exif_files: {
+        Args: { limit_count: number }
+        Returns: {
+          id: string
+          file_name: string
+          file_path: string
+          file_type_id: number
+          file_types: Json
         }[]
       }
       get_unprocessed_thumbnail_files: {

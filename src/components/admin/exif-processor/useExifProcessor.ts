@@ -5,8 +5,7 @@ import { getExifStats } from '@/actions/exif/get-exif-stats';
 import { streamExifData } from '@/actions/exif/streamExifData';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
 import type { UnifiedProgress } from '@/types/progress-types';
-import type { Method } from '@/types/unified-stats';
-import type { UnifiedStats } from '@/types/unified-stats';
+import type { Method, UnifiedStats } from '@/types/unified-stats';
 
 interface ExifProgress extends UnifiedProgress {
   method?: Method;
@@ -41,7 +40,7 @@ export function useExifProcessor() {
   } = useProcessorBase<ExifProgress, UnifiedStats>({
     fetchStats: async () => {
       const { data, error } = await getExifStats();
-      
+
       if (!data || error) {
         console.error('[EXIF DEBUG] Error fetching stats:', error);
         throw error;
