@@ -25,8 +25,6 @@ export function useAnalysisProcessor() {
   const baseProcessor = useProcessorBase<AnalysisProgress, UnifiedStats>({
     fetchStats: async () => {
       const { data, error } = await getAnalysisStats();
-      console.log('data: ', data);
-      console.log('error: ', error);
 
       if (error || !data) {
         throw error;

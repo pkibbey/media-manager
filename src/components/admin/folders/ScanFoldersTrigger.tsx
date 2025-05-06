@@ -1,3 +1,5 @@
+'use client';
+
 import { Progress } from '@/components/ui/progress';
 import { UnifiedProgressDisplay } from '@/components/ui/unified-progress-display';
 import { UnifiedStatsDisplay } from '@/components/ui/unified-stats-display';
@@ -5,7 +7,7 @@ import { calculatePercentages } from '@/lib/utils';
 import { ScanButton } from './ScanButton';
 import { useScanFolders } from './useScanFolders';
 
-export function ScanFoldersTriggerContainer() {
+export function ScanFoldersTrigger() {
   const { stats, progress, isScanning, startScan, cancelScan } =
     useScanFolders();
 

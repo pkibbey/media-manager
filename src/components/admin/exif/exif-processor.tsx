@@ -1,10 +1,10 @@
 'use client';
 
-import { UnifiedProgressDisplay } from '../ui/unified-progress-display';
-import { UnifiedStatsDisplay } from '../ui/unified-stats-display';
-import { ExifActionButtons } from './exif-processor/ExifActionButtons';
-import { ExifProcessOptions } from './exif-processor/ExifProcessOptions';
-import { useExifProcessor } from './exif-processor/useExifProcessor';
+import { UnifiedProgressDisplay } from '../../ui/unified-progress-display';
+import { UnifiedStatsDisplay } from '../../ui/unified-stats-display';
+import { ExifActionButtons } from './ExifActionButtons';
+import { ExifProcessOptions } from './ExifProcessOptions';
+import { useExifProcessor } from './useExifProcessor';
 
 export default function ExifProcessor() {
   const {

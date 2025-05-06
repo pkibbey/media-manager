@@ -24,6 +24,7 @@ const defaultFilters: MediaFilters = {
   hasExif: 'all',
   hasLocation: 'all',
   hasThumbnail: 'all',
+  hasAnalysis: 'all',
   includeDeleted: false,
   includeHidden: false,
 };
@@ -43,94 +44,6 @@ export default function BrowsePage() {
     pageCount: 1,
     total: 0,
   });
-
-  // Parse page from URL on initial load
-  useEffect(() => {
-    const pageParam = searchParams.get('page');
-    if (pageParam) {
-      const parsedPage = Number.parseInt(pageParam, 10);
-      if (!Number.isNaN(parsedPage) && parsedPage > 0) {
-        setCurrentPage(parsedPage);
-      }
-    }
-
-    // Parse filters from URL
-    const parsedFilters: Partial<MediaFilters> = {};
-
-    if (searchParams.has('search'))
-      parsedFilters.search = searchParams.get('search') || '';
-
-    const type = searchParams.get('type');
-    if (type && ['all', 'image', 'video', 'data'].includes(type)) {
-      parsedFilters.type = type as MediaFilters['type'];
-    }
-
-    if (searchParams.has('dateFrom')) {
-      try {
-        parsedFilters.dateFrom = new Date(searchParams.get('dateFrom')!);
-      } catch (e) {
-        console.error('Invalid dateFrom:', e);
-      }
-    }
-
-    if (searchParams.has('dateTo')) {
-      try {
-        parsedFilters.dateTo = new Date(searchParams.get('dateTo')!);
-      } catch (e) {
-        console.error('Invalid dateTo:', e);
-      }
-    }
-
-    if (searchParams.has('minSize')) {
-      const minSize = Number.parseInt(searchParams.get('minSize')!, 10);
-      if (!isNaN(minSize)) parsedFilters.minSize = minSize;
-    }
-
-    if (searchParams.has('maxSize')) {
-      const maxSize = Number.parseInt(searchParams.get('maxSize')!, 10);
-      if (!isNaN(maxSize)) parsedFilters.maxSize = maxSize;
-    }
-
-    const sortBy = searchParams.get('sortBy');
-    if (sortBy && ['date', 'name', 'size', 'type'].includes(sortBy)) {
-      parsedFilters.sortBy = sortBy as MediaFilters['sortBy'];
-    }
-
-    const sortOrder = searchParams.get('sortOrder');
-    if (sortOrder && ['asc', 'desc'].includes(sortOrder)) {
-      parsedFilters.sortOrder = sortOrder as MediaFilters['sortOrder'];
-    }
-
-    const hasExif = searchParams.get('hasExif');
-    if (hasExif && ['all', 'yes', 'no'].includes(hasExif)) {
-      parsedFilters.hasExif = hasExif as MediaFilters['hasExif'];
-    }
-    const includeDeleted = searchParams.get('includeDeleted');
-    if (includeDeleted && ['true', 'false'].includes(includeDeleted)) {
-      parsedFilters.includeDeleted = includeDeleted === 'true';
-    }
-
-    const includeHidden = searchParams.get('includeHidden');
-    if (includeHidden && ['true', 'false'].includes(includeHidden)) {
-      parsedFilters.includeHidden = includeHidden === 'true';
-    }
-
-    const hasLocation = searchParams.get('hasLocation');
-    if (hasLocation && ['all', 'yes', 'no'].includes(hasLocation)) {
-      parsedFilters.hasLocation = hasLocation as MediaFilters['hasLocation'];
-    }
-
-    const hasThumbnail = searchParams.get('hasThumbnail');
-    if (hasThumbnail && ['all', 'yes', 'no'].includes(hasThumbnail)) {
-      parsedFilters.hasThumbnail = hasThumbnail as MediaFilters['hasThumbnail'];
-    }
-
-    // Update filters with parsed values
-    setFilters((filters) => ({
-      ...filters,
-      ...parsedFilters,
-    }));
-  }, [searchParams]);
 
   // Load media items with current filters and pagination
   useEffect(() => {

@@ -77,8 +77,6 @@ export function useStreamProcessing<T extends UnifiedProgress>() {
           : null,
       );
 
-      console.error('[Stream Processing Error]', error);
-
       if (options.onError) {
         options.onError(errorMessage, error);
       }

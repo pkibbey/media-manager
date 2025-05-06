@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { getAllFileTypes } from '@/actions/file-types/get-all-file-types';
-import FileTypeManager from '@/components/admin/file-type-manager';
+import FileTypeManager from '@/components/admin/file-types/file-type-manager';
 
 export default async function FileTypesPage() {
   const { data: fileTypes, error: fileTypesError } = await getAllFileTypes();

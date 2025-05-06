@@ -1,11 +1,11 @@
 'use client';
 
-import { UnifiedProgressDisplay } from '../ui/unified-progress-display';
-import { UnifiedStatsDisplay } from '../ui/unified-stats-display';
-import { ThumbnailActionButtons } from './thumbnail-generator/ThumbnailActionButtons';
-import { ThumbnailErrorSummary } from './thumbnail-generator/ThumbnailErrorSummary';
-import { ThumbnailProcessOptions } from './thumbnail-generator/ThumbnailProcessOptions';
-import { useThumbnailGenerator } from './thumbnail-generator/useThumbnailGenerator';
+import { UnifiedProgressDisplay } from '@/components/ui/unified-progress-display';
+import { UnifiedStatsDisplay } from '@/components/ui/unified-stats-display';
+import { ThumbnailActionButtons } from './ThumbnailActionButtons';
+import { ThumbnailErrorSummary } from './ThumbnailErrorSummary';
+import { ThumbnailProcessOptions } from './ThumbnailProcessOptions';
+import { useThumbnailGenerator } from './useThumbnailGenerator';
 
 export default function ThumbnailGenerator() {
   const {

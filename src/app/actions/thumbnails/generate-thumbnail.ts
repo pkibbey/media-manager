@@ -390,25 +390,21 @@ async function generateDefaultThumbnail(mediaItem: any): Promise<Buffer> {
   }
 
   // For all other image formats, use Sharp directly with enhanced error handling
-  try {
-    const sharpInstance = sharp(mediaItem.file_path, {
-      limitInputPixels: 30000 * 30000, // Allow reasonably large images
-      failOnError: false, // Don't fail on corrupt images or unsupported features
-    });
+  const sharpInstance = sharp(mediaItem.file_path, {
+    limitInputPixels: 30000 * 30000, // Allow reasonably large images
+    failOnError: false, // Don't fail on corrupt images or unsupported features
+  });
 
-    const result = await sharpInstance
-      .rotate()
-      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
-        fit: 'cover',
-        fastShrinkOnLoad: true, // Enable fast shrink optimization
-      })
-      .webp({ quality: 80, effort: 2 }) // Lower effort = faster processing
-      .toBuffer();
+  const result = await sharpInstance
+    .rotate()
+    .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+      fit: 'cover',
+      fastShrinkOnLoad: true, // Enable fast shrink optimization
+    })
+    .webp({ quality: 80, effort: 2 }) // Lower effort = faster processing
+    .toBuffer();
 
-    return result;
-  } catch (sharpError) {
-    throw sharpError;
-  }
+  return result;
 }
 
 /**
@@ -422,14 +418,10 @@ async function generateEmbeddedPreviewThumbnail(
 
   // First, check if we have EXIF data with embedded preview
   if (exifData) {
-    try {
-      // Convert base64 preview to buffer
-      if (exifData.Thumbnail?.base64) {
-        const buffer = Buffer.from(exifData.Thumbnail.base64, 'base64');
-        return buffer;
-      }
-    } catch (_previewError) {
-      // Continue to fallback
+    // Convert base64 preview to buffer
+    if (exifData.Thumbnail?.base64) {
+      const buffer = Buffer.from(exifData.Thumbnail.base64, 'base64');
+      return buffer;
     }
   }
 
@@ -441,26 +433,18 @@ async function generateEmbeddedPreviewThumbnail(
  * Generate thumbnail by simple downscaling without additional processing
  */
 async function generateDownscaleThumbnail(mediaItem: any): Promise<Buffer> {
-  try {
-    const result = await sharp(mediaItem.file_path, {
-      limitInputPixels: 30000 * 30000,
-      failOnError: false,
+  return await sharp(mediaItem.file_path, {
+    limitInputPixels: 30000 * 30000,
+    failOnError: false,
+  })
+    // Skip auto-rotation to save processing time
+    .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+      fit: 'cover',
+      fastShrinkOnLoad: true,
+      // Faster but lower quality algorithms
+      kernel: 'nearest',
     })
-      // Skip auto-rotation to save processing time
-      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
-        fit: 'cover',
-        fastShrinkOnLoad: true,
-        // Faster but lower quality algorithms
-        kernel: 'nearest',
-      })
-      // Lower quality, faster processing
-      .webp({ quality: 70, effort: 1 })
-      .toBuffer();
-
-    return result;
-  } catch (error) {
-    throw new Error(
-      `Downscale thumbnail generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
-  }
+    // Lower quality, faster processing
+    .webp({ quality: 70, effort: 1 })
+    .toBuffer();
 }

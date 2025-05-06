@@ -313,8 +313,8 @@ export function formatGpsCoordinates(
 export function formatCameraInfo(exifData?: Tags | null): string | undefined {
   if (!exifData || !exifData.Image) return undefined;
 
-  const make = exifData.Make?.toString().trim();
-  const model = exifData.Model?.toString().trim();
+  const make = exifData.Make?.toString().trim() || '';
+  const model = exifData.Model?.toString().trim() || '';
 
   if (make && model) {
     // Remove redundant manufacturer name from model if present

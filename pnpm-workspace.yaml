@@ -1,4 +1,6 @@
 onlyBuiltDependencies:
   - '@biomejs/biome'
+  - '@tensorflow/tfjs-node'
+  - core-js
   - exifreader
   - sharp

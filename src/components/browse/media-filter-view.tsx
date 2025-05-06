@@ -33,6 +33,7 @@ export default function MediaFilterView({
       hasExif: 'all',
       hasLocation: 'all',
       hasThumbnail: 'all',
+      hasAnalysis: 'all',
     },
   });
 

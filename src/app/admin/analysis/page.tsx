@@ -1,4 +1,4 @@
-import AnalysisProcessor from '@/components/admin/analyisis-processor';
+import AnalysisProcessor from '@/components/admin/analysis/analysis-processor';
 
 export default function AnalysisPage() {
   return (

@@ -1,10 +1,10 @@
 'use client';
 
 import type { FileType } from '@/types/db-types';
-import { FileTypeCategories } from './file-type-manager/FileTypeCategories';
-import { IgnoredTypesHelp } from './file-type-manager/IgnoredTypesHelp';
-import { NewCategoryForm } from './file-type-manager/NewCategoryForm';
-import { useFileTypeManager } from './file-type-manager/useFileTypeManager';
+import { FileTypeCategories } from './FileTypeCategories';
+import { IgnoredTypesHelp } from './IgnoredTypesHelp';
+import { NewCategoryForm } from './NewCategoryForm';
+import { useFileTypeManager } from './useFileTypeManager';
 
 interface FileTypeManagerProps {
   fileTypes: FileType[];

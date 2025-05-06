@@ -1,4 +1,4 @@
-import ExifProcessor from '@/components/admin/exif-processor';
+import ExifProcessor from '@/components/admin/exif/exif-processor';
 import { ResetExifData } from '@/components/admin/reset-exif-data';
 import { ResetMedia } from '@/components/admin/reset-media';
 

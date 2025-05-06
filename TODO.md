@@ -1,5 +1,7 @@
 # Much Less Important
 
+-- I shouldn't store mixed types in the processing states, I should just track exif data and thumbnails in separate tables
+
 -- Improve the performance of the database queries
 
 -- Process each image for keyword analysis
@@ -12,4 +14,3 @@
 -- process failed exif and failed thumbnails - examine the reasons in groups
 
 -- Fix inconsistent error object structure
-

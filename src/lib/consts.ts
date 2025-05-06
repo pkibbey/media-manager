@@ -15,3 +15,6 @@ export const BATCH_SIZE = 100;
 export const THUMBNAIL_SIZE = 300;
 
 export const MAX_FILE_SIZE_IN_MB = 1024; // 1GB
+
+export const MOBILE_NET_INPUT_WIDTH = 224;
+export const MOBILE_NET_INPUT_HEIGHT = 224;

@@ -1,5 +1,5 @@
-import FolderList from '@/components/admin/folder-list';
-import ScanFoldersTrigger from '@/components/admin/scan-folders-trigger';
+import FolderList from '@/components/admin/folders/folder-list';
+import { ScanFoldersTrigger } from '@/components/admin/folders/ScanFoldersTrigger';
 
 export default function ScanPage() {
   return (

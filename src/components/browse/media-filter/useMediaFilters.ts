@@ -56,6 +56,8 @@ export function useMediaFilters({
           params.set('hasExif', validatedValues.hasExif);
         if (validatedValues.hasThumbnail !== 'all')
           params.set('hasThumbnail', validatedValues.hasThumbnail);
+        if (validatedValues.hasAnalysis !== 'all')
+          params.set('hasAnalysis', validatedValues.hasAnalysis);
 
         router.push(`/browse?${params.toString()}`);
 
@@ -136,6 +138,11 @@ export function useMediaFilters({
       formValues.hasThumbnail = hasThumbnail as MediaFilters['hasThumbnail'];
     }
 
+    const hasAnalysis = searchParams.get('hasAnalysis');
+    if (hasAnalysis && ['all', 'yes', 'no'].includes(hasAnalysis)) {
+      formValues.hasAnalysis = hasAnalysis as MediaFilters['hasAnalysis'];
+    }
+
     form.reset({
       search: formValues.search || '',
       type: formValues.type || 'all',
@@ -149,6 +156,7 @@ export function useMediaFilters({
       hasExif: formValues.hasExif || 'all',
       hasLocation: formValues.hasLocation || 'all',
       hasThumbnail: formValues.hasThumbnail || 'all',
+      hasAnalysis: formValues.hasAnalysis || 'all',
       includeDeleted: formValues.includeDeleted,
       includeHidden: formValues.includeHidden,
     });
@@ -183,6 +191,7 @@ export function useMediaFilters({
       hasExif: 'all',
       hasLocation: 'all',
       hasThumbnail: 'all',
+      hasAnalysis: 'all',
       includeDeleted: false,
       includeHidden: false,
     };

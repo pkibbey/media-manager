@@ -1,5 +1,5 @@
-import ResetThumbnails from '@/components/admin/reset-thumbnails';
-import ThumbnailGenerator from '@/components/admin/thumbnail-generator';
+import ResetThumbnails from '@/components/admin/thumbnails/reset-thumbnails';
+import ThumbnailGenerator from '@/components/admin/thumbnails/thumbnail-generator';
 
 export default function ThumbnailsPage() {
   return (

@@ -58,6 +58,8 @@ export async function getMediaItems({
       filters.hasLocation === 'all' ? undefined : filters.hasLocation,
     p_has_thumbnail:
       filters.hasThumbnail === 'all' ? undefined : filters.hasThumbnail,
+    p_has_analysis:
+      filters.hasAnalysis === 'all' ? undefined : filters.hasAnalysis,
     p_include_hidden: filters.includeHidden ? includeHidden : undefined,
     p_include_deleted: filters.includeDeleted ? includeDeleted : undefined,
   });

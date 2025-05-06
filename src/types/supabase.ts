@@ -79,7 +79,10 @@ export type Database = {
           processing_error: string | null
           processing_started: string | null
           processing_state: string
+          quality_score: number | null
+          safety_issues: string[]
           scene_type: string | null
+          sentiment: string | null
           updated_at: string | null
         }
         Insert: {
@@ -93,7 +96,10 @@ export type Database = {
           processing_error?: string | null
           processing_started?: string | null
           processing_state?: string
+          quality_score?: number | null
+          safety_issues?: string[]
           scene_type?: string | null
+          sentiment?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -107,7 +113,10 @@ export type Database = {
           processing_error?: string | null
           processing_started?: string | null
           processing_state?: string
+          quality_score?: number | null
+          safety_issues?: string[]
           scene_type?: string | null
+          sentiment?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -286,6 +295,7 @@ export type Database = {
           p_has_exif?: string
           p_has_location?: string
           p_has_thumbnail?: string
+          p_has_analysis?: string
           p_include_hidden?: boolean
           p_include_deleted?: boolean
         }

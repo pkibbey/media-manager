@@ -1,7 +1,7 @@
-import AddFolderForm from '@/components/admin/add-folder-form';
-import FolderList from '@/components/admin/folder-list';
-import ResetEverything from '@/components/admin/reset-everything';
 import { Suspense } from 'react';
+import AddFolderForm from '@/components/admin/folders/add-folder-form';
+import FolderList from '@/components/admin/folders/folder-list';
+import ResetEverything from '@/components/admin/reset-everything';
 
 export default function FoldersPage() {
   return (

@@ -11,37 +11,25 @@ import { processImageAnalysis } from './process-image-analysis';
  * Get unprocessed images for analysis
  */
 async function getUnprocessedAnalysisFiles({ limit = 100 }: { limit: number }) {
-  try {
-    const supabase = createServerSupabaseClient();
+  const supabase = createServerSupabaseClient();
 
-    // Use a SQL join to find media items (images) that don't have analysis data
-    // or that have failed analysis
-    const { data, error, count } = await supabase
-      .from('media_items')
-      .select(
-        `
+  // Use a SQL join to find media items (images) that don't have analysis data
+  // or that have failed analysis
+  return await supabase
+    .from('media_items')
+    .select(
+      `
         id, 
         file_name,
         file_path,
-        file_types(*),
+        file_types!inner(*),
         image_analysis!left(processing_state)
       `,
-        { count: 'exact' },
-      )
-      .eq('file_types->>category', 'image')
-      .or('image_analysis.is.null,image_analysis.processing_state.eq.error')
-      .limit(limit);
-
-    if (error) {
-      console.error('[Analysis] Error getting unprocessed files:', error);
-      return { data: [], error, count: 0 };
-    }
-
-    return { data: data || [], error: null, count: count || 0 };
-  } catch (error) {
-    console.error('[Analysis] Exception getting unprocessed files:', error);
-    return { data: [], error, count: 0 };
-  }
+      { count: 'exact' },
+    )
+    .eq('file_types.category', 'image')
+    .is('image_analysis', null)
+    .limit(limit);
 }
 
 /**
@@ -55,7 +43,11 @@ export async function streamAnalysisData({
   method: Method;
   batchSize: number;
 }) {
-  // Setup transform stream for progress updates
+  console.log(
+    `[Analysis] Starting streamAnalysisData with method=${method}, batchSize=${batchSize}`,
+  );
+
+  const MAX_FETCH_SIZE = 1000; // Supabase's limit for fetch operations
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
@@ -69,6 +61,7 @@ export async function streamAnalysisData({
     console.error('[Analysis] Error in background processing:', error);
   });
 
+  console.log('[Analysis] Returning readable stream');
   return readable;
 
   async function processUnprocessedItemsInternal({
@@ -81,162 +74,236 @@ export async function streamAnalysisData({
     batchSize: number;
     progressType?: ProgressType;
   }) {
-    // Track overall counts for this batch
+    console.log('[Analysis] Starting processUnprocessedItemsInternal');
+
+    // Track overall counts across all batches
     const counters = {
       processedCount: 0,
       success: 0,
       failed: 0,
+      currentBatch: 1,
+      totalAvailable: 0,
     };
 
     try {
-      // Get unprocessed files
-      const {
-        data: unprocessedFiles,
-        count: totalCount,
-        error,
-      } = await getUnprocessedAnalysisFiles({ limit: batchSize });
-
-      if (error) {
-        await writer.write({
-          type: 'error',
-          message: `Failed to fetch unprocessed files: ${error}`,
-          metadata: { method },
-        });
-        if (!writer.closed) {
-          try {
-            await writer.close();
-          } catch (closeError) {
-            console.error('Error closing writer in finally block:', closeError);
-          }
-        }
-        return;
-      }
+      // For Infinity mode, we'll use a loop to process in chunks
+      const isInfinityMode = batchSize === Number.POSITIVE_INFINITY;
+      const fetchSize = isInfinityMode ? MAX_FETCH_SIZE : batchSize;
+      let hasMoreItems = true;
 
       // Common properties for progress updates
       const getCommonProperties = () => ({
-        type: 'progress',
         method,
         count: counters.processedCount,
-        total: totalCount || unprocessedFiles.length,
-        success: counters.success,
-        failed: counters.failed,
+        total: counters.totalAvailable,
+        errorCount: counters.failed,
+        processedCount: counters.processedCount,
+        totalCount: counters.totalAvailable,
+        batchSize: Math.min(batchSize, MAX_FETCH_SIZE),
+        successCount: counters.success,
+        failureCount: counters.failed,
+        currentBatch: counters.currentBatch,
+        progressType: 'analysis' as ProgressType,
       });
 
-      // Send initial progress
-      await writer.write({
-        ...getCommonProperties(),
-        message: `Starting analysis of ${unprocessedFiles.length} images`,
-      });
+      // Process batches until no more items or not in infinity mode
+      while (hasMoreItems) {
+        console.log(
+          `[Analysis] Fetching unprocessed files for batch ${counters.currentBatch} with fetchSize=${fetchSize}`,
+        );
 
-      if (unprocessedFiles.length === 0) {
-        await writer.write({
+        // Get unprocessed files
+        const {
+          data: unprocessedFiles,
+          count: totalCount,
+          error,
+        } = await getUnprocessedAnalysisFiles({ limit: fetchSize });
+
+        // Update total available count from the first query result
+        if (counters.currentBatch === 1) {
+          counters.totalAvailable = totalCount || 0;
+        }
+
+        console.log(
+          `[Analysis] Batch ${counters.currentBatch}: Got ${unprocessedFiles?.length || 0} unprocessed files, total available: ${counters.totalAvailable}`,
+        );
+
+        if (error) {
+          console.error('[Analysis] Error fetching unprocessed files:', error);
+          await sendStreamProgress(encoder, writer, {
+            status: 'failure',
+            message: `Failed to fetch unprocessed files: ${error}`,
+            ...getCommonProperties(),
+            metadata: { method },
+          });
+          break; // Exit the loop on error
+        }
+
+        // Send initial progress for this batch
+        await sendStreamProgress(encoder, writer, {
+          status: 'processing',
           ...getCommonProperties(),
-          message: 'No images to analyze',
+          message: `Starting analysis batch ${counters.currentBatch}: ${unprocessedFiles?.length || 0} images`,
         });
-        if (!writer.closed) {
+
+        // Check if we have any files to process in this batch
+        if (!unprocessedFiles || unprocessedFiles.length === 0) {
+          console.log('[Analysis] No more images to analyze');
+          await sendStreamProgress(encoder, writer, {
+            status: counters.processedCount > 0 ? 'complete' : 'failure',
+            ...getCommonProperties(),
+            message:
+              counters.processedCount > 0
+                ? `No more images to analyze. Processed ${counters.processedCount} total.`
+                : 'No images to analyze',
+          });
+          break; // Exit the loop when no more files
+        }
+
+        // Process each file in this batch
+        for (const [index, media] of unprocessedFiles.entries()) {
+          console.log(
+            `[Analysis] Batch ${counters.currentBatch}, Processing file ${index + 1}/${unprocessedFiles.length}: ${media.file_path}`,
+          );
+
           try {
-            await writer.close();
-          } catch (closeError) {
-            console.error('Error closing writer in finally block:', closeError);
-          }
-        }
-        return;
-      }
+            // Send progress update
+            await sendStreamProgress(encoder, writer, {
+              status: 'processing',
+              ...getCommonProperties(),
+              message: `Analyzing: ${media.file_path}`,
+              metadata: {
+                method,
+                fileType: media.file_types?.extension,
+              },
+            });
 
-      // Process each file
-      for (const media of unprocessedFiles) {
-        try {
-          // Send progress update
-          await writer.write({
-            ...getCommonProperties(),
-            message: `Analyzing: ${media.file_path}`,
-            metadata: {
+            console.log(
+              `[Analysis] Starting processImageAnalysis for ${media.file_name}`,
+            );
+            console.time(`analysis-${media.id}`);
+
+            // Process the file with progress callback
+            const result = await processImageAnalysis({
+              mediaId: media.id,
               method,
-              fileType: media.file_types?.extension,
-            },
-          });
+              progressCallback: async (message) => {
+                console.log(
+                  `[Analysis] Progress callback: ${message} - ${media.file_name}`,
+                );
+                await sendStreamProgress(encoder, writer, {
+                  status: 'processing',
+                  ...getCommonProperties(),
+                  message: `${message} - ${media.file_name}`,
+                });
+              },
+            });
 
-          // Process the file with progress callback
-          const result = await processImageAnalysis({
-            mediaId: media.id,
-            method,
-            progressCallback: async (message) => {
-              await sendStreamProgress(encoder, writer, {
-                status: 'processing',
-                message: `${message} - ${media.file_name}`,
-                ...getCommonProperties(),
-                metadata: {
-                  method,
-                },
-              });
-            },
-          });
+            console.timeEnd(`analysis-${media.id}`);
+            console.log(
+              `[Analysis] processImageAnalysis result for ${media.file_name}:`,
+              result,
+            );
 
-          // Update counters
-          counters.processedCount++;
-          if (result.success) {
-            counters.success++;
-          } else {
+            // Update counters
+            counters.processedCount++;
+            if (result.success) {
+              counters.success++;
+            } else {
+              counters.failed++;
+            }
+
+            // Send progress update after each file
+            console.log(
+              `[Analysis] Sending progress update: success=${result.success}, processed=${counters.processedCount}/${counters.totalAvailable}`,
+            );
+            await sendStreamProgress(encoder, writer, {
+              ...getCommonProperties(),
+              status: result.success ? 'processing' : 'failure',
+              message: result.success
+                ? `Successfully analyzed: ${media.file_name}`
+                : `Failed to analyze: ${media.file_name} - ${result.message}`,
+              metadata: {
+                method,
+                fileType: media.file_types?.extension,
+              },
+            });
+          } catch (error) {
+            // Handle unexpected errors during processing
+            console.error(
+              `[Analysis] Unexpected error processing ${media.file_name}:`,
+              error,
+            );
+
+            counters.processedCount++;
             counters.failed++;
-          }
 
-          // Send progress update after each file
-          await writer.write({
+            const errorMessage =
+              error instanceof Error ? error.message : 'Unknown error';
+
+            await sendStreamProgress(encoder, writer, {
+              status: 'failure',
+              ...getCommonProperties(),
+              message: `Error analyzing ${media.file_name}: ${errorMessage}`,
+              metadata: {
+                method,
+                fileType: media.file_types?.extension,
+              },
+            });
+          }
+        }
+
+        // Check if we need to continue with another batch
+        if (isInfinityMode && unprocessedFiles.length >= fetchSize) {
+          // There are potentially more items to process
+          counters.currentBatch++;
+
+          // Send batch completion message
+          await sendStreamProgress(encoder, writer, {
+            status: 'batch_complete',
+            message: `Finished batch ${counters.currentBatch - 1}. Continuing with next batch...`,
             ...getCommonProperties(),
-            message: result.success
-              ? `Successfully analyzed: ${media.file_name}`
-              : `Failed to analyze: ${media.file_name} - ${result.message}`,
-            metadata: {
-              method,
-              fileType: media.file_types?.extension,
-            },
           });
 
-          // For testing - add a small delay between files
-          // Remove this in production
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        } catch (error) {
-          // Handle unexpected errors during processing
-          counters.processedCount++;
-          counters.failed++;
+          hasMoreItems = true;
+        } else {
+          // No more batches to process
+          hasMoreItems = false;
 
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-
-          await writer.write({
+          // Final progress update for all batches
+          console.log(
+            '[Analysis] All batches processing complete, sending final update',
+          );
+          await sendStreamProgress(encoder, writer, {
             ...getCommonProperties(),
-            type: 'error',
-            message: `Error analyzing ${media.file_name}: ${errorMessage}`,
-            metadata: {
-              method,
-              fileType: media.file_types?.extension,
-            },
+            status: 'complete',
+            message: `Completed analysis of ${counters.processedCount} images across ${counters.currentBatch} batches. Success: ${counters.success}, Failed: ${counters.failed}`,
           });
         }
       }
-
-      // Final progress update
-      await writer.write({
-        ...getCommonProperties(),
-        message: `Completed analysis of ${unprocessedFiles.length} images. Success: ${counters.success}, Failed: ${counters.failed}`,
-      });
     } catch (error) {
       // Handle unexpected errors in the entire process
+      console.error('[Analysis] Fatal error in batch processing:', error);
+
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
-      await writer.write({
-        type: 'error',
+      await sendStreamProgress(encoder, writer, {
+        status: 'failure',
         message: `Error during batch processing: ${errorMessage}`,
-        errorDetails: [errorMessage],
+        progressType: 'analysis' as ProgressType,
       });
     } finally {
-      // Always close the writer when done
+      // Always close the writer when done with all batches
+      console.log('[Analysis] Processing complete, closing writer');
       if (!writer.closed) {
         try {
           await writer.close();
         } catch (closeError) {
-          console.error('Error closing writer in finally block:', closeError);
+          console.error(
+            '[Analysis] Error closing writer in finally block:',
+            closeError,
+          );
         }
       }
     }

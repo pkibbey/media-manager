@@ -76,6 +76,27 @@ export function BasicFilters({
         )}
       />
 
+      {/* Image Analysis Status */}
+      <FormField
+        control={form.control}
+        name="hasAnalysis"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Analysis</FormLabel>
+            <Select value={field.value || 'all'} onValueChange={field.onChange}>
+              <SelectTrigger className="mb-0">
+                <SelectValue placeholder="Analysis status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All files</SelectItem>
+                <SelectItem value="yes">With analysis</SelectItem>
+                <SelectItem value="no">Without analysis</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormItem>
+        )}
+      />
+
       {/* Thumbnail Status */}
       <FormField
         control={form.control}

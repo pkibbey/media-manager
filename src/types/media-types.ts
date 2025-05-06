@@ -13,9 +13,9 @@ export interface MediaFilters {
   hasExif: 'all' | 'yes' | 'no';
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';
+  hasAnalysis: 'all' | 'yes' | 'no';
   includeHidden: boolean;
   includeDeleted: boolean;
-
 }
 
 /**

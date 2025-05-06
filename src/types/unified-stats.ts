@@ -52,6 +52,11 @@ export interface UnifiedStats {
   };
 }
 
-type AnalysisMethod = 'comprehensive' | 'detailed' | 'basic' | 'fast';
+type AnalysisMethod =
+  | 'comprehensive'
+  | 'balanced'
+  | 'detailed'
+  | 'basic'
+  | 'fast';
 
 export type Method = ThumbnailMethod | ExtractionMethod | AnalysisMethod;

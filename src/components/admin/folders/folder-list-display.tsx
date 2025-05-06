@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import { FolderRemoveButton } from '@/components/admin/folder-remove-button';
+import { FolderRemoveButton } from '@/components/admin/folders/folder-remove-button';
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
