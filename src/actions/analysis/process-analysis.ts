@@ -1,10 +1,13 @@
 'use server';
-'@/lib/consts';
 
+import { readFileSync } from 'node:fs';
+import ollama from 'ollama';
+import { VISION_MODEL } from '@/lib/consts';
 import { createServer } from '@/lib/supabase';
-import analyzeImageWithVisionModel from './ollama';
+import { ImageDescriptionSchema } from '@/types/analysis';
 
 /**
+ * Process AI analysis for a single media item
  *
  * @param mediaId - The ID of the media item to analyze
  * @returns Object with success status and any error message
@@ -26,13 +29,74 @@ export async function processAnalysis(mediaId: string) {
       );
     }
 
-    const { data, error } = await analyzeImageWithVisionModel(
-      mediaItem.media_path,
-    );
-    if (error) {
-      throw new Error(`Failed to analyze image: ${error}`);
+    try {
+      // Read the image file
+      const imageBuffer = readFileSync(mediaItem.media_path);
+      const base64Image = imageBuffer.toString('base64');
+
+      // Call Ollama for analysis
+      const response = await ollama.chat({
+        model: VISION_MODEL,
+        messages: [
+          {
+            role: 'user',
+            content:
+              'Analyze this image and return a detailed JSON description including objects, scene, colors and any text detected. If you cannot determine certain details, leave those fields empty.',
+            images: [base64Image],
+          },
+        ],
+        format: 'json',
+        options: {
+          temperature: 0,
+        },
+      });
+
+      // Parse and validate the response
+      const analysisResult = ImageDescriptionSchema.parse(
+        JSON.parse(response.message.content),
+      );
+
+      // Store the analysis results
+      const { error: insertError } = await supabase
+        .from('analysis_results')
+        .upsert(
+          {
+            id: crypto.randomUUID(),
+            media_id: mediaId,
+            image_description: analysisResult.summary,
+            objects: analysisResult.objects,
+            scene_types: [analysisResult.scene],
+            colors: analysisResult.colors,
+            tags: [analysisResult.time_of_day, analysisResult.setting],
+            sentiment: 0,
+            quality_score: 0,
+            safety_level: 1,
+          },
+          {
+            onConflict: 'media_id',
+          },
+        );
+
+      if (insertError) {
+        throw new Error(
+          `Failed to insert analysis data: ${insertError.message}`,
+        );
+      }
+
+      return { success: true };
+    } catch (processingError) {
+      console.error(
+        `Error processing analysis for media ${mediaId}:`,
+        processingError,
+      );
+      return {
+        success: false,
+        error:
+          processingError instanceof Error
+            ? processingError.message
+            : 'Unknown processing error',
+      };
     }
-    console.log('data: ', data);
   } catch (error) {
     console.error('Error in analysis processing:', error);
     return {
@@ -56,7 +120,7 @@ export async function processBatchAnalysis(limit = 10) {
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
       .select('id')
-      .eq('analysis_processed', false)
+      .eq('is_analyzed', false)
       .limit(limit);
 
     if (findError) {
@@ -73,7 +137,7 @@ export async function processBatchAnalysis(limit = 10) {
     );
 
     const succeeded = results.filter(
-      (r) => r.status === 'fulfilled' && r.value?.success,
+      (r) => r.status === 'fulfilled' && r.value.success,
     ).length;
     const failed = results.length - succeeded;
 

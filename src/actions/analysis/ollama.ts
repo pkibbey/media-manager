@@ -3,50 +3,18 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ollama from 'ollama';
-import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { VISION_MODEL } from '@/lib/consts';
+import {
+  ImageDescriptionSchema,
+  type ImageDescriptionType,
+} from '@/types/analysis';
 
 /*
     Ollama vision capabilities with structured outputs
     It takes an image file as input and returns a structured JSON description of the image contents
     including detected objects, scene analysis, colors, and any text found in the image
 */
-
-// Schema for individual objects detected in the image
-const ObjectSchema = z.object({
-  name: z.string().describe('The name of the object'),
-  confidence: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe('The confidence score of the object detection'),
-  attributes: z
-    .record(z.any())
-    .optional()
-    .describe('Additional attributes of the object'),
-});
-
-// Schema for individual objects detected in the image
-const ImageDescriptionSchema = z.object({
-  summary: z.string().describe('A concise summary of the image'),
-  objects: z
-    .array(ObjectSchema)
-    .describe('An array of objects detected in the image'),
-  scene: z.string().describe('The scene of the image'),
-  colors: z
-    .array(z.string())
-    .describe('An array of colors detected in the image'),
-  time_of_day: z
-    .enum(['Morning', 'Afternoon', 'Evening', 'Night'])
-    .describe('The time of day the image was taken'),
-  setting: z
-    .enum(['Indoor', 'Outdoor', 'Unknown'])
-    .describe('The setting of the image'),
-  text_content: z.string().describe('Any text detected in the image'),
-});
-
-type ImageDescriptionType = z.infer<typeof ImageDescriptionSchema>;
 
 export default async function analyzeImageWithVisionModel(
   media_path: string,

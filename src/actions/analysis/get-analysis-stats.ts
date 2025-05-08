@@ -10,6 +10,7 @@ interface AnalysisStats {
   objectCounts: Record<string, number>;
   sceneTypes: Record<string, number>;
   settings: Record<string, number>;
+  colors: Record<string, number>;
 }
 
 /**
@@ -37,7 +38,7 @@ export async function getAnalysisStats(): Promise<{
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
       .select('*', { count: 'exact', head: true })
-      .eq('analysis_processed', true);
+      .eq('is_analyzed', true);
 
     if (processedError) {
       throw new Error(
@@ -48,7 +49,7 @@ export async function getAnalysisStats(): Promise<{
     // Get aggregated stats from analysis_results
     const { data: analysisResults, error: analysisError } = await supabase
       .from('analysis_results')
-      .select('*');
+      .select('objects, scene_types, tags, colors');
 
     if (analysisError) {
       throw new Error(
@@ -62,6 +63,7 @@ export async function getAnalysisStats(): Promise<{
     const objectCounts: Record<string, number> = {};
     const sceneTypes: Record<string, number> = {};
     const settings: Record<string, number> = {};
+    const colors: Record<string, number> = {};
 
     // analysisResults?.forEach((result) => {
     //   // Count objects
@@ -69,15 +71,23 @@ export async function getAnalysisStats(): Promise<{
     //     objectCounts[obj.name] = (objectCounts[obj.name] || 0) + 1;
     //   });
 
-    //   // Count scenes
-    //   if (result.scene) {
-    //     sceneTypes[result.scene] = (sceneTypes[result.scene] || 0) + 1;
-    //   }
+    //   // Count scene types
+    //   result.scene_types?.forEach((scene: string) => {
+    //     sceneTypes[scene] = (sceneTypes[scene] || 0) + 1;
+    //   });
 
-    //   // Count settings
-    //   if (result.setting) {
-    //     settings[result.setting] = (settings[result.setting] || 0) + 1;
-    //   }
+    //   // Count settings (from tags)
+    //   result.tags?.forEach((tag: string) => {
+    //     // Settings are typically "Indoor" or "Outdoor"
+    //     if (['Indoor', 'Outdoor', 'Unknown'].includes(tag)) {
+    //       settings[tag] = (settings[tag] || 0) + 1;
+    //     }
+    //   });
+
+    //   // Count colors
+    //   result.colors?.forEach((color: string) => {
+    //     colors[color] = (colors[color] || 0) + 1;
+    //   });
     // });
 
     // Calculate remaining items and percentage
@@ -95,6 +105,7 @@ export async function getAnalysisStats(): Promise<{
         objectCounts,
         sceneTypes,
         settings,
+        colors,
       },
       error: null,
     };
