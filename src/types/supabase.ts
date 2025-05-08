@@ -69,8 +69,11 @@ export type Database = {
       }
       image_analysis: {
         Row: {
+          camera_info: string | null
           colors: string[]
           created_at: string | null
+          full_analysis: string | null
+          gps_location: Json | null
           id: number
           keywords: string[]
           media_item_id: string
@@ -81,13 +84,16 @@ export type Database = {
           processing_state: string
           quality_score: number | null
           safety_issues: string[]
-          scene_type: string | null
+          scene_types: string[] | null
           sentiment: string | null
           updated_at: string | null
         }
         Insert: {
+          camera_info?: string | null
           colors?: string[]
           created_at?: string | null
+          full_analysis?: string | null
+          gps_location?: Json | null
           id?: number
           keywords?: string[]
           media_item_id: string
@@ -98,13 +104,16 @@ export type Database = {
           processing_state?: string
           quality_score?: number | null
           safety_issues?: string[]
-          scene_type?: string | null
+          scene_types?: string[] | null
           sentiment?: string | null
           updated_at?: string | null
         }
         Update: {
+          camera_info?: string | null
           colors?: string[]
           created_at?: string | null
+          full_analysis?: string | null
+          gps_location?: Json | null
           id?: number
           keywords?: string[]
           media_item_id?: string
@@ -115,7 +124,7 @@ export type Database = {
           processing_state?: string
           quality_score?: number | null
           safety_issues?: string[]
-          scene_type?: string | null
+          scene_types?: string[] | null
           sentiment?: string | null
           updated_at?: string | null
         }

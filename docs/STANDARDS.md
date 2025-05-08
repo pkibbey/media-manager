@@ -104,9 +104,9 @@ interface ThumbnailProgressDisplayProps {
 
 ## State Management
 
-- Use React hooks (`useState`, `useReducer`) for local component state
+- Use React hook `useState` for local component state
 - Extract complex state logic into custom hooks
-- Use React Context for state that needs to be shared between multiple components
+- Pass props for state that needs to be shared between multiple components
 - Prefer server-side state management where possible
 - For form state, use `react-hook-form`
 
@@ -116,11 +116,10 @@ interface ThumbnailProgressDisplayProps {
 
 - Use Next.js server actions for data mutations
 - Define actions in `/app/actions/` directory
-- Return typed responses with success/error indicators:
+- Return typed responses with data/error indicators:
 
 ```typescript
 export async function getMediaStats(): Promise<{
-  success: boolean;
   data?: MediaStats;
   error?: string;
 }> {
@@ -132,7 +131,7 @@ export async function getMediaStats(): Promise<{
 
 - Use the server-side Supabase client for authenticated requests
 - Handle errors consistently with try/catch blocks
-- Use RPC functions for complex database operations
+- Use RPC functions only for very complex database operations
 
 ## Styling Approach
 
@@ -192,16 +191,9 @@ const buttonVariants = cva(
 
 - Use structured error responses:
 
-```typescript
-return {
-  success: false,
-  error: error instanceof Error ? error.message : 'Unknown error occurred',
-};
-```
-
 - Use toast notifications for user-facing errors
 - Log errors to console in development
-- Use try/catch blocks around async operations
+- Use minimal try/catch blocks around async operations, and let the top level try catch handle the error
 
 ## Performance Considerations
 

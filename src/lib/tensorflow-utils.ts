@@ -186,12 +186,16 @@ export async function loadTensorFlow() {
  * Loads MobileNet model based on environment and method
  */
 export async function loadMobileNetModel(method: Method) {
-  // const mobilenet = await import('@tensorflow-models/mobilenet');
+  const mobilenet = await import('@tensorflow-models/mobilenet');
 
-  return await tf.loadGraphModel(
-    'https://www.kaggle.com/models/google/mobilenet-v3/TfJs/large-100-224-classification/1',
-    { fromTFHub: true },
-  );
+  return mobilenet.load({
+    version: 2,
+    alpha: method === 'comprehensive' ? 1.0 : 0.5, // Use smaller model for fast methods
+    modelUrl:
+      method === 'comprehensive'
+        ? 'https://www.kaggle.com/models/google/mobilenet-v3/TfJs/large-100-224-classification/1'
+        : undefined,
+  });
 }
 
 /**

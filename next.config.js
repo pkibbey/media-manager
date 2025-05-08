@@ -14,21 +14,6 @@ const nextConfig = {
     },
     serverComponentsHmrCache: false,
   },
-  // Webpack configuration to properly handle TensorFlow.js native modules
-  webpack: (config, { isServer }) => {
-    // Only apply this configuration for server-side code
-    if (isServer) {
-      // Mark these packages as external, so Next.js won't try to bundle them
-      config.externals = [
-        ...(config.externals || []),
-        '@tensorflow/tfjs-node',
-        '@mapbox/node-pre-gyp',
-        'node-pre-gyp',
-      ];
-    }
-
-    return config;
-  },
 };
 
 module.exports = nextConfig;

@@ -33,7 +33,7 @@ export function useAnalysisProcessor() {
       return data;
     },
     getStreamFunction,
-    defaultBatchSize: 50,
+    defaultBatchSize: 1,
     defaultMethod: 'default' as Method,
   });
 

@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { getScanFolders } from '@/actions/scan/get-scan-folders';
 import { streamFolders } from '@/actions/scan/streamFolders';
 import { useProcessorBase } from '@/hooks/useProcessorBase';
+import { calculatePercentages } from '@/lib/utils';
 import type { UnifiedProgress } from '@/types/progress-types';
 import type { UnifiedStats } from '@/types/unified-stats';
 
@@ -22,7 +23,7 @@ export function useScanFolders() {
     handleStartProcessing,
     handleCancel,
     stats,
-    refreshStats: fetchStats,
+    refreshStats,
   } = useProcessorBase<UnifiedProgress, UnifiedStats>({
     fetchStats: async () => {
       const { data, error, count } = await getScanFolders();
@@ -59,20 +60,22 @@ export function useScanFolders() {
     getStreamFunction,
   });
 
-  // Simplified method to start scanning
-  const startScan = () => {
-    handleStartProcessing({ processAll: false });
-  };
-
   return {
     stats,
+    processedPercentages: calculatePercentages({
+      success: (progress?.successCount || 0) + (progress?.failureCount || 0),
+      total: progress?.totalCount || 0,
+      failed: progress?.failureCount || 0,
+    }),
     isScanning: isProcessing,
     progress,
     hasError,
     errorSummary,
-    startScan,
+    startScan: () => {
+      handleStartProcessing({ processAll: false });
+    },
     cancelScan: handleCancel,
     scanStats: stats,
-    fetchStats,
+    fetchStats: refreshStats,
   };
 }

@@ -1,16 +1,155 @@
 'use server';
 
+import fs from 'node:fs/promises';
 import path from 'node:path';
+import ollama from 'ollama';
+import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { getMediaItemById } from '@/actions/media/get-media-item-by-id';
+import { VISION_MODEL } from '@/lib/consts';
 import {
   markProcessingError,
   markProcessingSuccess,
 } from '@/lib/processing-helpers';
 import { createServerSupabaseClient } from '@/lib/supabase';
+import type { MediaItem } from '@/types/db-types';
 import type { Method } from '@/types/unified-stats';
 
+// Schema for individual objects detected in the image
+const ObjectSchema = z.object({
+  name: z.string().describe('The name of the object'),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe('The confidence score of the object detection'),
+  attributes: z
+    .record(z.any())
+    .optional()
+    .describe('Additional attributes of the object'),
+});
+
+// Schema for our image analysis result
+const imageAnalysisSchema = z.object({
+  summary: z.string().describe('A concise summary of the image'),
+  description: z
+    .string()
+    .optional()
+    .describe("A very detailed description of what's visible in the image"),
+  objects: z
+    .array(ObjectSchema)
+    .describe('An array of objects detected in the image'),
+  scene: z.string().describe('The scene of the image'),
+  colors: z
+    .array(z.string())
+    .describe(
+      'An array of the main colors detected in the image, in hex format',
+    ),
+  time_of_day: z
+    .enum(['Morning', 'Afternoon', 'Evening', 'Night'])
+    .optional()
+    .describe('The time of day the image was taken'),
+  setting: z
+    .string()
+    .optional()
+    .describe(
+      'The setting of the image, e.g., indoor, outdoor, urban, nature, etc.',
+    ),
+  text_content: z.string().describe('Any text detected in the image'),
+  keywords: z
+    .array(z.string())
+    .optional()
+    .describe('A comprehensive list of keywords relevant to the image'),
+  sentiment: z.string().optional().describe('Sentiment analysis of the image'),
+  qualityScore: z
+    .number()
+    .optional()
+    .describe(
+      'Perceived quality score of the image, between 0 and 1, of how good the image is',
+    ),
+  safetyIssues: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Safety issues detected in the image, such as NSFW or illegal content',
+    ),
+});
+
+// Type for the image analysis result
+type ImageAnalysisResult = z.infer<typeof imageAnalysisSchema>;
+
 /**
- * Process a single image for keyword analysis using a placeholder method
+ * Analyze image using Ollama vision model
+ */
+async function analyzeImageWithOllama(
+  mediaItem: MediaItem,
+  method: Method,
+): Promise<ImageAnalysisResult> {
+  try {
+    // This should never happen, but for type safety, we check if the media item has a thumbnail path
+    if (!mediaItem?.thumbnail_path) {
+      throw new Error('Media item does not have a thumbnail path');
+    }
+
+    // Get start time for performance measurement
+    const startTime = performance.now();
+
+    // Convert image to base64
+    const imageBuffer = await fs.readFile(mediaItem.thumbnail_path);
+    const base64Image = imageBuffer.toString('base64');
+
+    // Convert the Zod schema to JSON Schema format for Ollama
+    const jsonSchema = zodToJsonSchema(imageAnalysisSchema);
+
+    // Create the messages array for Ollama
+    const messages = [
+      {
+        role: 'user',
+        content:
+          'Analyze this image and return a detailed JSON description including objects, scene, colors, time of day, setting, sentiment, quality score, ' +
+          'Please include a summary, keywords, and any detected text content. ' +
+          'The analysis should be as detailed as possible. ' +
+          'safetyIssues should include any potential safety concerns, such as dangerous, adult, or NSFW content. ' +
+          'The response should be in JSON format and follow the provided schema.',
+        images: [base64Image],
+      },
+    ];
+
+    // Call the Ollama API
+    console.log(
+      `[Analysis] Calling Ollama API with model ${VISION_MODEL} for ${path.basename(mediaItem.file_path)}`,
+    );
+    const response = await ollama.chat({
+      model: VISION_MODEL,
+      messages: messages,
+      format: jsonSchema,
+      options: {
+        temperature: method === 'fast' ? 0.7 : 0, // Use more deterministic responses for detailed method
+      },
+    });
+
+    // Parse and validate the response
+    const analysisResult = imageAnalysisSchema.parse(
+      JSON.parse(response.message.content),
+    );
+    console.log('response: ', response);
+
+    // Calculate duration
+    const duration = performance.now() - startTime;
+    console.log(
+      `[Analysis] Ollama analysis completed in ${duration.toFixed(2)}ms for ${path.basename(mediaItem.file_path)}`,
+    );
+
+    return analysisResult;
+  } catch (error) {
+    console.error('[Analysis] Ollama vision analysis error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Process a single image for analysis
  */
 export async function processImageAnalysis({
   mediaId,
@@ -23,10 +162,7 @@ export async function processImageAnalysis({
 }): Promise<{
   success: boolean;
   message: string;
-  keywords?: string[];
-  objects?: string[];
-  sceneType?: string;
-  colors?: string[];
+  analysisResult?: ImageAnalysisResult;
 }> {
   try {
     // Get the media item to access its file path
@@ -48,36 +184,71 @@ export async function processImageAnalysis({
       };
     }
 
-    let analysisResult: {
-      keywords: string[];
-      objects: string[];
-      sceneType: string;
-      colors: string[];
-    };
-
-    try {
-      // Perform placeholder image analysis
-      analysisResult = await analyzeImagePlaceholder(
-        mediaItem.file_path,
-        method,
-      );
-    } catch (_analysisError) {
-      // Fallback to basic simulated analysis if placeholder fails (unlikely but good practice)
-      analysisResult = await simulateImageAnalysis(mediaItem.file_path, method);
+    // Check if the media item has a thumbnail path
+    // This is important for Ollama to analyze the image
+    if (!mediaItem?.thumbnail_path) {
+      const errorMessage = 'Media item does not have a thumbnail path';
+      await markProcessingError({
+        mediaItemId: mediaId,
+        progressType: 'analysis',
+        errorMessage,
+      });
+      return {
+        success: false,
+        message: errorMessage,
+      };
     }
+
+    progressCallback?.('Starting image analysis with Ollama vision model...');
+
+    // Use Ollama for image analysis
+    const analysisResult = await analyzeImageWithOllama(mediaItem, method);
+
+    if (!analysisResult) {
+      const errorMessage = 'Failed to analyze image with Ollama';
+
+      await markProcessingError({
+        mediaItemId: mediaId,
+        progressType: 'analysis',
+        errorMessage,
+      });
+
+      return {
+        success: false,
+        message: errorMessage,
+      };
+    }
+
+    // Convert Ollama format to database format
+    const objectNames = analysisResult.objects.map((obj) => obj.name);
+    const fullText = JSON.stringify(analysisResult);
+    const keywords =
+      analysisResult.keywords ||
+      analysisResult.summary
+        .split(' ')
+        .filter((word) => word.length > 3)
+        .map((word) => word.toLowerCase())
+        .slice(0, 10);
 
     // Store the results in the database
     const supabase = createServerSupabaseClient();
+
+    // First, update the main image_analysis table
     const { error: upsertError } = await supabase
       .from('image_analysis')
       .upsert({
         media_item_id: mediaId,
-        keywords: analysisResult.keywords,
-        objects: analysisResult.objects,
-        scene_type: analysisResult.sceneType,
+        keywords: keywords,
+        objects: objectNames,
+        scene_types: [analysisResult.scene],
         colors: analysisResult.colors,
-        processing_state: 'completed', // Mark as completed even though it's placeholder
+        full_analysis: fullText,
+        processing_state: 'completed',
         processing_completed: new Date().toISOString(),
+        sentiment: analysisResult.sentiment,
+        quality_score: analysisResult.qualityScore,
+        safety_issues: analysisResult.safetyIssues || [],
+        // Map time_of_day and setting to appropriate fields if they exist in your database
       });
 
     if (upsertError) {
@@ -99,15 +270,15 @@ export async function processImageAnalysis({
     await markProcessingSuccess({
       mediaItemId: mediaId,
       progressType: 'analysis',
-      errorMessage: 'Image analysis completed (placeholder)',
+      errorMessage: 'Image analysis completed successfully',
     });
 
-    progressCallback?.('Analysis completed successfully (placeholder)');
+    progressCallback?.('Analysis completed and stored in database');
 
     return {
       success: true,
-      message: 'Image analysis completed successfully (placeholder)',
-      ...analysisResult,
+      message: 'Image analysis completed successfully',
+      analysisResult,
     };
   } catch (error) {
     const errorMessage =
@@ -127,83 +298,4 @@ export async function processImageAnalysis({
       message: errorMessage,
     };
   }
-}
-
-/**
- * Placeholder function to replace analyzeImageWithOpenCV
- * Returns simulated data based on the filename and method.
- */
-async function analyzeImagePlaceholder(
-  filePath: string,
-  method: Method,
-): Promise<{
-  keywords: string[];
-  objects: string[];
-  sceneType: string;
-  colors: string[];
-}> {
-  // Use the existing simulateImageAnalysis function as the placeholder
-  const result = await simulateImageAnalysis(filePath, method);
-
-  // Add a specific keyword to indicate placeholder usage
-  result.keywords.push('placeholder-analysis');
-
-  return {
-    ...result,
-    keywords: [...new Set(result.keywords)], // Ensure uniqueness
-  };
-}
-
-/**
- * Fallback function to simulate image analysis results
- * Used when OpenCV processing fails OR as the main placeholder logic now.
- */
-async function simulateImageAnalysis(
-  filePath: string,
-  method: Method,
-): Promise<{
-  keywords: string[];
-  objects: string[];
-  sceneType: string;
-  colors: string[];
-}> {
-  // Extract filename as a simple way to vary results for testing
-  const fileName = path.basename(filePath, path.extname(filePath));
-
-  // Generate some test keywords based on the method and filename
-  const keywords = [
-    'image',
-    'simulated',
-    method === 'comprehensive' ? 'detailed-sim' : 'basic-sim',
-    ...fileName
-      .split(/[_\-\s]/)
-      .filter((word) => word.length > 2 && word.length < 15), // Basic filtering
-  ];
-
-  // For comprehensive analysis, add more detailed keywords
-  if (method === 'comprehensive') {
-    keywords.push('high-resolution-sim', 'complex-sim');
-  } else if (method === 'fast') {
-    keywords.push('quick-scan-sim');
-  }
-
-  // Simulate a short processing delay
-  await new Promise((resolve) => setTimeout(resolve, 150)); // Reduced delay
-
-  // Basic scene type guess based on filename
-  let sceneType = 'unknown-sim';
-  if (fileName.toLowerCase().includes('outdoor')) sceneType = 'outdoor-sim';
-  else if (fileName.toLowerCase().includes('indoor')) sceneType = 'indoor-sim';
-  else if (fileName.toLowerCase().includes('city')) sceneType = 'urban-sim';
-
-  // Simulated objects and colors
-  const objects = ['sim-object1', 'sim-object2', `sim-${method}`];
-  const colors = ['#F0F0F0', '#A0A0A0', '#505050']; // Grayscale placeholders
-
-  return {
-    keywords: [...new Set(keywords.map((k) => k.toLowerCase()))], // Deduplicate and lowercase
-    objects: objects,
-    sceneType: sceneType,
-    colors: colors,
-  };
 }
