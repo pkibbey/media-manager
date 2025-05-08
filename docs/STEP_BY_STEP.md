@@ -58,8 +58,43 @@
 
 ### 3.5 Admin Dashboard
 
-- Build admin pages for scan, file types, EXIF, analysis, and thumbnails.
-- Show stats and allow manual triggering of processing actions.
+- Build admin pages for:
+  - **Media Scanning**: Discover and import new media files
+  - **File Types**: Manage supported file formats and mime types
+  - **EXIF Processing**: Monitor and trigger EXIF data extraction
+  - **Analysis**: Review AI analysis results and processing stats
+  - **Thumbnails**: Track thumbnail generation and regenerate as needed
+
+- Implement core admin components:
+  - `AdminLayout`: Shared layout with navigation sidebar
+  - `StatsCard`: Reusable component for displaying processing statistics
+  - `ProcessingQueue`: Visual representation of background tasks
+  - `ActionButton`: Standardized button for triggering server actions
+
+- Create server actions for admin operations:
+  - `/actions/admin/scan-directory.ts`: Discover new media files
+  - `/actions/admin/process-batch.ts`: Generic batch processing controller
+  - `/actions/admin/update-settings.ts`: Modify application settings
+
+- Display processing statistics:
+  - Show counts of total/processed/remaining items
+  - Calculate and display completion percentages
+  - Visualize trends with simple charts and progress indicators
+  - Display error rates and common failure reasons
+
+- Implement manual triggers for:
+  - Scanning specific directories
+  - Processing EXIF data for selected items
+  - Running analysis on priority items
+  - Regenerating thumbnails with updated settings
+
+- Add system health monitoring:
+  - Database connection status
+  - Storage utilization metrics
+  - Processing queue length
+  - Recent errors and warnings
+
+- Implement role-based access control for admin functions
 
 ## 4. UI & Component Standards
 
