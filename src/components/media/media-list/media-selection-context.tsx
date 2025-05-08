@@ -7,7 +7,11 @@ import {
   useMemo,
   useState,
 } from 'react';
-import type { Media, MediaSelectionState } from '@/types/media-types';
+import type {
+  Media,
+  MediaSelectionState,
+  MediaWithRelations,
+} from '@/types/media-types';
 
 interface MediaSelectionContextProps {
   selection: MediaSelectionState;
@@ -22,7 +26,7 @@ interface MediaSelectionContextProps {
   isSelected: (id: string) => boolean;
   toggleHideSelected: () => void;
   toggleDeleteSelected: () => void;
-  selectedMedia: Media[];
+  selectedMedia: MediaWithRelations[];
 }
 
 const MediaSelectionContext = createContext<
@@ -34,7 +38,7 @@ export function MediaSelectionProvider({
   media,
 }: {
   children: ReactNode;
-  media: Media[];
+  media: MediaWithRelations[];
 }) {
   const [selection, setSelection] = useState<MediaSelectionState>({
     selectedIds: new Set<string>(),

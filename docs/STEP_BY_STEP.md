@@ -43,9 +43,12 @@
 
 ### 3.3 EXIF Data Processing
 
-- Use `exif-reader` to extract EXIF in `/actions/exif/process-exif.ts`.
-- Store normalized EXIF in a dedicated table.
-- Display EXIF in media detail view.
+- Use `sharp` to extract metadata in `/actions/exif/process-exif.ts`.
+- Implement normalization for timestamps, GPS coordinates, and technical values.
+- Create database functions for unprocessed files and statistics.
+- Use additional libraries like `date-fns` and `geolib` for specialized processing.
+- Store normalized EXIF in a dedicated table with searchable formats.
+- Display comprehensive EXIF data in media detail view with map visualization for location data.
 
 ### 3.4 Media Analysis
 

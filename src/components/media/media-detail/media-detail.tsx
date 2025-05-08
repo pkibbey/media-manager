@@ -1,14 +1,15 @@
 'use client';
 
-import { Separator } from '@radix-ui/react-select';
 import { X } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatBytes } from '@/lib/consts';
 import { useMediaSelection } from '../media-list/media-selection-context';
+import { ExifDataDisplay } from './exif-data-display';
 
 interface MediaDetailProps {
   onClose: () => void;
@@ -35,8 +36,8 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
   }
 
   // Get the first selected file for display
-  const file = selectedMedia[0];
-  const fileName = file.file_path.split('/').pop() || file.file_path;
+  const media = selectedMedia[0];
+  const fileName = media.media_path.split('/').pop() || media.media_path;
 
   return (
     <div className="h-full flex flex-col">
@@ -57,7 +58,7 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
           <p>
             {selectedMedia.length} files selected with a total size of{' '}
             {formatBytes(
-              selectedMedia.reduce((sum, file) => sum + file.size_bytes, 0),
+              selectedMedia.reduce((sum, file) => sum + media.size_bytes, 0),
             )}
           </p>
           {/* You could add batch operations here */}
@@ -74,10 +75,10 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
         /* Single file detailed view */
         <div className="flex-1 overflow-auto">
           {/* Preview */}
-          {file.thumbnail && (
+          {media.thumbnails && (
             <div className="p-4 border-b">
               <Image
-                src={file.thumbnail.thumbnail_url}
+                src={media.thumbnails.thumbnail_url}
                 alt={fileName}
                 className="max-h-[300px] w-full object-contain"
               />
@@ -90,12 +91,12 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
               <TabsTrigger value="info" className="flex-1">
                 Info
               </TabsTrigger>
-              {file.exif && (
+              {media.exif_data && (
                 <TabsTrigger value="exif" className="flex-1">
                   EXIF
                 </TabsTrigger>
               )}
-              {file.analysis && (
+              {media.analysis_results && (
                 <TabsTrigger value="analysis" className="flex-1">
                   Analysis
                 </TabsTrigger>
@@ -118,25 +119,29 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
                   <h3 className="text-sm font-medium text-muted-foreground">
                     File Path
                   </h3>
-                  <p className="break-all mt-1">{file.file_path}</p>
+                  <p className="break-all mt-1">{media.media_path}</p>
                 </div>
 
-                <Separator />
+                {media.media_types?.mime_type && (
+                  <>
+                    <Separator />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      File Type
-                    </h3>
-                    <p className="mt-1">{file.file_type.type_name}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Size
-                    </h3>
-                    <p className="mt-1">{formatBytes(file.size_bytes)}</p>
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground">
+                          File Type
+                        </h3>
+                        <p className="mt-1">{media.media_types.type_name}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground">
+                          Size
+                        </h3>
+                        <p className="mt-1">{formatBytes(media.size_bytes)}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 
@@ -145,18 +150,18 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
                     Date Created
                   </h3>
                   <p className="mt-1">
-                    {new Date(file.created_date).toLocaleString()}
+                    {new Date(media.created_date).toLocaleString()}
                   </p>
                 </div>
 
-                {file.file_type.mime_type && (
+                {media.media_types?.mime_type && (
                   <>
                     <Separator />
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground">
                         MIME Type
                       </h3>
-                      <p className="mt-1">{file.file_type.mime_type}</p>
+                      <p className="mt-1">{media.media_types.mime_type}</p>
                     </div>
                   </>
                 )}
@@ -164,94 +169,50 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
             </TabsContent>
 
             {/* EXIF Information */}
-            {file.exif && (
+            {media.exif_data && (
               <TabsContent value="exif" className="p-4">
-                <div className="space-y-4">
-                  {file.exif.camera_make && (
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">
-                        Camera Make
-                      </h3>
-                      <p className="mt-1">{file.exif.camera_make}</p>
-                    </div>
-                  )}
-
-                  {file.exif.camera_make && <Separator />}
-
-                  {file.exif.camera_model && (
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">
-                        Camera Model
-                      </h3>
-                      <p className="mt-1">{file.exif.camera_model}</p>
-                    </div>
-                  )}
-
-                  {file.exif.camera_model && <Separator />}
-
-                  {file.exif.exif_timestamp && (
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">
-                        Date Taken
-                      </h3>
-                      <p className="mt-1">
-                        {new Date(file.exif.exif_timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                  )}
-
-                  {file.exif.exif_timestamp && <Separator />}
-
-                  {file.exif.gps_latitude && file.exif.gps_longitude && (
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">
-                        Location
-                      </h3>
-                      <p className="mt-1">
-                        {file.exif.gps_latitude.toFixed(6)},{' '}
-                        {file.exif.gps_longitude.toFixed(6)}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <ExifDataDisplay exif={media.exif_data} />
               </TabsContent>
             )}
 
             {/* Analysis Information */}
-            {file.analysis && (
+            {media.analysis_results && (
               <TabsContent value="analysis" className="p-4">
                 <div className="space-y-4">
-                  {file.analysis.image_description && (
+                  {media.analysis_results.image_description && (
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground">
                         Description
                       </h3>
-                      <p className="mt-1">{file.analysis.image_description}</p>
+                      <p className="mt-1">
+                        {media.analysis_results.image_description}
+                      </p>
                     </div>
                   )}
 
-                  {file.analysis.image_description &&
-                    file.analysis.tags &&
-                    file.analysis.tags.length > 0 && <Separator />}
+                  {media.analysis_results.image_description &&
+                    media.analysis_results.tags &&
+                    media.analysis_results.tags.length > 0 && <Separator />}
 
-                  {file.analysis.tags && file.analysis.tags.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">
-                        Tags
-                      </h3>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {file.analysis.tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
+                  {media.analysis_results.tags &&
+                    media.analysis_results.tags.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground">
+                          Tags
+                        </h3>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {media.analysis_results.tags.map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </TabsContent>
             )}

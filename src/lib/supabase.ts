@@ -11,7 +11,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Create a Supabase client for use in server components and API routes
-export function createServerSupabaseClient() {
+export function createServer() {
   const supabaseUrl = SUPABASE_URL;
   const supabaseKey = SUPABASE_SERVICE_ROLE_KEY;
 
@@ -24,16 +24,4 @@ export function createServerSupabaseClient() {
       persistSession: false,
     },
   });
-}
-
-// Create a Supabase client for use in client components
-export function createBrowserSupabaseClient() {
-  const supabaseUrl = SUPABASE_URL;
-  const supabaseKey = SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase environment variables');
-  }
-
-  return createClient<Database>(supabaseUrl, supabaseKey);
 }

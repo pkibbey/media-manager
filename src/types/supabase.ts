@@ -96,18 +96,20 @@ export type Database = {
           digital_zoom_ratio: number | null
           exif_timestamp: string | null
           exposure_time: number | null
-          file_id: string
           focal_length_35mm: number | null
           gps_latitude: number | null
           gps_longitude: number | null
+          height: number
           id: string
           iso: number | null
           light_source: string | null
+          media_id: string
           metering_mode: string | null
           offset_time: string | null
           orientation: string | null
           scene_capture_type: string | null
           subject_distance: number | null
+          width: number
         }
         Insert: {
           aperture?: number | null
@@ -117,18 +119,20 @@ export type Database = {
           digital_zoom_ratio?: number | null
           exif_timestamp?: string | null
           exposure_time?: number | null
-          file_id: string
           focal_length_35mm?: number | null
           gps_latitude?: number | null
           gps_longitude?: number | null
+          height: number
           id: string
           iso?: number | null
           light_source?: string | null
+          media_id: string
           metering_mode?: string | null
           offset_time?: string | null
           orientation?: string | null
           scene_capture_type?: string | null
           subject_distance?: number | null
+          width?: number
         }
         Update: {
           aperture?: number | null
@@ -138,23 +142,25 @@ export type Database = {
           digital_zoom_ratio?: number | null
           exif_timestamp?: string | null
           exposure_time?: number | null
-          file_id?: string
           focal_length_35mm?: number | null
           gps_latitude?: number | null
           gps_longitude?: number | null
+          height?: number
           id?: string
           iso?: number | null
           light_source?: string | null
+          media_id?: string
           metering_mode?: string | null
           offset_time?: string | null
           orientation?: string | null
           scene_capture_type?: string | null
           subject_distance?: number | null
+          width?: number
         }
         Relationships: [
           {
             foreignKeyName: "exif_data_file_id_fkey"
-            columns: ["file_id"]
+            columns: ["media_id"]
             isOneToOne: true
             referencedRelation: "media"
             referencedColumns: ["id"]
