@@ -31,4 +31,6 @@
 
 - Tables
   - exif_data needs further props when we get to the exif types
+  - Make sure to use Shadcn components instead of basic html elements
+  - always export functions as default
   - 

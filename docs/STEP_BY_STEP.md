@@ -37,9 +37,9 @@
 
 ### 3.2 Thumbnail Generation
 
-- Create thumbnail processor using `sharp` (images) and `fluent-ffmpeg` (videos).
+- Create thumbnail processor using `sharp` for images
 - Implement `/actions/thumbnails/generate-thumbnails.ts` and stats retrieval.
-- Store thumbnails in Supabase Storage and link to media items.
+- Store thumbnails in Supabase Storage and link to file items.
 
 ### 3.3 EXIF Data Processing
 

@@ -1,7 +1,10 @@
+import type { PostgrestResponse } from '@supabase/supabase-js';
+import type { Tables } from './supabase';
+
 /**
- * Media filtering options for browsing and searching media items
+ * Media filtering options for browsing and searching media
  */
-export interface MediaFilters {
+export interface MediaFiltersType {
   search: string;
   type: 'all' | 'image' | 'video' | 'data';
   dateFrom: Date | null;
@@ -15,10 +18,24 @@ export interface MediaFilters {
 }
 
 /**
- * Statistics about media items in the system
+ * Media selection state for UI
  */
-export type AllMediaStats = {
-  totalCount: number;
-  failureCount: number;
-  totalSizeBytes: number;
+export interface MediaSelectionState {
+  selectedIds: Set<string>;
+  lastSelectedId: string | null;
+}
+
+export type Media = Tables<'media'>;
+
+export type MediaResponse = Promise<PostgrestResponse<Media>>;
+
+export type MediaWithRelations = Media & {
+  media_types: Tables<'media_types'> | null;
+  exif_data: Tables<'exif_data'> | null;
+  thumbnails: Tables<'thumbnails'> | null;
+  analysis_results: Tables<'analysis_results'> | null;
 };
+
+export type MediaWithRelationsResponse = Promise<
+  PostgrestResponse<MediaWithRelations>
+>;

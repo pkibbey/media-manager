@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@/actions/*": ["./src/app/actions/*"],
+      "@/actions/*": ["./src/actions/*"],
       "@/components/*": ["./src/components/*"],
       "@/hooks/*": ["./src/hooks/*"],
       "@/lib/*": ["./src/lib/*"],

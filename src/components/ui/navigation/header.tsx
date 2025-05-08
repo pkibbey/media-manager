@@ -1,9 +1,9 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import { GearIcon, GridIcon, HomeIcon, ImageIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 interface NavItemProps {
   href: string;
