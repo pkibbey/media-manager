@@ -26,11 +26,11 @@ export async function processExif(mediaId: string) {
       );
     }
 
-    // Configure Sharp for fast metadata extraction without decoding pixel data
-    // Use file path directly instead of loading the full buffer into memory
+    // Use Sharp for fast metadata extraction
     const image = sharp(mediaItem.media_path, {
       failOnError: false, // Skip corrupt images gracefully
-      sequentialRead: true, // Better for streaming large files
+      sequentialRead: true, // Better for streaming large files,
+      autoOrient: true, // Automatically orient the photo
     });
 
     try {
@@ -44,7 +44,7 @@ export async function processExif(mediaId: string) {
       }
 
       const tags = ExifReader.load(metadata.exif);
-      console.log('tags: ', tags);
+      console.log('tags: ', Object.keys(tags));
 
       // Store the normalized EXIF data
       // Use onConflict to ensure upsert correctly matches on file_id
@@ -131,31 +131,3 @@ export async function processBatchExif(limit = 10) {
     };
   }
 }
-
-// /**
-//  * Format EXIF date to ISO format
-//  *
-//  * @param exifDate - Date string in EXIF format
-//  * @returns Formatted date string or null
-//  */
-// function formatExifDate(exifDate: string | undefined): string | null {
-//   if (!exifDate) return null;
-
-//   // Common EXIF date format: 2023:05:15 14:30:22
-//   const match = exifDate.match(
-//     /(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/,
-//   );
-
-//   if (match) {
-//     try {
-//       const [, year, month, day, hour, minute, second] = match;
-//       const formattedDate = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
-//       // Validate the date by parsing and reformatting
-//       return format(parseISO(formattedDate), "yyyy-MM-dd'T'HH:mm:ss");
-//     } catch (error) {
-//       console.error('Error formatting EXIF date:', error);
-//     }
-//   }
-
-//   return null;
-// }

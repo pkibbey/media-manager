@@ -52,7 +52,7 @@
 
 ### 3.4 Media Analysis
 
-- Integrate TensorFlow.js and custom models for content analysis.
+- Use Ollama.js and a custom vision model "minicpm-v:latest" for content analysis.
 - Implement `/actions/analysis/process-analysis.ts` and stats retrieval.
 - Store results in an analysis table and expose in the UI.
 

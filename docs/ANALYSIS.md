@@ -60,12 +60,6 @@ The Media Analysis feature applies advanced AI techniques to understand and cate
 /actions/analysis/get-analysis-stats.ts - Statistics retrieval
 ```
 
-### AI Technologies
-
-- **TensorFlow.js** - Core ML framework for analysis models
-- **Custom Models** - Domain-specific models for media analysis
-- **Transfer Learning** - Adapts pre-trained models for specific needs
-
 ### Database Schema
 
 ```sql
