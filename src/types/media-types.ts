@@ -6,10 +6,6 @@ export interface MediaFilters {
   type: 'all' | 'image' | 'video' | 'data';
   dateFrom: Date | null;
   dateTo: Date | null;
-  minSize: number;
-  maxSize: number;
-  sortBy: 'created_date' | 'file_name' | 'size_bytes';
-  sortOrder: 'asc' | 'desc';
   hasExif: 'all' | 'yes' | 'no';
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';

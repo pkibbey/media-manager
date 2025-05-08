@@ -34,7 +34,230 @@ export type Database = {
   };
   public: {
     Tables: {
-      [_ in never]: never;
+      analysis_results: {
+        Row: {
+          colors: string[];
+          created_date: string;
+          faces: Json[];
+          file_id: string;
+          id: string;
+          image_description: string | null;
+          objects: Json[];
+          quality_score: number;
+          safety_level: number;
+          scene_types: string[];
+          sentiment: number;
+          tags: string[];
+        };
+        Insert: {
+          colors?: string[];
+          created_date?: string;
+          faces?: Json[];
+          file_id: string;
+          id: string;
+          image_description?: string | null;
+          objects?: Json[];
+          quality_score?: number;
+          safety_level?: number;
+          scene_types?: string[];
+          sentiment?: number;
+          tags?: string[];
+        };
+        Update: {
+          colors?: string[];
+          created_date?: string;
+          faces?: Json[];
+          file_id?: string;
+          id?: string;
+          image_description?: string | null;
+          objects?: Json[];
+          quality_score?: number;
+          safety_level?: number;
+          scene_types?: string[];
+          sentiment?: number;
+          tags?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'analysis_results_file_id_fkey';
+            columns: ['file_id'];
+            isOneToOne: false;
+            referencedRelation: 'files';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      exif_data: {
+        Row: {
+          aperture: number | null;
+          camera_make: string | null;
+          camera_model: string | null;
+          created_date: string;
+          digital_zoom_ratio: number | null;
+          exif_timestamp: string | null;
+          exposure_time: number | null;
+          file_id: string;
+          focal_length_35mm: number | null;
+          gps_latitude: number | null;
+          gps_longitude: number | null;
+          id: string;
+          iso: number | null;
+          light_source: string | null;
+          metering_mode: string | null;
+          offset_time: string | null;
+          orientation: string | null;
+          scene_capture_type: string | null;
+          subject_distance: number | null;
+        };
+        Insert: {
+          aperture?: number | null;
+          camera_make?: string | null;
+          camera_model?: string | null;
+          created_date?: string;
+          digital_zoom_ratio?: number | null;
+          exif_timestamp?: string | null;
+          exposure_time?: number | null;
+          file_id: string;
+          focal_length_35mm?: number | null;
+          gps_latitude?: number | null;
+          gps_longitude?: number | null;
+          id: string;
+          iso?: number | null;
+          light_source?: string | null;
+          metering_mode?: string | null;
+          offset_time?: string | null;
+          orientation?: string | null;
+          scene_capture_type?: string | null;
+          subject_distance?: number | null;
+        };
+        Update: {
+          aperture?: number | null;
+          camera_make?: string | null;
+          camera_model?: string | null;
+          created_date?: string;
+          digital_zoom_ratio?: number | null;
+          exif_timestamp?: string | null;
+          exposure_time?: number | null;
+          file_id?: string;
+          focal_length_35mm?: number | null;
+          gps_latitude?: number | null;
+          gps_longitude?: number | null;
+          id?: string;
+          iso?: number | null;
+          light_source?: string | null;
+          metering_mode?: string | null;
+          offset_time?: string | null;
+          orientation?: string | null;
+          scene_capture_type?: string | null;
+          subject_distance?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'exif_data_file_id_fkey';
+            columns: ['file_id'];
+            isOneToOne: false;
+            referencedRelation: 'files';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      file_types: {
+        Row: {
+          created_date: string;
+          id: string;
+          is_ignored: boolean;
+          is_native: boolean;
+          mime_type: string | null;
+          type_description: string | null;
+          type_name: string;
+        };
+        Insert: {
+          created_date?: string;
+          id: string;
+          is_ignored?: boolean;
+          is_native?: boolean;
+          mime_type?: string | null;
+          type_description?: string | null;
+          type_name: string;
+        };
+        Update: {
+          created_date?: string;
+          id?: string;
+          is_ignored?: boolean;
+          is_native?: boolean;
+          mime_type?: string | null;
+          type_description?: string | null;
+          type_name?: string;
+        };
+        Relationships: [];
+      };
+      files: {
+        Row: {
+          created_date: string;
+          file_path: string;
+          file_type_id: string;
+          id: string;
+          is_deleted: boolean;
+          is_hidden: boolean;
+          size_bytes: number;
+        };
+        Insert: {
+          created_date?: string;
+          file_path: string;
+          file_type_id: string;
+          id: string;
+          is_deleted?: boolean;
+          is_hidden?: boolean;
+          size_bytes: number;
+        };
+        Update: {
+          created_date?: string;
+          file_path?: string;
+          file_type_id?: string;
+          id?: string;
+          is_deleted?: boolean;
+          is_hidden?: boolean;
+          size_bytes?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'files_file_type_id_fkey';
+            columns: ['file_type_id'];
+            isOneToOne: false;
+            referencedRelation: 'file_types';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      thumbnails: {
+        Row: {
+          created_date: string;
+          file_id: string;
+          id: string;
+          thumbnail_url: string;
+        };
+        Insert: {
+          created_date?: string;
+          file_id: string;
+          id: string;
+          thumbnail_url: string;
+        };
+        Update: {
+          created_date?: string;
+          file_id?: string;
+          id?: string;
+          thumbnail_url?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'thumbnails_file_id_fkey';
+            columns: ['file_id'];
+            isOneToOne: false;
+            referencedRelation: 'files';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
