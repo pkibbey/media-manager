@@ -62,4 +62,3 @@ The Thumbnail Generation feature automatically creates optimized preview images 
 
 - Provides thumbnails to the Media Browsing interface
 - Connects with the Admin Dashboard for manual regeneration
-- Feeds into the Analysis system for visual content processing

@@ -76,12 +76,3 @@ interface UnifiedStats {
 ## Development Standards
 
 The codebase follows strict standards documented in the `STANDARDS.md` file.
-
-## Getting Started
-
-To set up a local development environment:
-
-1. Install dependencies with `pnpm install`
-2. Start Supabase locally with `supabase start`
-3. Apply migrations and generate types with `pnpm sync`
-4. Run the development server with `pnpm dev`

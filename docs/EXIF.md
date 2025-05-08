@@ -83,4 +83,3 @@ The EXIF Data Processing feature extracts, normalizes, and stores rich metadata 
 
 - Enhances Media Browsing with searchable metadata
 - Contributes location data to Media Analysis
-- Feeds data to Admin Dashboard for statistics and reporting

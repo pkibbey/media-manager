@@ -27,3 +27,8 @@
 - Use accurate mime-type detection rather than trusting extensions
 - Track processing state in feature-specific tables
 - Implement importance scoring for timeline photo selection
+
+
+- Tables
+  - exif_data needs further props when we get to the exif types
+  - 
