@@ -1,6 +1,6 @@
 'use server';
 
-import { createServer } from '@/lib/supabase';
+import { createSupabase } from '@/lib/supabase';
 
 interface AnalysisStats {
   total: number;
@@ -23,7 +23,7 @@ export async function getAnalysisStats(): Promise<{
   error: string | null;
 }> {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
 
     // Get the total count of media items
     const { count: totalCount, error: totalError } = await supabase

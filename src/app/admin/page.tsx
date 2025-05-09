@@ -64,10 +64,6 @@ export default function AdminOverviewPage() {
     };
 
     fetchStats();
-
-    // Refresh stats periodically
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   // Action for refreshing stats

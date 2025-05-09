@@ -37,6 +37,10 @@ export type MediaWithRelations = Media & {
   analysis_results: Tables<'analysis_results'> | null;
 };
 
+export type MediaWithExif = Media & {
+  exif_data: Tables<'exif_data'> | null;
+};
+
 export type MediaWithRelationsResponse = Promise<
   PostgrestResponse<MediaWithRelations>
 >;

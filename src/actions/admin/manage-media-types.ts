@@ -1,6 +1,6 @@
 'use server';
 
-import { createServer } from '@/lib/supabase';
+import { createSupabase } from '@/lib/supabase';
 import type { MediaType } from '@/types/media-types';
 
 /**
@@ -11,7 +11,7 @@ export async function getMediaTypes(): Promise<{
   error: unknown;
 }> {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
     const { data, error } = await supabase
       .from('media_types')
       .select('*')
@@ -36,7 +36,7 @@ export async function updateMediaType(
   updates: Partial<MediaType>,
 ): Promise<{ success: boolean; error: unknown }> {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
     const { error } = await supabase
       .from('media_types')
       .update(updates)
@@ -61,7 +61,7 @@ export async function deleteMediaType(
   id: string,
 ): Promise<{ success: boolean; error: unknown }> {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
     const { error } = await supabase.from('media_types').delete().eq('id', id);
 
     if (error) {

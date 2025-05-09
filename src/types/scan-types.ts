@@ -4,7 +4,6 @@ export interface FileDetails {
   type: string;
   lastModified?: number;
   name: string; // Just the filename
-  relativePath: string; // Path relative to selected directory (for storage)
   buffer?: ArrayBuffer; // Optional buffer for file content analysis
 }
 

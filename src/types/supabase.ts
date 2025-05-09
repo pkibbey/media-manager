@@ -170,6 +170,7 @@ export type Database = {
       media: {
         Row: {
           created_date: string
+          exif_processed: boolean
           id: string
           is_deleted: boolean
           is_hidden: boolean
@@ -179,6 +180,7 @@ export type Database = {
         }
         Insert: {
           created_date?: string
+          exif_processed?: boolean
           id: string
           is_deleted?: boolean
           is_hidden?: boolean
@@ -188,6 +190,7 @@ export type Database = {
         }
         Update: {
           created_date?: string
+          exif_processed?: boolean
           id?: string
           is_deleted?: boolean
           is_hidden?: boolean

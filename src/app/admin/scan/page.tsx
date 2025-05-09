@@ -162,15 +162,10 @@ export default function MediaScanPage() {
       async function processDirectory(
         dirHandle: FileSystemDirectoryHandle,
         path = '',
-        relativePath = '',
       ): Promise<void> {
         // Loop through all entries in the directory
         for await (const entry of dirHandle.values()) {
           const entryPath = path ? `${path}/${entry.name}` : entry.name;
-          const entryRelativePath = relativePath
-            ? `${relativePath}/${entry.name}`
-            : entry.name;
-
           setScanStatus((prev) => ({
             ...prev,
             currentDirectory: entryPath,
@@ -178,17 +173,23 @@ export default function MediaScanPage() {
 
           if (entry.kind === 'directory') {
             // Recursively process subdirectories
-            await processDirectory(entry, entryPath, entryRelativePath);
+            await processDirectory(entry, entryPath);
           } else {
             // Process files
             try {
               const fileHandle = entry;
               const file = await fileHandle.getFile();
 
+              // NOTE:
+              // This is a workaround for the fact that we can't get the full path
+              // of the file in the File System Access API - When this is deployed to
+              // production, the path will be the full path to the file on the server
+              // and not the local path on the user's machine.
+              const HACK_PATH = '/Users/phineas/Downloads';
+
               files.push({
-                path: entryPath,
+                path: `${HACK_PATH}/${entryPath}`,
                 name: file.name,
-                relativePath: entryRelativePath,
                 size: file.size,
                 type: file.type || 'application/octet-stream',
                 lastModified: file.lastModified,
@@ -219,7 +220,7 @@ export default function MediaScanPage() {
       }
 
       // Start processing from the root directory
-      await processDirectory(selectedDir, selectedDir.name, '');
+      await processDirectory(selectedDir, selectedDir.name);
 
       // Process any remaining files
       if (files.length > 0) {

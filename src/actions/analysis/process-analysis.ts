@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import ollama from 'ollama';
 import { VISION_MODEL } from '@/lib/consts';
-import { createServer } from '@/lib/supabase';
+import { createSupabase } from '@/lib/supabase';
 import { ImageDescriptionSchema } from '@/types/analysis';
 
 /**
@@ -14,7 +14,7 @@ import { ImageDescriptionSchema } from '@/types/analysis';
  */
 export async function processAnalysis(mediaId: string) {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
 
     // Get the media item
     const { data: mediaItem, error: mediaError } = await supabase
@@ -114,7 +114,7 @@ export async function processAnalysis(mediaId: string) {
  */
 export async function processBatchAnalysis(limit = 10) {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
 
     // Find media items that need analysis processing
     const { data: mediaItems, error: findError } = await supabase

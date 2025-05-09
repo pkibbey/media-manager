@@ -2,7 +2,7 @@
 
 import { fileTypeFromBuffer } from 'file-type';
 import { v4 as uuid } from 'uuid';
-import { createServer } from '@/lib/supabase';
+import { createSupabase } from '@/lib/supabase';
 import type { MediaType } from '@/types/media-types';
 import type { FileDetails, ScanResults } from '@/types/scan-types';
 
@@ -35,7 +35,7 @@ async function addFileToDatabase(
   file: FileDetails,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
 
     // First, find or create the media type
     const typeId = await getOrCreateMediaType(file.type);
@@ -50,7 +50,7 @@ async function addFileToDatabase(
     const { data: existingFiles } = await supabase
       .from('media')
       .select('id')
-      .eq('media_path', file.relativePath)
+      .eq('media_path', file.path)
       .limit(1);
 
     if (existingFiles && existingFiles.length > 0) {
@@ -61,7 +61,7 @@ async function addFileToDatabase(
     const fileId = uuid();
     const { error } = await supabase.from('media').insert({
       id: fileId,
-      media_path: file.relativePath, // Store the relative path
+      media_path: file.path, // Store the relative path
       media_type_id: typeId,
       size_bytes: file.size,
       created_date: file.lastModified
@@ -87,7 +87,7 @@ async function addFileToDatabase(
  */
 async function getOrCreateMediaType(mimeType: string): Promise<string | null> {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
     const typeName = getMediaTypeFromMime(mimeType);
 
     // Check if the type already exists
@@ -191,9 +191,7 @@ export async function processScanResults(
     } else {
       results.filesSkipped++;
       if (addResult.error !== 'File already exists in database') {
-        results.errors.push(
-          `Error with ${file.relativePath}: ${addResult.error}`,
-        );
+        results.errors.push(`Error with ${file.path}: ${addResult.error}`);
       }
     }
   }
@@ -206,7 +204,7 @@ export async function processScanResults(
  */
 export async function getMediaTypes(): Promise<MediaType[]> {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
     const { data, error } = await supabase
       .from('media_types')
       .select('*')

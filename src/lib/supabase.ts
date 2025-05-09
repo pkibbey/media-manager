@@ -11,7 +11,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Create a Supabase client for use in server components and API routes
-export function createServer() {
+export function createSupabase() {
   const supabaseUrl = SUPABASE_URL;
   const supabaseKey = SUPABASE_SERVICE_ROLE_KEY;
 

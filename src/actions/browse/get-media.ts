@@ -1,7 +1,7 @@
 'use server';
 
 import { format } from 'date-fns';
-import { createServer } from '@/lib/supabase';
+import { createSupabase } from '@/lib/supabase';
 import type {
   MediaFiltersType,
   MediaWithRelationsResponse,
@@ -16,7 +16,7 @@ export async function getMedia(
   sortField = 'created_date',
   sortDirection: 'asc' | 'desc' = 'desc',
 ): MediaWithRelationsResponse {
-  const supabase = createServer();
+  const supabase = createSupabase();
   const offset = (page - 1) * pageSize;
 
   // Start building the query

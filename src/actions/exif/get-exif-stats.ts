@@ -1,6 +1,6 @@
 'use server';
 
-import { createServer } from '@/lib/supabase';
+import { createSupabase } from '@/lib/supabase';
 
 /**
  * Get statistics about EXIF data processing
@@ -9,22 +9,22 @@ import { createServer } from '@/lib/supabase';
  */
 export async function getExifStats() {
   try {
-    const supabase = createServer();
+    const supabase = createSupabase();
 
-    // Get the total count of media items
+    // Get the total count of all media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select('*', { count: 'exact', head: true });
+      .select('exif_processed', { count: 'exact', head: true });
 
     if (totalError) {
       throw new Error(`Failed to get total count: ${totalError.message}`);
     }
 
-    // Get count of items with processed EXIF
+    // Get count of items with EXIF data
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
-      .select('*', { count: 'exact', head: true })
-      .eq('exif_processed', true);
+      .select('exif_processed', { count: 'exact', head: true })
+      .is('exif_processed', true);
 
     if (processedError) {
       throw new Error(
