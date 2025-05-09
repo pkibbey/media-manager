@@ -70,7 +70,7 @@ export default function AdminOverviewPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Placeholder action for refreshing stats
+  // Action for refreshing stats
   const refreshStats = async () => {
     try {
       const [analysisResponse, exifResponse] = await Promise.all([

@@ -6,7 +6,7 @@ import type { Tables } from './supabase';
  */
 export interface MediaFiltersType {
   search: string;
-  type: 'all' | 'image' | 'video' | 'data';
+  type: 'all' | 'image' | 'video' | 'audio' | 'document' | 'other';
   dateFrom: Date | null;
   dateTo: Date | null;
   hasExif: 'all' | 'yes' | 'no';
@@ -26,6 +26,7 @@ export interface MediaSelectionState {
 }
 
 export type Media = Tables<'media'>;
+export type MediaType = Tables<'media_types'>;
 
 export type MediaResponse = Promise<PostgrestResponse<Media>>;
 
