@@ -2,13 +2,13 @@
 
 import { X } from 'lucide-react';
 import Image from 'next/image';
+import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatBytes } from '@/lib/consts';
-import { useMediaSelection } from '../media-list/media-selection-context';
 import { ExifDataDisplay } from './exif-data-display';
 
 interface MediaDetailProps {

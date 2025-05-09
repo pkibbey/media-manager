@@ -2,10 +2,10 @@
 
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { MediaDetail } from '@/components/media/media-detail/media-detail';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { MediaWithRelations } from '@/types/media-types';
-import { MediaDetail } from '../media-detail/media-detail';
 import { MediaGrid } from './media-grid';
 import {
   MediaSelectionProvider,
