@@ -2,7 +2,7 @@
 
 import { Folder, RefreshCw, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { processScanResults } from '@/actions/admin/scan-directory';
+import { processScanResults } from '@/actions/admin/process-directory';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';

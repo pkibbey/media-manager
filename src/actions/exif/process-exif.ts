@@ -1,10 +1,49 @@
 'use server';
 
-import ExifReader from 'exifreader';
-import sharp from 'sharp';
+import { ExifTool } from 'exiftool-vendored';
 import { v4 } from 'uuid';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaWithExif } from '@/types/media-types';
+
+const exiftool = new ExifTool();
+
+function setMediaAsExifProcessed(mediaId: string) {
+  const supabase = createSupabase();
+
+  return supabase
+    .from('media')
+    .update({ exif_processed: true })
+    .eq('id', mediaId);
+}
+
+type ExifData = {
+  id: string;
+  aperture: number | null;
+  camera_make: string | null;
+  camera_model: string | null;
+  created_date: string | undefined;
+  digital_zoom_ratio: number | null;
+  exif_timestamp: string | null;
+  exposure_time: string | null;
+  focal_length_35mm: number | null;
+  gps_latitude: number | null;
+  gps_longitude: number | null;
+  height: number;
+  iso: number | null;
+  light_source: string | null;
+  media_id: string;
+  metering_mode: string | null;
+  orientation: number | null;
+  scene_capture_type: string | null;
+  subject_distance: number | null;
+  width: number;
+  lens_id: string | null;
+  lens_spec: string | null;
+  depth_of_field: string | null;
+  field_of_view: string | null;
+  flash: string | null;
+};
+
 /**
  * Process EXIF data for a media item
  *
@@ -14,22 +53,15 @@ import type { MediaWithExif } from '@/types/media-types';
 export async function processExif(mediaItem: MediaWithExif) {
   try {
     const supabase = createSupabase();
-
-    // Use Sharp for fast metadata extraction
-    const image = sharp(mediaItem.media_path, {
-      failOnError: false, // Skip corrupt images gracefully
-      sequentialRead: true, // Better for streaming large files,
-      autoOrient: true, // Automatically orient the photo
-    });
+    let exifData: ExifData | null = null;
 
     try {
-      // Extract metadata without decoding compressed pixel data
-      const metadata = await image.metadata();
+      const exif = await exiftool.read(mediaItem.media_path);
 
-      if (!metadata.exif) {
+      if (!exif) {
         console.log(`No EXIF data found for ${mediaItem.id}`);
 
-        const { error } = await setMediaAsProcessed(mediaItem.id);
+        const { error } = await setMediaAsExifProcessed(mediaItem.id);
 
         if (error) {
           return {
@@ -44,54 +76,47 @@ export async function processExif(mediaItem: MediaWithExif) {
         };
       }
 
-      const tags = ExifReader.load(metadata.exif);
-      console.log(
-        `EXIF tags found for ${mediaItem.id}: ${Object.keys(tags).length} tags`,
-      );
+      // Add mimetype to the file_types table
+      // Update mimetype of the media item
 
       // Extract useful EXIF data into a structured format
-      const exifData = {
+      exifData = {
         id: v4(),
+        aperture: exif.FNumber || null,
+        camera_make: exif.Make || null,
+        camera_model: exif.Model || null,
+        created_date: String(exif.DateTimeOriginal) || undefined,
+        digital_zoom_ratio: exif.DigitalZoomRatio
+          ? Number.parseFloat(exif.DigitalZoomRatio.toString())
+          : null,
+        exif_timestamp: String(exif.CreateDate) || null,
+        exposure_time: exif.ExposureTime || null,
+        focal_length_35mm: exif.FocalLengthIn35mmFormat
+          ? Number.parseFloat(exif.FocalLengthIn35mmFormat.toString())
+          : null,
+        gps_latitude: exif.GPSLatitude
+          ? Number.parseFloat(exif.GPSLatitude.toString())
+          : null,
+        gps_longitude: exif.GPSLongitude
+          ? Number.parseFloat(exif.GPSLongitude.toString())
+          : null,
+        height: exif.ImageHeight || 0,
+        iso: exif.ISO ? Number.parseInt(exif.ISO.toString(), 10) : null,
+        light_source: exif.LightSource || null,
         media_id: mediaItem.id,
-        date_taken: tags.DateTime?.description,
-        camera_make: tags.Make?.description,
-        camera_model: tags.Model?.description,
-        iso: Number.parseInt(tags.ISO?.description || '0', 10),
-        focal_length: tags.FocalLength?.description,
-        aperture: Number.parseInt(tags.FNumber?.description || '0', 10),
-        exposure_time: Number.parseFloat(tags.ExposureTime?.description || '0'),
-        gps_latitude: Number.parseFloat(tags.GPSLatitude?.description || '0'),
-        gps_longitude: Number.parseFloat(tags.GPSLongitude?.description || '0'),
-        raw_exif: JSON.stringify(tags),
-        processed_at: new Date().toISOString(),
-        height: metadata.height || 0,
-        width: metadata.width || 0,
+        metering_mode: exif.MeteringMode || null,
+        orientation: exif.Orientation || null,
+        scene_capture_type: exif.SceneCaptureType || null,
+        subject_distance: exif.SubjectDistance
+          ? Number.parseFloat(exif.SubjectDistance.toString())
+          : null,
+        width: exif.ImageWidth || 0,
+        lens_id: exif.LensID || null,
+        lens_spec: exif.LensSpec || null,
+        depth_of_field: exif.DOF || null,
+        field_of_view: exif.FOV || null,
+        flash: exif.Flash || null,
       };
-
-      // Store the normalized EXIF data
-      const { error: insertError } = await supabase
-        .from('exif_data')
-        .upsert(exifData, {
-          onConflict: 'media_id', // Correctly specify the column to match for conflict resolution
-        });
-
-      if (insertError) {
-        throw new Error(`Failed to insert EXIF data: ${insertError.message}`);
-      }
-
-      // Update the media item to mark it as processed
-      const { error: updateError } = await supabase
-        .from('media')
-        .update({ exif_processed: true })
-        .eq('id', mediaItem.id);
-
-      if (updateError) {
-        throw new Error(
-          `Failed to update media status: ${updateError.message}`,
-        );
-      }
-
-      return { success: true };
     } catch (processingError) {
       console.error(
         `Error processing EXIF for media ${mediaItem.id}:`,
@@ -105,6 +130,30 @@ export async function processExif(mediaItem: MediaWithExif) {
             : 'Unknown processing error',
       };
     }
+
+    console.log('exifData: ', exifData);
+
+    // Store the normalized EXIF data
+    const { error: insertError } = await supabase
+      .from('exif_data')
+      .upsert(exifData, {
+        onConflict: 'media_id', // Correctly specify the column to match for conflict resolution
+      });
+
+    if (insertError) {
+      console.log('insertError: ', insertError);
+      throw new Error(`Failed to insert EXIF data: ${insertError.message}`);
+    }
+
+    // Update the media item to mark it as processed
+    const { error: updateError } = await setMediaAsExifProcessed(mediaItem.id);
+
+    if (updateError) {
+      console.log('updateError: ', updateError);
+      throw new Error(`Failed to update media status: ${updateError.message}`);
+    }
+
+    return { success: true };
   } catch (error) {
     console.error('Error processing EXIF:', error);
     return {
@@ -112,62 +161,4 @@ export async function processExif(mediaItem: MediaWithExif) {
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
-}
-
-/**
- * Process EXIF data for multiple media items in batch
- *
- * @param limit - Maximum number of items to process
- * @returns Object with count of processed items and any errors
- */
-export async function processBatchExif(limit = 10) {
-  try {
-    const supabase = createSupabase();
-
-    // Find media items that need EXIF processing
-    const { data: mediaItems, error: findError } = await supabase
-      .from('media')
-      .select('*, exif_data(*)')
-      .is('exif_processed', false)
-      .limit(limit);
-
-    if (findError) {
-      throw new Error(`Failed to find unprocessed items: ${findError.message}`);
-    }
-
-    if (!mediaItems || mediaItems.length === 0) {
-      return { success: true, processed: 0, message: 'No items to process' };
-    }
-
-    // Process each item
-    const results = await Promise.allSettled(mediaItems.map(processExif));
-
-    const succeeded = results.filter(
-      (r) => r.status === 'fulfilled' && r.value.success,
-    ).length;
-    const failed = results.length - succeeded;
-
-    return {
-      success: true,
-      processed: succeeded,
-      failed,
-      total: results.length,
-    };
-  } catch (error) {
-    console.error('Error in batch EXIF processing:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      processed: 0,
-    };
-  }
-}
-
-function setMediaAsProcessed(mediaId: string) {
-  const supabase = createSupabase();
-
-  return supabase
-    .from('media')
-    .update({ exif_processed: true })
-    .eq('id', mediaId);
 }

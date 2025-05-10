@@ -4,7 +4,7 @@ import { FileImage, RefreshCw, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import deleteExifData from '@/actions/exif/delete-exif-data';
 import { getExifStats } from '@/actions/exif/get-exif-stats';
-import { processBatchExif } from '@/actions/exif/process-exif';
+import { processBatchExif } from '@/actions/exif/process-batch-exif';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
 import StatsCard from '@/components/admin/stats-card';
