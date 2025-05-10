@@ -14,8 +14,8 @@ const navItems = [
   { name: 'Media Scan', href: '/admin/scan' },
   { name: 'File Types', href: '/admin/file-types' },
   { name: 'EXIF Processing', href: '/admin/exif' },
-  { name: 'Analysis', href: '/admin/analysis' },
   { name: 'Thumbnails', href: '/admin/thumbnails' },
+  { name: 'Analysis', href: '/admin/analysis' },
   { name: 'Settings', href: '/admin/settings' },
 ];
 

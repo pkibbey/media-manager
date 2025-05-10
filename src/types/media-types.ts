@@ -34,7 +34,7 @@ export type MediaWithRelations = Media & {
   media_types: Tables<'media_types'> | null;
   exif_data: Tables<'exif_data'> | null;
   thumbnails: Tables<'thumbnails'> | null;
-  analysis_results: Tables<'analysis_results'> | null;
+  analysis_data: Tables<'analysis_data'> | null;
 };
 
 export type MediaWithExif = Media & {

@@ -30,6 +30,7 @@ export async function getAnalysisStats(): Promise<{
       .from('media')
       .select('*', { count: 'exact', head: true });
 
+    console.log('totalCount: ', totalCount);
     if (totalError) {
       throw new Error(`Failed to get total count: ${totalError.message}`);
     }
@@ -38,7 +39,9 @@ export async function getAnalysisStats(): Promise<{
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
       .select('*', { count: 'exact', head: true })
-      .eq('is_analyzed', true);
+      .eq('is_analysis_processed', true);
+
+    console.log('processedCount: ', processedCount);
 
     if (processedError) {
       throw new Error(
@@ -46,9 +49,9 @@ export async function getAnalysisStats(): Promise<{
       );
     }
 
-    // Get aggregated stats from analysis_results
-    const { data: analysisResults, error: analysisError } = await supabase
-      .from('analysis_results')
+    // Get aggregated stats from analysis_data
+    const { data: analysisData, error: analysisError } = await supabase
+      .from('analysis_data')
       .select('objects, scene_types, tags, colors');
 
     if (analysisError) {
@@ -57,7 +60,7 @@ export async function getAnalysisStats(): Promise<{
       );
     }
 
-    console.log('analysisResults: ', analysisResults);
+    console.log('analysisData: ', analysisData);
 
     // Calculate object counts
     const objectCounts: Record<string, number> = {};
@@ -65,7 +68,7 @@ export async function getAnalysisStats(): Promise<{
     const settings: Record<string, number> = {};
     const colors: Record<string, number> = {};
 
-    // analysisResults?.forEach((result) => {
+    // analysisData?.forEach((result) => {
     //   // Count objects
     //   result.objects?.forEach((obj: { name: string }) => {
     //     objectCounts[obj.name] = (objectCounts[obj.name] || 0) + 1;

@@ -34,7 +34,7 @@ export type Database = {
   };
   public: {
     Tables: {
-      analysis_results: {
+      analysis_data: {
         Row: {
           colors: string[];
           created_date: string;
@@ -79,7 +79,7 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: 'analysis_results_file_id_fkey';
+            foreignKeyName: 'analysis_data_file_id_fkey';
             columns: ['media_id'];
             isOneToOne: true;
             referencedRelation: 'media';
@@ -182,9 +182,10 @@ export type Database = {
       media: {
         Row: {
           created_date: string;
-          exif_processed: boolean;
           id: string;
+          is_analysis_processed: boolean;
           is_deleted: boolean;
+          is_exif_processed: boolean;
           is_hidden: boolean;
           media_path: string;
           media_type_id: string;
@@ -192,9 +193,10 @@ export type Database = {
         };
         Insert: {
           created_date?: string;
-          exif_processed?: boolean;
           id: string;
+          is_analysis_processed?: boolean;
           is_deleted?: boolean;
+          is_exif_processed?: boolean;
           is_hidden?: boolean;
           media_path: string;
           media_type_id: string;
@@ -202,9 +204,10 @@ export type Database = {
         };
         Update: {
           created_date?: string;
-          exif_processed?: boolean;
           id?: string;
+          is_analysis_processed?: boolean;
           is_deleted?: boolean;
+          is_exif_processed?: boolean;
           is_hidden?: boolean;
           media_path?: string;
           media_type_id?: string;

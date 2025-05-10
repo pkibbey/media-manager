@@ -58,7 +58,7 @@ export async function processAnalysis(mediaId: string) {
 
       // Store the analysis results
       const { error: insertError } = await supabase
-        .from('analysis_results')
+        .from('analysis_data')
         .upsert(
           {
             id: crypto.randomUUID(),
@@ -120,7 +120,7 @@ export async function processBatchAnalysis(limit = 10) {
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
       .select('id')
-      .eq('is_analyzed', false)
+      .eq('is_analysis_processed', false)
       .limit(limit);
 
     if (findError) {

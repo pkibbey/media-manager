@@ -17,7 +17,7 @@ export async function processBatchExif(limit = 10) {
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
       .select('*, exif_data(*)')
-      .is('exif_processed', false)
+      .is('is_exif_processed', false)
       .limit(limit);
 
     if (findError) {

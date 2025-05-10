@@ -2,11 +2,11 @@
 
 import { createSupabase } from '@/lib/supabase';
 
-export default async function deleteExifData() {
+export default async function deleteAnalysisData() {
   const supabase = createSupabase();
-  await supabase.from('exif_data').delete().not('id', 'is', null);
+  await supabase.from('analysis_data').delete().not('id', 'is', null);
   return await supabase
     .from('media')
-    .update({ is_exif_processed: false })
+    .update({ is_analysis_processed: false })
     .not('id', 'is', null);
 }

@@ -14,7 +14,7 @@ export async function getExifStats() {
     // Get the total count of all media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select('exif_processed', { count: 'exact', head: true });
+      .select('is_exif_processed', { count: 'exact', head: true });
 
     if (totalError) {
       throw new Error(`Failed to get total count: ${totalError.message}`);
@@ -23,8 +23,8 @@ export async function getExifStats() {
     // Get count of items with EXIF data
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
-      .select('exif_processed', { count: 'exact', head: true })
-      .is('exif_processed', true);
+      .select('is_exif_processed', { count: 'exact', head: true })
+      .is('is_exif_processed', true);
 
     if (processedError) {
       throw new Error(

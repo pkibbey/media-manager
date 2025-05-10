@@ -154,7 +154,7 @@ export default function AdminOverviewPage() {
           <TabsContent value="analysis" className="space-y-4 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Analysis Results</CardTitle>
+                <CardTitle>Analysis Data</CardTitle>
                 <CardDescription>Data from AI image analysis</CardDescription>
               </CardHeader>
               <CardContent>

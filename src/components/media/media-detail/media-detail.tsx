@@ -96,7 +96,7 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
                   EXIF
                 </TabsTrigger>
               )}
-              {media.analysis_results && (
+              {media.analysis_data && (
                 <TabsTrigger value="analysis" className="flex-1">
                   Analysis
                 </TabsTrigger>
@@ -176,32 +176,32 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
             )}
 
             {/* Analysis Information */}
-            {media.analysis_results && (
+            {media.analysis_data && (
               <TabsContent value="analysis" className="p-4">
                 <div className="space-y-4">
-                  {media.analysis_results.image_description && (
+                  {media.analysis_data.image_description && (
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground">
                         Description
                       </h3>
                       <p className="mt-1">
-                        {media.analysis_results.image_description}
+                        {media.analysis_data.image_description}
                       </p>
                     </div>
                   )}
 
-                  {media.analysis_results.image_description &&
-                    media.analysis_results.tags &&
-                    media.analysis_results.tags.length > 0 && <Separator />}
+                  {media.analysis_data.image_description &&
+                    media.analysis_data.tags &&
+                    media.analysis_data.tags.length > 0 && <Separator />}
 
-                  {media.analysis_results.tags &&
-                    media.analysis_results.tags.length > 0 && (
+                  {media.analysis_data.tags &&
+                    media.analysis_data.tags.length > 0 && (
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground">
                           Tags
                         </h3>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {media.analysis_results.tags.map((tag) => (
+                          {media.analysis_data.tags.map((tag) => (
                             <Badge
                               key={tag}
                               variant="secondary"

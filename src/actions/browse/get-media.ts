@@ -28,7 +28,7 @@ export async function getMedia(
       media_types(*),
       thumbnails(*),
       exif_data(*),
-      analysis_results(*)
+      analysis_data(*)
     `,
       { count: 'exact' },
     )
@@ -101,9 +101,9 @@ export async function getMedia(
   if (filters.hasAnalysis !== 'all') {
     const hasAnalysis = filters.hasAnalysis === 'yes';
     if (hasAnalysis) {
-      query = query.not('analysis_results', 'is', null);
+      query = query.not('analysis_data', 'is', null);
     } else {
-      query = query.is('analysis_results', null);
+      query = query.is('analysis_data', null);
     }
   }
 

@@ -12,7 +12,7 @@ function setMediaAsExifProcessed(mediaId: string) {
 
   return supabase
     .from('media')
-    .update({ exif_processed: true })
+    .update({ is_exif_processed: true })
     .eq('id', mediaId);
 }
 
