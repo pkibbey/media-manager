@@ -79,7 +79,7 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: 'analysis_data_file_id_fkey';
+            foreignKeyName: 'analysis_results_file_id_fkey';
             columns: ['media_id'];
             isOneToOne: true;
             referencedRelation: 'media';
@@ -187,6 +187,7 @@ export type Database = {
           is_deleted: boolean;
           is_exif_processed: boolean;
           is_hidden: boolean;
+          is_thumbnail_processed: boolean;
           media_path: string;
           media_type_id: string;
           size_bytes: number;
@@ -198,6 +199,7 @@ export type Database = {
           is_deleted?: boolean;
           is_exif_processed?: boolean;
           is_hidden?: boolean;
+          is_thumbnail_processed?: boolean;
           media_path: string;
           media_type_id: string;
           size_bytes: number;
@@ -209,6 +211,7 @@ export type Database = {
           is_deleted?: boolean;
           is_exif_processed?: boolean;
           is_hidden?: boolean;
+          is_thumbnail_processed?: boolean;
           media_path?: string;
           media_type_id?: string;
           size_bytes?: number;
@@ -253,7 +256,7 @@ export type Database = {
         };
         Relationships: [];
       };
-      thumbnails: {
+      thumbnail_data: {
         Row: {
           created_date: string;
           id: string;

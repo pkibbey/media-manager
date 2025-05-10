@@ -1,10 +1,10 @@
 'use client';
 
-import { FileImage, RefreshCw, Settings } from 'lucide-react';
+import { Image, RefreshCw, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import deleteExifData from '@/actions/exif/delete-exif-data';
-import { getExifStats } from '@/actions/exif/get-exif-stats';
-import { processBatchExif } from '@/actions/exif/process-batch-exif';
+import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
+import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
+import { processBatchThumbnails } from '@/actions/thumbnails/process-thumbnails';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
 import StatsCard from '@/components/admin/stats-card';
@@ -23,27 +23,39 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
 
-export default function ExifAdminPage() {
-  const [exifStats, setExifStats] = useState<any>(null);
+interface ThumbnailStatsType {
+  total: number;
+  processed: number;
+  remaining: number;
+  percentComplete: number;
+  sizeSavings: number;
+  avgWidth: number;
+  avgHeight: number;
+  totalSize: number;
+}
+
+export default function ThumbnailAdminPage() {
+  const [thumbnailStats, setThumbnailStats] =
+    useState<ThumbnailStatsType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch EXIF stats on page load
+  // Fetch thumbnail stats on page load
   useEffect(() => {
     const fetchStats = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const response = await getExifStats();
+        const response = await getThumbnailStats();
 
         if (response.stats) {
-          setExifStats(response.stats);
+          setThumbnailStats(response.stats);
         } else if (response.error) {
           setError(response.error);
         }
       } catch (e) {
-        setError('Failed to load EXIF statistics');
+        setError('Failed to load thumbnail statistics');
         console.error(e);
       } finally {
         setIsLoading(false);
@@ -56,10 +68,10 @@ export default function ExifAdminPage() {
   // Action for refreshing stats
   const refreshStats = async () => {
     try {
-      const response = await getExifStats();
+      const response = await getThumbnailStats();
 
       if (response.stats) {
-        setExifStats(response.stats);
+        setThumbnailStats(response.stats);
       } else if (response.error) {
         setError(response.error);
       }
@@ -71,27 +83,27 @@ export default function ExifAdminPage() {
 
   // Original refreshStats for action button use
   const refreshStatsWithResult = async () => {
-    const response = await getExifStats();
+    const response = await getThumbnailStats();
 
     if (response.stats) {
-      setExifStats(response.stats);
+      setThumbnailStats(response.stats);
       return { success: true };
     }
 
     return { success: false, error: response.error };
   };
 
-  const resetExifData = async () => {
-    const { error, count } = await deleteExifData();
+  const resetThumbnailData = async () => {
+    const { error, count } = await deleteThumbnailData();
 
     if (error) {
-      console.error('Error resetting EXIF data:', error);
-      return { success: false, error: error.message };
+      console.error('Error resetting thumbnail data:', error);
+      return { success: false, error: String(error) };
     }
+
     if (count) {
-      setExifStats((prev: any) => ({
+      setThumbnailStats((prev: any) => ({
         ...prev,
-        total: prev.total - count,
         processed: prev.processed - count,
         remaining: prev.remaining + count,
       }));
@@ -100,10 +112,10 @@ export default function ExifAdminPage() {
     // Refresh stats after resetting
     await refreshStats();
 
-    return { success: true, error: `Reset ${count} EXIF data items` };
+    return { success: true, message: `Reset ${count} thumbnails` };
   };
 
-  // Use the new continuous processing hook
+  // Use the continuous processing hook
   const {
     batchSize,
     setBatchSize,
@@ -112,8 +124,8 @@ export default function ExifAdminPage() {
     processAllRemaining,
     stopProcessing,
   } = useContinuousProcessing({
-    processBatchFn: processBatchExif,
-    hasRemainingItemsFn: () => (exifStats?.remaining || 0) > 0,
+    processBatchFn: processBatchThumbnails,
+    hasRemainingItemsFn: () => (thumbnailStats?.remaining || 0) > 0,
     onBatchComplete: refreshStats,
   });
 
@@ -123,10 +135,21 @@ export default function ExifAdminPage() {
     return {
       success: result.success,
       message: result.data?.processed
-        ? `Processed ${result.data.processed} items`
+        ? `Generated ${result.data.processed} thumbnails`
         : result.message,
       error: result.error,
     };
+  };
+
+  // Format file size to readable string
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
   };
 
   return (
@@ -134,9 +157,9 @@ export default function ExifAdminPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold">EXIF Data Processing</h2>
+            <h2 className="text-2xl font-bold">Thumbnail Management</h2>
             <p className="text-muted-foreground">
-              Extract and manage image metadata from media files
+              Create and manage optimized thumbnails for media files
             </p>
           </div>
           <ActionButton
@@ -158,11 +181,11 @@ export default function ExifAdminPage() {
         )}
 
         <StatsCard
-          title="EXIF Processing Status"
-          total={exifStats?.total || 0}
-          processed={exifStats?.processed || 0}
+          title="Thumbnail Processing Status"
+          total={thumbnailStats?.total || 0}
+          processed={thumbnailStats?.processed || 0}
           isLoading={isLoading}
-          icon={<FileImage className="h-4 w-4" />}
+          icon={<Image className="h-4 w-4" />}
           className="w-full"
         />
 
@@ -176,22 +199,44 @@ export default function ExifAdminPage() {
           <TabsContent value="overview" className="space-y-4 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>EXIF Data Overview</CardTitle>
+                <CardTitle>Thumbnail Overview</CardTitle>
                 <CardDescription>
-                  Details about EXIF data extraction process
+                  Details about the thumbnail generation process
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {exifStats ? (
+                {thumbnailStats ? (
                   <div className="space-y-4">
                     <div>
                       <h3 className="font-medium mb-2">Processing Status</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="space-y-2">
-                          <div>Total Media Items: {exifStats.total}</div>
-                          <div>Processed Items: {exifStats.processed}</div>
-                          <div>Remaining Items: {exifStats.remaining}</div>
-                          <div>Completion: {exifStats.percentComplete}%</div>
+                          <div>Total Media Items: {thumbnailStats.total}</div>
+                          <div>
+                            Items with Thumbnails: {thumbnailStats.processed}
+                          </div>
+                          <div>Remaining Items: {thumbnailStats.remaining}</div>
+                          <div>
+                            Completion: {thumbnailStats.percentComplete}%
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div>
+                            Average Thumbnail Width:{' '}
+                            {thumbnailStats.avgWidth?.toFixed(0) || 0}px
+                          </div>
+                          <div>
+                            Average Thumbnail Height:{' '}
+                            {thumbnailStats.avgHeight?.toFixed(0) || 0}px
+                          </div>
+                          <div>
+                            Total Storage Used:{' '}
+                            {formatFileSize(thumbnailStats.totalSize || 0)}
+                          </div>
+                          <div>
+                            Storage Saved:{' '}
+                            {formatFileSize(thumbnailStats.sizeSavings || 0)}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -200,22 +245,22 @@ export default function ExifAdminPage() {
 
                     <div>
                       <h3 className="font-medium mb-2">
-                        About EXIF Processing
+                        About Thumbnail Processing
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        EXIF data provides valuable information about images,
-                        including camera settings, timestamps, GPS coordinates,
-                        and other technical details. The system extracts this
-                        metadata to enhance searchability and organization of
-                        your media collection.
+                        Thumbnails provide optimized preview images for media
+                        files, enhancing browsing performance while maintaining
+                        visual quality. The system generates consistent
+                        thumbnails for both images and videos using Sharp and
+                        ffmpeg.
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div className="text-muted-foreground">
                     {isLoading
-                      ? 'Loading EXIF data...'
-                      : 'No EXIF data available'}
+                      ? 'Loading thumbnail data...'
+                      : 'No thumbnail data available'}
                   </div>
                 )}
               </CardContent>
@@ -225,9 +270,9 @@ export default function ExifAdminPage() {
           <TabsContent value="processing" className="space-y-4 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Process EXIF Data</CardTitle>
+                <CardTitle>Generate Thumbnails</CardTitle>
                 <CardDescription>
-                  Extract metadata from unprocessed media files
+                  Create thumbnails for unprocessed media files
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -246,21 +291,21 @@ export default function ExifAdminPage() {
                       className="max-w-[120px]"
                     />
                     <span className="text-sm text-muted-foreground">
-                      Number of items to process in a single batch
+                      Number of thumbnails to generate in a single batch
                     </span>
                   </div>
                 </div>
 
-                {exifStats?.remaining === 0 ? (
+                {thumbnailStats?.remaining === 0 ? (
                   <Alert>
                     <AlertTitle>No items to process</AlertTitle>
                     <AlertDescription>
-                      All media items have been processed for EXIF data.
+                      All media items have thumbnails generated.
                     </AlertDescription>
                   </Alert>
                 ) : (
                   <div className="text-sm text-muted-foreground">
-                    {exifStats?.remaining} items remaining to be processed
+                    {thumbnailStats?.remaining} items remaining to be processed
                   </div>
                 )}
               </CardContent>
@@ -268,10 +313,10 @@ export default function ExifAdminPage() {
                 <ActionButton
                   action={processBatch}
                   disabled={
-                    exifStats?.remaining === 0 || isContinuousProcessing
+                    thumbnailStats?.remaining === 0 || isContinuousProcessing
                   }
-                  loadingMessage="Processing EXIF data..."
-                  successMessage="EXIF data processed successfully"
+                  loadingMessage="Generating thumbnails..."
+                  successMessage="Thumbnails generated successfully"
                 >
                   Process Batch
                 </ActionButton>
@@ -298,7 +343,7 @@ export default function ExifAdminPage() {
                         message: result.message,
                       };
                     }}
-                    disabled={exifStats?.remaining === 0}
+                    disabled={thumbnailStats?.remaining === 0}
                     loadingMessage="Processing all items..."
                     successMessage="All items processed successfully"
                     variant="secondary"
@@ -307,13 +352,13 @@ export default function ExifAdminPage() {
                   </ActionButton>
                 )}
                 <ActionButton
-                  action={resetExifData}
+                  action={resetThumbnailData}
                   variant="destructive"
                   disabled={isContinuousProcessing}
-                  loadingMessage="Resetting EXIF data..."
-                  successMessage="EXIF data reset successfully"
+                  loadingMessage="Resetting thumbnail data..."
+                  successMessage="Thumbnail data reset successfully"
                 >
-                  Reset Exif Data
+                  Reset All Thumbnails
                 </ActionButton>
               </CardFooter>
             </Card>
@@ -322,25 +367,29 @@ export default function ExifAdminPage() {
               <CardHeader>
                 <CardTitle>Processing Information</CardTitle>
                 <CardDescription>
-                  How EXIF data extraction works
+                  How thumbnail generation works
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <p>
-                    EXIF data extraction uses the <code>sharp</code> library to
-                    efficiently extract metadata without decoding the full
-                    image. The system:
+                    Thumbnail generation uses the <code>sharp</code> library for
+                    images and <code>fluent-ffmpeg</code> for videos. The
+                    system:
                   </p>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li>Identifies unprocessed media items</li>
-                    <li>Extracts raw EXIF data using Sharp and ExifReader</li>
+                    <li>Identifies media items without thumbnails</li>
                     <li>
-                      Normalizes timestamps, GPS coordinates, and technical
-                      values
+                      Creates optimized Jpeg thumbnails with consistent
+                      dimensions
+                    </li>
+                    <li>For videos, extracts representative frames</li>
+                    <li>
+                      Stores thumbnails in Supabase Storage with optimized
+                      settings
                     </li>
                     <li>
-                      Stores structured data for searching and organization
+                      Updates the database with thumbnail URLs and metadata
                     </li>
                   </ul>
                 </div>
@@ -351,9 +400,9 @@ export default function ExifAdminPage() {
           <TabsContent value="settings" className="space-y-4 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>EXIF Processing Settings</CardTitle>
+                <CardTitle>Thumbnail Settings</CardTitle>
                 <CardDescription>
-                  Configure EXIF data extraction options
+                  Configure thumbnail generation options
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -362,9 +411,9 @@ export default function ExifAdminPage() {
                     <Settings className="h-8 w-8 text-muted-foreground" />
                     <h4 className="text-sm font-medium">Advanced Settings</h4>
                     <p className="text-sm text-muted-foreground max-w-md">
-                      EXIF processing settings will be available in a future
-                      update. This will include options for location processing,
-                      timestamp correction, and specific metadata handling.
+                      Thumbnail settings will be available in a future update.
+                      This will include options for thumbnail sizes, quality
+                      settings, and format options.
                     </p>
                   </div>
                 </div>

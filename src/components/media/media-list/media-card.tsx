@@ -41,16 +41,16 @@ export function MediaCard({ media }: MediaCardProps) {
     >
       {/* Thumbnail image */}
       <div className="aspect-square overflow-hidden bg-muted relative">
-        {media.thumbnails.length ? (
+        {media.thumbnail_data ? (
           <Image
-            src={media.thumbnails[0].thumbnail_url}
+            src={media.thumbnail_data.thumbnail_url}
             alt={fileName}
             className="w-full h-full object-cover"
             loading="lazy"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            {media.media_type.type_name.toUpperCase()}
+            {media.media_types?.type_name.toUpperCase() || 'No Preview'}
           </div>
         )}
 
@@ -65,7 +65,7 @@ export function MediaCard({ media }: MediaCardProps) {
         <div className="text-sm font-medium truncate w-full">{fileName}</div>
         <div className="flex items-center gap-2 mt-1">
           <Badge variant="outline" className="text-xs">
-            {media.media_type.type_name}
+            {media.media_types?.type_name || 'Unknown'}
           </Badge>
           <span className="text-xs text-muted-foreground">
             {formatBytes(media.size_bytes)}

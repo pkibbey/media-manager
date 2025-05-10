@@ -33,7 +33,7 @@ export type MediaResponse = Promise<PostgrestResponse<Media>>;
 export type MediaWithRelations = Media & {
   media_types: Tables<'media_types'> | null;
   exif_data: Tables<'exif_data'> | null;
-  thumbnails: Tables<'thumbnails'> | null;
+  thumbnail_data: Tables<'thumbnail_data'> | null;
   analysis_data: Tables<'analysis_data'> | null;
 };
 

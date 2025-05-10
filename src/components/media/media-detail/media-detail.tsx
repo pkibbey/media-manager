@@ -75,10 +75,10 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
         /* Single file detailed view */
         <div className="flex-1 overflow-auto">
           {/* Preview */}
-          {media.thumbnails && (
+          {media.thumbnail_data && (
             <div className="p-4 border-b">
               <Image
-                src={media.thumbnails.thumbnail_url}
+                src={media.thumbnail_data.thumbnail_url}
                 alt={fileName}
                 className="max-h-[300px] w-full object-contain"
               />

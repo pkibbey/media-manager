@@ -416,7 +416,7 @@ export default function AnalysisAdminPage() {
                       return { success: result.success, error: result.error };
                     }}
                     variant="destructive"
-                    loadingMessage="Stopping..."
+                    loadingMessage="Processing..."
                     successMessage="Processing stopped"
                   >
                     Stop Processing
