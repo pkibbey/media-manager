@@ -1,10 +1,37 @@
 'use server';
 
-import { readFileSync } from 'node:fs';
 import ollama from 'ollama';
+import { v4 } from 'uuid';
+import zodToJsonSchema from 'zod-to-json-schema';
 import { VISION_MODEL } from '@/lib/consts';
 import { createSupabase } from '@/lib/supabase';
 import { ImageDescriptionSchema } from '@/types/analysis';
+
+/**
+ * Mark a media item as having its thumbnail processed
+ *
+ * @param mediaId - The ID of the media item to mark
+ * @param thumbnailUrl - Optional URL to the generated thumbnail
+ * @returns Object with success or error information
+ */
+async function setMediaAsAnalysisProcessed(mediaId: string) {
+  const supabase = createSupabase();
+
+  const { error } = await supabase
+    .from('media')
+    .update({ is_analysis_processed: true })
+    .eq('id', mediaId);
+
+  if (error) {
+    console.error(
+      `Error marking media ${mediaId} as analysis processed:`,
+      error,
+    );
+    return { success: false, error };
+  }
+
+  return { success: true };
+}
 
 /**
  * Process AI analysis for a single media item
@@ -19,8 +46,9 @@ export async function processAnalysis(mediaId: string) {
     // Get the media item
     const { data: mediaItem, error: mediaError } = await supabase
       .from('media')
-      .select('*')
+      .select('*, thumbnail_data(*)')
       .eq('id', mediaId)
+      .is('is_thumbnail_processed', true) // Ensure thumbnail is processed
       .single();
 
     if (mediaError || !mediaItem) {
@@ -29,48 +57,69 @@ export async function processAnalysis(mediaId: string) {
       );
     }
 
+    if (!mediaItem.thumbnail_data?.thumbnail_url) {
+      throw new Error('Thumbnail URL is missing in media item');
+    }
+
     try {
-      // Read the image file
-      const imageBuffer = readFileSync(mediaItem.media_path);
-      const base64Image = imageBuffer.toString('base64');
+      // Fetch the image from the URL
+      const imageResponse = await fetch(mediaItem.thumbnail_data.thumbnail_url);
+      if (!imageResponse.ok) {
+        throw new Error(
+          `Failed to fetch thumbnail: ${imageResponse.statusText}`,
+        );
+      }
+
+      // Convert the image to base64
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+
+      // Convert the Zod schema to JSON Schema format
+      const jsonSchema = zodToJsonSchema(ImageDescriptionSchema);
+
+      const messages = [
+        {
+          role: 'user',
+          content:
+            'Analyze this image and return a detailed JSON description including objects, scene, colors and any text detected. If you cannot determine certain details, leave those fields empty.',
+          images: [base64Image],
+        },
+      ];
+
+      const startTime = performance.now();
 
       // Call Ollama for analysis
       const response = await ollama.chat({
         model: VISION_MODEL,
-        messages: [
-          {
-            role: 'user',
-            content:
-              'Analyze this image and return a detailed JSON description including objects, scene, colors and any text detected. If you cannot determine certain details, leave those fields empty.',
-            images: [base64Image],
-          },
-        ],
-        format: 'json',
+        messages,
+        format: jsonSchema,
         options: {
           temperature: 0,
         },
       });
 
-      // Parse and validate the response
+      // Parse and validate the response from Ollama
       const analysisResult = ImageDescriptionSchema.parse(
         JSON.parse(response.message.content),
       );
+
+      const endTime = performance.now();
+      const processingTimeInSeconds = Math.round((endTime - startTime) / 1000);
+      console.log(
+        `Analysis processing time for ${VISION_MODEL}: ${processingTimeInSeconds} seconds`,
+      );
+
+      console.log('analysisResult: ', analysisResult);
 
       // Store the analysis results
       const { error: insertError } = await supabase
         .from('analysis_data')
         .upsert(
           {
-            id: crypto.randomUUID(),
+            id: v4(),
             media_id: mediaId,
-            image_description: analysisResult.summary,
-            objects: analysisResult.objects,
-            scene_types: [analysisResult.scene],
-            colors: analysisResult.colors,
-            tags: [analysisResult.time_of_day, analysisResult.setting],
-            sentiment: 0,
-            quality_score: 0,
-            safety_level: 1,
+            created_date: new Date().toISOString(),
+            ...analysisResult,
           },
           {
             onConflict: 'media_id',
@@ -80,6 +129,17 @@ export async function processAnalysis(mediaId: string) {
       if (insertError) {
         throw new Error(
           `Failed to insert analysis data: ${insertError.message}`,
+        );
+      }
+
+      // Update the media item with the thumbnail URL
+      const { error: updateError } = await setMediaAsAnalysisProcessed(
+        mediaItem.id,
+      );
+
+      if (updateError) {
+        throw new Error(
+          `Failed to update media item with analysis processed: ${updateError.message}`,
         );
       }
 

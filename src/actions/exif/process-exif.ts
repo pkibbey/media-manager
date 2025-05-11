@@ -59,8 +59,6 @@ export async function processExif(mediaItem: MediaWithExif) {
       const exif = await exiftool.read(mediaItem.media_path);
 
       if (!exif) {
-        console.log(`No EXIF data found for ${mediaItem.id}`);
-
         const { error } = await setMediaAsExifProcessed(mediaItem.id);
 
         if (error) {
@@ -131,8 +129,6 @@ export async function processExif(mediaItem: MediaWithExif) {
       };
     }
 
-    console.log('exifData: ', exifData);
-
     // Store the normalized EXIF data
     const { error: insertError } = await supabase
       .from('exif_data')
@@ -141,7 +137,6 @@ export async function processExif(mediaItem: MediaWithExif) {
       });
 
     if (insertError) {
-      console.log('insertError: ', insertError);
       throw new Error(`Failed to insert EXIF data: ${insertError.message}`);
     }
 
@@ -149,7 +144,6 @@ export async function processExif(mediaItem: MediaWithExif) {
     const { error: updateError } = await setMediaAsExifProcessed(mediaItem.id);
 
     if (updateError) {
-      console.log('updateError: ', updateError);
       throw new Error(`Failed to update media status: ${updateError.message}`);
     }
 

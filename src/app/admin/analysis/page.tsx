@@ -28,10 +28,6 @@ interface AnalysisStatsType {
   processed: number;
   remaining: number;
   percentComplete: number;
-  objectCounts: Record<string, number>;
-  sceneTypes: Record<string, number>;
-  settings: Record<string, number>;
-  colors: Record<string, number>;
 }
 
 export default function AnalysisAdminPage() {
@@ -179,18 +175,6 @@ export default function AnalysisAdminPage() {
     onBatchComplete: handleBatchComplete,
   });
 
-  // Get most frequent items from object (sorted by frequency)
-  const getTopItems = (
-    items: Record<string, number>,
-    count = 5,
-  ): [string, number][] => {
-    if (!items) return [];
-
-    return Object.entries(items)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, count);
-  };
-
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -277,62 +261,6 @@ export default function AnalysisAdminPage() {
                 )}
               </CardContent>
             </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Most Detected Objects</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {analysisStats &&
-                  Object.keys(analysisStats.objectCounts).length > 0 ? (
-                    <ul className="space-y-1">
-                      {getTopItems(analysisStats.objectCounts).map(
-                        ([name, count]) => (
-                          <li key={name} className="flex justify-between">
-                            <span>{name}</span>
-                            <span className="text-muted-foreground">
-                              {count}
-                            </span>
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  ) : (
-                    <div className="text-muted-foreground">
-                      No object detection data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Common Scene Types</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {analysisStats &&
-                  Object.keys(analysisStats.sceneTypes).length > 0 ? (
-                    <ul className="space-y-1">
-                      {getTopItems(analysisStats.sceneTypes).map(
-                        ([scene, count]) => (
-                          <li key={scene} className="flex justify-between">
-                            <span>{scene}</span>
-                            <span className="text-muted-foreground">
-                              {count}
-                            </span>
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  ) : (
-                    <div className="text-muted-foreground">
-                      No scene classification data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
 
           <TabsContent value="processing" className="space-y-4 mt-4">
@@ -446,7 +374,7 @@ export default function AnalysisAdminPage() {
                   loadingMessage="Resetting analysis data..."
                   successMessage="Analysis data reset successfully"
                 >
-                  Reset Exif Data
+                  Reset Analysis Data
                 </ActionButton>
               </CardFooter>
             </Card>
@@ -467,28 +395,9 @@ export default function AnalysisAdminPage() {
                       Environment Distribution
                     </h3>
                     <div className="space-y-2">
-                      {analysisStats &&
-                      Object.keys(analysisStats.settings).length > 0 ? (
-                        <ul className="space-y-1">
-                          {Object.entries(analysisStats.settings).map(
-                            ([setting, count]) => (
-                              <li
-                                key={setting}
-                                className="flex justify-between"
-                              >
-                                <span>{setting}</span>
-                                <span className="text-muted-foreground">
-                                  {count}
-                                </span>
-                              </li>
-                            ),
-                          )}
-                        </ul>
-                      ) : (
-                        <div className="text-muted-foreground">
-                          No setting data available
-                        </div>
-                      )}
+                      <div className="text-muted-foreground">
+                        No setting data available
+                      </div>
                     </div>
                   </div>
 
@@ -497,37 +406,9 @@ export default function AnalysisAdminPage() {
                   <div>
                     <h3 className="font-medium mb-2">Color Distribution</h3>
                     <div className="space-y-2">
-                      {analysisStats &&
-                      Object.keys(analysisStats.colors).length > 0 ? (
-                        <ul className="space-y-1">
-                          {getTopItems(analysisStats.colors, 8).map(
-                            ([color, count]) => (
-                              <li
-                                key={color}
-                                className="flex justify-between items-center"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className="w-4 h-4 rounded-full"
-                                    style={{
-                                      backgroundColor: color.toLowerCase(),
-                                      border: '1px solid #ccc',
-                                    }}
-                                  />
-                                  <span>{color}</span>
-                                </div>
-                                <span className="text-muted-foreground">
-                                  {count}
-                                </span>
-                              </li>
-                            ),
-                          )}
-                        </ul>
-                      ) : (
-                        <div className="text-muted-foreground">
-                          No color data available
-                        </div>
-                      )}
+                      <div className="text-muted-foreground">
+                        No color data available
+                      </div>
                     </div>
                   </div>
                 </div>

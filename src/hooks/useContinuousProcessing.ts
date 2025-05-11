@@ -45,11 +45,19 @@ interface ProcessingResult<T> {
   message?: string;
 }
 
-export default function useContinuousProcessing<T>({
+export default function useContinuousProcessing<
+  T = {
+    success: boolean;
+    processed: number;
+    failed: number;
+    total: number;
+    error?: string;
+  },
+>({
   processBatchFn,
   hasRemainingItemsFn,
   onBatchComplete,
-  initialBatchSize = 10,
+  initialBatchSize = 1,
 }: ProcessingOptions<T>) {
   const [isContinuousProcessing, setIsContinuousProcessing] = useState(false);
   const [batchSize, setBatchSize] = useState<number>(initialBatchSize);
@@ -98,11 +106,21 @@ export default function useContinuousProcessing<T>({
         const result = await processBatchFn(batchSize);
         batchResults.push(result);
 
+        // Calculate items processed in this batch
+        let batchProcessed = 0;
         // Update processed count (assuming the result has a processed property)
         if (result && typeof result === 'object' && 'processed' in result) {
-          processedTotal += (result as any).processed || 0;
+          batchProcessed = (result as any).processed || 0;
+          processedTotal += batchProcessed;
         } else {
-          processedTotal += 1; // Default to incrementing by 1
+          batchProcessed = 1; // Default to incrementing by 1
+          processedTotal += 1;
+        }
+
+        // Break out of the loop if no items were processed in this batch
+        // This helps prevent infinite loops if hasRemainingItemsFn() is not accurate
+        if (batchProcessed === 0) {
+          break;
         }
 
         if (onBatchComplete) {

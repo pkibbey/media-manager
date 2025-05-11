@@ -2,24 +2,22 @@
 
 import { createSupabase } from '@/lib/supabase';
 
-interface AnalysisStats {
-  total: number;
-  processed: number;
-  remaining: number;
-  percentComplete: number;
-  objectCounts: Record<string, number>;
-  sceneTypes: Record<string, number>;
-  settings: Record<string, number>;
-  colors: Record<string, number>;
-}
-
 /**
  * Get statistics about media analysis processing
+ *
+ * This should only process images that already have
+ * thumbnail data, since we need a jpeg image in order
+ * to proces it with the Vision LLM
  *
  * @returns Object with analysis processing statistics
  */
 export async function getAnalysisStats(): Promise<{
-  stats: AnalysisStats | null;
+  stats: {
+    total: number;
+    processed: number;
+    remaining: number;
+    percentComplete: number;
+  } | null;
   error: string | null;
 }> {
   try {
@@ -28,9 +26,9 @@ export async function getAnalysisStats(): Promise<{
     // Get the total count of media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .is('is_thumbnail_processed', true);
 
-    console.log('totalCount: ', totalCount);
     if (totalError) {
       throw new Error(`Failed to get total count: ${totalError.message}`);
     }
@@ -39,59 +37,14 @@ export async function getAnalysisStats(): Promise<{
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
       .select('*', { count: 'exact', head: true })
-      .eq('is_analysis_processed', true);
-
-    console.log('processedCount: ', processedCount);
+      .eq('is_analysis_processed', true)
+      .is('is_thumbnail_processed', true);
 
     if (processedError) {
       throw new Error(
         `Failed to get processed count: ${processedError.message}`,
       );
     }
-
-    // Get aggregated stats from analysis_data
-    const { data: analysisData, error: analysisError } = await supabase
-      .from('analysis_data')
-      .select('objects, scene_types, tags, colors');
-
-    if (analysisError) {
-      throw new Error(
-        `Failed to get analysis results: ${analysisError.message}`,
-      );
-    }
-
-    console.log('analysisData: ', analysisData);
-
-    // Calculate object counts
-    const objectCounts: Record<string, number> = {};
-    const sceneTypes: Record<string, number> = {};
-    const settings: Record<string, number> = {};
-    const colors: Record<string, number> = {};
-
-    // analysisData?.forEach((result) => {
-    //   // Count objects
-    //   result.objects?.forEach((obj: { name: string }) => {
-    //     objectCounts[obj.name] = (objectCounts[obj.name] || 0) + 1;
-    //   });
-
-    //   // Count scene types
-    //   result.scene_types?.forEach((scene: string) => {
-    //     sceneTypes[scene] = (sceneTypes[scene] || 0) + 1;
-    //   });
-
-    //   // Count settings (from tags)
-    //   result.tags?.forEach((tag: string) => {
-    //     // Settings are typically "Indoor" or "Outdoor"
-    //     if (['Indoor', 'Outdoor', 'Unknown'].includes(tag)) {
-    //       settings[tag] = (settings[tag] || 0) + 1;
-    //     }
-    //   });
-
-    //   // Count colors
-    //   result.colors?.forEach((color: string) => {
-    //     colors[color] = (colors[color] || 0) + 1;
-    //   });
-    // });
 
     // Calculate remaining items and percentage
     const remaining = totalCount ? totalCount - (processedCount || 0) : 0;
@@ -105,10 +58,6 @@ export async function getAnalysisStats(): Promise<{
         processed: processedCount || 0,
         remaining,
         percentComplete: Math.round(percentComplete * 100) / 100,
-        objectCounts,
-        sceneTypes,
-        settings,
-        colors,
       },
       error: null,
     };

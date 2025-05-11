@@ -47,7 +47,9 @@ export type Database = {
           safety_level: number;
           scene_types: string[];
           sentiment: number;
+          setting: string | null;
           tags: string[];
+          time_of_day: string | null;
         };
         Insert: {
           colors?: string[];
@@ -61,7 +63,9 @@ export type Database = {
           safety_level?: number;
           scene_types?: string[];
           sentiment?: number;
+          setting?: string | null;
           tags?: string[];
+          time_of_day?: string | null;
         };
         Update: {
           colors?: string[];
@@ -75,7 +79,9 @@ export type Database = {
           safety_level?: number;
           scene_types?: string[];
           sentiment?: number;
+          setting?: string | null;
           tags?: string[];
+          time_of_day?: string | null;
         };
         Relationships: [
           {

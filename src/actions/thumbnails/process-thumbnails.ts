@@ -69,11 +69,7 @@ export async function processThumbnail(mediaItem: Media) {
 
         // Clean up temp file
         await fs.unlink(tempThumbnailPath);
-      } catch (extractError) {
-        console.log(
-          `No embedded thumbnail found for ${mediaItem.id}, falling back to Sharp: ${extractError}`,
-        );
-
+      } catch (_extractError) {
         // Fallback to Sharp if ExifTool couldn't extract a thumbnail
         const image = sharp(mediaItem.media_path);
         thumbnailBuffer = await image
