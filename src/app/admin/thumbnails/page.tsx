@@ -28,10 +28,6 @@ interface ThumbnailStatsType {
   processed: number;
   remaining: number;
   percentComplete: number;
-  sizeSavings: number;
-  avgWidth: number;
-  avgHeight: number;
-  totalSize: number;
 }
 
 export default function ThumbnailAdminPage() {
@@ -127,6 +123,7 @@ export default function ThumbnailAdminPage() {
     processBatchFn: processBatchThumbnails,
     hasRemainingItemsFn: () => (thumbnailStats?.remaining || 0) > 0,
     onBatchComplete: refreshStats,
+    getTotalRemainingItemsFn: () => thumbnailStats?.remaining || 0, // Added
   });
 
   // Process a single batch with proper return format for ActionButton
@@ -139,17 +136,6 @@ export default function ThumbnailAdminPage() {
         : result.message,
       error: result.error,
     };
-  };
-
-  // Format file size to readable string
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
   };
 
   return (
@@ -220,24 +206,6 @@ export default function ThumbnailAdminPage() {
                             Completion: {thumbnailStats.percentComplete}%
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <div>
-                            Average Thumbnail Width:{' '}
-                            {thumbnailStats.avgWidth?.toFixed(0) || 0}px
-                          </div>
-                          <div>
-                            Average Thumbnail Height:{' '}
-                            {thumbnailStats.avgHeight?.toFixed(0) || 0}px
-                          </div>
-                          <div>
-                            Total Storage Used:{' '}
-                            {formatFileSize(thumbnailStats.totalSize || 0)}
-                          </div>
-                          <div>
-                            Storage Saved:{' '}
-                            {formatFileSize(thumbnailStats.sizeSavings || 0)}
-                          </div>
-                        </div>
                       </div>
                     </div>
 
@@ -283,7 +251,7 @@ export default function ThumbnailAdminPage() {
                       id="batch-size"
                       type="number"
                       min="1"
-                      max="100"
+                      max="10"
                       value={batchSize}
                       onChange={(e) =>
                         setBatchSize(Number.parseInt(e.target.value) || 10)

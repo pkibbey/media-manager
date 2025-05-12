@@ -44,9 +44,9 @@ export type Database = {
           media_id: string;
           objects: Json[];
           quality_score: number;
-          safety_level: number;
+          safety_level: Json[];
           scene_types: string[];
-          sentiment: number;
+          sentiment: Json[];
           setting: string | null;
           tags: string[];
           time_of_day: string | null;
@@ -60,9 +60,9 @@ export type Database = {
           media_id: string;
           objects?: Json[];
           quality_score?: number;
-          safety_level?: number;
+          safety_level?: Json[];
           scene_types?: string[];
-          sentiment?: number;
+          sentiment?: Json[];
           setting?: string | null;
           tags?: string[];
           time_of_day?: string | null;
@@ -76,9 +76,9 @@ export type Database = {
           media_id?: string;
           objects?: Json[];
           quality_score?: number;
-          safety_level?: number;
+          safety_level?: Json[];
           scene_types?: string[];
-          sentiment?: number;
+          sentiment?: Json[];
           setting?: string | null;
           tags?: string[];
           time_of_day?: string | null;
@@ -92,6 +92,42 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      app_settings: {
+        Row: {
+          analysis: Json | null;
+          created_at: string | null;
+          exif: Json | null;
+          id: string;
+          key: string;
+          storage: Json | null;
+          system: Json | null;
+          thumbnails: Json | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          analysis?: Json | null;
+          created_at?: string | null;
+          exif?: Json | null;
+          id?: string;
+          key?: string;
+          storage?: Json | null;
+          system?: Json | null;
+          thumbnails?: Json | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          analysis?: Json | null;
+          created_at?: string | null;
+          exif?: Json | null;
+          id?: string;
+          key?: string;
+          storage?: Json | null;
+          system?: Json | null;
+          thumbnails?: Json | null;
+          updated_at?: string | null;
+        };
+        Relationships: [];
       };
       exif_data: {
         Row: {

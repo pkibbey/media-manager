@@ -115,6 +115,7 @@ export default function ExifAdminPage() {
     processBatchFn: processBatchExif,
     hasRemainingItemsFn: () => (exifStats?.remaining || 0) > 0,
     onBatchComplete: refreshStats,
+    getTotalRemainingItemsFn: () => exifStats?.remaining || 0, // Added
   });
 
   // Process a single batch with proper return format for ActionButton

@@ -4,7 +4,7 @@ import { Image, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import deleteAnalysisData from '@/actions/analysis/delete-analysis-data';
 import { getAnalysisStats } from '@/actions/analysis/get-analysis-stats';
-import { processBatchAnalysis } from '@/actions/analysis/process-analysis';
+import { processBatchAnalysis } from '@/actions/analysis/process-batch-analysis';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
 import StatsCard from '@/components/admin/stats-card';
@@ -29,6 +29,15 @@ interface AnalysisStatsType {
   remaining: number;
   percentComplete: number;
 }
+
+// Helper function to format time in seconds to mm:ss format
+const formatTime = (timeInMs: number | null) => {
+  if (timeInMs === null || timeInMs === undefined) return 'N/A';
+  const totalSeconds = Math.floor(timeInMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds < 10 ? '0' : ''}${seconds}s`;
+};
 
 export default function AnalysisAdminPage() {
   const [analysisStats, setAnalysisStats] = useState<AnalysisStatsType | null>(
@@ -169,10 +178,14 @@ export default function AnalysisAdminPage() {
     stopProcessing,
     batchSize,
     setBatchSize,
+    totalProcessingTime, // Added
+    estimatedTimeLeft, // Added
+    itemsProcessedThisSession, // Added
   } = useContinuousProcessing({
     processBatchFn: processBatchFunction,
     hasRemainingItemsFn: () => (analysisStats?.remaining || 0) > 0,
     onBatchComplete: handleBatchComplete,
+    getTotalRemainingItemsFn: () => analysisStats?.remaining || 0, // Added
   });
 
   return (
@@ -242,13 +255,6 @@ export default function AnalysisAdminPage() {
                             Completion: {analysisStats.percentComplete}%
                           </div>
                         </div>
-                        <div>
-                          <h4 className="font-medium mb-1">
-                            Model Information
-                          </h4>
-                          <div>Model: minicpm-v (Vision Model)</div>
-                          <div>Runtime: Ollama</div>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -279,7 +285,7 @@ export default function AnalysisAdminPage() {
                       id="batch-size"
                       type="number"
                       min="1"
-                      max="100"
+                      max="3"
                       value={batchSize}
                       onChange={(e) =>
                         setBatchSize(Number.parseInt(e.target.value) || 10)
@@ -310,7 +316,7 @@ export default function AnalysisAdminPage() {
                     <h4 className="text-sm font-medium mb-2">
                       Processing Status:
                     </h4>
-                    <div className="text-sm">
+                    <div className="text-sm space-y-1">
                       <p>Runs completed: {processRunCount}</p>
                       {lastBatchResult && (
                         <p>
@@ -321,6 +327,18 @@ export default function AnalysisAdminPage() {
                             : ''}
                         </p>
                       )}
+                      <p>
+                        Items processed this session:{' '}
+                        {itemsProcessedThisSession}
+                      </p>
+                      <p>
+                        Total processing time this session:{' '}
+                        {formatTime(totalProcessingTime)}
+                      </p>
+                      <p>
+                        Estimated time remaining:{' '}
+                        {formatTime(estimatedTimeLeft)}
+                      </p>
                     </div>
                   </div>
                 )}

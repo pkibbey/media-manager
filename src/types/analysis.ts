@@ -1,22 +1,48 @@
 import { z } from 'zod';
 
-// Schema for individual objects detected in the image
-const ObjectSchema = z.object({
-  name: z.string().describe('The name of the object'),
-  confidence: z
+const BoundingBoxSchema = z.object({
+  xmin: z.number().describe('The minimum x-coordinate of the bounding box'),
+  ymin: z.number().describe('The minimum y-coordinate of the bounding box'),
+  xmax: z.number().describe('The maximum x-coordinate of the bounding box'),
+  ymax: z.number().describe('The maximum y-coordinate of the bounding box'),
+});
+
+const ObjectsSchema = z.object({
+  label: z.string().describe('The name of the object'),
+  score: z
     .number()
     .min(0)
     .max(1)
     .describe('The confidence score of the object detection'),
-  attributes: z
-    .record(z.any())
-    .optional()
-    .describe('Additional attributes of the object'),
+  box: BoundingBoxSchema.describe(
+    'The bounding box coordinates of the detected object',
+  ),
 });
 
-export type ObjectType = z.infer<typeof ObjectSchema>;
+export type ObjectsType = z.infer<typeof ObjectsSchema>;
 
-// Schema for individual objects detected in the image
+const SentimentSchema = z.object({
+  label: z.string().describe('The sentiment label'),
+  score: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe('The confidence score of the sentiment'),
+});
+
+export type SentimentType = z.infer<typeof SentimentSchema>;
+
+const SafetyLevelSchema = z.object({
+  label: z.string().describe('The safety level label'),
+  score: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe('The confidence score of the safety level'),
+});
+
+export type SafetyLevelType = z.infer<typeof SafetyLevelSchema>;
+
 export const ImageDescriptionSchema = z.object({
   image_description: z.string().describe('The full description of the image'),
   scene_types: z
@@ -26,18 +52,20 @@ export const ImageDescriptionSchema = z.object({
     .array(z.string())
     .describe('An array of tags associated with the image'),
   sentiment: z
-    .number()
-    .min(0)
-    .max(1)
+    .array(SentimentSchema)
     .describe('The sentiment score of the image'),
   quality_score: z
     .number()
     .min(0)
     .max(1)
     .describe('The quality score of the image'),
-  safety_level: z.number().describe('The safety level of the image'),
+  safety_level: z
+    .array(SafetyLevelSchema)
+    .describe(
+      'The safety level of the image, indicating if it is safe for work',
+    ),
   objects: z
-    .array(ObjectSchema)
+    .array(ObjectsSchema)
     .describe('An array of objects detected in the image'),
   scene: z.string().describe('The scene of the image').optional(),
   faces: z
@@ -47,14 +75,6 @@ export const ImageDescriptionSchema = z.object({
   colors: z
     .array(z.string())
     .describe('An array of colors detected in the image')
-    .optional(),
-  time_of_day: z
-    .enum(['Morning', 'Afternoon', 'Evening', 'Night'])
-    .describe('The time of day the image was taken')
-    .optional(),
-  setting: z
-    .enum(['Indoor', 'Outdoor', 'Unknown'])
-    .describe('The setting of the image')
     .optional(),
 });
 

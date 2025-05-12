@@ -1,37 +1,22 @@
 'use server';
 
-import ollama from 'ollama';
+import { env } from '@xenova/transformers';
 import { v4 } from 'uuid';
-import zodToJsonSchema from 'zod-to-json-schema';
-import { VISION_MODEL } from '@/lib/consts';
+import {
+  getCaptioner,
+  getObjectDetector,
+  getSafetyLevelDetector,
+  getSentimentAnalyzer,
+} from '@/lib/analysis-models';
 import { createSupabase } from '@/lib/supabase';
 import { ImageDescriptionSchema } from '@/types/analysis';
+import extractDominantColors from './extract-dominant-colors';
+import { setMediaAsAnalysisProcessed } from './set-media-as-analysis-processed';
 
-/**
- * Mark a media item as having its thumbnail processed
- *
- * @param mediaId - The ID of the media item to mark
- * @param thumbnailUrl - Optional URL to the generated thumbnail
- * @returns Object with success or error information
- */
-async function setMediaAsAnalysisProcessed(mediaId: string) {
-  const supabase = createSupabase();
-
-  const { error } = await supabase
-    .from('media')
-    .update({ is_analysis_processed: true })
-    .eq('id', mediaId);
-
-  if (error) {
-    console.error(
-      `Error marking media ${mediaId} as analysis processed:`,
-      error,
-    );
-    return { success: false, error };
-  }
-
-  return { success: true };
-}
+// Configure Transformers environmenthalf for processing
+env.backends.onnx.preferredBackend = 'webnn'; // Try to use Neural Engine if available
+// set number of threads to 4
+env.backends.onnx.numThreads = 4; // Set number of threads to 4
 
 /**
  * Process AI analysis for a single media item
@@ -40,76 +25,72 @@ async function setMediaAsAnalysisProcessed(mediaId: string) {
  * @returns Object with success status and any error message
  */
 export async function processAnalysis(mediaId: string) {
+  const supabase = createSupabase();
+  const startTime = Date.now(); // Record start time
+
+  // Get the media item
+  const { data: mediaItem, error: mediaError } = await supabase
+    .from('media')
+    .select('*, thumbnail_data(*)')
+    .eq('id', mediaId)
+    .is('is_thumbnail_processed', true) // Ensure thumbnail is processed
+    .single();
+
+  if (mediaError || !mediaItem) {
+    throw new Error(
+      `Failed to find media item: ${mediaError?.message || 'Not found'}`,
+    );
+  }
+
+  const imageUrl = mediaItem.thumbnail_data?.thumbnail_url;
+
   try {
-    const supabase = createSupabase();
-
-    // Get the media item
-    const { data: mediaItem, error: mediaError } = await supabase
-      .from('media')
-      .select('*, thumbnail_data(*)')
-      .eq('id', mediaId)
-      .is('is_thumbnail_processed', true) // Ensure thumbnail is processed
-      .single();
-
-    if (mediaError || !mediaItem) {
-      throw new Error(
-        `Failed to find media item: ${mediaError?.message || 'Not found'}`,
-      );
-    }
-
-    if (!mediaItem.thumbnail_data?.thumbnail_url) {
+    if (!imageUrl) {
       throw new Error('Thumbnail URL is missing in media item');
     }
 
     try {
-      // Fetch the image from the URL
-      const imageResponse = await fetch(mediaItem.thumbnail_data.thumbnail_url);
-      if (!imageResponse.ok) {
-        throw new Error(
-          `Failed to fetch thumbnail: ${imageResponse.statusText}`,
-        );
-      }
+      // Load specialized models in parallel
+      const [
+        sentimentAnalyzer,
+        objectDetector,
+        captioner,
+        safetyLevelDetector,
+      ] = await Promise.all([
+        getSentimentAnalyzer(),
+        getObjectDetector(),
+        getCaptioner(),
+        getSafetyLevelDetector(),
+      ]);
 
-      // Convert the image to base64
-      const imageBuffer = await imageResponse.arrayBuffer();
-      const base64Image = Buffer.from(imageBuffer).toString('base64');
+      // Execute captioner, objectDetector, and safetyLevelDetector in parallel
+      const [captionResult, objectResults, safetyLevelResult] =
+        await Promise.all([
+          captioner(imageUrl),
+          objectDetector(imageUrl, { topk: 5 }),
+          safetyLevelDetector(imageUrl),
+        ]);
 
-      // Convert the Zod schema to JSON Schema format
-      const jsonSchema = zodToJsonSchema(ImageDescriptionSchema);
+      // Sentiment analysis depends on caption result
+      const sentimentResult = await sentimentAnalyzer(
+        captionResult[0].generated_text,
+      );
 
-      const messages = [
-        {
-          role: 'user',
-          content:
-            'Analyze this image and return a detailed JSON description including objects, scene, colors and any text detected. If you cannot determine certain details, leave those fields empty.',
-          images: [base64Image],
-        },
-      ];
+      const colors = await extractDominantColors(imageUrl);
 
-      const startTime = performance.now();
-
-      // Call Ollama for analysis
-      const response = await ollama.chat({
-        model: VISION_MODEL,
-        messages,
-        format: jsonSchema,
-        options: {
-          temperature: 0,
-        },
+      // Combine results to match your schema
+      const analysisResult = ImageDescriptionSchema.parse({
+        image_description: captionResult[0].generated_text,
+        objects: objectResults || [],
+        scene_types: [],
+        colors: colors || [],
+        text: '', // Placeholder for text detection if added later
+        confidence_score: 0,
+        sentiment: sentimentResult,
+        safety_level: safetyLevelResult,
+        tags: [],
+        quality_score: 0,
       });
-
-      // Parse and validate the response from Ollama
-      const analysisResult = ImageDescriptionSchema.parse(
-        JSON.parse(response.message.content),
-      );
-
-      const endTime = performance.now();
-      const processingTimeInSeconds = Math.round((endTime - startTime) / 1000);
-      console.log(
-        `Analysis processing time for ${VISION_MODEL}: ${processingTimeInSeconds} seconds`,
-      );
-
-      console.log('analysisResult: ', analysisResult);
 
       // Store the analysis results
       const { error: insertError } = await supabase
@@ -142,77 +123,34 @@ export async function processAnalysis(mediaId: string) {
           `Failed to update media item with analysis processed: ${updateError.message}`,
         );
       }
+      const endTime = Date.now(); // Record end time
+      const processingTime = endTime - startTime; // Calculate processing time
 
-      return { success: true };
+      return { success: true, processingTime };
     } catch (processingError) {
       console.error(
         `Error processing analysis for media ${mediaId}:`,
         processingError,
       );
+      const endTime = Date.now(); // Record end time
+      const processingTime = endTime - startTime; // Calculate processing time
       return {
         success: false,
         error:
           processingError instanceof Error
             ? processingError.message
             : 'Unknown processing error',
+        processingTime,
       };
     }
   } catch (error) {
     console.error('Error in analysis processing:', error);
+    const endTime = Date.now(); // Record end time
+    const processingTime = endTime - startTime; // Calculate processing time
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
-
-/**
- * Process analysis for multiple media items in batch
- *
- * @param limit - Maximum number of items to process
- * @returns Object with count of processed items and any errors
- */
-export async function processBatchAnalysis(limit = 10) {
-  try {
-    const supabase = createSupabase();
-
-    // Find media items that need analysis processing
-    const { data: mediaItems, error: findError } = await supabase
-      .from('media')
-      .select('id')
-      .eq('is_analysis_processed', false)
-      .limit(limit);
-
-    if (findError) {
-      throw new Error(`Failed to find unprocessed items: ${findError.message}`);
-    }
-
-    if (!mediaItems || mediaItems.length === 0) {
-      return { success: true, processed: 0, message: 'No items to process' };
-    }
-
-    // Process each item
-    const results = await Promise.allSettled(
-      mediaItems.map((item) => processAnalysis(item.id)),
-    );
-
-    const succeeded = results.filter(
-      (r) => r.status === 'fulfilled' && r.value.success,
-    ).length;
-    const failed = results.length - succeeded;
-
-    return {
-      success: true,
-      processed: succeeded,
-      failed,
-      total: results.length,
-    };
-  } catch (error) {
-    console.error('Error in batch analysis processing:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      processed: 0,
+      processingTime,
     };
   }
 }
