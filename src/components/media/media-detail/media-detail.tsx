@@ -1,6 +1,5 @@
 'use client';
 
-import { X } from 'lucide-react';
 import Image from 'next/image';
 import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
 import { Badge } from '@/components/ui/badge';
@@ -11,11 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatBytes } from '@/lib/consts';
 import { ExifDataDisplay } from './exif-data-display';
 
-interface MediaDetailProps {
-  onClose: () => void;
-}
-
-export function MediaDetail({ onClose }: MediaDetailProps) {
+export function MediaDetail() {
   const { selectedMedia } = useMediaSelection();
 
   // If no files are selected, show empty state
@@ -24,9 +19,6 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
       <div className="p-4 h-full flex flex-col">
         <div className="flex justify-between items-center mb-4">
           <CardTitle className="text-lg">Details</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
         </div>
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
           Select a file to view details
@@ -47,9 +39,6 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
             ? `${selectedMedia.length} files selected`
             : 'File Details'}
         </CardTitle>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
       </CardHeader>
 
       {/* If multiple files selected, show summary info */}
@@ -75,15 +64,15 @@ export function MediaDetail({ onClose }: MediaDetailProps) {
         /* Single file detailed view */
         <div className="flex-1 overflow-auto">
           {/* Preview */}
-          {media.thumbnail_data && (
-            <div className="p-4 border-b">
-              <Image
-                src={media.thumbnail_data.thumbnail_url}
-                alt={fileName}
-                className="max-h-[300px] w-full object-contain"
-              />
-            </div>
-          )}
+          <div className="p-4 border-b">
+            <Image
+              src={`/api/media/${media.id}`}
+              alt={fileName}
+              className="max-h-[300px] w-full object-contain"
+              width={Math.min(media.exif_data?.width || 600, 600)}
+              height={Math.min(media.exif_data?.height || 600, 600)}
+            />
+          </div>
 
           {/* Tabs for different information categories */}
           <Tabs defaultValue="info" className="w-full">

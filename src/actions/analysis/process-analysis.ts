@@ -13,9 +13,8 @@ import { ImageDescriptionSchema } from '@/types/analysis';
 import extractDominantColors from './extract-dominant-colors';
 import { setMediaAsAnalysisProcessed } from './set-media-as-analysis-processed';
 
-// Configure Transformers environmenthalf for processing
+// Configure Transformers environment for processing
 env.backends.onnx.preferredBackend = 'webnn'; // Try to use Neural Engine if available
-// set number of threads to 4
 env.backends.onnx.numThreads = 4; // Set number of threads to 4
 
 /**
@@ -28,29 +27,29 @@ export async function processAnalysis(mediaId: string) {
   const supabase = createSupabase();
   const startTime = Date.now(); // Record start time
 
-  // Get the media item
-  const { data: mediaItem, error: mediaError } = await supabase
-    .from('media')
-    .select('*, thumbnail_data(*)')
-    .eq('id', mediaId)
-    .is('is_thumbnail_processed', true) // Ensure thumbnail is processed
-    .single();
-
-  if (mediaError || !mediaItem) {
-    throw new Error(
-      `Failed to find media item: ${mediaError?.message || 'Not found'}`,
-    );
-  }
-
-  const imageUrl = mediaItem.thumbnail_data?.thumbnail_url;
-
   try {
+    // Get the media item
+    const { data: mediaItem, error: mediaError } = await supabase
+      .from('media')
+      .select('*, thumbnail_data(*)')
+      .eq('id', mediaId)
+      .is('is_thumbnail_processed', true) // Ensure thumbnail is processed
+      .single();
+
+    if (mediaError || !mediaItem) {
+      throw new Error(
+        `Failed to find media item: ${mediaError?.message || 'Not found'}`,
+      );
+    }
+
+    const imageUrl = mediaItem.thumbnail_data?.thumbnail_url;
+
     if (!imageUrl) {
       throw new Error('Thumbnail URL is missing in media item');
     }
 
     try {
-      // Load specialized models in parallel
+      // Load specialized models - note we don't need to keep references since they're cached
       const [
         sentimentAnalyzer,
         objectDetector,
@@ -63,19 +62,22 @@ export async function processAnalysis(mediaId: string) {
         getSafetyLevelDetector(),
       ]);
 
-      // Execute captioner, objectDetector, and safetyLevelDetector in parallel
-      const [captionResult, objectResults, safetyLevelResult] =
-        await Promise.all([
-          captioner(imageUrl),
-          objectDetector(imageUrl, { topk: 5 }),
-          safetyLevelDetector(imageUrl),
-        ]);
+      // Process one model at a time to reduce peak memory usage
+      console.log(`Processing caption for media ${mediaId}`);
+      const captionResult = await captioner(imageUrl);
 
-      // Sentiment analysis depends on caption result
+      console.log(`Processing objects for media ${mediaId}`);
+      const objectResults = await objectDetector(imageUrl, { topk: 5 });
+
+      console.log(`Processing safety level for media ${mediaId}`);
+      const safetyLevelResult = await safetyLevelDetector(imageUrl);
+
+      console.log(`Processing sentiment for media ${mediaId}`);
       const sentimentResult = await sentimentAnalyzer(
         captionResult[0].generated_text,
       );
 
+      console.log(`Processing colors for media ${mediaId}`);
       const colors = await extractDominantColors(imageUrl);
 
       // Combine results to match your schema
@@ -123,6 +125,7 @@ export async function processAnalysis(mediaId: string) {
           `Failed to update media item with analysis processed: ${updateError.message}`,
         );
       }
+
       const endTime = Date.now(); // Record end time
       const processingTime = endTime - startTime; // Calculate processing time
 
@@ -134,6 +137,7 @@ export async function processAnalysis(mediaId: string) {
       );
       const endTime = Date.now(); // Record end time
       const processingTime = endTime - startTime; // Calculate processing time
+
       return {
         success: false,
         error:
@@ -147,10 +151,20 @@ export async function processAnalysis(mediaId: string) {
     console.error('Error in analysis processing:', error);
     const endTime = Date.now(); // Record end time
     const processingTime = endTime - startTime; // Calculate processing time
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       processingTime,
     };
+  } finally {
+    // Hint the garbage collector to run
+    if (global.gc) {
+      try {
+        global.gc();
+      } catch (_e) {
+        // Ignore if gc is not available
+      }
+    }
   }
 }

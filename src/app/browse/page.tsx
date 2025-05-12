@@ -38,7 +38,7 @@ export default function BrowsePage() {
     hasExif: 'yes', // Default to 'yes' because we need exif data to display images
     hasLocation: 'all',
     hasThumbnail: 'yes', // Default to 'yes' because we need thumbnail data to display images
-    hasAnalysis: 'all',
+    hasAnalysis: 'yes', // Default to 'yes' because we prefer analysis data to display images
     includeHidden: false,
     includeDeleted: false,
   });

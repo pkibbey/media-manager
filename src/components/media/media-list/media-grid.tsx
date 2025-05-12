@@ -14,20 +14,20 @@ export function MediaGrid({ media }: MediaGridProps) {
 
   // Determine number of columns based on window width
   const columns = useMemo(() => {
-    if (windowWidth >= 1920) return 12;
-    if (windowWidth >= 1536) return 10;
-    if (windowWidth >= 1280) return 8;
-    if (windowWidth >= 1024) return 7;
-    if (windowWidth >= 768) return 6;
-    if (windowWidth >= 640) return 5;
-    if (windowWidth >= 468) return 4;
-    if (windowWidth >= 320) return 3;
+    if (windowWidth >= 1920) return 8;
+    if (windowWidth >= 1536) return 7;
+    if (windowWidth >= 1280) return 6;
+    if (windowWidth >= 1024) return 5;
+    if (windowWidth >= 768) return 4;
+    if (windowWidth >= 640) return 3;
+    if (windowWidth >= 468) return 2;
+    if (windowWidth >= 320) return 1;
     return 1;
   }, [windowWidth]);
 
   return (
     <div
-      className="container mx-auto px-6 py-4 grid gap-4"
+      className="container mx-auto px-6 py-4 grid gap-2"
       style={{
         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
       }}

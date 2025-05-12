@@ -35,3 +35,9 @@ export function formatBytes(bytes: number, decimals = 2): string {
 
   return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`;
 }
+
+export const IMAGE_DETAIL_SIZE = 600; // Size for image detail view
+
+export const THUMBNAIL_QUALITY = 80; // Percentage quality for JPEG thumbnails
+
+export const BACKGROUND_COLOR = { r: 23, g: 23, b: 23, alpha: 1 }; // Transparent background for thumbnails

@@ -71,8 +71,6 @@ function MediaKeyboardHandler({ children }: { children: React.ReactNode }) {
 }
 
 export function MediaListContainer({ media }: MediaListContainerProps) {
-  const [detailOpen, setDetailOpen] = useState(false);
-
   return (
     <MediaSelectionProvider media={media}>
       <MediaKeyboardHandler>
@@ -81,11 +79,9 @@ export function MediaListContainer({ media }: MediaListContainerProps) {
             <MediaGrid media={media} />
           </ScrollArea>
 
-          {detailOpen && (
             <div className="w-[450px] border-l border-gray-200 dark:border-gray-800">
-              <MediaDetail onClose={() => setDetailOpen(false)} />
+              <MediaDetail/>
             </div>
-          )}
         </Card>
       </MediaKeyboardHandler>
     </MediaSelectionProvider>

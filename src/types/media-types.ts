@@ -30,6 +30,11 @@ export type MediaType = Tables<'media_types'>;
 
 export type MediaResponse = Promise<PostgrestResponse<Media>>;
 
+export type MediaWithMimeAndExif = Media & {
+  media_types: Tables<'media_types'> | null;
+  exif_data: Tables<'exif_data'> | null;
+};
+
 export type MediaWithRelations = Media & {
   media_types: Tables<'media_types'> | null;
   exif_data: Tables<'exif_data'> | null;

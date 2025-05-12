@@ -7,17 +7,16 @@ import sharp from 'sharp';
 import { v4 } from 'uuid';
 import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
-import type { Media } from '@/types/media-types';
+import type { MediaWithRelations, } from '@/types/media-types';
 import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed';
-
-const THUMBNAIL_WIDTH = 244; // Thumbnail width ideal for image analysis
-const THUMBNAIL_QUALITY = 80; // JPEG quality (0-100)
+import { THUMBNAIL_SIZE, BACKGROUND_COLOR, THUMBNAIL_QUALITY } from '@/lib/consts';
 
 // Helper function to check if a file is a Nikon NEF Raw file
-function isNikonNef(filePath: string): boolean {
-  return filePath.toLowerCase().endsWith('.nef');
+export function isCameraRawFile(mime_type: string): boolean {
+  // TODO: Add more camera raw formats as needed
+  // Currently checks for TIFF and Nikon NEF formats
+  return mime_type.startsWith('image/tiff') || mime_type.startsWith('image/x-nikon-nef');
 }
-const BACKGROUND_COLOR = { r: 23, g: 23, b: 23, alpha: 1 }; // Transparent background for thumbnails
 
 /**
  * Generate a thumbnail for a single media item
@@ -25,7 +24,7 @@ const BACKGROUND_COLOR = { r: 23, g: 23, b: 23, alpha: 1 }; // Transparent backg
  * @param mediaItem - The media item to process
  * @returns Object with success status and any error message
  */
-export async function processThumbnail(mediaItem: Media) {
+export async function processThumbnail(mediaItem: MediaWithRelations) {
   try {
     const supabase = createSupabase();
     // Create a new ExifTool instance for this operation
@@ -41,7 +40,7 @@ export async function processThumbnail(mediaItem: Media) {
       let thumbnailBuffer: Buffer;
 
       // Special handling for Nikon NEF files
-      if (isNikonNef(mediaItem.media_path)) {
+      if (isCameraRawFile(mediaItem.media_types?.mime_type || '')) {
         try {
           // Use dcraw to extract high-quality JPEG from NEF file
           thumbnailBuffer = await processRawWithDcraw(mediaItem.media_path);
@@ -50,8 +49,8 @@ export async function processThumbnail(mediaItem: Media) {
           thumbnailBuffer = await sharp(thumbnailBuffer)
             .rotate()
             .resize({
-              width: THUMBNAIL_WIDTH,
-              height: THUMBNAIL_WIDTH,
+              width: THUMBNAIL_SIZE,
+              height: THUMBNAIL_SIZE,
               withoutEnlargement: true,
               fit: 'contain',
               background: BACKGROUND_COLOR,
@@ -71,8 +70,8 @@ export async function processThumbnail(mediaItem: Media) {
             // Resize to fit thumbnail dimensions
             thumbnailBuffer = await sharp(thumbnailBuffer)
               .resize({
-                width: THUMBNAIL_WIDTH,
-                height: THUMBNAIL_WIDTH,
+                width: THUMBNAIL_SIZE,
+                height: THUMBNAIL_SIZE,
                 withoutEnlargement: true,
                 fit: 'contain',
                 background: BACKGROUND_COLOR,
@@ -110,8 +109,8 @@ export async function processThumbnail(mediaItem: Media) {
           thumbnailBuffer = await image
             .rotate()
             .resize({
-              width: THUMBNAIL_WIDTH,
-              height: THUMBNAIL_WIDTH,
+              width: THUMBNAIL_SIZE,
+              height: THUMBNAIL_SIZE,
               withoutEnlargement: true,
               fit: 'contain',
               background: BACKGROUND_COLOR,
@@ -209,7 +208,7 @@ export async function processBatchThumbnails(limit = 10) {
     // Find media items that need thumbnail processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('*')
+      .select('*, media_types(*), exif_data(*), thumbnail_data(*), analysis_data(*)')
       .is('is_thumbnail_processed', false)
       .limit(limit);
 

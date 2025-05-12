@@ -19,7 +19,7 @@ export default function RootLayout({
         className={`${GeistSans.className} dark min-h-screen bg-background flex flex-col`}
       >
         <Header />
-        <main className="flex-1 px-4">{children}</main>
+        <main className="flex-1">{children}</main>
         <Toaster />
       </body>
     </html>

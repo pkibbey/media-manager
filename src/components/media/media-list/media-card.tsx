@@ -33,7 +33,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
       className={cn(
         'group overflow-hidden relative cursor-pointer transition-all p-0 bg-transparent rounded-sm',
         selected
-          ? 'border-primary ring-2 ring-primary ring-opacity-25'
+          ? 'border-primary ring-1 ring-primary ring-opacity-25'
           : 'hover:border-accent-foreground/20',
         media.is_hidden ? 'opacity-60' : '',
         media.is_deleted ? 'opacity-50 bg-destructive/5' : '',
