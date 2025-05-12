@@ -8,8 +8,10 @@ import {
   HardDrive,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { getStorageStats } from '@/actions/admin/get-storage-stats';
 import { getAnalysisStats } from '@/actions/analysis/get-analysis-stats';
 import { getExifStats } from '@/actions/exif/get-exif-stats';
+import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
 import ActionButton from '@/components/admin/action-button';
 
 import AdminLayout from '@/components/admin/layout';
@@ -24,12 +26,13 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // We'll need to create these actions
-// import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
 // import { getSystemHealth } from '@/actions/admin/get-system-health';
 
 export default function AdminOverviewPage() {
   const [analysisStats, setAnalysisStats] = useState<any>(null);
   const [exifStats, setExifStats] = useState<any>(null);
+  const [thumbnailStats, setThumbnailStats] = useState<any>(null);
+  const [storageStats, setStorageStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +44,16 @@ export default function AdminOverviewPage() {
 
       try {
         // Fetch all stats in parallel
-        const [analysisResponse, exifResponse] = await Promise.all([
+        const [
+          analysisResponse,
+          exifResponse,
+          thumbnailResponse,
+          storageResponse,
+        ] = await Promise.all([
           getAnalysisStats(),
           getExifStats(),
-          // getThumbnailStats(),
-          // getSystemHealth()
+          getThumbnailStats(),
+          getStorageStats(),
         ]);
 
         // Set the stats in state
@@ -54,6 +62,12 @@ export default function AdminOverviewPage() {
         }
         if (exifResponse.stats) {
           setExifStats(exifResponse.stats);
+        }
+        if (thumbnailResponse?.stats) {
+          setThumbnailStats(thumbnailResponse.stats);
+        }
+        if (storageResponse?.stats) {
+          setStorageStats(storageResponse.stats);
         }
       } catch (e) {
         setError('Failed to load dashboard statistics');
@@ -69,9 +83,16 @@ export default function AdminOverviewPage() {
   // Action for refreshing stats
   const refreshStats = async () => {
     try {
-      const [analysisResponse, exifResponse] = await Promise.all([
+      const [
+        analysisResponse,
+        exifResponse,
+        thumbnailResponse,
+        storageResponse,
+      ] = await Promise.all([
         getAnalysisStats(),
         getExifStats(),
+        getThumbnailStats(),
+        getStorageStats(),
       ]);
 
       if (analysisResponse.stats) {
@@ -79,6 +100,12 @@ export default function AdminOverviewPage() {
       }
       if (exifResponse.stats) {
         setExifStats(exifResponse.stats);
+      }
+      if (thumbnailResponse?.stats) {
+        setThumbnailStats(thumbnailResponse.stats);
+      }
+      if (storageResponse?.stats) {
+        setStorageStats(storageResponse.stats);
       }
 
       return { success: true };
@@ -129,15 +156,15 @@ export default function AdminOverviewPage() {
           />
           <StatsCard
             title="Thumbnail Generation"
-            total={100} // Placeholder data
-            processed={65}
+            total={thumbnailStats?.total || 0}
+            processed={thumbnailStats?.processed || 0}
             isLoading={isLoading}
             icon={<FileVideo className="h-4 w-4" />}
           />
           <StatsCard
             title="Storage Usage"
-            total={100} // Placeholder data (%)
-            processed={42}
+            total={100}
+            processed={storageStats?.stats?.percentUsed || 0}
             isLoading={isLoading}
             icon={<HardDrive className="h-4 w-4" />}
           />

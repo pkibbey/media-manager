@@ -1,6 +1,6 @@
 'use server';
 
-import { fileTypeFromBuffer } from 'file-type';
+import fileTypeChecker from 'file-type-checker';
 import { v4 as uuid } from 'uuid';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaType } from '@/types/media-types';
@@ -14,9 +14,9 @@ async function detectMimeType(file: FileDetails): Promise<string> {
   try {
     // If the file has a buffer or can be read as a buffer
     if (file.buffer) {
-      const fileType = await fileTypeFromBuffer(file.buffer);
-      if (fileType) {
-        return fileType.mime;
+      const type = fileTypeChecker.detectFile(file.buffer);
+      if (type) {
+        return type.mimeType;
       }
     }
 
@@ -88,7 +88,7 @@ async function addFileToDatabase(
 async function getOrCreateMediaType(mimeType: string): Promise<string | null> {
   try {
     const supabase = createSupabase();
-    const typeName = getMediaTypeFromMime(mimeType);
+    const typeName = getCategoryFromMimeType(mimeType);
 
     // Check if the type already exists
     const { data: existingTypes } = await supabase
@@ -127,7 +127,7 @@ async function getOrCreateMediaType(mimeType: string): Promise<string | null> {
 /**
  * Convert a MIME type to a general media type category
  */
-function getMediaTypeFromMime(mimeType: string): string {
+function getCategoryFromMimeType(mimeType: string): string {
   if (mimeType.startsWith('image/')) {
     return 'image';
   }
@@ -171,7 +171,7 @@ export async function processScanResults(
     const preciseMimeType = await detectMimeType(file);
 
     // Use the detected MIME type for categorization
-    const typeName = getMediaTypeFromMime(preciseMimeType);
+    const category = getCategoryFromMimeType(preciseMimeType);
 
     // Update the file type with the precise detected type
     const fileWithPreciseMime = {
@@ -180,8 +180,8 @@ export async function processScanResults(
     };
 
     // Update stats
-    results.mediaTypeStats[typeName] =
-      (results.mediaTypeStats[typeName] || 0) + 1;
+    results.mediaTypeStats[category] =
+      (results.mediaTypeStats[category] || 0) + 1;
 
     // Add file to database
     const addResult = await addFileToDatabase(fileWithPreciseMime);

@@ -5,38 +5,19 @@ import path from 'node:path';
 import { ExifTool } from 'exiftool-vendored';
 import sharp from 'sharp';
 import { v4 } from 'uuid';
+import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
 import type { Media } from '@/types/media-types';
+import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed';
 
 const THUMBNAIL_WIDTH = 244; // Thumbnail width ideal for image analysis
 const THUMBNAIL_QUALITY = 80; // JPEG quality (0-100)
-const exiftool = new ExifTool();
 
-/**
- * Mark a media item as having its thumbnail processed
- *
- * @param mediaId - The ID of the media item to mark
- * @param thumbnailUrl - Optional URL to the generated thumbnail
- * @returns Object with success or error information
- */
-async function setMediaAsThumbnailProcessed(mediaId: string) {
-  const supabase = createSupabase();
-
-  const { error } = await supabase
-    .from('media')
-    .update({ is_thumbnail_processed: true })
-    .eq('id', mediaId);
-
-  if (error) {
-    console.error(
-      `Error marking media ${mediaId} as thumbnail processed:`,
-      error,
-    );
-    return { success: false, error };
-  }
-
-  return { success: true };
+// Helper function to check if a file is a Nikon NEF Raw file
+function isNikonNef(filePath: string): boolean {
+  return filePath.toLowerCase().endsWith('.nef');
 }
+const BACKGROUND_COLOR = { r: 23, g: 23, b: 23, alpha: 1 }; // Transparent background for thumbnails
 
 /**
  * Generate a thumbnail for a single media item
@@ -47,6 +28,8 @@ async function setMediaAsThumbnailProcessed(mediaId: string) {
 export async function processThumbnail(mediaItem: Media) {
   try {
     const supabase = createSupabase();
+    // Create a new ExifTool instance for this operation
+    const exiftool = new ExifTool();
 
     try {
       // Generate unique ID for the thumbnail
@@ -57,31 +40,85 @@ export async function processThumbnail(mediaItem: Media) {
       // Try to extract thumbnail using ExifTool
       let thumbnailBuffer: Buffer;
 
-      try {
-        // Extract embedded thumbnail using ExifTool
-        await exiftool.extractThumbnail(
-          mediaItem.media_path,
-          tempThumbnailPath,
-        );
+      // Special handling for Nikon NEF files
+      if (isNikonNef(mediaItem.media_path)) {
+        try {
+          // Use dcraw to extract high-quality JPEG from NEF file
+          thumbnailBuffer = await processRawWithDcraw(mediaItem.media_path);
 
-        // Read the thumbnail file
-        thumbnailBuffer = await fs.readFile(tempThumbnailPath);
+          // Resize to fit our thumbnail dimensions
+          thumbnailBuffer = await sharp(thumbnailBuffer)
+            .rotate()
+            .resize({
+              width: THUMBNAIL_WIDTH,
+              height: THUMBNAIL_WIDTH,
+              withoutEnlargement: true,
+              fit: 'contain',
+              background: BACKGROUND_COLOR,
+            })
+            .jpeg({ quality: THUMBNAIL_QUALITY })
+            .toBuffer();
+        } catch (rawProcessError) {
+          console.error(
+            'Error processing NEF with dcraw, trying fallback:',
+            rawProcessError,
+          );
 
-        // Clean up temp file
-        await fs.unlink(tempThumbnailPath);
-      } catch (_extractError) {
-        // Fallback to Sharp if ExifTool couldn't extract a thumbnail
-        const image = sharp(mediaItem.media_path);
-        thumbnailBuffer = await image
-          .rotate()
-          .resize({
-            width: THUMBNAIL_WIDTH,
-            height: THUMBNAIL_WIDTH,
-            withoutEnlargement: true,
-            fit: 'cover',
-          })
-          .jpeg({ quality: THUMBNAIL_QUALITY })
-          .toBuffer();
+          // Fallback to alternative dcraw method
+          try {
+            thumbnailBuffer = await convertRawThumbnail(mediaItem.media_path);
+
+            // Resize to fit thumbnail dimensions
+            thumbnailBuffer = await sharp(thumbnailBuffer)
+              .resize({
+                width: THUMBNAIL_WIDTH,
+                height: THUMBNAIL_WIDTH,
+                withoutEnlargement: true,
+                fit: 'contain',
+                background: BACKGROUND_COLOR,
+              })
+              .jpeg({ quality: THUMBNAIL_QUALITY })
+              .toBuffer();
+          } catch (alternativeRawError) {
+            console.error(
+              'Error with alternative RAW processing, using original method:',
+              alternativeRawError,
+            );
+            // Continue to original method if both RAW approaches fail
+            throw new Error(
+              'Raw processing failed, falling back to standard methods',
+            );
+          }
+        }
+      } else {
+        // Original method for non-NEF files
+        try {
+          // Extract embedded thumbnail using ExifTool
+          await exiftool.extractThumbnail(
+            mediaItem.media_path,
+            tempThumbnailPath,
+          );
+
+          // Read the thumbnail file
+          thumbnailBuffer = await fs.readFile(tempThumbnailPath);
+
+          // Clean up temp file
+          await fs.unlink(tempThumbnailPath);
+        } catch (_extractError) {
+          // Fallback to Sharp if ExifTool couldn't extract a thumbnail
+          const image = sharp(mediaItem.media_path);
+          thumbnailBuffer = await image
+            .rotate()
+            .resize({
+              width: THUMBNAIL_WIDTH,
+              height: THUMBNAIL_WIDTH,
+              withoutEnlargement: true,
+              fit: 'contain',
+              background: BACKGROUND_COLOR,
+            })
+            .jpeg({ quality: THUMBNAIL_QUALITY })
+            .toBuffer();
+        }
       }
 
       // Upload to Supabase Storage
@@ -135,6 +172,8 @@ export async function processThumbnail(mediaItem: Media) {
         thumbnailUrl,
       };
     } catch (processingError) {
+      // Make sure to clean up resources in case of error
+      await exiftool.end();
       console.error(
         `Error generating thumbnail for media ${mediaItem.id}:`,
         processingError,

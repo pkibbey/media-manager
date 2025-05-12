@@ -1,6 +1,7 @@
 'use client';
 
 import { GearIcon, GridIcon, HomeIcon, ImageIcon } from '@radix-ui/react-icons';
+import { AudioLinesIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,11 @@ export function Header() {
             href="/"
             label="Home"
             icon={<HomeIcon className="h-4 w-4" />}
+          />
+          <NavItem
+            href="/audio"
+            label="Audio"
+            icon={<AudioLinesIcon className="h-4 w-4" />}
           />
           <NavItem
             href="/browse"

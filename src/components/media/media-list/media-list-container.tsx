@@ -76,8 +76,8 @@ export function MediaListContainer({ media }: MediaListContainerProps) {
   return (
     <MediaSelectionProvider media={media}>
       <MediaKeyboardHandler>
-        <Card className="grid grid-cols-[1fr_auto] h-full overflow-hidden">
-          <ScrollArea className="p-4 h-full">
+        <Card className="grid grid-cols-[1fr_auto] h-full overflow-hidden bg-transparent">
+          <ScrollArea className="h-full">
             <MediaGrid media={media} />
           </ScrollArea>
 

@@ -12,9 +12,10 @@ import { useMediaSelection } from './media-selection-context';
 
 interface MediaCardProps {
   media: MediaWithRelations;
+  showFooter?: boolean;
 }
 
-export function MediaCard({ media }: MediaCardProps) {
+export function MediaCard({ media, showFooter = false }: MediaCardProps) {
   const { toggleSelection, isSelected } = useMediaSelection();
   const selected = isSelected(media.id);
 
@@ -30,7 +31,7 @@ export function MediaCard({ media }: MediaCardProps) {
   return (
     <Card
       className={cn(
-        'group overflow-hidden relative cursor-pointer transition-all',
+        'group overflow-hidden relative cursor-pointer transition-all p-0 bg-transparent rounded-sm',
         selected
           ? 'border-primary ring-2 ring-primary ring-opacity-25'
           : 'hover:border-accent-foreground/20',
@@ -47,6 +48,8 @@ export function MediaCard({ media }: MediaCardProps) {
             alt={fileName}
             className="w-full h-full object-cover"
             loading="lazy"
+            width={media.exif_data?.width}
+            height={media.exif_data?.height}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -61,17 +64,19 @@ export function MediaCard({ media }: MediaCardProps) {
       </div>
 
       {/* Media information */}
-      <CardFooter className="p-2 flex flex-col items-start">
-        <div className="text-sm font-medium truncate w-full">{fileName}</div>
-        <div className="flex items-center gap-2 mt-1">
-          <Badge variant="outline" className="text-xs">
-            {media.media_types?.type_name || 'Unknown'}
-          </Badge>
-          <span className="text-xs text-muted-foreground">
-            {formatBytes(media.size_bytes)}
-          </span>
-        </div>
-      </CardFooter>
+      {showFooter && (
+        <CardFooter className="p-2 flex flex-col items-start">
+          <div className="text-sm font-medium truncate w-full">{fileName}</div>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="outline" className="text-xs">
+              {media.media_types?.type_name || 'Unknown'}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {formatBytes(media.size_bytes)}
+            </span>
+          </div>
+        </CardFooter>
+      )}
     </Card>
   );
 }

@@ -35,14 +35,14 @@ export default function BrowsePage() {
     type: 'all',
     dateFrom: null,
     dateTo: null,
-    hasExif: 'all',
+    hasExif: 'yes', // Default to 'yes' because we need exif data to display images
     hasLocation: 'all',
-    hasThumbnail: 'all',
+    hasThumbnail: 'yes', // Default to 'yes' because we need thumbnail data to display images
     hasAnalysis: 'all',
     includeHidden: false,
     includeDeleted: false,
   });
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Calculate total pages based on total count and page size
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -83,8 +83,8 @@ export default function BrowsePage() {
   }, [fetchMedia]);
 
   return (
-    <div className="container h-full flex flex-col max-w-full p-0">
-      <Card className="h-full flex flex-col border-0 rounded-none">
+    <div className="h-full flex flex-col max-w-full p-0">
+      <Card className="h-full flex flex-col border-0 rounded-none bg-transparent">
         <CardHeader className="px-6 py-4 border-b flex-row justify-between items-center">
           <CardTitle className="text-2xl">Media</CardTitle>
           <div className="flex gap-2">
