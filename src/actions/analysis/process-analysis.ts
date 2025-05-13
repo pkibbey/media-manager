@@ -42,7 +42,12 @@ export async function processAnalysis(mediaId: string) {
       );
     }
 
-    const imageUrl = mediaItem.thumbnail_data?.thumbnail_url;
+    // Access thumbnail_data as it's returned as an array but we only need the first item
+    const thumbnailData = Array.isArray(mediaItem.thumbnail_data)
+      ? mediaItem.thumbnail_data[0]
+      : mediaItem.thumbnail_data;
+
+    const imageUrl = thumbnailData?.thumbnail_url;
 
     if (!imageUrl) {
       throw new Error('Thumbnail URL is missing in media item');
@@ -88,8 +93,8 @@ export async function processAnalysis(mediaId: string) {
         colors: colors || [],
         text: '', // Placeholder for text detection if added later
         confidence_score: 0,
-        sentiment: sentimentResult,
-        safety_level: safetyLevelResult,
+        sentiments: sentimentResult,
+        safety_levels: safetyLevelResult,
         tags: [],
         quality_score: 0,
       });

@@ -1,0 +1,115 @@
+
+[5/11/25, 15:18:06] Phineas: I am at the analysis stage, and it’s the most computationally complex part so far that I it’s worth me picking a good/efficient vision model.
+[5/11/25, 15:24:07] Phineas: I was thinking of seeing what kind of performance differences there would be if I set up my tower PC with an Nvidia GTX 1080 to handle the images with a GPU.
+[5/11/25, 16:32:19] Josh: Can you try to use a powerful graphics card virtually first?
+[5/11/25, 16:33:36] Phineas: That is a good idea 💡
+[5/11/25, 16:34:51] Phineas: Right now, I am investigating transformers and using fractional parsers to do the task. Is this the game that we will be chasing for the next few years - one model for everything vs small specialized ones.
+‎[5/11/25, 16:45:24] Phineas: ‎image omitted
+[5/11/25, 19:10:50] Josh: I really know what I can accomplish with hundreds of tiny calls to browser LLM prompts and context.
+[5/11/25, 19:11:56] Phineas: You already know?
+[5/11/25, 19:12:31] Josh: wanna know 🥹
+[5/11/25, 20:36:46] Phineas: I got it down to 4 seconds per image, with transformers, instead of 28 seconds with a good model.
+‎[5/11/25, 21:06:35] Phineas: ‎image omitted
+[5/11/25, 21:07:27] Phineas: This is on my M3 mac, using ONYX transformers, which I believe work with Apple Silicon
+[5/11/25, 22:33:04] Phineas: The yeahnope idea could be hyper focused - "is this line of code I'm writing a good idea" sort of yeahnope linting
+[5/12/25, 13:09:48] Josh: I’ve been able to speed up, or boost quality in the same timespan by breaking queries apart and using mini models.
+[5/12/25, 13:11:10] Josh: But I’m also keeping an eye on tokens. Hard to eliminate filler words in promoting.
+
+This stuff is the strangest optimization I can remember.
+[5/12/25, 15:26:56] Phineas: I hit a wall with the quality of the transformer generated content. The idea is that I would try this approach, And then incrementally replace each transformer to find one that works best for that particular job. Now I think some of the things that extracts are good, but I might need to leverage a larger model for the better vision analysis, like really detailed content analysis, because that's the thing that's driving everything so I might end up using a big model anyway.
+
+What are your thoughts on this? ‎<This message was edited>
+[5/12/25, 18:36:36] Josh: At work we need to mine for prospect companies as well-matched low-effort customers.
+
+I pushed for a 3 tiered approach to manage cost and iteration time for the sad non-parallel workflows.
+
+1) Rapid snap judge, in your case (interesting and different from others).
+
+2) Fact check.
+
+3) Classify and qualify.
+[5/12/25, 18:37:13] Josh: And are you doing a parallel processing queue thingy?
+[5/12/25, 18:41:25] Phineas: I was doing parallel tasks, but then it kept crashing, so it's currently split apart with console logs so I can see it all happen.
+[5/12/25, 18:41:55] Phineas: I think I fixed a memory leak, so will go back to it. I have 8 cores to pay with.
+‎[5/12/25, 18:42:32] Josh: ‎image omitted
+[5/12/25, 18:42:36] Phineas: And I think it's using the ML cores, but I don't know for sure. It seems fast.
+[5/12/25, 18:43:21] Josh: That was my budget plan for sorting the best 500 well-researched opportunities to the top for $1500.
+[5/12/25, 18:43:39] Phineas: A bro in a mustang just drove past and did a drive-by "sick hair dude" at me.
+[5/12/25, 18:44:26] Phineas: I think he wanted to make sure that he knew that his compliment had landed, because he then leaned out and gave me an air fist-bump.
+[5/12/25, 18:44:45] Josh: He knew you liked DnB
+[5/12/25, 18:45:00] Phineas: I'm glad that I don't have to think about costs.
+[5/12/25, 18:45:24] Phineas: Is your cost in favour of your company, or because you don't want them to blame the cost on you?
+[5/12/25, 18:45:42] Josh: Just my recommendation for spending
+[5/12/25, 18:45:52] Josh: I wanted them to adjust the numbers from there
+‎[5/12/25, 18:46:37] Phineas: ‎image omitted
+[5/12/25, 18:46:40] Josh: Your cost is time right?
+
+So you could do the same thing.
+[5/12/25, 18:46:53] Josh: I am in overalls too!
+[5/12/25, 18:47:33] Phineas: My cost has to do with privacy.
+[5/12/25, 18:47:55] Phineas: Otherwise I would absolutely say cloud apis all the way.
+[5/12/25, 18:48:14] Josh: Right. Lemme restate
+[5/12/25, 18:50:40] Phineas: It seems like it's a similar thing that we are exploring. The idea of using specialist tools versus smaller cheaper ones.
+[5/12/25, 18:51:24] Phineas: In this new landscape, it seems like due diligence to figure out the options.
+[5/12/25, 18:52:16] Josh: Yeah, I think you gotta squeeze that ballon just right
+[5/12/25, 18:54:02] Phineas: I squeezed the balloon a bit too much with the transformers, and I need to let some air out.
+[5/12/25, 18:54:04] Josh: I’m trying to imaging you sort them into further processing queues as you progressively inspect them for metadata.
+[5/12/25, 18:54:23] Josh: The goal being to elevate the most interesting photos for deep processing as soon as possible. ‎<This message was edited>
+[5/12/25, 18:54:33] Phineas: What system would you want to mimic with this?
+[5/12/25, 18:54:47] Phineas: Is this sort of the amygdala handling the cheap tasks
+[5/12/25, 18:54:56] Phineas: Or is this an office of people
+[5/12/25, 18:54:58] Phineas: Or ants
+[5/12/25, 18:55:03] Phineas: Or I don't know
+[5/12/25, 18:55:27] Phineas: What system in nature has already perfected this technique
+[5/12/25, 18:55:54] Josh: I was imagining a stack of queues to better and better psychiatrists.
+[5/12/25, 18:56:30] Phineas: Ok, so I like this.
+
+You're saying that the wall I hit is not a wall.
+
+It's a boundary.
+[5/12/25, 18:56:35] Josh: Nightclub line management
+[5/12/25, 18:57:41] Josh: Imagine three queues…
+- Should we bother (dupes, similar, etc)
+- ⁠Whats in the photo
+- ⁠What going on in the photo, significance
+[5/12/25, 18:58:15] Josh: You dump photos in the top bucket and they waterfall drain down. Each one takes 10x the processing of the last.
+[5/12/25, 18:59:04] Phineas: So the important function being "Is this worth processing further"
+[5/12/25, 18:59:15] Josh: You could add buckets that watch for people or places to really pick out the most unique stuff first and analyze it deeper and deeper.
+[5/12/25, 18:59:23] Josh: Exactly.
+[5/12/25, 18:59:25] Phineas: Which is basically the first queue
+[5/12/25, 18:59:36] Phineas: YeahNope
+[5/12/25, 18:59:49] Josh: You’re guarding the time of queen
+[5/12/25, 18:59:56] Josh: It’s a hive
+[5/12/25, 19:00:13] Josh: Each layer of defense processes the photo to decide if she should see it.
+‎[5/12/25, 19:00:16] Phineas: ‎GIF omitted
+[5/12/25, 19:01:20] Josh: Yeah, each layer takes exponentially more time to process so you have manage what can pass through each step.
+[5/12/25, 19:01:41] Josh: Eventually they’ll all process. But it might take 2 months. ‎<This message was edited>
+[5/12/25, 19:01:58] Josh: Or maybe it never finishes
+[5/12/25, 19:02:21] Phineas: Or only when you view the picture.
+[5/12/25, 19:02:35] Josh: You’ll add layers of processing that could never possibly be run on every photo.
+[5/12/25, 19:03:40] Josh: Like when you pick up a photo from your high-school and stare at it for 5 minutes. That’s what it’ll be doing, but only to the right ones. ‎<This message was edited>
+[5/12/25, 19:10:29] Phineas: Every item has to be processed at least once. Would you say that this has to be the cheapest task, or does it matter more about accuracy here?
+[5/12/25, 19:13:59] Phineas: I have a list of tasks (columns in the analysis table), and I have to figure out which are the ones that could be used to know if it requires further processing. And already some tasks require processing from other tasks. And each of them has a time cost.
+
+This is such a fun puzzle!
+[5/12/25, 19:17:28] Josh: Marbles dumped into a glass-walled thinking machine. ‎<This message was edited>
+[5/12/25, 19:20:56] Josh: Some of the magic questions…
+
+How cheap do you make the initial passes?
+
+How many total processing layers?
+[5/12/25, 19:21:53] Phineas: I came here to squeeze balloons and chew gum. And I’m all outta gum.
+[5/12/25, 19:24:25] Josh: Maybe more like clusters of processing.
+
+One works to select a dozen photos that best represent the entire set for a macro view.
+
+Another groups by face and discovers the main characters.
+
+Another focuses on background to determine settings and locations.
+[5/12/25, 19:24:50] Josh: Is it building a novel?
+[5/12/25, 19:25:32] Josh: Physiological profile?
+[5/12/25, 19:27:36] Phineas: The flow could also be dictated by necessity. The face detection only needs to run on images that have had cheap object detection run on them, and has found “person”.
+[5/12/25, 19:32:35] Phineas: Now I’m thinking about an approach where instead of starting small, we work from the most intensive thing, backwards. Because in my system, there are quite a few cheap processing steps that are done in milliseconds, so rather than putting them in the system, it’s about culling. What is the most expensive thing that we can postpone.
+[5/12/25, 19:36:26] Phineas: Why the f**k is there not a chatbot window on the side of WhatsApp that is discussing our conversation and making notes and actually building the software that we want in the background? ‎<This message was edited>
+[5/12/25, 19:37:40] Phineas: All my AI coding has been just me at a computer. What if we vibe coded, but with the main window just being a conversation between you and I like this? Both contributing to the spaghetti mess.
+[5/12/25, 19:50:50] Phineas: I'd like to see the logic of this laid out in a flow chart, with the yeah nope for each question of whether it gets processed today or not.

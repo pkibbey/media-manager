@@ -59,7 +59,7 @@ export const ImageDescriptionSchema = z.object({
     .min(0)
     .max(1)
     .describe('The quality score of the image'),
-  safety_level: z
+  safety_levels: z
     .array(SafetyLevelSchema)
     .describe(
       'The safety level of the image, indicating if it is safe for work',

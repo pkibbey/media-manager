@@ -5,17 +5,28 @@ import path from 'node:path';
 import { ExifTool } from 'exiftool-vendored';
 import sharp from 'sharp';
 import { v4 } from 'uuid';
+import {
+  BACKGROUND_COLOR,
+  THUMBNAIL_QUALITY,
+  THUMBNAIL_SIZE,
+} from '@/lib/consts';
 import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
-import type { MediaWithRelations, } from '@/types/media-types';
+import type { MediaWithRelations } from '@/types/media-types';
 import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed';
-import { THUMBNAIL_SIZE, BACKGROUND_COLOR, THUMBNAIL_QUALITY } from '@/lib/consts';
 
 // Helper function to check if a file is a Nikon NEF Raw file
-export function isCameraRawFile(mime_type: string): boolean {
-  // TODO: Add more camera raw formats as needed
+async function isCameraRawFile(mime_type?: string | null): Promise<boolean> {
+  if (!mime_type) {
+    return false;
+  }
+
   // Currently checks for TIFF and Nikon NEF formats
-  return mime_type.startsWith('image/tiff') || mime_type.startsWith('image/x-nikon-nef');
+  // TODO: Add more camera raw formats as needed
+  return (
+    mime_type.startsWith('image/tiff') ||
+    mime_type.startsWith('image/x-nikon-nef')
+  );
 }
 
 /**
@@ -24,7 +35,7 @@ export function isCameraRawFile(mime_type: string): boolean {
  * @param mediaItem - The media item to process
  * @returns Object with success status and any error message
  */
-export async function processThumbnail(mediaItem: MediaWithRelations) {
+async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   try {
     const supabase = createSupabase();
     // Create a new ExifTool instance for this operation
@@ -39,8 +50,10 @@ export async function processThumbnail(mediaItem: MediaWithRelations) {
       // Try to extract thumbnail using ExifTool
       let thumbnailBuffer: Buffer;
 
+      const isRawFile = await isCameraRawFile(mediaItem.media_types?.mime_type);
+
       // Special handling for Nikon NEF files
-      if (isCameraRawFile(mediaItem.media_types?.mime_type || '')) {
+      if (isRawFile) {
         try {
           // Use dcraw to extract high-quality JPEG from NEF file
           thumbnailBuffer = await processRawWithDcraw(mediaItem.media_path);
@@ -187,7 +200,6 @@ export async function processThumbnail(mediaItem: MediaWithRelations) {
       };
     }
   } catch (error) {
-    console.error('Error in generateThumbnail:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -208,7 +220,9 @@ export async function processBatchThumbnails(limit = 10) {
     // Find media items that need thumbnail processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('*, media_types(*), exif_data(*), thumbnail_data(*), analysis_data(*)')
+      .select(
+        '*, media_types(*), exif_data(*), thumbnail_data(*), analysis_data(*)',
+      )
       .is('is_thumbnail_processed', false)
       .limit(limit);
 
@@ -221,7 +235,9 @@ export async function processBatchThumbnails(limit = 10) {
     }
 
     // Process each item
-    const results = await Promise.allSettled(mediaItems.map(processThumbnail));
+    const results = await Promise.allSettled(
+      mediaItems.map(processMediaThumbnail),
+    );
 
     const succeeded = results.filter(
       (result) => result.status === 'fulfilled' && result.value.success,
@@ -240,7 +256,6 @@ export async function processBatchThumbnails(limit = 10) {
       total: mediaItems.length,
     };
   } catch (error) {
-    console.error('Error in processBatchThumbnails:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

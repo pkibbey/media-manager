@@ -1,5 +1,15 @@
 'use client';
 
+import {
+  Calendar,
+  Eye,
+  EyeOff,
+  FileType,
+  HardDrive,
+  Image as ImageIcon,
+  MapPin,
+  Trash,
+} from 'lucide-react';
 import Image from 'next/image';
 import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
 import { Badge } from '@/components/ui/badge';
@@ -7,11 +17,19 @@ import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  extractObjects,
+  extractSafetyLevels,
+  extractSentiments,
+  formatDate,
+} from '@/lib/analysis-utils';
 import { formatBytes } from '@/lib/consts';
+import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
 
 export function MediaDetail() {
-  const { selectedMedia } = useMediaSelection();
+  const { selectedMedia, toggleHideSelected, toggleDeleteSelected } =
+    useMediaSelection();
 
   // If no files are selected, show empty state
   if (selectedMedia.length === 0) {
@@ -31,6 +49,51 @@ export function MediaDetail() {
   const media = selectedMedia[0];
   const fileName = media.media_path.split('/').pop() || media.media_path;
 
+  const sentiments = extractSentiments(media.analysis_data?.sentiments);
+  const objects = extractObjects(media.analysis_data?.objects);
+  const safetyLevels = extractSafetyLevels(media.analysis_data?.safety_levels);
+
+  const processingStatus = (
+    <div className="grid grid-cols-2 gap-4 mt-4">
+      <DetailField
+        label="EXIF Data"
+        value={
+          <Badge variant={media.is_exif_processed ? 'success' : 'outline'}>
+            {media.is_exif_processed ? 'Processed' : 'Pending'}
+          </Badge>
+        }
+      />
+      <DetailField
+        label="Thumbnail"
+        value={
+          <Badge variant={media.is_thumbnail_processed ? 'success' : 'outline'}>
+            {media.is_thumbnail_processed ? 'Generated' : 'Pending'}
+          </Badge>
+        }
+      />
+      <DetailField
+        label="Analysis"
+        value={
+          <Badge variant={media.is_analysis_processed ? 'success' : 'outline'}>
+            {media.is_analysis_processed ? 'Complete' : 'Pending'}
+          </Badge>
+        }
+      />
+      <DetailField
+        label="Status"
+        value={
+          media.is_deleted ? (
+            <Badge variant="destructive">Deleted</Badge>
+          ) : media.is_hidden ? (
+            <Badge variant="secondary">Hidden</Badge>
+          ) : (
+            <Badge variant="default">Visible</Badge>
+          )
+        }
+      />
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col">
       <CardHeader className="px-4 py-3 flex flex-row justify-between items-center">
@@ -39,6 +102,28 @@ export function MediaDetail() {
             ? `${selectedMedia.length} files selected`
             : 'File Details'}
         </CardTitle>
+
+        {/* Action buttons for single file view */}
+        {selectedMedia.length === 1 && (
+          <div className="flex gap-2">
+            <Button
+              variant={media.is_hidden ? 'default' : 'outline'}
+              size="icon"
+              onClick={() => toggleHideSelected()}
+              title={media.is_hidden ? 'Unhide' : 'Hide'}
+            >
+              {media.is_hidden ? <Eye size={16} /> : <EyeOff size={16} />}
+            </Button>
+            <Button
+              variant={media.is_deleted ? 'default' : 'destructive'}
+              size="icon"
+              onClick={() => toggleDeleteSelected()}
+              title={media.is_deleted ? 'Restore' : 'Delete'}
+            >
+              <Trash size={16} />
+            </Button>
+          </div>
+        )}
       </CardHeader>
 
       {/* If multiple files selected, show summary info */}
@@ -47,16 +132,72 @@ export function MediaDetail() {
           <p>
             {selectedMedia.length} files selected with a total size of{' '}
             {formatBytes(
-              selectedMedia.reduce((sum, file) => sum + media.size_bytes, 0),
+              selectedMedia.reduce((sum, file) => sum + file.size_bytes, 0),
             )}
           </p>
-          {/* You could add batch operations here */}
+
+          {/* File type breakdown */}
+          <div className="mt-4">
+            <h3 className="text-sm font-medium">File Type Breakdown:</h3>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {Object.entries(
+                selectedMedia.reduce(
+                  (acc, file) => {
+                    const type = file.media_types?.type_name || 'unknown';
+                    acc[type] = (acc[type] || 0) + 1;
+                    return acc;
+                  },
+                  {} as Record<string, number>,
+                ),
+              ).map(([type, count]) => (
+                <Badge key={type} variant="secondary">
+                  {type}: {count}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {/* Processing status */}
+          <div className="mt-4">
+            <h3 className="text-sm font-medium">Processing Status:</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2">
+              <div>
+                EXIF Processed:{' '}
+                {selectedMedia.filter((m) => m.is_exif_processed).length}
+              </div>
+              <div>
+                Thumbnails:{' '}
+                {selectedMedia.filter((m) => m.is_thumbnail_processed).length}
+              </div>
+              <div>
+                Analysis:{' '}
+                {selectedMedia.filter((m) => m.is_analysis_processed).length}
+              </div>
+              <div>
+                Hidden: {selectedMedia.filter((m) => m.is_hidden).length}
+              </div>
+            </div>
+          </div>
+
+          {/* Batch operations */}
           <div className="flex gap-2 mt-4">
-            <Button variant="outline" size="sm">
-              Hide Selected
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toggleHideSelected()}
+            >
+              {selectedMedia.some((m) => !m.is_hidden)
+                ? 'Hide All'
+                : 'Unhide All'}
             </Button>
-            <Button variant="destructive" size="sm">
-              Delete Selected
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => toggleDeleteSelected()}
+            >
+              {selectedMedia.some((m) => !m.is_deleted)
+                ? 'Delete All'
+                : 'Restore All'}
             </Button>
           </div>
         </CardContent>
@@ -90,68 +231,114 @@ export function MediaDetail() {
                   Analysis
                 </TabsTrigger>
               )}
+              <TabsTrigger value="processing" className="flex-1">
+                Status
+              </TabsTrigger>
             </TabsList>
 
             {/* Basic Information */}
             <TabsContent value="info" className="p-4">
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Filename
-                  </h3>
-                  <p className="break-all mt-1">{fileName}</p>
-                </div>
+                <DetailField
+                  label="Filename"
+                  value={<p className="break-all">{fileName}</p>}
+                />
 
                 <Separator />
 
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    File Path
-                  </h3>
-                  <p className="break-all mt-1">{media.media_path}</p>
-                </div>
+                <DetailField
+                  label="File Path"
+                  value={<p className="break-all">{media.media_path}</p>}
+                />
 
                 {media.media_types?.mime_type && (
                   <>
                     <Separator />
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground">
-                          File Type
-                        </h3>
-                        <p className="mt-1">{media.media_types.type_name}</p>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground">
-                          Size
-                        </h3>
-                        <p className="mt-1">{formatBytes(media.size_bytes)}</p>
-                      </div>
+                      <DetailField
+                        label="File Type"
+                        value={
+                          <div className="flex items-center gap-2">
+                            <FileType size={16} />
+                            {media.media_types.type_name}
+                          </div>
+                        }
+                      />
+                      <DetailField
+                        label="Size"
+                        value={
+                          <div className="flex items-center gap-2">
+                            <HardDrive size={16} />
+                            {formatBytes(media.size_bytes)}
+                          </div>
+                        }
+                      />
                     </div>
                   </>
                 )}
 
                 <Separator />
 
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Date Created
-                  </h3>
-                  <p className="mt-1">
-                    {new Date(media.created_date).toLocaleString()}
-                  </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <DetailField
+                    label="Date Created"
+                    value={
+                      <div className="flex items-center gap-2">
+                        <Calendar size={16} />
+                        {formatDate(media.created_date)}
+                      </div>
+                    }
+                  />
+
+                  {media.exif_data?.created_date && (
+                    <DetailField
+                      label="Photo Taken"
+                      value={
+                        <div className="flex items-center gap-2">
+                          <ImageIcon size={16} />
+                          {formatDate(media.exif_data?.created_date)}
+                        </div>
+                      }
+                    />
+                  )}
                 </div>
+
+                {media.exif_data?.gps_latitude &&
+                  media.exif_data?.gps_longitude && (
+                    <>
+                      <Separator />
+                      <DetailField
+                        label="Location"
+                        value={
+                          <div className="flex items-center gap-2">
+                            <MapPin size={16} />
+                            {media.exif_data.gps_latitude.toFixed(6)},{' '}
+                            {media.exif_data.gps_longitude.toFixed(6)}
+                          </div>
+                        }
+                      />
+                    </>
+                  )}
 
                 {media.media_types?.mime_type && (
                   <>
                     <Separator />
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">
-                        MIME Type
-                      </h3>
-                      <p className="mt-1">{media.media_types.mime_type}</p>
-                    </div>
+                    <DetailField
+                      label="MIME Type"
+                      value={media.media_types.mime_type}
+                    />
+                  </>
+                )}
+
+                {/* Display dimensions if available */}
+                {media.exif_data?.width && media.exif_data?.height && (
+                  <>
+                    <Separator />
+                    <DetailField
+                      label="Dimensions"
+                      value={`${media.exif_data.width} × ${media.exif_data.height} pixels`}
+                    />
                   </>
                 )}
               </div>
@@ -169,14 +356,10 @@ export function MediaDetail() {
               <TabsContent value="analysis" className="p-4">
                 <div className="space-y-4">
                   {media.analysis_data.image_description && (
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">
-                        Description
-                      </h3>
-                      <p className="mt-1">
-                        {media.analysis_data.image_description}
-                      </p>
-                    </div>
+                    <DetailField
+                      label="Description"
+                      value={media.analysis_data.image_description}
+                    />
                   )}
 
                   {media.analysis_data.image_description &&
@@ -185,26 +368,163 @@ export function MediaDetail() {
 
                   {media.analysis_data.tags &&
                     media.analysis_data.tags.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground">
-                          Tags
-                        </h3>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {media.analysis_data.tags.map((tag) => (
-                            <Badge
-                              key={tag}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
+                      <DetailField
+                        label="Tags"
+                        value={
+                          <div className="flex flex-wrap gap-1">
+                            {media.analysis_data.tags.map((tag) => (
+                              <Badge
+                                key={tag}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        }
+                      />
                     )}
+
+                  {sentiments && (
+                    <>
+                      <Separator />
+                      <DetailField
+                        label="Sentiment"
+                        className="capitalize"
+                        value={
+                          <Badge
+                            variant={
+                              sentiments.label === 'positive'
+                                ? 'success'
+                                : sentiments.label === 'negative'
+                                  ? 'destructive'
+                                  : 'secondary'
+                            }
+                          >
+                            {sentiments.label} ({sentiments.score.toFixed(2)})
+                          </Badge>
+                        }
+                      />
+                    </>
+                  )}
+
+                  {objects && objects.length > 0 && (
+                    <>
+                      <Separator />
+                      <DetailField
+                        label="Objects Detected"
+                        value={
+                          <div className="flex flex-wrap gap-1">
+                            {objects.map((object, index) => (
+                              <Badge
+                                key={index}
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                {object.label} ({object.score.toFixed(2)})
+                              </Badge>
+                            ))}
+                          </div>
+                        }
+                      />
+                    </>
+                  )}
+
+                  {media.analysis_data.colors &&
+                    media.analysis_data.colors.length > 0 && (
+                      <>
+                        <Separator />
+                        <DetailField
+                          label="Dominant Colors"
+                          value={
+                            <div className="flex flex-wrap gap-2">
+                              {media.analysis_data.colors.map(
+                                (color, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <div
+                                      className="w-4 h-4 rounded-full border"
+                                      style={{ backgroundColor: color }}
+                                    />
+                                    <span className="text-xs">{color}</span>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          }
+                        />
+                      </>
+                    )}
+
+                  {safetyLevels && (
+                    <>
+                      <Separator />
+                      <DetailField
+                        label="Safety Level"
+                        value={
+                          <div className="flex flex-wrap gap-1">
+                            {safetyLevels.map((safetyLevel, index) => (
+                              <Badge
+                                key={index}
+                                variant={
+                                  safetyLevel.label === 'safe'
+                                    ? 'success'
+                                    : safetyLevel.label === 'sensitive'
+                                      ? 'warning'
+                                      : 'destructive'
+                                }
+                                className="text-xs"
+                              >
+                                {safetyLevel.label} (
+                                {safetyLevel.score.toFixed(2)})
+                              </Badge>
+                            ))}
+                          </div>
+                        }
+                      />
+                    </>
+                  )}
                 </div>
               </TabsContent>
             )}
+
+            {/* Processing Status Tab */}
+            <TabsContent value="processing" className="p-4">
+              <div className="space-y-4">
+                <DetailField
+                  label="File ID"
+                  value={
+                    <code className="bg-muted p-1 rounded text-xs">
+                      {media.id}
+                    </code>
+                  }
+                />
+
+                <Separator />
+
+                {processingStatus}
+
+                <Separator />
+
+                <DetailField
+                  label="Imported"
+                  value={formatDate(media.created_date)}
+                />
+
+                {media.exif_data && (
+                  <>
+                    <Separator />
+                    <DetailField
+                      label="Last Modified"
+                      value={formatDate(String(media.exif_data.exif_timestamp))}
+                    />
+                  </>
+                )}
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       )}
