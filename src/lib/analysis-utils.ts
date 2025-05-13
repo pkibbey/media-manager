@@ -3,7 +3,6 @@ import type {
   SafetyLevelType,
   SentimentType,
 } from '@/types/analysis';
-import type { Json } from '@/types/supabase';
 
 // Format dates consistently
 export const formatDate = (dateString: string) => {
@@ -17,7 +16,7 @@ export const formatDate = (dateString: string) => {
 };
 
 export const extractSentiments = (
-  sentimentArray?: Json[],
+  sentimentArray?: SentimentType[],
 ): SentimentType | null => {
   if (!sentimentArray) return null;
 
@@ -31,21 +30,23 @@ export const extractSentiments = (
   );
 };
 
-export const extractObjects = (objectsArray?: Json[]): ObjectsType[] => {
-  if (!objectsArray) return [];
+export const extractObjects = (
+  objectsArray?: ObjectsType[],
+): ObjectsType[] | null => {
+  if (!objectsArray) return null;
 
-  const typedObjects = objectsArray as ObjectsType[];
-  if (typedObjects.length === 0) return [];
+  const typedObjects = objectsArray;
+  if (typedObjects.length === 0) return null;
 
   return typedObjects;
 };
 
 export const extractSafetyLevels = (
-  safetyLevels?: Json[],
+  safetyLevels?: SafetyLevelType[],
 ): SafetyLevelType[] | null => {
   if (!safetyLevels) return null;
 
-  const typedSafetyLevels = safetyLevels as SafetyLevelType[];
+  const typedSafetyLevels = safetyLevels;
   if (typedSafetyLevels.length === 0) return null;
 
   return typedSafetyLevels;

@@ -1,7 +1,7 @@
 'use client';
 
 import type React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { MediaDetail } from '@/components/media/media-detail/media-detail';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -79,9 +79,9 @@ export function MediaListContainer({ media }: MediaListContainerProps) {
             <MediaGrid media={media} />
           </ScrollArea>
 
-            <div className="w-[450px] border-l border-gray-200 dark:border-gray-800">
-              <MediaDetail/>
-            </div>
+          <div className="w-[450px] border-l border-gray-200 dark:border-gray-800">
+            <MediaDetail />
+          </div>
         </Card>
       </MediaKeyboardHandler>
     </MediaSelectionProvider>

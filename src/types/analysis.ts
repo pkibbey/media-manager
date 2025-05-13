@@ -79,3 +79,5 @@ export const ImageDescriptionSchema = z.object({
 });
 
 export type ImageDescriptionType = z.infer<typeof ImageDescriptionSchema>;
+
+export type ThresholdType = Record<number, number>;

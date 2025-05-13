@@ -1,5 +1,8 @@
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
+  - '@tensorflow/tfjs-node'
+  - canvas
+  - core-js
   - mmmagic
   - protobufjs
   - sharp

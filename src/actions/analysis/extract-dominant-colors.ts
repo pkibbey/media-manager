@@ -18,8 +18,7 @@ export default async function extractDominantColors(imageUrl: string) {
 
     // Process the image buffer with sharp
     sharpInstance = sharp(Buffer.from(imageBuffer));
-    const { dominant: dominantRGB, ...props } = await sharpInstance.stats();
-    console.log('props: ', props.entropy, props.channels, props.sharpness);
+    const { dominant: dominantRGB } = await sharpInstance.stats();
 
     const hexColor = `#${dominantRGB.r.toString(16).padStart(2, '0')}${dominantRGB.g.toString(16).padStart(2, '0')}${dominantRGB.b.toString(16).padStart(2, '0')}`;
 

@@ -1,23 +1,24 @@
-"use server";
+'use server';
 
-import { NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
+import { NextResponse } from 'next/server';
 // import path from 'node:path'; // Not used
 import sharp from 'sharp';
+import {
+  BACKGROUND_COLOR,
+  IMAGE_DETAIL_SIZE,
+  THUMBNAIL_QUALITY,
+} from '@/lib/consts';
+import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
 import type { Tables } from '@/types/supabase';
-import { processRawWithDcraw, convertRawThumbnail } from '@/lib/raw-processor';
-import { IMAGE_DETAIL_SIZE, BACKGROUND_COLOR, THUMBNAIL_QUALITY } from '@/lib/consts';
 
 // Helper function to check if a file is a Nikon NEF Raw file
 function isNikonNef(filePath: string): boolean {
   return filePath.toLowerCase().endsWith('.nef');
 }
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } },
-) {
+export async function GET({ params }: { params: { id: string } }) {
   const { id } = params;
   const supabase = createSupabase();
 
@@ -47,7 +48,8 @@ export async function GET(
     }
 
     // Ensure media_types is correctly typed and accessed
-    const mediaTypeRelation = mediaItem.media_types as Tables<'media_types'> | null;
+    const mediaTypeRelation =
+      mediaItem.media_types as Tables<'media_types'> | null;
     const mimeType = mediaTypeRelation?.mime_type;
 
     if (!mimeType) {
@@ -76,15 +78,27 @@ export async function GET(
           // These functions take filePath and handle file reading internally
           rawProcessedBuffer = await processRawWithDcraw(filePath);
         } catch (dcrawError) {
-          console.error(`Error with processRawWithDcraw for ${filePath}, trying convertRawThumbnail:`, dcrawError);
+          console.error(
+            `Error with processRawWithDcraw for ${filePath}, trying convertRawThumbnail:`,
+            dcrawError,
+          );
           rawProcessedBuffer = await convertRawThumbnail(filePath); // Fallback
         }
         // Convert the processed RAW buffer to JPEG, applying EXIF rotation
-        outputBuffer = await sharp(rawProcessedBuffer).rotate().jpeg().toBuffer();
+        outputBuffer = await sharp(rawProcessedBuffer)
+          .rotate()
+          .jpeg()
+          .toBuffer();
         contentType = 'image/jpeg';
       } catch (rawProcessingError) {
-        console.error(`Error processing NEF file ${filePath}:`, rawProcessingError);
-        return NextResponse.json({ error: 'Error processing RAW image file' }, { status: 500 });
+        console.error(
+          `Error processing NEF file ${filePath}:`,
+          rawProcessingError,
+        );
+        return NextResponse.json(
+          { error: 'Error processing RAW image file' },
+          { status: 500 },
+        );
       }
     } else {
       // For non-NEF files, read the file into a buffer first
@@ -108,7 +122,10 @@ export async function GET(
           outputBuffer = await sharp(imageBuffer).rotate().jpeg().toBuffer();
           contentType = 'image/jpeg';
         } catch (conversionError) {
-          console.error(`Error converting image ${filePath} to JPEG:`, conversionError);
+          console.error(
+            `Error converting image ${filePath} to JPEG:`,
+            conversionError,
+          );
           return NextResponse.json(
             { error: 'Error converting image' },
             { status: 500 },
@@ -117,17 +134,17 @@ export async function GET(
       }
     }
 
-     // Resize to fit thumbnail dimensions
-                const thumbnailBuffer = await sharp(outputBuffer)
-                  .resize({
-                    width: IMAGE_DETAIL_SIZE,
-                    height: IMAGE_DETAIL_SIZE,
-                    withoutEnlargement: true,
-                    fit: 'contain',
-                    background: BACKGROUND_COLOR,
-                  })
-                  .jpeg({ quality: THUMBNAIL_QUALITY })
-                  .toBuffer();
+    // Resize to fit thumbnail dimensions
+    const thumbnailBuffer = await sharp(outputBuffer)
+      .resize({
+        width: IMAGE_DETAIL_SIZE,
+        height: IMAGE_DETAIL_SIZE,
+        withoutEnlargement: true,
+        fit: 'contain',
+        background: BACKGROUND_COLOR,
+      })
+      .jpeg({ quality: THUMBNAIL_QUALITY })
+      .toBuffer();
 
     return new NextResponse(thumbnailBuffer, {
       status: 200,
@@ -136,7 +153,6 @@ export async function GET(
         'Content-Length': outputBuffer.length.toString(),
       },
     });
-
   } catch (error) {
     console.error('Error fetching media:', error);
     return NextResponse.json(

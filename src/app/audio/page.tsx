@@ -1,5 +1,7 @@
 'use client';
 
+// Import TensorFlow.js directly
+import * as tf from '@tensorflow/tfjs';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -23,8 +25,6 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-// Import TensorFlow.js directly
-import * as tf from '@tensorflow/tfjs';
 
 // Declare TensorFlow as a third-party library
 declare global {
@@ -86,7 +86,9 @@ export default function AudioPage() {
       // Load available voices
       const loadVoices = () => {
         const availableVoices = synth.current?.getVoices() || [];
-        setVoices(availableVoices.filter((voice) => voice.lang.startsWith('en-US')));
+        setVoices(
+          availableVoices.filter((voice) => voice.lang.startsWith('en-US')),
+        );
 
         // Set a default voice if available
         if (availableVoices.length > 0 && !selectedVoice) {
@@ -196,7 +198,10 @@ export default function AudioPage() {
         modelRef.current = await window.tf.loadGraphModel(path);
         console.log('Graph model loaded successfully');
       } catch (graphError) {
-        console.error('Failed to load as graph model, trying layered model:', graphError);
+        console.error(
+          'Failed to load as graph model, trying layered model:',
+          graphError,
+        );
 
         try {
           // If graph model fails, try loading as a layered model (Keras format)
@@ -229,7 +234,7 @@ export default function AudioPage() {
     } catch (err) {
       console.error('Error loading model:', err);
       setError(
-        `Failed to load the model: ${err instanceof Error ? err.message : String(err)}`
+        `Failed to load the model: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       setModelLoading(false);
@@ -299,8 +304,9 @@ export default function AudioPage() {
 
     try {
       // Check for model.json (TensorFlow.js format)
-      const modelJsonFile = Array.from(files).find(file =>
-        file.name.endsWith('model.json') || file.name.endsWith('.json')
+      const modelJsonFile = Array.from(files).find(
+        (file) =>
+          file.name.endsWith('model.json') || file.name.endsWith('.json'),
       );
 
       // Handle TensorFlow.js model files
@@ -318,14 +324,19 @@ export default function AudioPage() {
           modelRef.current = await window.tf.loadGraphModel(modelUrl);
           console.log('Graph model loaded successfully from uploaded file');
         } catch (graphError) {
-          console.error('Failed to load as graph model, trying layered model:', graphError);
+          console.error(
+            'Failed to load as graph model, trying layered model:',
+            graphError,
+          );
 
           try {
             // If that fails, try loading as a layers model
             modelRef.current = await window.tf.loadLayersModel(modelUrl);
             console.log('Layered model loaded successfully from uploaded file');
-          } catch (layeredError) {
-            throw new Error(`Failed to load model from the uploaded file. The model may not be in the correct TensorFlow.js format.`);
+          } catch (_layeredError) {
+            throw new Error(
+              'Failed to load model from the uploaded file. The model may not be in the correct TensorFlow.js format.',
+            );
           }
         }
 
@@ -336,14 +347,21 @@ export default function AudioPage() {
         const newModel = { name: modelName, path: modelUrl };
         const updatedModels = [...customModels, newModel];
         setCustomModels(updatedModels);
-        localStorage.setItem('customVoiceModels', JSON.stringify(updatedModels));
+        localStorage.setItem(
+          'customVoiceModels',
+          JSON.stringify(updatedModels),
+        );
         setSelectedModel(modelUrl);
       } else {
-        setError('No valid model file found. Please select a TensorFlow.js model.json file.');
+        setError(
+          'No valid model file found. Please select a TensorFlow.js model.json file.',
+        );
       }
     } catch (err) {
       console.error('Error processing uploaded file:', err);
-      setError(`Failed to load the model: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Failed to load the model: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setModelLoading(false);
       // Reset input field to allow selecting the same file again
@@ -491,7 +509,9 @@ export default function AudioPage() {
                       className="mt-1"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Enter a URL that directly points to a TensorFlow.js model.json file. Make sure the URL is accessible and the server allows CORS.
+                      Enter a URL that directly points to a TensorFlow.js
+                      model.json file. Make sure the URL is accessible and the
+                      server allows CORS.
                     </p>
                   </div>
                 </div>
@@ -514,7 +534,11 @@ export default function AudioPage() {
                       multiple
                       onChange={handleFileUpload}
                     />
-                    <Button variant="outline" className="w-full" disabled={modelLoading}>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={modelLoading}
+                    >
                       {modelLoading ? 'Uploading...' : 'Upload Model Files'}
                     </Button>
                     <p className="text-xs text-gray-500 mt-1">
@@ -542,7 +566,8 @@ export default function AudioPage() {
             className="w-full sm:w-auto"
             disabled={
               (activeTab === 'system-voices' && text.trim() === '') ||
-              (activeTab === 'custom-model' && (!isModelLoaded || text.trim() === ''))
+              (activeTab === 'custom-model' &&
+                (!isModelLoaded || text.trim() === ''))
             }
           >
             {isPlaying ? 'Stop Speaking' : 'Speak Now'}
@@ -554,7 +579,8 @@ export default function AudioPage() {
             className="w-full sm:w-auto"
             disabled={
               (activeTab === 'system-voices' && text.trim() === '') ||
-              (activeTab === 'custom-model' && (!isModelLoaded || text.trim() === ''))
+              (activeTab === 'custom-model' &&
+                (!isModelLoaded || text.trim() === ''))
             }
           >
             Download Audio (MP3)

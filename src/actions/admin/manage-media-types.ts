@@ -1,7 +1,6 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import { fileTypeFromBuffer } from 'file-type';
 import fileTypeChecker from 'file-type-checker';
 import { v4 as uuid } from 'uuid';
 import { createSupabase } from '@/lib/supabase';
@@ -157,9 +156,6 @@ async function detectMimeTypeFromPath(
   try {
     const buffer = await fs.readFile(filePath);
     const type = fileTypeChecker.detectFile(buffer);
-    const otherType = await fileTypeFromBuffer(buffer);
-    console.log('otherType: ', otherType);
-    console.log('type: ', type);
     if (type) {
       return type.mimeType;
     }
@@ -235,7 +231,6 @@ export async function refreshImageMediaTypes(): Promise<{
 
       // Re-analyze the file with the file-type-checker
       const newMimeType = await detectMimeTypeFromPath(item.media_path);
-      console.log('newMimeType: ', newMimeType);
 
       if (!newMimeType) {
         console.warn(`Could not detect MIME type for ${item.media_path}`);
@@ -319,7 +314,6 @@ export async function refreshAllMediaTypes(batchSize = 50): Promise<{
     const { count, error: countError } = await supabase
       .from('media')
       .select('*', { count: 'exact', head: true });
-    console.log('count: ', count);
 
     if (countError) {
       throw new Error(`Failed to get media count: ${countError.message}`);
@@ -335,7 +329,6 @@ export async function refreshAllMediaTypes(batchSize = 50): Promise<{
         .from('media')
         .select('*')
         .range(page * batchSize, (page + 1) * batchSize - 1);
-      console.log('mediaItems: ', mediaItems);
 
       if (fetchError) {
         throw new Error(`Failed to fetch media items: ${fetchError.message}`);

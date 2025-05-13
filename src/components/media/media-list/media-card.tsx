@@ -25,8 +25,9 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
     toggleSelection(media.id, multiSelect, rangeSelect);
   };
 
-  // Extract just the filename from the path
   const fileName = media.media_path.split('/').pop() || media.media_path;
+  const thumbnail = media.thumbnail_data?.thumbnail_url;
+  const exifData = media.exif_data?.[0];
 
   return (
     <Card
@@ -42,14 +43,14 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
     >
       {/* Thumbnail image */}
       <div className="aspect-square overflow-hidden bg-muted relative">
-        {media.thumbnail_data ? (
+        {thumbnail && exifData ? (
           <Image
-            src={media.thumbnail_data.thumbnail_url}
+            src={thumbnail}
             alt={fileName}
             className="w-full h-full object-cover"
             loading="lazy"
-            width={media.exif_data?.width}
-            height={media.exif_data?.height}
+            width={exifData.width}
+            height={exifData.height}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">

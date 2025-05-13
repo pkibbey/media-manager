@@ -1,7 +1,8 @@
 'use server';
 
 import { createSupabase } from '@/lib/supabase';
-import { processAnalysis } from './process-analysis';
+import type { ThresholdType } from '@/types/analysis';
+import { processWithTiers } from './process-with-tiers';
 
 /**
  * Process analysis for multiple media items in batch
@@ -10,7 +11,10 @@ import { processAnalysis } from './process-analysis';
  * @returns Object with count of processed items and any errors
  */
 
-export async function processBatchAnalysis(limit: number) {
+export async function processBatchAnalysis(
+  limit: number,
+  thresholds: ThresholdType,
+) {
   try {
     const supabase = createSupabase();
 
@@ -27,7 +31,8 @@ export async function processBatchAnalysis(limit: number) {
     // Find media items that need analysis processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('id')
+      .select('*')
+      .eq('is_thumbnail_processed', true)
       .eq('is_analysis_processed', false)
       .limit(limit);
 
@@ -47,12 +52,10 @@ export async function processBatchAnalysis(limit: number) {
 
     for (let i = 0; i < mediaItems.length; i++) {
       const item = mediaItems[i];
-      console.log(
-        `Processing item ${i + 1}/${mediaItems.length} (ID: ${item.id})`,
-      );
+      console.log(`Processing item ${i + 1}/${mediaItems.length}`);
 
       try {
-        const result = await processAnalysis(item.id);
+        const result = await processWithTiers({ mediaId: item.id, thresholds });
         if (result.success) {
           succeeded++;
           totalBatchProcessingTime += result.processingTime || 0;
