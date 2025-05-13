@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { pipeline } from '@xenova/transformers';
 import * as canvas from 'canvas'; // Ensure canvas is imported if not already
 import * as faceapi from 'face-api.js';
@@ -11,7 +9,6 @@ import type {
   SafetyLevelType,
   SentimentType,
 } from '@/types/analysis';
-import { VISION_MODEL } from './consts';
 
 // Cache these to avoid reloading
 let objectDetectorPromise: any = null;
@@ -91,42 +88,6 @@ export async function getCaptioner(): Promise<
       console.error('Error generating caption with ollama:', error);
       return [{ generated_text: 'Error generating caption.' }];
     }
-  };
-}
-
-// Schema for individual objects detected in the image
-const ImageDescriptionSchema = z.object({
-  summary: z.string().describe('A concise summary of the image'),
-});
-
-const JsonSchema = zodToJsonSchema(ImageDescriptionSchema);
-
-export async function loadDetailedCaptioner() {
-  // In a nodejs environment you can furthermore load the models directly from disk:
-  await faceapi.nets.tinyFaceDetector.loadFromDisk('./models');
-
-  return async function detailedCaptioner(imageUrl: string) {
-    const imagePath = resolve(imageUrl);
-    const imageBuffer = readFileSync(imagePath);
-    const base64Image = imageBuffer.toString('base64');
-
-    const messages = [
-      {
-        role: 'user',
-        content:
-          'Analyze this image and return a detailed description of the image contents as a JSON object. Include objects, scene, colors, any emotional context, and anything else you can see in the image.',
-        images: [base64Image],
-      },
-    ];
-
-    return await ollama.chat({
-      model: VISION_MODEL,
-      messages: messages,
-      format: JsonSchema,
-      options: {
-        temperature: 0, // Make responses more deterministic
-      },
-    });
   };
 }
 

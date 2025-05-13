@@ -4,10 +4,10 @@ import { Image, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import deleteAnalysisData from '@/actions/analysis/delete-analysis-data';
 import { getAnalysisStats } from '@/actions/analysis/get-analysis-stats';
-import { processBatchAnalysis } from '@/actions/analysis/process-batch-analysis';
+import { processBasicAnalysis } from '@/actions/analysis/process-basic-analysis';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
-import StatsCard from '@/components/admin/stats-card';
+import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Card,
@@ -22,7 +22,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
-import type { ThresholdType } from '@/types/analysis';
 
 interface AnalysisStatsType {
   total: number;
@@ -38,12 +37,6 @@ const formatTime = (timeInMs: number | null) => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}m ${seconds < 10 ? '0' : ''}${seconds}s`;
-};
-
-const INITIAL_THRESHOLDS: ThresholdType = {
-  1: 30, // Pass to the next tier at 30 points
-  2: 60, // Pass to the next tier at 60 points
-  3: 90, // Pass to the next tier at 90 points
 };
 
 export default function AnalysisAdminPage() {
@@ -132,8 +125,8 @@ export default function AnalysisAdminPage() {
 
   // Process batch function for continuous processing
   const processBatchFunction = useCallback(
-    async (size: number, thresholds: ThresholdType) => {
-      const result = await processBatchAnalysis(size, thresholds);
+    async (size: number) => {
+      const result = await processBasicAnalysis(size);
 
       // Store the result for UI display
       setLastBatchResult(result);
@@ -152,7 +145,7 @@ export default function AnalysisAdminPage() {
   // Process a batch of items (for manual batch processing)
   const processBatch = async () => {
     try {
-      const result = await processBatchAnalysis(batchSize, INITIAL_THRESHOLDS);
+      const result = await processBasicAnalysis(batchSize);
 
       if (result.success) {
         await refreshStats();
@@ -377,8 +370,7 @@ export default function AnalysisAdminPage() {
                 ) : (
                   <ActionButton
                     action={async () => {
-                      const result =
-                        await processAllRemaining(INITIAL_THRESHOLDS);
+                      const result = await processAllRemaining();
                       return {
                         success: result.success,
                         error: result.error,
@@ -386,11 +378,11 @@ export default function AnalysisAdminPage() {
                       };
                     }}
                     disabled={analysisStats?.remaining === 0}
-                    loadingMessage="Processing stage 1 items..."
+                    loadingMessage="Processing all items..."
                     successMessage="All items processed successfully"
                     variant="secondary"
                   >
-                    Process Stage 1
+                    Process All
                   </ActionButton>
                 )}
                 <ActionButton

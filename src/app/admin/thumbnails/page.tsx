@@ -7,7 +7,7 @@ import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
 import { processBatchThumbnails } from '@/actions/thumbnails/process-thumbnails';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
-import StatsCard from '@/components/admin/stats-card';
+import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Card,

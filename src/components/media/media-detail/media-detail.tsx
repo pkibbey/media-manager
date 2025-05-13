@@ -17,12 +17,7 @@ import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  extractObjects,
-  extractSafetyLevels,
-  extractSentiments,
-  formatDate,
-} from '@/lib/analysis-utils';
+import { formatDate } from '@/lib/analysis-utils';
 import { formatBytes } from '@/lib/consts';
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
@@ -49,9 +44,9 @@ export function MediaDetail() {
   const media = selectedMedia[0];
   const fileName = media.media_path.split('/').pop() || media.media_path;
 
-  const sentiments = extractSentiments(media.analysis_data?.sentiments);
-  const objects = extractObjects(media.analysis_data?.objects);
-  const safetyLevels = extractSafetyLevels(media.analysis_data?.safety_levels);
+  // const sentiments = media.analysis_data?.sentiments as SentimentType[];
+  // const objects = media.analysis_data?.objects as ObjectsType[];
+  // const safetyLevels = media.analysis_data?.safety_levels as SafetyLevelType[];
 
   const processingStatus = (
     <div className="grid grid-cols-2 gap-4 mt-4">
@@ -74,8 +69,8 @@ export function MediaDetail() {
       <DetailField
         label="Analysis"
         value={
-          <Badge variant={media.is_analysis_processed ? 'success' : 'outline'}>
-            {media.is_analysis_processed ? 'Complete' : 'Pending'}
+          <Badge variant={media.is_basic_processed ? 'success' : 'outline'}>
+            {media.is_basic_processed ? 'Complete' : 'Pending'}
           </Badge>
         }
       />
@@ -171,7 +166,7 @@ export function MediaDetail() {
               </div>
               <div>
                 Analysis:{' '}
-                {selectedMedia.filter((m) => m.is_analysis_processed).length}
+                {selectedMedia.filter((m) => m.is_basic_processed).length}
               </div>
               <div>
                 Hidden: {selectedMedia.filter((m) => m.is_hidden).length}
@@ -386,7 +381,7 @@ export function MediaDetail() {
                       />
                     )}
 
-                  {sentiments && (
+                  {/* {sentiments && (
                     <>
                       <Separator />
                       <DetailField
@@ -429,7 +424,7 @@ export function MediaDetail() {
                         }
                       />
                     </>
-                  )}
+                  )} */}
 
                   {media.analysis_data.colors &&
                     media.analysis_data.colors.length > 0 && (
@@ -459,7 +454,7 @@ export function MediaDetail() {
                       </>
                     )}
 
-                  {safetyLevels && (
+                  {/* {safetyLevels && (
                     <>
                       <Separator />
                       <DetailField
@@ -486,7 +481,7 @@ export function MediaDetail() {
                         }
                       />
                     </>
-                  )}
+                  )} */}
                 </div>
               </TabsContent>
             )}

@@ -1,20 +1,9 @@
 'use server';
 
 import { createSupabase } from '@/lib/supabase';
-import type { ThresholdType } from '@/types/analysis';
-import { processWithTiers } from './process-with-tiers';
+import processWithOllama from './process-wtih-ollama';
 
-/**
- * Process analysis for multiple media items in batch
- *
- * @param limit - Maximum number of items to process
- * @returns Object with count of processed items and any errors
- */
-
-export async function processBatchAnalysis(
-  limit: number,
-  thresholds: ThresholdType,
-) {
+export async function processAdvancedAnalysis(limit = 10) {
   try {
     const supabase = createSupabase();
 
@@ -33,7 +22,7 @@ export async function processBatchAnalysis(
       .from('media')
       .select('*')
       .eq('is_thumbnail_processed', true)
-      .eq('is_analysis_processed', false)
+      .eq('is_advanced_processed', false)
       .limit(limit);
 
     if (findError) {
@@ -55,7 +44,7 @@ export async function processBatchAnalysis(
       console.log(`Processing item ${i + 1}/${mediaItems.length}`);
 
       try {
-        const result = await processWithTiers({ mediaId: item.id, thresholds });
+        const result = await processWithOllama({ mediaId: item.id });
         if (result.success) {
           succeeded++;
           totalBatchProcessingTime += result.processingTime || 0;
@@ -116,6 +105,77 @@ export async function processBatchAnalysis(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       processed: 0,
+    };
+  }
+}
+
+export async function getAdvancedAnalysisStats() {
+  const supabase = createSupabase();
+
+  try {
+    // Get total media items
+    const { count: total, error: totalError } = await supabase
+      .from('media')
+      .select('*', { count: 'exact', head: true });
+
+    if (totalError) {
+      return {
+        error: totalError.message,
+      };
+    }
+
+    // Get processed media items
+    const { count: processed, error: processedError } = await supabase
+      .from('analysis_data')
+      .select('*', { count: 'exact', head: true })
+      .eq('analysis_type', 'advanced');
+
+    if (processedError) {
+      return {
+        error: processedError.message,
+      };
+    }
+
+    // Calculate remaining and percentage
+    const remaining = (total || 0) - (processed || 0);
+    const percentComplete = total
+      ? Math.round(((processed || 0) * 100) / total)
+      : 0;
+
+    return {
+      stats: {
+        total: total || 0,
+        processed: processed || 0,
+        remaining,
+        percentComplete,
+      },
+    };
+  } catch (error) {
+    console.error('Error getting advanced analysis stats:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function deleteAdvancedAnalysisData() {
+  const supabase = createSupabase();
+
+  try {
+    const { error, count } = await supabase
+      .from('analysis_data')
+      .delete({ count: 'exact' })
+      .eq('type', 'advanced');
+
+    if (error) {
+      return { error };
+    }
+
+    return { success: true, count };
+  } catch (error) {
+    console.error('Error deleting advanced analysis data:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }

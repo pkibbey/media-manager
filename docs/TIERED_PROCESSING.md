@@ -216,7 +216,7 @@ export async function processBatchAnalysis(limit: number, thresholds: Record<num
     .from('media')
     .select('id')
     .eq('is_thumbnail_processed', true)
-    .is('is_analysis_processed', false)
+    .is('is_basic_processed', false)
     .limit(limit);
 
   if (!mediaItems || mediaItems.length === 0) {

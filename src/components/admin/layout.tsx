@@ -15,7 +15,8 @@ const navItems = [
   { name: 'File Types', href: '/admin/file-types' },
   { name: 'EXIF Processing', href: '/admin/exif' },
   { name: 'Thumbnails', href: '/admin/thumbnails' },
-  { name: 'Analysis', href: '/admin/analysis' },
+  { name: 'Object Analysis', href: '/admin/analysis' },
+  { name: 'Advanced Analysis', href: '/admin/advanced-analysis' },
   { name: 'Settings', href: '/admin/settings' },
 ];
 

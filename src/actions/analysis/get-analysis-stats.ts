@@ -37,7 +37,7 @@ export async function getAnalysisStats(): Promise<{
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
       .select('*', { count: 'exact', head: true })
-      .eq('is_analysis_processed', true)
+      .eq('is_basic_processed', true)
       .is('is_thumbnail_processed', true);
 
     if (processedError) {

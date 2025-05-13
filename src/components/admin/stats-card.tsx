@@ -13,7 +13,7 @@ interface StatsCardProps {
   className?: string;
 }
 
-export default function StatsCard({
+export function StatsCard({
   title,
   total,
   processed,

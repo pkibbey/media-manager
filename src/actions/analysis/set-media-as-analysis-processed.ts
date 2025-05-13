@@ -8,12 +8,12 @@ import { createSupabase } from '@/lib/supabase';
  * @param thumbnailUrl - Optional URL to the generated thumbnail
  * @returns Object with success or error information
  */
-export async function setMediaAsAnalysisProcessed(mediaId: string) {
+export async function setMediaAsBasicAnalysisProcessed(mediaId: string) {
   const supabase = createSupabase();
 
   const { error } = await supabase
     .from('media')
-    .update({ is_analysis_processed: true })
+    .update({ is_basic_processed: true })
     .eq('id', mediaId);
 
   if (error) {

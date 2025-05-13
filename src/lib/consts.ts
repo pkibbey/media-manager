@@ -14,12 +14,7 @@ export const BATCH_SIZE = 100;
  */
 export const THUMBNAIL_SIZE = 224;
 
-// export const VISION_MODEL = 'granite3.2-vision:latest';
-// export const VISION_MODEL = 'llava-phi3:latest';
-// export const VISION_MODEL = 'moondream:latest';
-// export const VISION_MODEL = 'minicpm-v:latest';
-// export const VISION_MODEL = 'llama3.2-vision:11b';
-export const VISION_MODEL = 'hf.co/xtuner/llava-phi-3-mini-gguf:F16';
+export const VISION_MODEL = 'gemma3:latest';
 
 /**
  * Format bytes to human readable string

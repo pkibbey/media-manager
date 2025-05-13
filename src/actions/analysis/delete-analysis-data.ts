@@ -10,6 +10,6 @@ export default async function deleteAnalysisData() {
   // Delete analysis data from the database
   return await supabase
     .from('media')
-    .update({ is_analysis_processed: false })
+    .update({ is_basic_processed: false })
     .not('id', 'is', null);
 }
