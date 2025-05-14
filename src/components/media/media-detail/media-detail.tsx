@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/analysis-utils';
 import { formatBytes } from '@/lib/consts';
+import type { ObjectsType, SafetyLevelType } from '@/types/analysis';
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
 
@@ -44,9 +45,9 @@ export function MediaDetail() {
   const media = selectedMedia[0];
   const fileName = media.media_path.split('/').pop() || media.media_path;
 
-  // const sentiments = media.analysis_data?.sentiments as SentimentType[];
-  // const objects = media.analysis_data?.objects as ObjectsType[];
-  // const safetyLevels = media.analysis_data?.safety_levels as SafetyLevelType[];
+  const objects = media.analysis_data?.objects as ObjectsType[];
+  const contentWarnings = media.analysis_data
+    ?.content_warnings as SafetyLevelType[];
 
   const processingStatus = (
     <div className="grid grid-cols-2 gap-4 mt-4">
@@ -358,16 +359,16 @@ export function MediaDetail() {
                   )}
 
                   {media.analysis_data.image_description &&
-                    media.analysis_data.tags &&
-                    media.analysis_data.tags.length > 0 && <Separator />}
+                    media.analysis_data.keywords &&
+                    media.analysis_data.keywords.length > 0 && <Separator />}
 
-                  {media.analysis_data.tags &&
-                    media.analysis_data.tags.length > 0 && (
+                  {media.analysis_data.keywords &&
+                    media.analysis_data.keywords.length > 0 && (
                       <DetailField
                         label="Tags"
                         value={
                           <div className="flex flex-wrap gap-1">
-                            {media.analysis_data.tags.map((tag) => (
+                            {media.analysis_data.keywords.map((tag) => (
                               <Badge
                                 key={tag}
                                 variant="secondary"
@@ -402,7 +403,7 @@ export function MediaDetail() {
                         }
                       />
                     </>
-                  )}
+                  )} */}
 
                   {objects && objects.length > 0 && (
                     <>
@@ -424,7 +425,7 @@ export function MediaDetail() {
                         }
                       />
                     </>
-                  )} */}
+                  )}
 
                   {media.analysis_data.colors &&
                     media.analysis_data.colors.length > 0 && (
@@ -454,14 +455,14 @@ export function MediaDetail() {
                       </>
                     )}
 
-                  {/* {safetyLevels && (
+                  {contentWarnings && (
                     <>
                       <Separator />
                       <DetailField
                         label="Safety Level"
                         value={
                           <div className="flex flex-wrap gap-1">
-                            {safetyLevels.map((safetyLevel, index) => (
+                            {contentWarnings.map((safetyLevel, index) => (
                               <Badge
                                 key={index}
                                 variant={
@@ -481,7 +482,7 @@ export function MediaDetail() {
                         }
                       />
                     </>
-                  )} */}
+                  )}
                 </div>
               </TabsContent>
             )}

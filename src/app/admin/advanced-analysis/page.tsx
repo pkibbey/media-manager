@@ -2,9 +2,9 @@
 
 import { AlertTriangle, Image, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { getAdvancedAnalysisStats } from '@/actions/analysis/get-advanced-analysis-stats';
 import {
   deleteAdvancedAnalysisData,
-  getAdvancedAnalysisStats,
   processAdvancedAnalysis,
 } from '@/actions/analysis/process-advanced-analysis';
 import ActionButton from '@/components/admin/action-button';
@@ -201,7 +201,7 @@ export default function AdvancedAnalysisAdminPage() {
               loadingMessage="Processing..."
               successMessage="Processing complete"
             >
-              Process Batch
+              Process Next Media
             </ActionButton>
 
             {isContinuousProcessing ? (

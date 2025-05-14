@@ -46,7 +46,6 @@ export default function AnalysisAdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastBatchResult, setLastBatchResult] = useState<any>(null);
-  const [processRunCount, setProcessRunCount] = useState<number>(0);
 
   // Fetch analysis stats on page load
   useEffect(() => {
@@ -130,9 +129,6 @@ export default function AnalysisAdminPage() {
 
       // Store the result for UI display
       setLastBatchResult(result);
-
-      // Increment run count
-      setProcessRunCount((prev) => prev + 1);
 
       // Refresh stats after processing
       await refreshStats();
@@ -317,7 +313,6 @@ export default function AnalysisAdminPage() {
                       Processing Status:
                     </h4>
                     <div className="text-sm space-y-1">
-                      <p>Runs completed: {processRunCount}</p>
                       {lastBatchResult && (
                         <p>
                           Last batch: {lastBatchResult.processed || 0} items

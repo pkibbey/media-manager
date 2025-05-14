@@ -30,6 +30,7 @@ export async function processForObjects(mediaId: string) {
       id: v4(),
       media_id: mediaId,
       objects,
+      content_warnings: [],
     },
     {
       onConflict: 'media_id', // Only specify the unique column to identify the record

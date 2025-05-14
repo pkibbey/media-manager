@@ -123,6 +123,20 @@ const AdvancedImageDescriptionSchema = z.object({
     })
     .optional()
     .describe('Assessment of image quality'),
+  content_warnings: z
+    .array(
+      z.object({
+        level: z.string().describe('Content warning level'),
+        confidence: z
+          .min(0)
+          .max(1)
+          .describe('Confidence score of the content warning level'),
+      }),
+    )
+    .optional()
+    .describe(
+      'Content warning for various difrent categories - violence, adult, etc.',
+    ),
 });
 
 export default async function processWithOllama({
@@ -134,7 +148,6 @@ export default async function processWithOllama({
   error?: string;
   processingTime?: number;
 }> {
-  console.log('mediaId: ', mediaId);
   // Verify the file exists and read it
   try {
     // Get media URL from database
@@ -166,8 +179,23 @@ export default async function processWithOllama({
     const messages = [
       {
         role: 'user',
-        content:
-          'Analyze this image and return a detailed JSON description including objects, scene, dominant colors, setting, people, keywords tags, emotions, the artistic content of the image, a quality assessment, and any text content detected. If you cannot determine certain details, leave those fields empty.',
+        content: `
+          Analyze this image and return:
+            A very detailed description of the image,
+            Objects detected in the image - name, bounding box attributes,
+            The scenes detected in the image - portrait, landscape, etc.,
+            The time of day the image was taken - morning, afternoon, evening, night,
+            The setting of the image - indoor, outdoor, beach, etc. - include confidence score,
+            Any text detected in the image,
+            Keyword tags related to the image, useful for search,
+            Dominant colors in the image,
+            People detected in the image - description, bounding box attributes,
+            Emotions expressed in the image - joy, sadness, anger, etc.,
+            Artistic elements in the image - focus, lighting, composition, color palette, style, mood,
+            Assessment of image quality - focus, lighting, composition, color balance, noise level, artifacts, overall quality,
+            Content warning for various difrent categories - violence, adult, etc.
+          Inlude confidence scores for all attributes where applicable.
+        `,
         images: [base64Image],
       },
     ];
@@ -196,50 +224,12 @@ export default async function processWithOllama({
         string,
         any
       >;
-      console.log('parsedContent: ', parsedContent);
     } catch (e) {
       console.error('Failed to parse Ollama response:', e);
       throw new Error(
         `Failed to parse analysis response: ${e instanceof Error ? e.message : 'Unknown error'}`,
       );
     }
-
-    // Calculate quality score based on quality_assessment if available
-    let quality_assessment = 5; // Default middle value
-    if (parsedContent.quality_assessment) {
-      const qa = parsedContent.quality_assessment as Record<string, number>;
-      // Average all quality metrics if available
-      quality_assessment =
-        qa.overall_quality !== undefined
-          ? qa.overall_quality
-          : ((qa.sharpness || 5) +
-              (qa.lighting || 5) +
-              (qa.composition || 5) +
-              (qa.color_balance || 5) +
-              (qa.noise_level || 5) +
-              (qa.artifacts || 5)) /
-            6;
-    }
-
-    // Map emotions to sentiments with confidence scores
-    const sentiments: Array<Record<string, any>> = parsedContent.emotions
-      ? parsedContent.emotions.map((emotion: string) => ({
-          name: emotion,
-          confidence: 0.8, // Default confidence since the model doesn't provide it
-        }))
-      : [];
-
-    // Map people to faces with necessary structure
-    const faces: Array<Record<string, any>> = parsedContent.people
-      ? parsedContent.people.map((person: Record<string, any>) => ({
-          confidence: person.confidence || 0.8,
-          bounding_box: person.bounding_box || null,
-          attributes: person.attributes || {},
-        }))
-      : [];
-
-    // Prepare safety levels (if any)
-    const safety_levels: Array<Record<string, any>> = [];
 
     // Create the analysis data object for database insertion
     const analysis_data = {
@@ -251,11 +241,11 @@ export default async function processWithOllama({
       time_of_day: parsedContent.time_of_day || null,
       setting: parsedContent.setting || null,
       colors: parsedContent.colors || [],
-      tags: parsedContent.keywords || [],
-      sentiments: sentiments,
-      faces: faces,
-      safety_levels: safety_levels,
-      quality_assessment: quality_assessment,
+      keywords: parsedContent.keywords || [],
+      sentiments: parsedContent.sentiments,
+      faces: parsedContent.faces,
+      content_warnings: parsedContent.content_warnings,
+      quality_assessment: parsedContent.quality_assessment,
       created_date: new Date().toISOString(),
     };
 

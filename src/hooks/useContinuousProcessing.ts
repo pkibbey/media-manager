@@ -83,7 +83,6 @@ export default function useContinuousProcessing<
   > => {
     try {
       const startTime = Date.now();
-      console.log('startTime: ', startTime);
       const result = await processBatchFn(batchSize);
       const endTime = Date.now();
       const currentBatchProcessingTime = endTime - startTime;
@@ -108,7 +107,6 @@ export default function useContinuousProcessing<
       }
 
       // Estimate time left using the updated values instead of state values
-      console.log('updatedItemsProcessed: ', updatedItemsProcessed);
       if (updatedItemsProcessed > 0) {
         const totalRemainingItems = await getTotalRemainingItemsFn();
         if (totalRemainingItems > 0) {

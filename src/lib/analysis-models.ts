@@ -128,7 +128,6 @@ export async function getFaceRecognition() {
     const image = await canvas.loadImage(imageUrl);
 
     // Perform face detection, landmark detection, and compute face descriptors.
-    console.log('detectAllFaces: ', imageUrl);
     const detections = await faceapi.detectAllFaces(
       image as unknown as faceapi.TNetInput,
     ); // Cast needed due to monkey-patching;

@@ -3,9 +3,7 @@
 import { getFaceRecognition } from '@/lib/analysis-models';
 import { createSupabase } from '@/lib/supabase';
 
-export async function processForFaces(mediaId: string, tier: number) {
-  console.log('Checking tier ', tier);
-
+export async function processForFaces(mediaId: string) {
   // Get media URL from database
   const supabase = createSupabase();
   const { data: mediaData } = await supabase
