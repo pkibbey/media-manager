@@ -128,6 +128,7 @@ const AdvancedImageDescriptionSchema = z.object({
       z.object({
         level: z.string().describe('Content warning level'),
         confidence: z
+          .number()
           .min(0)
           .max(1)
           .describe('Confidence score of the content warning level'),
