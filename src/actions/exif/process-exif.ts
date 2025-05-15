@@ -132,11 +132,15 @@ export async function extractExifData(mediaItem: MediaWithExif) {
  */
 export async function processExif(mediaItem: MediaWithExif) {
   try {
+    const totalStart = performance.now();
     const supabase = createSupabase();
     let exifData: ExifData | null = null;
 
     try {
+      const extractionStart = performance.now();
       const extractionResult = await extractExifData(mediaItem);
+      const extractionTime = performance.now() - extractionStart;
+      console.log(`EXIF extraction took ${extractionTime}ms for ${mediaItem.id}`);
 
       if (!extractionResult.success) {
         return {
@@ -184,22 +188,31 @@ export async function processExif(mediaItem: MediaWithExif) {
     }
 
     // Store the normalized EXIF data
+    const dbInsertStart = performance.now();
     const { error: insertError } = await supabase
       .from('exif_data')
       .upsert(exifData, {
-        onConflict: 'media_id', // Correctly specify the column to match for conflict resolution
+        onConflict: 'media_id',
       });
+    const dbInsertTime = performance.now() - dbInsertStart;
+    console.log(`DB insertion took ${dbInsertTime}ms for ${mediaItem.id}`);
 
     if (insertError) {
       throw new Error(`Failed to insert EXIF data: ${insertError.message}`);
     }
 
     // Update the media item to mark it as processed
+    const statusUpdateStart = performance.now();
     const { error: updateError } = await setMediaAsExifProcessed(mediaItem.id);
+    const statusUpdateTime = performance.now() - statusUpdateStart;
+    console.log(`Status update took ${statusUpdateTime}ms for ${mediaItem.id}`);
 
     if (updateError) {
       throw new Error(`Failed to update media status: ${updateError.message}`);
     }
+
+    const totalTime = performance.now() - totalStart;
+    console.log(`Total EXIF processing took ${totalTime}ms for ${mediaItem.id}`);
 
     return { success: true };
   } catch (error) {
