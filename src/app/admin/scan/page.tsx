@@ -128,22 +128,7 @@ export default function MediaScanPage() {
     setDiscoveredFolders(new Set());
     setProcessedFolders(new Set());
 
-    let feedbackTimeoutId: NodeJS.Timeout | null = null;
-
     try {
-      feedbackTimeoutId = setTimeout(() => {
-        // Check isProcessing again in case the scan finished very quickly
-        if (isProcessing) {
-          setScanProgress((prev) => ({
-            ...prev,
-            status:
-              prev.status === 'Initializing scan...'
-                ? 'Scanning folders. This may take a while for large directories...'
-                : prev.status, // Keep current status if it already updated
-          }));
-        }
-      }, 2000);
-
       while (foldersToProcessQueue.length > 0) {
         const currentPathToScan = foldersToProcessQueue.shift()!;
 
@@ -243,10 +228,6 @@ export default function MediaScanPage() {
         }
       } // End of while loop
 
-      if (feedbackTimeoutId) {
-        clearTimeout(feedbackTimeoutId);
-      }
-
       // Final progress update after all folders are processed
       setScanProgress({
         status: `Scan complete. Total folders processed: ${processedFolders.size}. Total files processed: ${cumulativeProcessedCount} (Skipped: ${cumulativeSkippedCount}). Total files found: ${cumulativeTotalFilesFound}.`,
@@ -267,10 +248,6 @@ export default function MediaScanPage() {
         error: overallSuccess ? undefined : lastErrorMessage,
       };
     } catch (err) {
-      // This catch block is for errors during the setup of scanFolders or unhandled exceptions
-      if (feedbackTimeoutId) {
-        clearTimeout(feedbackTimeoutId);
-      }
       console.error('Fatal error during scan operation:', err);
       const fatalErrorMessage =
         err instanceof Error ? err.message : 'Unknown fatal error during scan';
