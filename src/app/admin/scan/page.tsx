@@ -386,8 +386,13 @@ export default function MediaScanPage() {
                 {/* New Button to Delete All Media Items */}
                 <ActionButton
                   action={async () => {
-                    // TODO: Implement a confirmation dialog here for safety
-                    // For example: if (!confirm('Are you sure you want to delete ALL media items?')) return { success: false, error: 'Deletion cancelled' };
+                    if (
+                      !confirm(
+                        'Are you sure you want to delete ALL media items?',
+                      )
+                    )
+                      return { success: false, error: 'Deletion cancelled' };
+
                     const result = await deleteAllMediaItems();
                     if (result.success) {
                       await refreshStats(); // Refresh stats after deletion

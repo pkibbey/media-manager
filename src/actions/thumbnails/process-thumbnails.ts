@@ -21,8 +21,7 @@ async function isCameraRawFile(mime_type?: string | null): Promise<boolean> {
     return false;
   }
 
-  // Currently checks for TIFF and Nikon NEF formats
-  // TODO: Add more camera raw formats as needed
+  // NOTE: Currently only checks for TIFF and Nikon NEF formats
   return (
     mime_type.startsWith('image/tiff') ||
     mime_type.startsWith('image/x-nikon-nef')
