@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.10.0",
   "scripts": {
-    "dev": "NODE_OPTIONS='--expose-gc' next dev",
+    "dev": "NODE_DEBUG=exiftool-vendored NODE_OPTIONS='--expose-gc' next dev",
     "build": "next build",
     "start": "next start",
     "lint": "biome lint ./src",
@@ -45,6 +45,7 @@
     "dotenv": "^16.5.0",
     "encoding": "^0.1.13",
     "exiftool-vendored": "^29.3.0",
+    "exiftool-vendored.pl": "^13.26.0",
     "face-api.js": "^0.22.2",
     "file-type": "^20.5.0",
     "geist": "1.4.2",

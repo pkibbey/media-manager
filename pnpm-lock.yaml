@@ -104,6 +104,9 @@ importers:
       exiftool-vendored:
         specifier: ^29.3.0
         version: 29.3.0
+      exiftool-vendored.pl:
+        specifier: ^13.26.0
+        version: 13.26.0
       face-api.js:
         specifier: ^0.22.2
         version: 0.22.2
@@ -4518,8 +4521,7 @@ snapshots:
   exiftool-vendored.exe@13.26.0:
     optional: true
 
-  exiftool-vendored.pl@13.26.0:
-    optional: true
+  exiftool-vendored.pl@13.26.0: {}
 
   exiftool-vendored@29.3.0:
     dependencies:
