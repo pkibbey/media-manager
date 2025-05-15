@@ -96,7 +96,7 @@ export async function getMediaTypes(): Promise<MediaType[]> {
     const { data, error } = await supabase
       .from('media_types')
       .select('*')
-      .order('category');
+      .order('mime_type', { ascending: true });
 
     if (error) {
       console.error('Error fetching media types:', error);
