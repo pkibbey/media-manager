@@ -42,6 +42,9 @@ export default function MediaScanPage() {
   const [discoveredFolders, setDiscoveredFolders] = useState<Set<string>>(
     new Set(),
   );
+  const [processedFolders, setProcessedFolders] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Fetch scan stats on page load
   useEffect(() => {
@@ -121,8 +124,9 @@ export default function MediaScanPage() {
     let overallSuccess = true; // Assume success until an error occurs
     let lastErrorMessage: string | undefined;
 
-    // Clear the UI display of discovered folders from any previous run.
+    // Clear the UI display of discovered and processed folders from any previous run.
     setDiscoveredFolders(new Set());
+    setProcessedFolders(new Set());
 
     let feedbackTimeoutId: NodeJS.Timeout | null = null;
 
@@ -154,6 +158,13 @@ export default function MediaScanPage() {
         try {
           // Call the server action to scan and process the current folder
           const result = await processScanFolder(currentPathToScan);
+
+          // Mark this folder as processed
+          setProcessedFolders((prevProcessedFolders) => {
+            const updatedProcessedFolders = new Set(prevProcessedFolders);
+            updatedProcessedFolders.add(currentPathToScan);
+            return updatedProcessedFolders;
+          });
 
           cumulativeProcessedCount += result.processed || 0;
           cumulativeSkippedCount += result.skipped || 0;
@@ -235,7 +246,7 @@ export default function MediaScanPage() {
 
       // Final progress update after all folders are processed
       setScanProgress({
-        status: `Scan complete. Total files processed: ${cumulativeProcessedCount} (Skipped: ${cumulativeSkippedCount}). Total files found: ${cumulativeTotalFilesFound}.`,
+        status: `Scan complete. Total folders processed: ${processedFolders.size}. Total files processed: ${cumulativeProcessedCount} (Skipped: ${cumulativeSkippedCount}). Total files found: ${cumulativeTotalFilesFound}.`,
         processed: cumulativeProcessedCount,
         total: cumulativeTotalFilesFound,
         processingComplete: true,
@@ -261,7 +272,7 @@ export default function MediaScanPage() {
       const fatalErrorMessage =
         err instanceof Error ? err.message : 'Unknown fatal error during scan';
       setScanProgress({
-        status: 'Fatal error during scan operation.',
+        status: `Fatal error during scan operation. Processed ${processedFolders.size} folders before error.`,
         processed: cumulativeProcessedCount, // Show what was processed before fatal error
         total: cumulativeTotalFilesFound, // Show what was found before fatal error
         error: fatalErrorMessage,
@@ -353,14 +364,18 @@ export default function MediaScanPage() {
                     <div className="space-y-2">
                       <Progress
                         value={
-                          scanProgress.total > 0
-                            ? (scanProgress.processed / scanProgress.total) *
+                          discoveredFolders.size > 0
+                            ? (processedFolders.size / discoveredFolders.size) *
                               100
                             : 0
                         }
                       />
                       <div className="text-sm text-muted-foreground">
-                        {scanProgress.status}
+                        <div>
+                          Folders: {processedFolders.size} processed of{' '}
+                          {discoveredFolders.size} discovered
+                        </div>
+                        <div>{scanProgress.status}</div>
                         {scanProgress.error && (
                           <p className="text-red-500">{scanProgress.error}</p>
                         )}
