@@ -1,7 +1,7 @@
 'use client';
 
 import { FileImage, RefreshCw, Settings } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import deleteExifData from '@/actions/exif/delete-exif-data';
 import { getExifStats } from '@/actions/exif/get-exif-stats';
 import { processBatchExif } from '@/actions/exif/process-batch-exif';
@@ -21,65 +21,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { formatTime } from '@/lib/format-time';
 
 export default function ExifAdminPage() {
-  const [exifStats, setExifStats] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch EXIF stats on page load
-  useEffect(() => {
-    const fetchStats = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await getExifStats();
-
-        if (response.stats) {
-          setExifStats(response.stats);
-        } else if (response.error) {
-          setError(response.error);
-        }
-      } catch (e) {
-        setError('Failed to load EXIF statistics');
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
-
-  // Action for refreshing stats
-  const refreshStats = async () => {
-    try {
-      const response = await getExifStats();
-
-      if (response.stats) {
-        setExifStats(response.stats);
-      } else if (response.error) {
-        setError(response.error);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to refresh stats');
-      console.error(e);
-    }
-  };
-
-  // Original refreshStats for action button use
-  const refreshStatsWithResult = async () => {
-    const response = await getExifStats();
-
-    if (response.stats) {
-      setExifStats(response.stats);
-      return { success: true };
-    }
-
-    return { success: false, error: response.error };
-  };
+  const {
+    data: exifStats,
+    setData: setExifStats,
+    isLoading,
+    error,
+    refresh: refreshStats,
+    refreshWithResult: refreshStatsWithResult,
+  } = useAdminData({
+    fetchFunction: getExifStats,
+  });
 
   const resetExifData = async () => {
     const { error, count } = await deleteExifData();
@@ -88,6 +44,7 @@ export default function ExifAdminPage() {
       console.error('Error resetting EXIF data:', error);
       return { success: false, error: error.message };
     }
+
     if (count) {
       setExifStats((prev: any) => ({
         ...prev,
@@ -100,35 +57,67 @@ export default function ExifAdminPage() {
     // Refresh stats after resetting
     await refreshStats();
 
-    return { success: true, error: `Reset ${count} EXIF data items` };
+    return { success: true, message: `Reset ${count} EXIF data items` };
   };
 
-  // Use the new continuous processing hook
+  // Process batch function for continuous processing
+  const processBatchFunction = useCallback(
+    async (size: number) => {
+      const result = await processBatchExif(size);
+
+      // Refresh stats after processing
+      await refreshStats();
+
+      return result;
+    },
+    [refreshStats],
+  );
+
+  // Process a batch of items (for manual batch processing)
+  const processBatch = async () => {
+    try {
+      const result = await processBatchExif(batchSize);
+
+      if (result.success) {
+        await refreshStats();
+        return {
+          success: true,
+          message: `Processed ${result.processed} items (${result.failed || 0} failed)`,
+        };
+      }
+
+      return { success: false, error: result.error };
+    } catch (e) {
+      console.error('Error processing batch:', e);
+      return {
+        success: false,
+        error:
+          e instanceof Error ? e.message : 'Unknown error processing batch',
+      };
+    }
+  };
+
+  // Handle batch completion
+  const handleBatchComplete = useCallback(async () => {
+    await refreshStats();
+  }, [refreshStats]);
+
+  // Set up continuous processing
   const {
-    batchSize,
-    setBatchSize,
     isContinuousProcessing,
-    processSingleBatch,
     processAllRemaining,
     stopProcessing,
+    batchSize,
+    setBatchSize,
+    totalProcessingTime,
+    estimatedTimeLeft,
+    itemsProcessedThisSession,
   } = useContinuousProcessing({
-    processBatchFn: processBatchExif,
+    processBatchFn: processBatchFunction,
     hasRemainingItemsFn: () => (exifStats?.remaining || 0) > 0,
-    onBatchComplete: refreshStats,
-    getTotalRemainingItemsFn: () => exifStats?.remaining || 0, // Added
+    onBatchComplete: handleBatchComplete,
+    getTotalRemainingItemsFn: () => exifStats?.remaining || 0,
   });
-
-  // Process a single batch with proper return format for ActionButton
-  const processBatch = async () => {
-    const result = await processSingleBatch();
-    return {
-      success: result.success,
-      message: result.data?.processed
-        ? `Processed ${result.data.processed} items`
-        : result.message,
-      error: result.error,
-    };
-  };
 
   return (
     <AdminLayout>
@@ -262,6 +251,27 @@ export default function ExifAdminPage() {
                 ) : (
                   <div className="text-sm text-muted-foreground">
                     {exifStats?.remaining} items remaining to be processed
+                  </div>
+                )}
+
+                {isContinuousProcessing && (
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">
+                      Processing Status:
+                    </h4>
+                    <div className="text-sm space-y-1">
+                      <p>
+                        Items processed this session:{' '}
+                        {itemsProcessedThisSession}
+                      </p>
+                      <p>
+                        Total processing time: {formatTime(totalProcessingTime)}
+                      </p>
+                      <p>
+                        Estimated time remaining:{' '}
+                        {formatTime(estimatedTimeLeft)}
+                      </p>
+                    </div>
                   </div>
                 )}
               </CardContent>

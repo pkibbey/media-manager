@@ -8,3 +8,6 @@
 -- Store thresholds in state and reduce after a successful pass through the files
 
 -- Add more camera raw formats to isCameraRawFile as needed
+
+-- Move the file-type checking to the file-type step, to help speed up initial import
+

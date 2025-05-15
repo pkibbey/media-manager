@@ -1,5 +1,6 @@
 'use server';
 
+import { processSequentially } from '@/lib/batch-processing';
 import { createSupabase } from '@/lib/supabase';
 import { processForObjects } from './process-for-objects';
 
@@ -9,7 +10,6 @@ import { processForObjects } from './process-for-objects';
  * @param limit - Maximum number of items to process
  * @returns Object with count of processed items and any errors
  */
-
 export async function processBasicAnalysis(limit = 10) {
   try {
     const supabase = createSupabase();
@@ -40,54 +40,14 @@ export async function processBasicAnalysis(limit = 10) {
       return { success: true, processed: 0, message: 'No items to process' };
     }
 
-    // Process items sequentially instead of in parallel
-    // This helps manage memory better by not overloading
-    let succeeded = 0;
-    let failed = 0;
-    let totalBatchProcessingTime = 0;
-
-    for (let i = 0; i < mediaItems.length; i++) {
-      const item = mediaItems[i];
-      console.log(`Processing item ${i + 1}/${mediaItems.length}`);
-
-      try {
-        const result = await processForObjects(item.id);
-        if (result.success) {
-          succeeded++;
-          totalBatchProcessingTime += result.processingTime || 0;
-        } else {
-          failed++;
-        }
-
-        // Log memory usage after each item
-        const currentMemory = process.memoryUsage();
-        console.log(
-          `Memory after item ${i + 1}: ${JSON.stringify({
-            rss: `${Math.round(currentMemory.rss / 1024 / 1024)}MB`,
-            heapTotal: `${Math.round(currentMemory.heapTotal / 1024 / 1024)}MB`,
-            heapUsed: `${Math.round(currentMemory.heapUsed / 1024 / 1024)}MB`,
-          })}`,
-        );
-
-        // Add a small delay between processing to allow for GC
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        // Hint to the JavaScript engine to perform garbage collection
-        if (global.gc) {
-          try {
-            global.gc();
-            console.log('Garbage collection performed');
-          } catch (_e) {
-            console.log(
-              'Failed to perform garbage collection - run with --expose-gc flag',
-            );
-          }
-        }
-      } catch (itemError) {
-        console.error(`Error processing item ${item.id}:`, itemError);
-        failed++;
-      }
-    }
+    // Process items sequentially with memory management using our utility
+    const processFn = (item: (typeof mediaItems)[0]) =>
+      processForObjects(item.id);
+    const processingResult = await processSequentially(mediaItems, processFn, {
+      logMemory: true,
+      delayBetweenItems: 200,
+      attemptGC: true,
+    });
 
     // Log final memory usage
     const finalMemory = process.memoryUsage();
@@ -101,10 +61,10 @@ export async function processBasicAnalysis(limit = 10) {
 
     return {
       success: true,
-      processed: succeeded,
-      failed,
-      total: mediaItems.length,
-      batchProcessingTime: totalBatchProcessingTime,
+      processed: processingResult.succeeded,
+      failed: processingResult.failed,
+      total: processingResult.total,
+      batchProcessingTime: processingResult.totalProcessingTime,
     };
   } catch (error) {
     console.error('Error in batch analysis processing:', error);

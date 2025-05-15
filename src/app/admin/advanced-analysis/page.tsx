@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, Image, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { getAdvancedAnalysisStats } from '@/actions/analysis/get-advanced-analysis-stats';
 import {
   deleteAdvancedAnalysisData,
@@ -13,7 +13,9 @@ import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { formatTime } from '@/lib/format-time';
 
 interface AdvancedAnalysisStatsType {
   total: number;
@@ -22,90 +24,35 @@ interface AdvancedAnalysisStatsType {
   percentComplete: number;
 }
 
-// Helper function to format time in seconds to mm:ss format
-const formatTime = (timeInMs: number | null) => {
-  if (timeInMs === null || timeInMs === undefined) return 'N/A';
-  const totalSeconds = Math.floor(timeInMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds < 10 ? '0' : ''}${seconds}s`;
-};
-
 export default function AdvancedAnalysisAdminPage() {
-  const [analysisStats, setAnalysisStats] =
-    useState<AdvancedAnalysisStatsType | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use the shared admin data hook
+  const {
+    data: analysisStats,
+    setData: setAnalysisStats,
+    isLoading,
+    error,
+    refresh: refreshStats,
+    refreshWithResult: refreshStatsWithResult,
+  } = useAdminData<AdvancedAnalysisStatsType>({
+    fetchFunction: getAdvancedAnalysisStats,
+  });
+
   const [lastBatchResult, setLastBatchResult] = useState<any>(null);
-
-  // Fetch analysis stats on page load
-  useEffect(() => {
-    const fetchStats = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await getAdvancedAnalysisStats();
-
-        if (response.stats) {
-          setAnalysisStats(response.stats);
-        } else if (response.error) {
-          setError(response.error);
-        }
-      } catch (e) {
-        setError('Failed to load advanced analysis statistics');
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
-
-  // Action for refreshing stats
-  const refreshStats = useCallback(async () => {
-    try {
-      const response = await getAdvancedAnalysisStats();
-
-      if (response.stats) {
-        setAnalysisStats(response.stats);
-      } else if (response.error) {
-        setError(response.error);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to refresh stats');
-      console.error(e);
-    }
-  }, []);
-
-  // For action button use
-  const refreshStatsWithResult = async () => {
-    const response = await getAdvancedAnalysisStats();
-
-    if (response.stats) {
-      setAnalysisStats(response.stats);
-      return { success: true };
-    }
-
-    return { success: false, error: response.error || 'Unknown error' };
-  };
 
   const resetAnalysisData = async () => {
     const { error, count } = await deleteAdvancedAnalysisData();
 
     if (error) {
       console.error('Error resetting advanced analysis data:', error);
-      return { success: false, error: String(error) };
+      return { success: false, error: error.message };
     }
 
     if (count) {
       setAnalysisStats((prev: any) => ({
         ...prev,
-        total: prev.total,
-        processed: 0,
-        remaining: prev.total,
-        percentComplete: 0,
+        total: prev.total - count,
+        processed: prev.processed - count,
+        remaining: prev.remaining + count,
       }));
     }
 
@@ -183,59 +130,13 @@ export default function AdvancedAnalysisAdminPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex flex-col space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
-            Advanced Analysis with Ollama
-          </h1>
-          <p className="text-muted-foreground">
-            Process media files with advanced AI analysis using Ollama and
-            Gemma3 vision models.
-          </p>
-        </div>
-
         <div className="flex justify-between items-center">
-          <div className="flex gap-2">
-            <ActionButton
-              action={processBatch}
-              variant="default"
-              loadingMessage="Processing..."
-              successMessage="Processing complete"
-            >
-              Process Next Media
-            </ActionButton>
-
-            {isContinuousProcessing ? (
-              <ActionButton
-                action={stopProcessing}
-                variant="destructive"
-                loadingMessage="Stopping..."
-                successMessage="Processing stopped"
-              >
-                Stop Processing
-              </ActionButton>
-            ) : (
-              <ActionButton
-                action={processAllRemaining}
-                variant="default"
-                loadingMessage="Starting..."
-                successMessage="Processing all remaining items"
-                disabled={!analysisStats || analysisStats.remaining === 0}
-              >
-                Process All
-              </ActionButton>
-            )}
-
-            <ActionButton
-              action={resetAnalysisData}
-              variant="destructive"
-              loadingMessage="Resetting..."
-              successMessage="Data reset complete"
-              disabled={!analysisStats || analysisStats.processed === 0}
-            >
-              Reset Data
-            </ActionButton>
+          <div>
+            <h2 className="text-2xl font-bold">Advanced AI Analysis</h2>
+            <p className="text-muted-foreground">
+              Manage deep understanding of media content
+            </p>
           </div>
-
           <ActionButton
             action={refreshStatsWithResult}
             variant="outline"
@@ -249,14 +150,13 @@ export default function AdvancedAnalysisAdminPage() {
 
         {error && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         <StatsCard
-          title="Advanced Analysis Processing Status"
+          title="Advanced Analysis Status"
           total={analysisStats?.total || 0}
           processed={analysisStats?.processed || 0}
           isLoading={isLoading}
@@ -264,135 +164,209 @@ export default function AdvancedAnalysisAdminPage() {
           className="w-full"
         />
 
-        {isContinuousProcessing && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Processing in progress...</span>
-              <span>
-                {itemsProcessedThisSession} items processed in{' '}
-                {formatTime(totalProcessingTime)}
-              </span>
-            </div>
-            <Progress
-              value={analysisStats?.percentComplete || 0}
-              className="h-2"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{batchSize} items per batch</span>
-              <span>Est. time remaining: {formatTime(estimatedTimeLeft)}</span>
-            </div>
-          </div>
-        )}
-
         <Tabs defaultValue="overview">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="results">Recent Results</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="processing">Processing</TabsTrigger>
+            <TabsTrigger value="status">Status</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-lg border p-4">
-                <h3 className="text-lg font-medium">
-                  Advanced Analysis Details
-                </h3>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Advanced analysis uses Ollama with{' '}
-                  {process.env.NEXT_PUBLIC_VISION_MODEL || 'vision model'} to
-                  extract detailed information about images, including objects,
-                  scene details, people, and quality assessment.
-                </p>
-              </div>
+          <TabsContent value="overview" className="space-y-4 mt-4">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Advanced AI analysis uses local LLM models to deeply analyze
+                media content. This process is more resource-intensive than
+                basic analysis.
+              </AlertDescription>
+            </Alert>
 
-              <div className="rounded-lg border p-4">
-                <h3 className="text-lg font-medium">Processing Stats</h3>
-                <div className="mt-2 space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Processing Details</h3>
+                <div className="text-sm space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm">Total Items:</span>
-                    <span className="text-sm font-medium">
-                      {analysisStats?.total || 0}
-                    </span>
+                    <span>Total Media Items:</span>
+                    <span>{analysisStats?.total || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Processed:</span>
-                    <span className="text-sm font-medium">
-                      {analysisStats?.processed || 0}
-                    </span>
+                    <span>Processed Items:</span>
+                    <span>{analysisStats?.processed || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Remaining:</span>
-                    <span className="text-sm font-medium">
-                      {analysisStats?.remaining || 0}
-                    </span>
+                    <span>Remaining Items:</span>
+                    <span>{analysisStats?.remaining || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Completion:</span>
+                    <span>{analysisStats?.percentComplete || 0}%</span>
                   </div>
                 </div>
+                <Progress
+                  value={analysisStats?.percentComplete || 0}
+                  className="h-2"
+                />
               </div>
 
-              <div className="rounded-lg border p-4">
-                <h3 className="text-lg font-medium">Last Batch</h3>
-                {lastBatchResult ? (
-                  <div className="mt-2 space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Processed:</span>
-                      <span className="text-sm font-medium">
-                        {lastBatchResult.processed || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Failed:</span>
-                      <span className="text-sm font-medium">
-                        {lastBatchResult.failed || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Duration:</span>
-                      <span className="text-sm font-medium">
-                        {formatTime(lastBatchResult.duration)}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    No batch processed yet
-                  </p>
-                )}
+              <div>
+                <h3 className="text-lg font-medium mb-4">
+                  Advanced Analysis Features
+                </h3>
+                <ul className="text-sm space-y-2 list-disc pl-5">
+                  <li>Visual scene & context understanding</li>
+                  <li>Detailed object identification</li>
+                  <li>Advanced contextual relationships</li>
+                  <li>Enhanced search capabilities</li>
+                  <li>Better organization suggestions</li>
+                </ul>
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="results">
-            <p className="text-sm text-muted-foreground">
-              View detailed results from recent analysis processing.
-            </p>
-            {/* Results display would go here */}
+          <TabsContent value="processing" className="space-y-4 mt-4">
+            <Alert
+              variant={
+                analysisStats?.remaining === 0 ? 'default' : 'destructive'
+              }
+            >
+              <AlertDescription>
+                {analysisStats?.remaining === 0
+                  ? 'All items have been processed.'
+                  : `${analysisStats?.remaining} items remaining to process`}
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex items-center gap-8">
+              <div className="w-full max-w-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm">Batch Size:</span>
+                  <span className="text-sm font-medium">{batchSize}</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(Number(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Smaller (Faster)</span>
+                  <span>Larger (Slower)</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Processing larger batches requires more resources and may be
+                  slower per batch.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <ActionButton
+                action={processBatch}
+                disabled={
+                  analysisStats?.remaining === 0 || isContinuousProcessing
+                }
+                loadingMessage="Processing batch..."
+                successMessage="Batch processed successfully"
+              >
+                Process Batch
+              </ActionButton>
+
+              {isContinuousProcessing ? (
+                <ActionButton
+                  action={async () => {
+                    const result = await stopProcessing();
+                    return { success: result.success, error: result.error };
+                  }}
+                  variant="destructive"
+                  loadingMessage="Stopping..."
+                  successMessage="Processing stopped"
+                >
+                  Stop Processing
+                </ActionButton>
+              ) : (
+                <ActionButton
+                  action={async () => {
+                    const result = await processAllRemaining();
+                    return {
+                      success: result.success,
+                      error: result.error,
+                      message: result.message,
+                    };
+                  }}
+                  disabled={analysisStats?.remaining === 0}
+                  loadingMessage="Processing all items..."
+                  successMessage="Processing started"
+                  variant="secondary"
+                >
+                  Process All Remaining
+                </ActionButton>
+              )}
+
+              <ActionButton
+                action={resetAnalysisData}
+                variant="destructive"
+                disabled={isContinuousProcessing}
+                loadingMessage="Resetting analysis data..."
+                successMessage="Analysis data reset"
+              >
+                Reset Analysis Data
+              </ActionButton>
+            </div>
           </TabsContent>
 
-          <TabsContent value="settings">
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-lg border p-4">
-                  <h3 className="text-lg font-medium">Batch Size</h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Number of items to process in each batch
-                  </p>
-                  <input
-                    type="range"
-                    min="1"
-                    max="50"
-                    value={batchSize}
-                    onChange={(e) =>
-                      setBatchSize(Number.parseInt(e.target.value))
-                    }
-                    className="w-full mt-4"
-                  />
-                  <div className="flex justify-between text-sm mt-1">
-                    <span>1</span>
-                    <span>{batchSize}</span>
-                    <span>50</span>
+          <TabsContent value="status" className="space-y-4 mt-4">
+            {isContinuousProcessing && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Current Processing</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Session Progress:</span>
+                      <span>{itemsProcessedThisSession} items</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Processing Time:</span>
+                      <span>{formatTime(totalProcessingTime)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Time Remaining:</span>
+                      <span>{formatTime(estimatedTimeLeft)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
+            )}
+
+            {lastBatchResult && (
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium">Last Batch Results</h3>
+                <div className="text-sm">
+                  <p>
+                    Processed: {lastBatchResult.processed || 0} items
+                    {lastBatchResult.failed
+                      ? ` (${lastBatchResult.failed} failed)`
+                      : ''}
+                  </p>
+                  {lastBatchResult.error && (
+                    <p className="text-destructive">
+                      Error: {lastBatchResult.error}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="text-sm text-muted-foreground border rounded-md p-4">
+              <p className="font-medium mb-2">Note about advanced analysis:</p>
+              <p>
+                Advanced analysis uses the Ollama API with more sophisticated
+                models to extract detailed information from images. This process
+                is more resource-intensive and may take longer to complete than
+                basic analysis.
+              </p>
             </div>
           </TabsContent>
         </Tabs>

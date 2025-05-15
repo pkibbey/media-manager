@@ -45,10 +45,12 @@ export async function getThumbnailStats() {
         remaining: remainingCount,
         percentComplete,
       },
+      error: null,
     };
   } catch (error) {
     console.error('Error getting thumbnail stats:', error);
     return {
+      stats: null,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }

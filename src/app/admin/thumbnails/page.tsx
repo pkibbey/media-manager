@@ -1,7 +1,7 @@
 'use client';
 
 import { Image, RefreshCw, Settings } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
 import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
 import { processBatchThumbnails } from '@/actions/thumbnails/process-thumbnails';
@@ -21,7 +21,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { formatTime } from '@/lib/format-time';
 
 interface ThumbnailStatsType {
   total: number;
@@ -31,63 +33,16 @@ interface ThumbnailStatsType {
 }
 
 export default function ThumbnailAdminPage() {
-  const [thumbnailStats, setThumbnailStats] =
-    useState<ThumbnailStatsType | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch thumbnail stats on page load
-  useEffect(() => {
-    const fetchStats = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await getThumbnailStats();
-
-        if (response.stats) {
-          setThumbnailStats(response.stats);
-        } else if (response.error) {
-          setError(response.error);
-        }
-      } catch (e) {
-        setError('Failed to load thumbnail statistics');
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
-
-  // Action for refreshing stats
-  const refreshStats = async () => {
-    try {
-      const response = await getThumbnailStats();
-
-      if (response.stats) {
-        setThumbnailStats(response.stats);
-      } else if (response.error) {
-        setError(response.error);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to refresh stats');
-      console.error(e);
-    }
-  };
-
-  // Original refreshStats for action button use
-  const refreshStatsWithResult = async () => {
-    const response = await getThumbnailStats();
-
-    if (response.stats) {
-      setThumbnailStats(response.stats);
-      return { success: true };
-    }
-
-    return { success: false, error: response.error };
-  };
+  const {
+    data: thumbnailStats,
+    setData: setThumbnailStats,
+    isLoading,
+    error,
+    refresh: refreshStats,
+    refreshWithResult: refreshStatsWithResult,
+  } = useAdminData<ThumbnailStatsType>({
+    fetchFunction: getThumbnailStats,
+  });
 
   const resetThumbnailData = async () => {
     const { error, count } = await deleteThumbnailData();
@@ -100,6 +55,7 @@ export default function ThumbnailAdminPage() {
     if (count) {
       setThumbnailStats((prev: any) => ({
         ...prev,
+        total: prev.total - count,
         processed: prev.processed - count,
         remaining: prev.remaining + count,
       }));
@@ -108,44 +64,76 @@ export default function ThumbnailAdminPage() {
     // Refresh stats after resetting
     await refreshStats();
 
-    return { success: true, message: `Reset ${count} thumbnails` };
+    return { success: true, message: `Reset ${count} thumbnail data items` };
   };
 
-  // Use the continuous processing hook
+  // Process batch function for continuous processing
+  const processBatchFunction = useCallback(
+    async (size: number) => {
+      const result = await processBatchThumbnails(size);
+
+      // Refresh stats after processing
+      await refreshStats();
+
+      return result;
+    },
+    [refreshStats],
+  );
+
+  // Process a batch of items (for manual batch processing)
+  const processBatch = async () => {
+    try {
+      const result = await processBatchThumbnails(batchSize);
+
+      if (result.success) {
+        await refreshStats();
+        return {
+          success: true,
+          message: `Processed ${result.processed} items (${result.failed || 0} failed)`,
+        };
+      }
+
+      return { success: false, error: result.error };
+    } catch (e) {
+      console.error('Error processing batch:', e);
+      return {
+        success: false,
+        error:
+          e instanceof Error ? e.message : 'Unknown error processing batch',
+      };
+    }
+  };
+
+  // Handle batch completion
+  const handleBatchComplete = useCallback(async () => {
+    await refreshStats();
+  }, [refreshStats]);
+
+  // Set up continuous processing
   const {
-    batchSize,
-    setBatchSize,
     isContinuousProcessing,
-    processSingleBatch,
     processAllRemaining,
     stopProcessing,
+    batchSize,
+    setBatchSize,
+    totalProcessingTime,
+    estimatedTimeLeft,
+    itemsProcessedThisSession,
   } = useContinuousProcessing({
-    processBatchFn: processBatchThumbnails,
+    processBatchFn: processBatchFunction,
     hasRemainingItemsFn: () => (thumbnailStats?.remaining || 0) > 0,
-    onBatchComplete: refreshStats,
-    getTotalRemainingItemsFn: () => thumbnailStats?.remaining || 0, // Added
+    onBatchComplete: handleBatchComplete,
+    getTotalRemainingItemsFn: () => thumbnailStats?.remaining || 0,
   });
-
-  // Process a single batch with proper return format for ActionButton
-  const processBatch = async () => {
-    const result = await processSingleBatch();
-    return {
-      success: result.success,
-      message: result.data?.processed
-        ? `Generated ${result.data.processed} thumbnails`
-        : result.message,
-      error: result.error,
-    };
-  };
 
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold">Thumbnail Management</h2>
+            <h2 className="text-2xl font-bold">Thumbnail Processing</h2>
             <p className="text-muted-foreground">
-              Create and manage optimized thumbnails for media files
+              Generate and manage thumbnails for your media library
             </p>
           </div>
           <ActionButton
@@ -187,7 +175,7 @@ export default function ThumbnailAdminPage() {
               <CardHeader>
                 <CardTitle>Thumbnail Overview</CardTitle>
                 <CardDescription>
-                  Details about the thumbnail generation process
+                  Details about thumbnail generation process
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -198,9 +186,7 @@ export default function ThumbnailAdminPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="space-y-2">
                           <div>Total Media Items: {thumbnailStats.total}</div>
-                          <div>
-                            Items with Thumbnails: {thumbnailStats.processed}
-                          </div>
+                          <div>Processed Items: {thumbnailStats.processed}</div>
                           <div>Remaining Items: {thumbnailStats.remaining}</div>
                           <div>
                             Completion: {thumbnailStats.percentComplete}%
@@ -216,11 +202,10 @@ export default function ThumbnailAdminPage() {
                         About Thumbnail Processing
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Thumbnails provide optimized preview images for media
-                        files, enhancing browsing performance while maintaining
-                        visual quality. The system generates consistent
-                        thumbnails for both images and videos using Sharp and
-                        ffmpeg.
+                        Thumbnails are smaller, optimized versions of your media
+                        files that enable faster browsing and previews. The
+                        system generates optimized JPEG thumbnails at different
+                        sizes to support various UI requirements.
                       </p>
                     </div>
                   </div>
@@ -238,9 +223,9 @@ export default function ThumbnailAdminPage() {
           <TabsContent value="processing" className="space-y-4 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Generate Thumbnails</CardTitle>
+                <CardTitle>Process Thumbnails</CardTitle>
                 <CardDescription>
-                  Create thumbnails for unprocessed media files
+                  Generate thumbnails for unprocessed media files
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -251,7 +236,7 @@ export default function ThumbnailAdminPage() {
                       id="batch-size"
                       type="number"
                       min="1"
-                      max="10"
+                      max="100"
                       value={batchSize}
                       onChange={(e) =>
                         setBatchSize(Number.parseInt(e.target.value) || 10)
@@ -259,7 +244,7 @@ export default function ThumbnailAdminPage() {
                       className="max-w-[120px]"
                     />
                     <span className="text-sm text-muted-foreground">
-                      Number of thumbnails to generate in a single batch
+                      Number of items to process in a single batch
                     </span>
                   </div>
                 </div>
@@ -268,12 +253,33 @@ export default function ThumbnailAdminPage() {
                   <Alert>
                     <AlertTitle>No items to process</AlertTitle>
                     <AlertDescription>
-                      All media items have thumbnails generated.
+                      All media items have been processed for thumbnails.
                     </AlertDescription>
                   </Alert>
                 ) : (
                   <div className="text-sm text-muted-foreground">
                     {thumbnailStats?.remaining} items remaining to be processed
+                  </div>
+                )}
+
+                {isContinuousProcessing && (
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">
+                      Processing Status:
+                    </h4>
+                    <div className="text-sm space-y-1">
+                      <p>
+                        Items processed this session:{' '}
+                        {itemsProcessedThisSession}
+                      </p>
+                      <p>
+                        Total processing time: {formatTime(totalProcessingTime)}
+                      </p>
+                      <p>
+                        Estimated time remaining:{' '}
+                        {formatTime(estimatedTimeLeft)}
+                      </p>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -283,8 +289,8 @@ export default function ThumbnailAdminPage() {
                   disabled={
                     thumbnailStats?.remaining === 0 || isContinuousProcessing
                   }
-                  loadingMessage="Generating thumbnails..."
-                  successMessage="Thumbnails generated successfully"
+                  loadingMessage="Processing thumbnails..."
+                  successMessage="Thumbnails processed successfully"
                 >
                   Process Batch
                 </ActionButton>
@@ -326,42 +332,9 @@ export default function ThumbnailAdminPage() {
                   loadingMessage="Resetting thumbnail data..."
                   successMessage="Thumbnail data reset successfully"
                 >
-                  Reset All Thumbnails
+                  Reset Thumbnail Data
                 </ActionButton>
               </CardFooter>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Processing Information</CardTitle>
-                <CardDescription>
-                  How thumbnail generation works
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    Thumbnail generation uses the <code>sharp</code> library for
-                    images and <code>fluent-ffmpeg</code> for videos. The
-                    system:
-                  </p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>Identifies media items without thumbnails</li>
-                    <li>
-                      Creates optimized Jpeg thumbnails with consistent
-                      dimensions
-                    </li>
-                    <li>For videos, extracts representative frames</li>
-                    <li>
-                      Stores thumbnails in Supabase Storage with optimized
-                      settings
-                    </li>
-                    <li>
-                      Updates the database with thumbnail URLs and metadata
-                    </li>
-                  </ul>
-                </div>
-              </CardContent>
             </Card>
           </TabsContent>
 
@@ -379,9 +352,9 @@ export default function ThumbnailAdminPage() {
                     <Settings className="h-8 w-8 text-muted-foreground" />
                     <h4 className="text-sm font-medium">Advanced Settings</h4>
                     <p className="text-sm text-muted-foreground max-w-md">
-                      Thumbnail settings will be available in a future update.
-                      This will include options for thumbnail sizes, quality
-                      settings, and format options.
+                      Thumbnail configuration settings will be available in a
+                      future update. This will include options for thumbnail
+                      sizes, quality settings, and caching preferences.
                     </p>
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { ExifTool } from 'exiftool-vendored';
 import sharp from 'sharp';
 import { v4 } from 'uuid';
+import { countResults, processInChunks } from '@/lib/batch-processing';
 import {
   BACKGROUND_COLOR,
   THUMBNAIL_QUALITY,
@@ -210,9 +211,10 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
  * Process thumbnails for multiple media items in batch
  *
  * @param limit - Maximum number of items to process
+ * @param concurrency - Number of items to process in parallel
  * @returns Object with count of processed items and any errors
  */
-export async function processBatchThumbnails(limit = 10) {
+export async function processBatchThumbnails(limit = 10, concurrency = 3) {
   try {
     const supabase = createSupabase();
 
@@ -233,20 +235,18 @@ export async function processBatchThumbnails(limit = 10) {
       return { success: true, processed: 0, message: 'No items to process' };
     }
 
-    // Process each item
-    const results = await Promise.allSettled(
-      mediaItems.map(processMediaThumbnail),
+    // Process items in batches with controlled concurrency using the utility
+    const results = await processInChunks(
+      mediaItems,
+      processMediaThumbnail,
+      concurrency,
     );
 
-    const succeeded = results.filter(
-      (result) => result.status === 'fulfilled' && result.value.success,
-    ).length;
-
-    const failed = results.filter(
-      (result) =>
-        result.status === 'rejected' ||
-        (result.status === 'fulfilled' && !result.value.success),
-    ).length;
+    // Count succeeded and failed results with custom success predicate
+    const { succeeded, failed } = countResults(
+      results,
+      (value) => value.success,
+    );
 
     return {
       success: true,

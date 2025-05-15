@@ -41,10 +41,11 @@ export default function MediaTypeList({
   // Group media types by mime_type
   const groupedTypes = mediaTypes.reduce<Record<string, MediaType[]>>(
     (groups, type) => {
-      if (!groups[type.mime_type]) {
-        groups[type.mime_type] = [];
+      const category = type.mime_type.split('/')[0];
+      if (!groups[category]) {
+        groups[category] = [];
       }
-      groups[type.mime_type].push(type);
+      groups[category].push(type);
       return groups;
     },
     { all: [] },
@@ -155,8 +156,12 @@ export default function MediaTypeList({
         <TabsList>
           <TabsTrigger value="all">All Types</TabsTrigger>
           {categories.sort().map((mime_type) => (
-            <TabsTrigger key={mime_type} value={mime_type}>
-              {mime_type.charAt(0).toUpperCase() + mime_type.slice(1)}
+            <TabsTrigger
+              key={mime_type}
+              value={mime_type}
+              className="capitalize"
+            >
+              {mime_type}
             </TabsTrigger>
           ))}
         </TabsList>

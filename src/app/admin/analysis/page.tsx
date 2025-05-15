@@ -1,7 +1,7 @@
 'use client';
 
 import { Image, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import deleteAnalysisData from '@/actions/analysis/delete-analysis-data';
 import { getAnalysisStats } from '@/actions/analysis/get-analysis-stats';
 import { processBasicAnalysis } from '@/actions/analysis/process-basic-analysis';
@@ -21,7 +21,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { formatTime } from '@/lib/format-time';
 
 interface AnalysisStatsType {
   total: number;
@@ -30,83 +32,27 @@ interface AnalysisStatsType {
   percentComplete: number;
 }
 
-// Helper function to format time in seconds to mm:ss format
-const formatTime = (timeInMs: number | null) => {
-  if (timeInMs === null || timeInMs === undefined) return 'N/A';
-  const totalSeconds = Math.floor(timeInMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds < 10 ? '0' : ''}${seconds}s`;
-};
-
 export default function AnalysisAdminPage() {
-  const [analysisStats, setAnalysisStats] = useState<AnalysisStatsType | null>(
-    null,
-  );
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: analysisStats,
+    setData: setAnalysisStats,
+    isLoading,
+    error,
+    refresh: refreshStats,
+    refreshWithResult: refreshStatsWithResult,
+  } = useAdminData<AnalysisStatsType>({
+    fetchFunction: getAnalysisStats,
+  });
   const [lastBatchResult, setLastBatchResult] = useState<any>(null);
-
-  // Fetch analysis stats on page load
-  useEffect(() => {
-    const fetchStats = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await getAnalysisStats();
-
-        if (response.stats) {
-          setAnalysisStats(response.stats);
-        } else if (response.error) {
-          setError(response.error);
-        }
-      } catch (e) {
-        setError('Failed to load analysis statistics');
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
-
-  // Action for refreshing stats
-  const refreshStats = useCallback(async () => {
-    try {
-      const response = await getAnalysisStats();
-
-      if (response.stats) {
-        setAnalysisStats(response.stats);
-      } else if (response.error) {
-        setError(response.error);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to refresh stats');
-      console.error(e);
-    }
-  }, []);
-
-  // For action button use
-  const refreshStatsWithResult = async () => {
-    const response = await getAnalysisStats();
-
-    if (response.stats) {
-      setAnalysisStats(response.stats);
-      return { success: true };
-    }
-
-    return { success: false, error: response.error || undefined };
-  };
 
   const resetAnalysisData = async () => {
     const { error, count } = await deleteAnalysisData();
 
     if (error) {
-      console.error('Error resetting EXIF data:', error);
+      console.error('Error resetting analysis data:', error);
       return { success: false, error: error.message };
     }
+
     if (count) {
       setAnalysisStats((prev: any) => ({
         ...prev,
@@ -119,7 +65,7 @@ export default function AnalysisAdminPage() {
     // Refresh stats after resetting
     await refreshStats();
 
-    return { success: true, error: `Reset ${count} EXIF data items` };
+    return { success: true, message: `Reset ${count} analysis data items` };
   };
 
   // Process batch function for continuous processing
