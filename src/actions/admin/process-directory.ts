@@ -1,32 +1,10 @@
 'use server';
 
-import fileTypeChecker from 'file-type-checker';
+import { fileTypeFromFile } from 'file-type';
 import { v4 as uuid } from 'uuid';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaType } from '@/types/media-types';
 import type { FileDetails, ScanResults } from '@/types/scan-types';
-
-/**
- * Detect the MIME type from file buffer
- * This provides more accurate MIME type detection than relying on extension
- */
-async function detectMimeType(file: FileDetails): Promise<string> {
-  try {
-    // If the file has a buffer or can be read as a buffer
-    if (file.buffer) {
-      const type = fileTypeChecker.detectFile(file.buffer);
-      if (type) {
-        return type.mimeType;
-      }
-    }
-
-    // Fallback to the provided MIME type if we can't detect it
-    return file.type;
-  } catch (error) {
-    console.error('Error detecting MIME type:', error);
-    return file.type;
-  }
-}
 
 /**
  * Add a single file to the database
@@ -168,15 +146,17 @@ export async function processScanResults(
   // Process each file in the batch
   for (const file of files) {
     // Use the precise MIME type detection instead of relying on the provided type
-    const preciseMimeType = await detectMimeType(file);
+    const preciseMimeType = await fileTypeFromFile(file.path);
 
     // Use the detected MIME type for categorization
-    const category = getCategoryFromMimeType(preciseMimeType);
+    const category = preciseMimeType
+      ? getCategoryFromMimeType(preciseMimeType.mime)
+      : 'unknown';
 
     // Update the file type with the precise detected type
     const fileWithPreciseMime = {
       ...file,
-      type: preciseMimeType,
+      type: preciseMimeType?.mime || 'application/octet-stream',
     };
 
     // Update stats

@@ -1,13 +1,14 @@
 'use client';
 
-import { Folder, RefreshCw, X } from 'lucide-react';
-import { useCallback, useState } from 'react';
-import { processScanResults } from '@/actions/admin/process-directory';
+import { FolderSearch, RefreshCw, Scan, Trash2 } from 'lucide-react'; // Added Trash2
+import { useEffect, useState } from 'react';
+import { deleteAllMediaItems } from '@/actions/admin/delete-all-media'; // Import the new action
+import { getScanStats } from '@/actions/admin/get-scan-stats';
+import { processScanFolder } from '@/actions/admin/process-scan-folder';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
+import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -16,377 +17,433 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import type { FileDetails } from '@/types/scan-types';
-
-interface ScanStatus {
-  totalFiles: number;
-  processedFiles: number;
-  currentDirectory: string;
-  filesAdded: number;
-  filesSkipped: number;
-  errors: string[];
-  mediaTypeStats: Record<string, number>;
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function MediaScanPage() {
-  const [isScanning, setIsScanning] = useState(false);
-  const [selectedDir, setSelectedDir] =
-    useState<FileSystemDirectoryHandle | null>(null);
-  const [scanStatus, setScanStatus] = useState<ScanStatus>({
-    totalFiles: 0,
-    processedFiles: 0,
-    currentDirectory: '',
-    filesAdded: 0,
-    filesSkipped: 0,
-    errors: [],
-    mediaTypeStats: {},
+  const [scanStats, setScanStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [folderPath, setFolderPath] = useState<string>(
+    '/Users/phineas/Downloads',
+  );
+  const [scanProgress, setScanProgress] = useState<{
+    status: string;
+    processed: number;
+    total: number;
+    error?: string;
+    processingComplete?: boolean;
+  }>({
+    status: 'idle',
+    processed: 0,
+    total: 0,
   });
+  const [discoveredFolders, setDiscoveredFolders] = useState<Set<string>>(
+    new Set(),
+  );
 
-  // Handle directory selection
-  const handleSelectDirectory = async () => {
-    try {
-      // Use the File System Access API to select a directory
-      const directoryHandle = await window.showDirectoryPicker({
-        mode: 'read',
-        startIn: 'desktop',
-      });
+  // Fetch scan stats on page load
+  useEffect(() => {
+    const fetchStats = async () => {
+      setIsLoading(true);
 
-      setSelectedDir(directoryHandle);
-      setScanStatus({
-        totalFiles: 0,
-        processedFiles: 0,
-        currentDirectory: directoryHandle.name,
-        filesAdded: 0,
-        filesSkipped: 0,
-        errors: [],
-        mediaTypeStats: {},
-      });
-    } catch (error) {
-      // User canceled the picker or an error occurred
-      console.error('Error selecting directory:', error);
-    }
-  };
+      try {
+        const response = await getScanStats();
 
-  // Clear the selected directory
-  const clearSelectedDirectory = () => {
-    setSelectedDir(null);
-    setScanStatus({
-      totalFiles: 0,
-      processedFiles: 0,
-      currentDirectory: '',
-      filesAdded: 0,
-      filesSkipped: 0,
-      errors: [],
-      mediaTypeStats: {},
-    });
-  };
+        if (response.stats) {
+          setScanStats(response.stats);
+        }
+      } catch (e) {
+        console.error('Failed to load scan statistics:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Process files in batches to avoid overwhelming the server
-  const processBatch = useCallback(async (files: FileDetails[]) => {
-    if (files.length === 0) return null;
-
-    try {
-      const result = await processScanResults(files);
-
-      setScanStatus((prev) => ({
-        ...prev,
-        filesAdded: prev.filesAdded + result.filesAdded,
-        filesSkipped: prev.filesSkipped + result.filesSkipped,
-        errors: [...prev.errors, ...result.errors],
-        mediaTypeStats: Object.entries(result.mediaTypeStats).reduce(
-          (acc, [type, count]) => {
-            acc[type] = (acc[type] || 0) + count;
-            return acc;
-          },
-          { ...prev.mediaTypeStats },
-        ),
-      }));
-
-      return result;
-    } catch (error) {
-      console.error('Error processing batch:', error);
-      return null;
-    }
+    fetchStats();
   }, []);
 
-  // Start the directory scan
-  const startScan = useCallback(async (): Promise<{
-    success: boolean;
-    error?: string;
-  }> => {
-    if (!selectedDir) {
-      return { success: false, error: 'No directory selected' };
+  // Action for refreshing stats
+  const refreshStats = async () => {
+    try {
+      const response = await getScanStats();
+
+      if (response.stats) {
+        setScanStats(response.stats);
+      }
+    } catch (e) {
+      console.error('Failed to refresh stats:', e);
+    }
+  };
+
+  // Original refreshStats for action button use
+  const refreshStatsWithResult = async () => {
+    const response = await getScanStats();
+
+    if (response.stats) {
+      setScanStats(response.stats);
+      return { success: true };
     }
 
-    setIsScanning(true);
-    setScanStatus((prev) => ({
-      ...prev,
-      totalFiles: 0,
-      processedFiles: 0,
-      filesAdded: 0,
-      filesSkipped: 0,
-      errors: [],
-      mediaTypeStats: {},
-    }));
+    return { success: false, error: response.error || 'Unknown error' };
+  };
 
-    const files: FileDetails[] = [];
-    let filesToProcess = 0;
+  // Scan folders and process
+  const scanFolders = async () => {
+    if (!folderPath.trim()) {
+      return {
+        success: false,
+        error: 'Please enter a valid folder path',
+      };
+    }
+
+    setIsProcessing(true);
+    // Initialize scan progress for the entire operation
+    setScanProgress({
+      status: 'Initializing scan...',
+      processed: 0,
+      total: 0, // This will be cumulative total files found
+      error: undefined,
+      processingComplete: false,
+    });
+
+    // Tracks all unique folder paths encountered to avoid reprocessing.
+    const allEncounteredFolders = new Set<string>();
+    allEncounteredFolders.add(folderPath.replace(/\/$/, '')); // Normalize and add initial path
+
+    // Queue of folder paths to process
+    const foldersToProcessQueue: string[] = [folderPath.replace(/\/$/, '')];
+
+    let cumulativeProcessedCount = 0;
+    let cumulativeSkippedCount = 0;
+    let cumulativeTotalFilesFound = 0;
+    let overallSuccess = true; // Assume success until an error occurs
+    let lastErrorMessage: string | undefined;
+
+    // Clear the UI display of discovered folders from any previous run.
+    setDiscoveredFolders(new Set());
+
+    let feedbackTimeoutId: NodeJS.Timeout | null = null;
 
     try {
-      // First, count all files to get an accurate total
-      async function countFiles(
-        dirHandle: FileSystemDirectoryHandle,
-        path = '',
-      ): Promise<number> {
-        let count = 0;
-
-        for await (const entry of dirHandle.values()) {
-          if (entry.kind === 'directory') {
-            count += await countFiles(entry, `${path}/${entry.name}`);
-          } else {
-            count++;
-          }
-        }
-
-        return count;
-      }
-
-      filesToProcess = await countFiles(selectedDir);
-      setScanStatus((prev) => ({
-        ...prev,
-        totalFiles: filesToProcess,
-      }));
-
-      // Then process all files recursively
-      async function processDirectory(
-        dirHandle: FileSystemDirectoryHandle,
-        path = '',
-      ): Promise<void> {
-        // Loop through all entries in the directory
-        for await (const entry of dirHandle.values()) {
-          const entryPath = path ? `${path}/${entry.name}` : entry.name;
-          setScanStatus((prev) => ({
+      feedbackTimeoutId = setTimeout(() => {
+        // Check isProcessing again in case the scan finished very quickly
+        if (isProcessing) {
+          setScanProgress((prev) => ({
             ...prev,
-            currentDirectory: entryPath,
+            status:
+              prev.status === 'Initializing scan...'
+                ? 'Scanning folders. This may take a while for large directories...'
+                : prev.status, // Keep current status if it already updated
           }));
+        }
+      }, 2000);
 
-          if (entry.kind === 'directory') {
-            // Recursively process subdirectories
-            await processDirectory(entry, entryPath);
+      while (foldersToProcessQueue.length > 0) {
+        const currentPathToScan = foldersToProcessQueue.shift()!;
+
+        setScanProgress((prev) => ({
+          ...prev,
+          status: `Processing: ${currentPathToScan} (${foldersToProcessQueue.length} more in queue)...`,
+          processed: cumulativeProcessedCount, // Show cumulative processed so far
+          total: cumulativeTotalFilesFound, // Show cumulative total found so far
+          error: undefined, // Clear previous folder-specific error display for this update
+        }));
+
+        try {
+          // Call the server action to scan and process the current folder
+          const result = await processScanFolder(currentPathToScan);
+
+          cumulativeProcessedCount += result.processed || 0;
+          cumulativeSkippedCount += result.skipped || 0;
+          cumulativeTotalFilesFound += result.total || 0;
+
+          if (!result.success) {
+            overallSuccess = false;
+            // Type guard for error property
+            const currentError =
+              'error' in result
+                ? (result as any).error
+                : 'Unknown error processing folder';
+            lastErrorMessage = `Error in ${currentPathToScan}: ${currentError}`;
+            console.error(lastErrorMessage);
+            // Update progress with error for this specific folder, but operation continues
+            setScanProgress((prev) => ({
+              ...prev,
+              status: `Error on ${currentPathToScan}. Processed: ${cumulativeProcessedCount}. Skipped: ${cumulativeSkippedCount}. Continuing...`,
+              processed: cumulativeProcessedCount,
+              total: cumulativeTotalFilesFound,
+              error: lastErrorMessage, // Display the latest error
+            }));
           } else {
-            // Process files
-            try {
-              const fileHandle = entry;
-              const file = await fileHandle.getFile();
+            // Update progress after successful processing of a folder
+            setScanProgress((prev) => ({
+              ...prev,
+              status: `Finished ${currentPathToScan}. Processed: ${cumulativeProcessedCount}. Skipped: ${cumulativeSkippedCount}. Queue: ${foldersToProcessQueue.length}`,
+              processed: cumulativeProcessedCount,
+              total: cumulativeTotalFilesFound,
+            }));
+          }
 
-              // NOTE:
-              // This is a workaround for the fact that we can't get the full path
-              // of the file in the File System Access API - When this is deployed to
-              // production, the path will be the full path to the file on the server
-              // and not the local path on the user's machine.
-              const HACK_PATH = '/Users/phineas/Downloads';
+          // Add discovered subdirectories to the queue and UI
+          if (result.directories && result.directories.length > 0) {
+            const newlyDiscoveredPathsForUI: string[] = [];
+            for (const dirName of result.directories) {
+              // Ensure consistent path formatting (no trailing slash)
+              const normalizedParentPath = currentPathToScan.replace(/\/$/, '');
+              const fullDiscoveredPath = `${normalizedParentPath}/${dirName}`;
 
-              files.push({
-                path: `${HACK_PATH}/${entryPath}`,
-                name: file.name,
-                size: file.size,
-                type: file.type || 'application/octet-stream',
-                lastModified: file.lastModified,
-              });
-
-              // Process in batches of 50 files
-              if (files.length >= 50) {
-                await processBatch([...files]);
-                files.length = 0; // Clear the array
+              if (!allEncounteredFolders.has(fullDiscoveredPath)) {
+                allEncounteredFolders.add(fullDiscoveredPath);
+                foldersToProcessQueue.push(fullDiscoveredPath);
+                newlyDiscoveredPathsForUI.push(fullDiscoveredPath);
               }
-
-              setScanStatus((prev) => ({
-                ...prev,
-                processedFiles: prev.processedFiles + 1,
-              }));
-            } catch (error) {
-              console.error(`Error processing file ${entry.name}:`, error);
-              setScanStatus((prev) => ({
-                ...prev,
-                errors: [
-                  ...prev.errors,
-                  `Failed to access ${entry.name}: ${error}`,
-                ],
-              }));
+            }
+            if (newlyDiscoveredPathsForUI.length > 0) {
+              setDiscoveredFolders((prevUiFolders) => {
+                const updatedUiFolders = new Set(prevUiFolders);
+                newlyDiscoveredPathsForUI.forEach((p) =>
+                  updatedUiFolders.add(p),
+                );
+                return updatedUiFolders;
+              });
             }
           }
+        } catch (folderProcessingError) {
+          // This catch block handles errors from the processScanFolder call itself (e.g., network issues)
+          overallSuccess = false;
+          lastErrorMessage = `Critical error processing ${currentPathToScan}: ${
+            folderProcessingError instanceof Error
+              ? folderProcessingError.message
+              : 'Unknown critical error'
+          }`;
+          console.error(lastErrorMessage);
+          setScanProgress((prev) => ({
+            ...prev,
+            status: `Critical error on ${currentPathToScan}. Processed: ${cumulativeProcessedCount}. Attempting to continue...`,
+            processed: cumulativeProcessedCount,
+            total: cumulativeTotalFilesFound,
+            error: lastErrorMessage,
+          }));
         }
+      } // End of while loop
+
+      if (feedbackTimeoutId) {
+        clearTimeout(feedbackTimeoutId);
       }
 
-      // Start processing from the root directory
-      await processDirectory(selectedDir, selectedDir.name);
+      // Final progress update after all folders are processed
+      setScanProgress({
+        status: `Scan complete. Total files processed: ${cumulativeProcessedCount} (Skipped: ${cumulativeSkippedCount}). Total files found: ${cumulativeTotalFilesFound}.`,
+        processed: cumulativeProcessedCount,
+        total: cumulativeTotalFilesFound,
+        processingComplete: true,
+        error: lastErrorMessage, // Display the last error message if any occurred
+      });
 
-      // Process any remaining files
-      if (files.length > 0) {
-        await processBatch([...files]);
+      // Refresh overall stats after the entire batch of processing
+      await refreshStats();
+
+      return {
+        success: overallSuccess,
+        message: `Processed ${cumulativeProcessedCount} files (Skipped: ${cumulativeSkippedCount}) from ${cumulativeTotalFilesFound} files found across all scanned directories. ${
+          overallSuccess ? '' : 'Some folders encountered errors.'
+        }`,
+        error: overallSuccess ? undefined : lastErrorMessage,
+      };
+    } catch (err) {
+      // This catch block is for errors during the setup of scanFolders or unhandled exceptions
+      if (feedbackTimeoutId) {
+        clearTimeout(feedbackTimeoutId);
       }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error scanning directory:', error);
-      setScanStatus((prev) => ({
-        ...prev,
-        errors: [...prev.errors, `Scan error: ${error}`],
-      }));
-      return { success: false, error: String(error) };
+      console.error('Fatal error during scan operation:', err);
+      const fatalErrorMessage =
+        err instanceof Error ? err.message : 'Unknown fatal error during scan';
+      setScanProgress({
+        status: 'Fatal error during scan operation.',
+        processed: cumulativeProcessedCount, // Show what was processed before fatal error
+        total: cumulativeTotalFilesFound, // Show what was found before fatal error
+        error: fatalErrorMessage,
+        processingComplete: false, // Not fully complete due to fatal error
+      });
+      return {
+        success: false,
+        error: fatalErrorMessage,
+      };
     } finally {
-      setIsScanning(false);
+      setIsProcessing(false);
     }
-  }, [selectedDir, processBatch]);
-
-  // Calculate progress percentage
-  const progressPercentage = scanStatus.totalFiles
-    ? Math.round((scanStatus.processedFiles / scanStatus.totalFiles) * 100)
-    : 0;
+  };
 
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Media Scanner</h2>
+          <div>
+            <h2 className="text-2xl font-bold">Media Scanner</h2>
+            <p className="text-muted-foreground">
+              Scan directories and import new media files
+            </p>
+          </div>
+          <ActionButton
+            action={refreshStatsWithResult}
+            variant="outline"
+            loadingMessage="Refreshing..."
+            successMessage="Stats updated"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh Stats
+          </ActionButton>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Scan Directory</CardTitle>
-            <CardDescription>
-              Select a directory to scan for media files and add them to the
-              database.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Directory Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Button
-                  onClick={handleSelectDirectory}
-                  disabled={isScanning}
-                  className="flex items-center gap-2"
-                >
-                  <Folder className="h-4 w-4" />
-                  Select Directory
-                </Button>
+        <StatsCard
+          title="Media Library Status"
+          total={scanStats?.total || 0}
+          processed={scanStats?.scanned || 0}
+          isLoading={isLoading}
+          icon={<FolderSearch className="h-4 w-4" />}
+          className="w-full"
+        />
 
-                {selectedDir && (
-                  <div className="flex items-center gap-2 bg-muted px-3 py-1 rounded-md flex-1">
-                    <span className="font-mono text-sm truncate">
-                      {selectedDir.name}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={clearSelectedDirectory}
-                      disabled={isScanning}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+        <Tabs defaultValue="scanning">
+          <TabsList>
+            <TabsTrigger value="scanning">Folder Scanning</TabsTrigger>
+            <TabsTrigger value="history">Scan History</TabsTrigger>
+          </TabsList>
 
-              {/* Scan Controls */}
-              {selectedDir && !isScanning && (
-                <ActionButton
-                  action={startScan}
-                  variant="default"
-                  className="flex items-center gap-2 mt-4"
-                  loadingMessage="Starting scan..."
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Start Scan
-                </ActionButton>
-              )}
-            </div>
-
-            {/* Scan Progress */}
-            {isScanning && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Scanning files...</span>
-                  <span>
-                    {scanStatus.processedFiles} / {scanStatus.totalFiles} files
-                  </span>
-                </div>
-                <Progress value={progressPercentage} className="h-2" />
-                <div className="text-xs text-muted-foreground mt-1 truncate">
-                  Current directory: {scanStatus.currentDirectory}
-                </div>
-              </div>
-            )}
-
-            {/* Scan Results */}
-            {(scanStatus.filesAdded > 0 || scanStatus.filesSkipped > 0) && (
-              <div className="border rounded-md p-4 mt-4">
-                <h3 className="text-lg font-medium mb-2">Scan Results</h3>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
+          <TabsContent value="scanning" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Scan Media Directory</CardTitle>
+                <CardDescription>
+                  Select a directory to scan and automatically import new media
+                  files
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
                   <div>
-                    <div className="text-sm text-muted-foreground">
-                      Files Added
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {scanStatus.filesAdded}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">
-                      Files Skipped
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {scanStatus.filesSkipped}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Media Type Breakdown */}
-                {Object.keys(scanStatus.mediaTypeStats).length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium mb-2">File Types</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(scanStatus.mediaTypeStats).map(
-                        ([type, count]) => (
-                          <Badge key={type} variant="outline">
-                            {type}: {count}
-                          </Badge>
-                        ),
+                    <Input
+                      id="folder-path"
+                      placeholder="/path/to/media/folder"
+                      value={folderPath}
+                      onChange={(e) => setFolderPath(e.target.value)}
+                      className={
+                        !folderPath.trim().startsWith('/') &&
+                        folderPath.trim() !== ''
+                          ? 'border-red-500'
+                          : ''
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter the absolute path to the folder you want to scan
+                    </p>
+                    {!folderPath.trim().startsWith('/') &&
+                      folderPath.trim() !== '' && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Path must be absolute (start with /)
+                        </p>
                       )}
+                  </div>
+                </div>
+
+                {scanProgress.status !== 'idle' && (
+                  <div className="mt-4">
+                    <div className="space-y-2">
+                      <Progress
+                        value={
+                          scanProgress.total > 0
+                            ? (scanProgress.processed / scanProgress.total) *
+                              100
+                            : 0
+                        }
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        {scanProgress.status}
+                        {scanProgress.error && (
+                          <p className="text-red-500">{scanProgress.error}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Errors */}
-                {scanStatus.errors.length > 0 && (
-                  <Alert variant="destructive" className="mt-4">
-                    <AlertTitle>Errors</AlertTitle>
+                {scanProgress.processingComplete && (
+                  <Alert className="mt-4">
+                    <AlertTitle>Scan Complete</AlertTitle>
                     <AlertDescription>
-                      <div className="text-xs mt-2 max-h-40 overflow-y-auto">
-                        {scanStatus.errors.map((error, index) => (
-                          <div key={index} className="mb-1">
-                            {error}
-                          </div>
-                        ))}
-                      </div>
+                      All files have been processed successfully.
                     </AlertDescription>
                   </Alert>
                 )}
-              </div>
+              </CardContent>
+              <CardFooter className="flex flex-wrap gap-2">
+                <ActionButton
+                  action={scanFolders}
+                  disabled={isProcessing}
+                  loadingMessage="Scanning and processing files..."
+                  successMessage="Files processed successfully"
+                >
+                  <Scan className="h-4 w-4 mr-2" />
+                  Scan Folders
+                </ActionButton>
+                {/* New Button to Delete All Media Items */}
+                <ActionButton
+                  action={async () => {
+                    // TODO: Implement a confirmation dialog here for safety
+                    // For example: if (!confirm('Are you sure you want to delete ALL media items?')) return { success: false, error: 'Deletion cancelled' };
+                    const result = await deleteAllMediaItems();
+                    if (result.success) {
+                      await refreshStats(); // Refresh stats after deletion
+                    }
+                    return result;
+                  }}
+                  disabled={isProcessing} // Disable if a scan is in progress
+                  variant="destructive" // Use destructive variant for delete actions
+                  loadingMessage="Deleting all media items..."
+                  successMessage="All media items deleted successfully"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete All Media
+                </ActionButton>
+              </CardFooter>
+            </Card>
+            {/* New: Discovered folders count */}
+            {discoveredFolders.size > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Discovered Folders</CardTitle>
+                  <CardDescription>
+                    Number of folders found during the scan process
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {discoveredFolders.size}
+                  </div>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-          <CardFooter className="bg-muted/50 border-t">
-            <p className="text-xs text-muted-foreground">
-              Note: This tool will scan the selected directory recursively and
-              add all media files to your database. Existing files with the same
-              path will be skipped.
-            </p>
-          </CardFooter>
-        </Card>
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Scan History</CardTitle>
+                <CardDescription>
+                  Recent folder scans and imported files
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground">
+                  Total media items in database: {scanStats?.total || 0}
+                </div>
+                {/* History table could be added here in the future */}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );
