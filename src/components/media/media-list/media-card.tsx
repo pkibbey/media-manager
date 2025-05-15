@@ -69,7 +69,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
           <div className="text-sm font-medium truncate w-full">{fileName}</div>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline" className="text-xs">
-              {media.media_types?.mime_type || 'Unknown'}
+              {media.media_types?.type_description || 'Unknown'}
             </Badge>
             <span className="text-xs text-muted-foreground">
               {formatBytes(media.size_bytes)}
