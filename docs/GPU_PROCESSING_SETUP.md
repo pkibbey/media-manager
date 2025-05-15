@@ -249,6 +249,8 @@ if (cluster.isMaster) {
       results,
       processing_time: processingTime,
       processed_at: new Date().toISOString()
+    }, {
+        onConflict: 'type', // mime_type is unique
     });
     
     if (error) throw new Error(`Database error: ${error.message}`);
@@ -476,6 +478,8 @@ export async function processForFaces(mediaId: string) {
     media_id: mediaId,
     faces: results,
     processing_time: processingTime,
+  }, {
+    onConflict: 'media_id' // unique
   });
 
   if (insertError) {

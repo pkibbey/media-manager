@@ -113,34 +113,39 @@ async function getOrCreateMediaType(mimeType: string): Promise<string | null> {
     const supabase = createSupabase();
     const typeName = getCategoryFromMimeType(mimeType);
 
-    // Check if the type already exists
-    const { data: existingTypes } = await supabase
-      .from('media_types')
-      .select('id')
-      .eq('mime_type', mimeType)
-      .limit(1);
-
-    if (existingTypes && existingTypes.length > 0) {
-      return existingTypes[0].id;
-    }
-
-    // Create the type if it doesn't exist
+    // Generate an ID for the potential new record
     const typeId = uuid();
-    const { error } = await supabase.from('media_types').insert({
-      id: typeId,
-      type_name: typeName,
-      mime_type: mimeType,
-      type_description: `${typeName} files`,
-      is_ignored: false,
-      is_native: true,
-    });
 
-    if (error) {
-      console.error('Error creating media type:', error);
+    // Perform the upsert operation
+    const { error, data } = await supabase.from('media_types').upsert(
+      {
+        id: typeId,
+        type_name: typeName,
+        mime_type: mimeType,
+        type_description: `${typeName} files`,
+        is_ignored: false,
+        is_native: true,
+      },
+      {
+        onConflict: 'mime_type', // mime_type is unique
+      },
+    );
+
+    // 23505 is the unique violation error code in PostgreSQL
+    if (error && error.code !== '23505') {
       return null;
     }
 
-    return typeId;
+    console.error('Error upserting media type:', error, data);
+
+    // After upsert, query to get the ID (could be the new ID or existing one)
+    const { data: mediaType } = await supabase
+      .from('media_types')
+      .select('id')
+      .eq('mime_type', mimeType)
+      .single();
+
+    return mediaType?.id || null;
   } catch (error) {
     console.error('Error in getOrCreateMediaType:', error);
     return null;

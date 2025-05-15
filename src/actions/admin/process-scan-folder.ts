@@ -10,9 +10,9 @@ import type { FileDetails } from '@/types/scan-types';
  * Recursively get all files from a folder
  *
  * @param folderPath - The path to the folder to scan
- * @returns An array of FileDetails objects
+ * @returns An array of Files and Directories objects
  */
-async function getFilesFromFolder(folderPath: string): Promise<{
+async function getFilesAnDirectories(folderPath: string): Promise<{
   files?: FileDetails[];
   directories?: string[];
 }> {
@@ -78,7 +78,7 @@ export async function processScanFolder(folderPath: string): Promise<{
       throw new Error(`Cannot access folder at path: ${folderPath}`);
     }
 
-    const { files, directories } = await getFilesFromFolder(folderPath);
+    const { files, directories } = await getFilesAnDirectories(folderPath);
 
     if (!files || files.length === 0) {
       return {

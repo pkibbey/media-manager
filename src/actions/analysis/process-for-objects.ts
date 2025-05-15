@@ -37,7 +37,8 @@ export async function processForObjects(mediaId: string) {
     },
   );
 
-  if (insertError) {
+  // 23505 is the unique violation error code in PostgreSQL
+  if (insertError && insertError.code !== '23505') {
     throw new Error(`Failed to insert EXIF data: ${insertError.message}`);
   }
 

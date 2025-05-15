@@ -373,7 +373,7 @@ export default function MediaScanPage() {
                   <Alert className="mt-4">
                     <AlertTitle>Scan Complete</AlertTitle>
                     <AlertDescription>
-                      All files have been processed successfully.
+                      All folders have been processed successfully.
                     </AlertDescription>
                   </Alert>
                 )}

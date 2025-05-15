@@ -286,7 +286,7 @@ export type Database = {
           id: string
           is_ignored: boolean
           is_native: boolean
-          mime_type: string | null
+          mime_type: string
           type_description: string | null
           type_name: string
         }
@@ -295,7 +295,7 @@ export type Database = {
           id: string
           is_ignored?: boolean
           is_native?: boolean
-          mime_type?: string | null
+          mime_type: string
           type_description?: string | null
           type_name: string
         }
@@ -304,7 +304,7 @@ export type Database = {
           id?: string
           is_ignored?: boolean
           is_native?: boolean
-          mime_type?: string | null
+          mime_type?: string
           type_description?: string | null
           type_name?: string
         }
