@@ -26,7 +26,7 @@ export default function MediaScanPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [folderPath, setFolderPath] = useState<string>(
-    '/Users/phineas/Downloads',
+    process.env.NEXT_PUBLIC_MEDIA_SCAN_PATH || '',
   );
   const [scanProgress, setScanProgress] = useState<{
     status: string;
