@@ -166,6 +166,9 @@ export default function MediaScanPage() {
             return updatedProcessedFolders;
           });
 
+          // Refetch scan stats after each folder is processed
+          await refreshStats();
+
           cumulativeProcessedCount += result.processed || 0;
           cumulativeSkippedCount += result.skipped || 0;
           cumulativeTotalFilesFound += result.total || 0;
