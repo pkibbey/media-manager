@@ -10,11 +10,10 @@ export async function processAdvancedAnalysis(limit = 10) {
     // Find media items that need analysis processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('*, media_types(is_ignored, is_deleted)')
+      .select('*, media_types(is_ignored)')
       .eq('is_thumbnail_processed', true)
       .eq('is_advanced_processed', false)
       .is('media_types.is_ignored', false)
-      .is('media_types.is_deleted', false)
       .limit(limit);
 
     if (findError) {
@@ -26,7 +25,6 @@ export async function processAdvancedAnalysis(limit = 10) {
     }
 
     // Process items sequentially instead of in parallel
-    // This helps manage memory better by not overloading
     let succeeded = 0;
     let failed = 0;
     let totalBatchProcessingTime = 0;

@@ -26,13 +26,12 @@ export async function getAnalysisStats(): Promise<{
     // Get the total count of media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select('*,  media_types(is_ignored, is_deleted)', {
+      .select('*, media_types(is_ignored)', {
         count: 'exact',
         head: true,
       })
       .is('is_thumbnail_processed', true)
-      .is('media_types.is_ignored', false)
-      .is('media_types.is_deleted', false);
+      .is('media_types.is_ignored', false);
 
     if (totalError) {
       throw new Error(`Failed to get total count: ${totalError.message}`);
@@ -41,11 +40,13 @@ export async function getAnalysisStats(): Promise<{
     // Get count of items with processed analysis
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
-      .select('*', { count: 'exact', head: true })
+      .select('*, media_types(is_ignored)', {
+        count: 'exact',
+        head: true,
+      })
       .eq('is_basic_processed', true)
       .is('is_thumbnail_processed', true)
-      .is('media_types.is_ignored', false)
-      .is('media_types.is_deleted', false);
+      .is('media_types.is_ignored', false);
 
     if (processedError) {
       throw new Error(

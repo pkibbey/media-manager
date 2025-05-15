@@ -14,16 +14,6 @@ export async function processBasicAnalysis(limit = 10) {
   try {
     const supabase = createSupabase();
 
-    // Log initial memory usage
-    const initialMemory = process.memoryUsage();
-    console.log(
-      `Initial memory usage: ${JSON.stringify({
-        rss: `${Math.round(initialMemory.rss / 1024 / 1024)}MB`,
-        heapTotal: `${Math.round(initialMemory.heapTotal / 1024 / 1024)}MB`,
-        heapUsed: `${Math.round(initialMemory.heapUsed / 1024 / 1024)}MB`,
-      })}`,
-    );
-
     // Find media items that need analysis processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
@@ -40,24 +30,10 @@ export async function processBasicAnalysis(limit = 10) {
       return { success: true, processed: 0, message: 'No items to process' };
     }
 
-    // Process items sequentially with memory management using our utility
+    // Process items sequentially
     const processFn = (item: (typeof mediaItems)[0]) =>
       processForObjects(item.id);
-    const processingResult = await processSequentially(mediaItems, processFn, {
-      logMemory: true,
-      delayBetweenItems: 200,
-      attemptGC: true,
-    });
-
-    // Log final memory usage
-    const finalMemory = process.memoryUsage();
-    console.log(
-      `Final memory usage: ${JSON.stringify({
-        rss: `${Math.round(finalMemory.rss / 1024 / 1024)}MB`,
-        heapTotal: `${Math.round(finalMemory.heapTotal / 1024 / 1024)}MB`,
-        heapUsed: `${Math.round(finalMemory.heapUsed / 1024 / 1024)}MB`,
-      })}`,
-    );
+    const processingResult = await processSequentially(mediaItems, processFn);
 
     return {
       success: true,

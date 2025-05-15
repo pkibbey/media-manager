@@ -25,7 +25,7 @@ export async function processInChunks<T, R>(
 }
 
 /**
- * Process items sequentially with memory management
+ * Process items sequentially
  *
  * @param items - Array of items to process
  * @param processFn - Function to process each item
@@ -38,11 +38,6 @@ export async function processSequentially<
 >(
   items: T[],
   processFn: (item: T) => Promise<R>,
-  options: {
-    logMemory?: boolean;
-    delayBetweenItems?: number;
-    attemptGC?: boolean;
-  } = {},
 ): Promise<{
   results: R[];
   succeeded: number;
@@ -50,12 +45,6 @@ export async function processSequentially<
   total: number;
   totalProcessingTime: number;
 }> {
-  const {
-    logMemory = true,
-    delayBetweenItems = 200,
-    attemptGC = true,
-  } = options;
-
   let succeeded = 0;
   let failed = 0;
   let totalProcessingTime = 0;
@@ -63,7 +52,6 @@ export async function processSequentially<
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    console.log(`Processing item ${i + 1}/${items.length}`);
 
     try {
       const result = await processFn(item);
@@ -74,33 +62,6 @@ export async function processSequentially<
         totalProcessingTime += result.processingTime || 0;
       } else {
         failed++;
-      }
-
-      // Log memory usage after each item
-      if (logMemory) {
-        const currentMemory = process.memoryUsage();
-        console.log(
-          `Memory after item ${i + 1}: ${JSON.stringify({
-            rss: `${Math.round(currentMemory.rss / 1024 / 1024)}MB`,
-            heapTotal: `${Math.round(currentMemory.heapTotal / 1024 / 1024)}MB`,
-            heapUsed: `${Math.round(currentMemory.heapUsed / 1024 / 1024)}MB`,
-          })}`,
-        );
-      }
-
-      // Add a delay between processing to allow for GC
-      if (delayBetweenItems > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delayBetweenItems));
-      }
-
-      // Hint to the JavaScript engine to perform garbage collection
-      if (attemptGC && global.gc) {
-        try {
-          global.gc();
-          console.log('Garbage collection performed');
-        } catch (_e) {
-          console.log('Failed to perform garbage collection');
-        }
       }
     } catch (error) {
       console.error(`Error processing item ${i + 1}:`, error);

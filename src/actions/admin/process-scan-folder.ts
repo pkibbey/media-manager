@@ -68,7 +68,6 @@ async function getFilesAnDirectories(folderPath: string): Promise<{
     path.join(folderPath, entry.name),
   );
   const existingFiles = await checkFilesExistInDatabase(mediaPaths);
-  console.log('existingFiles: ', existingFiles);
 
   // Process each entry
   for (const entry of filesInDir) {
@@ -76,7 +75,6 @@ async function getFilesAnDirectories(folderPath: string): Promise<{
 
     // Skip if file already exists in database
     if (existingFiles.has(fullPath)) {
-      console.log('skipped', fullPath);
       continue;
     }
 

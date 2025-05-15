@@ -9,13 +9,12 @@ export async function getAdvancedAnalysisStats() {
     // Get total media items
     const { count: total, error: totalError } = await supabase
       .from('media')
-      .select('*, media_types(is_ignored, is_deleted)', {
+      .select('*, media_types(is_ignored)', {
         count: 'exact',
         head: true,
       })
       .is('is_basic_processed', true)
-      .is('media_types.is_ignored', false)
-      .is('media_types.is_deleted', false);
+      .is('media_types.is_ignored', false);
 
     if (totalError) {
       return {
@@ -27,14 +26,13 @@ export async function getAdvancedAnalysisStats() {
     // Get processed media items
     const { count: processed, error: processedError } = await supabase
       .from('media')
-      .select('*, media_types(is_ignored, is_deleted)', {
+      .select('*, media_types(is_ignored)', {
         count: 'exact',
         head: true,
       })
       .is('is_advanced_processed', true)
       .is('is_basic_processed', true)
-      .is('media_types.is_ignored', false)
-      .is('media_types.is_deleted', false);
+      .is('media_types.is_ignored', false);
 
     if (processedError) {
       return {

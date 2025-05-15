@@ -47,7 +47,7 @@ export async function getMedia(
 
   // Filter by file type
   if (filters.category !== 'all') {
-    query = query.like('media_types.mime_type', `${filters.category}%`);
+    query = query.ilike('media_types.mime_type', `${filters.category}%`);
   }
 
   // Date range filtering
