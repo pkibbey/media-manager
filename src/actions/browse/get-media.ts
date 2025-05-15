@@ -44,11 +44,12 @@ export async function getMedia(
     query = query.eq('is_hidden', false);
   }
 
-  // Filter by file type
-  if (filters.type !== 'all') {
-    // Join with file_types table to filter by type category
-    query = query.eq('media_type.category', filters.type);
-  }
+  // NOTE: we are removing category to use the mime_type instead
+  // // Filter by file type
+  // if (filters.type !== 'all') {
+  //   // Join with file_types table to filter by type category
+  //   query = query.eq('media_type.category', filters.type);
+  // }
 
   // Date range filtering
   if (filters.dateFrom) {

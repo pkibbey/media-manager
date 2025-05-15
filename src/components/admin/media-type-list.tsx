@@ -38,13 +38,13 @@ export default function MediaTypeList({
 }: MediaTypeListProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
 
-  // Group media types by category
+  // Group media types by mime_type
   const groupedTypes = mediaTypes.reduce<Record<string, MediaType[]>>(
     (groups, type) => {
-      if (!groups[type.category]) {
-        groups[type.category] = [];
+      if (!groups[type.mime_type]) {
+        groups[type.mime_type] = [];
       }
-      groups[type.category].push(type);
+      groups[type.mime_type].push(type);
       return groups;
     },
     { all: [] },
@@ -65,7 +65,7 @@ export default function MediaTypeList({
       }
 
       toast.success(
-        `${type.category} (${type.mime_type}) is now ${
+        `${type.mime_type} (${type.mime_type}) is now ${
           value ? 'ignored' : 'not ignored'
         }`,
       );
@@ -88,7 +88,7 @@ export default function MediaTypeList({
       }
 
       toast.success(
-        `${type.category} (${type.mime_type}) is now ${
+        `${type.mime_type} (${type.mime_type}) is now ${
           value ? 'natively supported' : 'not natively supported'
         }`,
       );
@@ -103,7 +103,7 @@ export default function MediaTypeList({
   const handleDeleteMediaType = async (type: MediaType) => {
     if (
       !window.confirm(
-        `Are you sure you want to delete this media type: ${type.category} (${type.mime_type})? This action cannot be undone.`,
+        `Are you sure you want to delete this media type: ${type.mime_type} (${type.mime_type})? This action cannot be undone.`,
       )
     ) {
       return;
@@ -116,7 +116,7 @@ export default function MediaTypeList({
         throw result.error;
       }
 
-      toast.success(`${type.category} (${type.mime_type}) has been deleted`);
+      toast.success(`${type.mime_type} (${type.mime_type}) has been deleted`);
 
       await onUpdate();
     } catch (_err) {
@@ -154,9 +154,9 @@ export default function MediaTypeList({
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="all">All Types</TabsTrigger>
-          {categories.sort().map((category) => (
-            <TabsTrigger key={category} value={category}>
-              {category.charAt(0).toUpperCase() + category.slice(1)}
+          {categories.sort().map((mime_type) => (
+            <TabsTrigger key={mime_type} value={mime_type}>
+              {mime_type.charAt(0).toUpperCase() + mime_type.slice(1)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -170,7 +170,7 @@ export default function MediaTypeList({
                   <CardDescription>
                     {activeTab === 'all'
                       ? 'No media types have been created yet. They are automatically generated when scanning directories.'
-                      : `No media types found in the ${activeTab} category.`}
+                      : `No media types found in the ${activeTab} mime_type.`}
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -180,7 +180,8 @@ export default function MediaTypeList({
                   <CardHeader>
                     <CardTitle>{type.mime_type}</CardTitle>
                     <CardDescription>
-                      Category: {type.category} {type.is_ignored && '(Ignored)'}
+                      Category: {type.mime_type}{' '}
+                      {type.is_ignored && '(Ignored)'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">

@@ -282,7 +282,6 @@ export type Database = {
       };
       media_types: {
         Row: {
-          category: string;
           created_date: string;
           id: string;
           is_ignored: boolean;
@@ -291,7 +290,6 @@ export type Database = {
           type_description: string | null;
         };
         Insert: {
-          category?: string;
           created_date?: string;
           id: string;
           is_ignored?: boolean;
@@ -300,7 +298,6 @@ export type Database = {
           type_description?: string | null;
         };
         Update: {
-          category?: string;
           created_date?: string;
           id?: string;
           is_ignored?: boolean;
