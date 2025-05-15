@@ -16,7 +16,7 @@ export async function getMediaTypes(): Promise<{
     const { data, error } = await supabase
       .from('media_types')
       .select('*')
-      .order('mime_type', { ascending: true });
+      .order('category');
 
     if (error) {
       throw error;
@@ -77,6 +77,33 @@ export async function deleteMediaType(
 }
 
 /**
+ * Convert a MIME type to a general media type category
+ */
+function getCategoryFromMimeType(mimeType: string): string {
+  if (mimeType.startsWith('image/')) {
+    return 'image';
+  }
+
+  if (mimeType.startsWith('video/')) {
+    return 'video';
+  }
+
+  if (
+    mimeType.startsWith('text/') ||
+    mimeType.startsWith('application/pdf') ||
+    mimeType.startsWith('application/msword') ||
+    mimeType.includes('document')
+  ) {
+    return 'document';
+  }
+
+  if (mimeType.startsWith('audio/')) {
+    return 'audio';
+  }
+  return 'other';
+}
+
+/**
  * Get or create a media type in the database
  */
 export async function getOrCreateMediaType(
@@ -84,6 +111,7 @@ export async function getOrCreateMediaType(
 ): Promise<string | null> {
   try {
     const supabase = createSupabase();
+    const typeName = getCategoryFromMimeType(mimeType);
 
     // First, check if the media type already exists
     const { data: existingType } = await supabase
@@ -102,8 +130,9 @@ export async function getOrCreateMediaType(
     const typeId = uuid();
     const { error: insertError } = await supabase.from('media_types').insert({
       id: typeId,
+      category: typeName,
       mime_type: mimeType,
-      type_description: `${mimeType.split('/')[0]} files`,
+      type_description: `${typeName} files`,
       is_ignored: false,
       is_native: true,
     });

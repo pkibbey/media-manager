@@ -139,7 +139,7 @@ export function MediaDetail() {
               {Object.entries(
                 selectedMedia.reduce(
                   (acc, file) => {
-                    const type = file.media_types?.mime_type || 'unknown';
+                    const type = file.media_types?.category || 'unknown';
                     acc[type] = (acc[type] || 0) + 1;
                     return acc;
                   },
@@ -257,7 +257,7 @@ export function MediaDetail() {
                         value={
                           <div className="flex items-center gap-2">
                             <FileType size={16} />
-                            {media.media_types.mime_type}
+                            {media.media_types.category}
                           </div>
                         }
                       />
