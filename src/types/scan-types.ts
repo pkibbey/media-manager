@@ -1,7 +1,9 @@
+import type { MediaType } from './media-types';
+
 export interface FileDetails {
   path: string; // Display path
   size: number;
-  type: string;
+  mediaType: Pick<MediaType, 'id' | 'mime_type'>; // Media type object
   lastModified?: number;
   name: string; // Just the filename
   buffer?: ArrayBuffer; // Optional buffer for file content analysis

@@ -47,7 +47,7 @@ export async function getMedia(
   // Filter by file type
   if (filters.type !== 'all') {
     // Join with file_types table to filter by type category
-    query = query.eq('media_type.type_name', filters.type);
+    query = query.eq('media_type.category', filters.type);
   }
 
   // Date range filtering

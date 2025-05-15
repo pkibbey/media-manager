@@ -27,7 +27,6 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
 
   const fileName = media.media_path.split('/').pop() || media.media_path;
   const thumbnail = media.thumbnail_data?.thumbnail_url;
-  const exifData = media.exif_data?.[0];
 
   return (
     <Card
@@ -43,18 +42,18 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
     >
       {/* Thumbnail image */}
       <div className="aspect-square overflow-hidden bg-muted relative">
-        {thumbnail && exifData ? (
+        {thumbnail && media.exif_data ? (
           <Image
             src={thumbnail}
             alt={fileName}
             className="w-full h-full object-cover"
             loading="lazy"
-            width={exifData.width}
-            height={exifData.height}
+            width={media.exif_data.width}
+            height={media.exif_data.height}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            {media.media_types?.type_name.toUpperCase() || 'No Preview'}
+            {media.media_types?.category.toUpperCase() || 'No Preview'}
           </div>
         )}
 
@@ -70,7 +69,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
           <div className="text-sm font-medium truncate w-full">{fileName}</div>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline" className="text-xs">
-              {media.media_types?.type_name || 'Unknown'}
+              {media.media_types?.category || 'Unknown'}
             </Badge>
             <span className="text-xs text-muted-foreground">
               {formatBytes(media.size_bytes)}

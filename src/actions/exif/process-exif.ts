@@ -138,6 +138,7 @@ export async function processExif(mediaItem: MediaWithExif) {
       .from('exif_data')
       .upsert(exifData, {
         onConflict: 'media_id', // Correctly specify the column to match for conflict resolution
+        ignoreDuplicates: false, // If conflict, overwrite the existing row
       });
 
     if (insertError) {

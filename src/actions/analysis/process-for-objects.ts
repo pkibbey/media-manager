@@ -24,22 +24,36 @@ export async function processForObjects(mediaId: string) {
   const endTime = Date.now(); // Record end time
   const processingTime = endTime - startTime; // Calculate processing time
 
-  // Save results to database
-  const { error: insertError } = await supabase.from('analysis_data').upsert(
-    {
+  // Check if analysis_data already exists for this media_id
+  const { data: existingObject } = await supabase
+    .from('analysis_data')
+    .select('id')
+    .eq('media_id', mediaId)
+    .limit(1)
+    .single();
+
+  let insertError: unknown = null;
+
+  if (existingObject) {
+    // Update existingObject record
+    ({ error: insertError } = await supabase
+      .from('analysis_data')
+      .update({ objects, content_warnings: [] })
+      .eq('media_id', mediaId));
+  } else {
+    // Insert new record
+    ({ error: insertError } = await supabase.from('analysis_data').insert({
       id: v4(),
       media_id: mediaId,
       objects,
       content_warnings: [],
-    },
-    {
-      onConflict: 'media_id', // Only specify the unique column to identify the record
-    },
-  );
+    }));
+  }
 
-  // 23505 is the unique violation error code in PostgreSQL
-  if (insertError && insertError.code !== '23505') {
-    throw new Error(`Failed to insert EXIF data: ${insertError.message}`);
+  if (insertError) {
+    throw new Error(
+      `Failed to insert/update analysis data: ${(insertError as Error).message}`,
+    );
   }
 
   // Update the media item to mark it as processed

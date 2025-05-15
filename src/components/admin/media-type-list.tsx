@@ -41,10 +41,10 @@ export default function MediaTypeList({
   // Group media types by category
   const groupedTypes = mediaTypes.reduce<Record<string, MediaType[]>>(
     (groups, type) => {
-      if (!groups[type.type_name]) {
-        groups[type.type_name] = [];
+      if (!groups[type.category]) {
+        groups[type.category] = [];
       }
-      groups[type.type_name].push(type);
+      groups[type.category].push(type);
       return groups;
     },
     { all: [] },
@@ -65,7 +65,7 @@ export default function MediaTypeList({
       }
 
       toast.success(
-        `${type.type_name} (${type.mime_type}) is now ${
+        `${type.category} (${type.mime_type}) is now ${
           value ? 'ignored' : 'not ignored'
         }`,
       );
@@ -88,7 +88,7 @@ export default function MediaTypeList({
       }
 
       toast.success(
-        `${type.type_name} (${type.mime_type}) is now ${
+        `${type.category} (${type.mime_type}) is now ${
           value ? 'natively supported' : 'not natively supported'
         }`,
       );
@@ -103,7 +103,7 @@ export default function MediaTypeList({
   const handleDeleteMediaType = async (type: MediaType) => {
     if (
       !window.confirm(
-        `Are you sure you want to delete this media type: ${type.type_name} (${type.mime_type})? This action cannot be undone.`,
+        `Are you sure you want to delete this media type: ${type.category} (${type.mime_type})? This action cannot be undone.`,
       )
     ) {
       return;
@@ -116,7 +116,7 @@ export default function MediaTypeList({
         throw result.error;
       }
 
-      toast.success(`${type.type_name} (${type.mime_type}) has been deleted`);
+      toast.success(`${type.category} (${type.mime_type}) has been deleted`);
 
       await onUpdate();
     } catch (_err) {
@@ -180,8 +180,7 @@ export default function MediaTypeList({
                   <CardHeader>
                     <CardTitle>{type.mime_type}</CardTitle>
                     <CardDescription>
-                      Category: {type.type_name}{' '}
-                      {type.is_ignored && '(Ignored)'}
+                      Category: {type.category} {type.is_ignored && '(Ignored)'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">

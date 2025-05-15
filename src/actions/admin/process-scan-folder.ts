@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileTypeFromFile } from 'file-type';
 import { processScanResults } from '@/actions/admin/process-directory';
 import type { FileDetails } from '@/types/scan-types';
+import { getOrCreateMediaType } from './manage-media-types';
 
 /**
  * Recursively get all files from a folder
@@ -34,12 +35,28 @@ async function getFilesAnDirectories(folderPath: string): Promise<{
 
       const FileType = await fileTypeFromFile(fullPath);
 
+      const mimeType = FileType?.mime || 'application/octet-stream';
+      console.log('mimeType: ', mimeType);
+
+      const mediaTypeId = await getOrCreateMediaType(mimeType);
+
+      if (!mediaTypeId) {
+        // Log the warning but continue processing
+        console.warn(
+          `Could not determine media type for ${FileType?.mime}/${mimeType} - found ${entry.name}, skipping file`,
+        );
+        continue;
+      }
+
       // Add file details to array
       files.push({
         path: fullPath,
         name: entry.name,
         size: stats.size,
-        type: FileType?.mime || 'application/octet-stream',
+        mediaType: {
+          id: mediaTypeId,
+          mime_type: mimeType,
+        },
         lastModified: stats.mtimeMs,
       });
     } catch (err) {
@@ -79,6 +96,7 @@ export async function processScanFolder(folderPath: string): Promise<{
     }
 
     const { files, directories } = await getFilesAnDirectories(folderPath);
+    console.log('files: ', files);
 
     if (!files || files.length === 0) {
       return {

@@ -250,15 +250,37 @@ export default async function processWithOllama({
       created_date: new Date().toISOString(),
     };
 
-    // Save results to database
-    const { error: insertError } = await supabase
+    // Check if analysis_data already exists for this media_id
+    const { data: existingAnalysis, error: selectError } = await supabase
       .from('analysis_data')
-      .upsert(analysis_data, {
-        onConflict: 'media_id', // Only specify the unique column to identify the record
-      });
+      .select('id')
+      .eq('media_id', mediaId)
+      .limit(1)
+      .single();
+
+    if (selectError) {
+      throw new Error(`Failed to check analysis_data: ${selectError.message}`);
+    }
+
+    let insertError: unknown = null;
+
+    if (existingAnalysis) {
+      // Update existingAnalysis record
+      ({ error: insertError } = await supabase
+        .from('analysis_data')
+        .update(analysis_data)
+        .eq('media_id', mediaId));
+    } else {
+      // Insert new record
+      ({ error: insertError } = await supabase
+        .from('analysis_data')
+        .insert(analysis_data));
+    }
 
     if (insertError) {
-      throw new Error(`Failed to insert EXIF data: ${insertError.message}`);
+      throw new Error(
+        `Failed to insert/update analysis data: ${(insertError as Error).message}`,
+      );
     }
 
     // Update the media item to mark it as processed

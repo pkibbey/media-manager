@@ -1,6 +1,5 @@
 'use server';
 
-import { fileTypeFromFile } from 'file-type';
 import { v4 as uuid } from 'uuid';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaType } from '@/types/media-types';
@@ -12,26 +11,19 @@ import type { FileDetails, ScanResults } from '@/types/scan-types';
 async function addFileToDatabase(
   file: FileDetails,
 ): Promise<{ success: boolean; error?: string }> {
+  console.log('addFileToDatabase: ', file);
   try {
     const supabase = createSupabase();
 
-    // First, find or create the media type
-    const typeId = await getOrCreateMediaType(file.type);
-    if (!typeId) {
-      return {
-        success: false,
-        error: `Failed to create media type for ${file.type}`,
-      };
-    }
-
     // Check if the file already exists (by relative path)
-    const { data: existingFiles } = await supabase
+    const { data: existingFile } = await supabase
       .from('media')
       .select('id')
       .eq('media_path', file.path)
-      .limit(1);
+      .limit(1)
+      .single();
 
-    if (existingFiles && existingFiles.length > 0) {
+    if (existingFile) {
       return { success: false, error: 'File already exists in database' };
     }
 
@@ -40,7 +32,7 @@ async function addFileToDatabase(
     const { error } = await supabase.from('media').insert({
       id: fileId,
       media_path: file.path, // Store the relative path
-      media_type_id: typeId,
+      media_type_id: file.mediaType.id,
       size_bytes: file.size,
       created_date: file.lastModified
         ? new Date(file.lastModified).toISOString()
@@ -61,75 +53,6 @@ async function addFileToDatabase(
 }
 
 /**
- * Get or create a media type in the database
- */
-async function getOrCreateMediaType(mimeType: string): Promise<string | null> {
-  try {
-    const supabase = createSupabase();
-    const typeName = getCategoryFromMimeType(mimeType);
-
-    // Check if the type already exists
-    const { data: existingTypes } = await supabase
-      .from('media_types')
-      .select('id')
-      .eq('type_name', typeName)
-      .limit(1);
-
-    if (existingTypes && existingTypes.length > 0) {
-      return existingTypes[0].id;
-    }
-
-    // Create the type if it doesn't exist
-    const typeId = uuid();
-    const { error } = await supabase.from('media_types').insert({
-      id: typeId,
-      type_name: typeName,
-      mime_type: mimeType,
-      type_description: `${typeName} files`,
-      is_ignored: false,
-      is_native: true,
-    });
-
-    if (error) {
-      console.error('Error creating media type:', error);
-      return null;
-    }
-
-    return typeId;
-  } catch (error) {
-    console.error('Error in getOrCreateMediaType:', error);
-    return null;
-  }
-}
-
-/**
- * Convert a MIME type to a general media type category
- */
-function getCategoryFromMimeType(mimeType: string): string {
-  if (mimeType.startsWith('image/')) {
-    return 'image';
-  }
-
-  if (mimeType.startsWith('video/')) {
-    return 'video';
-  }
-
-  if (
-    mimeType.startsWith('text/') ||
-    mimeType.startsWith('application/pdf') ||
-    mimeType.startsWith('application/msword') ||
-    mimeType.includes('document')
-  ) {
-    return 'document';
-  }
-
-  if (mimeType.startsWith('audio/')) {
-    return 'audio';
-  }
-  return 'other';
-}
-
-/**
  * Process a batch of files and add them to the database
  */
 export async function processScanResults(
@@ -145,26 +68,13 @@ export async function processScanResults(
 
   // Process each file in the batch
   for (const file of files) {
-    // Use the precise MIME type detection instead of relying on the provided type
-    const preciseMimeType = await fileTypeFromFile(file.path);
-
-    // Use the detected MIME type for categorization
-    const category = preciseMimeType
-      ? getCategoryFromMimeType(preciseMimeType.mime)
-      : 'unknown';
-
-    // Update the file type with the precise detected type
-    const fileWithPreciseMime = {
-      ...file,
-      type: preciseMimeType?.mime || 'application/octet-stream',
-    };
-
     // Update stats
-    results.mediaTypeStats[category] =
-      (results.mediaTypeStats[category] || 0) + 1;
+    results.mediaTypeStats[file.mediaType.mime_type] =
+      (results.mediaTypeStats[file.mediaType.mime_type] || 0) + 1;
 
     // Add file to database
-    const addResult = await addFileToDatabase(fileWithPreciseMime);
+    console.log('add file to db: ', file);
+    const addResult = await addFileToDatabase(file);
 
     if (addResult.success) {
       results.filesAdded++;
@@ -188,7 +98,7 @@ export async function getMediaTypes(): Promise<MediaType[]> {
     const { data, error } = await supabase
       .from('media_types')
       .select('*')
-      .order('type_name');
+      .order('category');
 
     if (error) {
       console.error('Error fetching media types:', error);

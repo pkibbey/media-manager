@@ -47,7 +47,6 @@
     "exiftool-vendored": "^29.3.0",
     "face-api.js": "^0.22.2",
     "file-type": "^20.5.0",
-    "file-type-checker": "^1.1.4",
     "geist": "1.4.2",
     "heic-convert": "^2.1.0",
     "langchain": "^0.3.24",
