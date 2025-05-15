@@ -4,8 +4,44 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileTypeFromFile } from 'file-type';
 import { processScanResults } from '@/actions/admin/process-directory';
+import { createSupabase } from '@/lib/supabase';
 import type { FileDetails } from '@/types/scan-types';
 import { getOrCreateMediaType } from './manage-media-types';
+
+// Helper function to check if files already exist in database
+async function checkFilesExistInDatabase(
+  mediaPaths: string[],
+): Promise<Set<string>> {
+  if (!mediaPaths || mediaPaths.length === 0) {
+    return new Set();
+  }
+
+  const supabase = createSupabase();
+  const existingPaths = new Set<string>();
+
+  // Process in small batches to avoid URI too long errors
+  const BATCH_SIZE = 50; // Adjust based on your URL length constraints
+
+  for (let i = 0; i < mediaPaths.length; i += BATCH_SIZE) {
+    const batch = mediaPaths.slice(i, i + BATCH_SIZE);
+
+    const { data, error } = await supabase
+      .from('media')
+      .select('media_path')
+      .in('media_path', batch);
+
+    if (error) {
+      console.error(`Error checking batch ${i}-${i + BATCH_SIZE}:`, error);
+      continue; // Continue with next batch instead of failing the entire operation
+    }
+
+    if (data && data.length > 0) {
+      data.forEach((item) => existingPaths.add(item.media_path));
+    }
+  }
+
+  return existingPaths;
+}
 
 /**
  * Recursively get all files from a folder
@@ -25,10 +61,26 @@ async function getFilesAnDirectories(folderPath: string): Promise<{
   const filesInDir = entries.filter((entry) => entry.isFile());
   const files: FileDetails[] = [];
 
+  // Early Existence Check
+  // The most immediate optimization would be to check if files already exist in the database
+  // before doing any expensive operations like file type detection
+  const mediaPaths = filesInDir.map((entry) =>
+    path.join(folderPath, entry.name),
+  );
+  const existingFiles = await checkFilesExistInDatabase(mediaPaths);
+  console.log('existingFiles: ', existingFiles);
+
   // Process each entry
   for (const entry of filesInDir) {
     const fullPath = path.join(folderPath, entry.name);
 
+    // Skip if file already exists in database
+    if (existingFiles.has(fullPath)) {
+      console.log('skipped', fullPath);
+      continue;
+    }
+
+    // Only do expensive operations for new files
     try {
       // Get file stats
       const stats = await fs.stat(fullPath);
