@@ -139,7 +139,8 @@ export function MediaDetail() {
               {Object.entries(
                 selectedMedia.reduce(
                   (acc, file) => {
-                    const type = file.media_types?.mime_type || 'unknown';
+                    const type =
+                      file.media_types?.type_description || 'unknown';
                     acc[type] = (acc[type] || 0) + 1;
                     return acc;
                   },

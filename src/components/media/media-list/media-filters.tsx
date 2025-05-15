@@ -52,7 +52,7 @@ export default function FileFilters({
   const resetFilters = () => {
     onFilterChange({
       search: '',
-      type: 'all',
+      category: 'all',
       dateFrom: null,
       dateTo: null,
       hasExif: 'all',
@@ -88,9 +88,9 @@ export default function FileFilters({
           <Label className="text-sm font-medium mb-1 block">
             File Type
             <Select
-              value={filters.type}
+              value={filters.category}
               onValueChange={(value) =>
-                updateFilter('type', value as MediaFiltersType['type'])
+                updateFilter('category', value as MediaFiltersType['category'])
               }
             >
               <SelectTrigger>

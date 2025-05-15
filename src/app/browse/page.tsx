@@ -32,7 +32,7 @@ export default function BrowsePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<MediaFiltersType>({
     search: '',
-    type: 'all',
+    category: 'all',
     dateFrom: null,
     dateTo: null,
     hasExif: 'yes', // Default to 'yes' because we need exif data to display images

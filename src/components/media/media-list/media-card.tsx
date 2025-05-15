@@ -53,7 +53,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            {media.media_types?.mime_type.toUpperCase() || 'No Preview'}
+            {media.media_types?.type_description?.toUpperCase() || 'No Preview'}
           </div>
         )}
 
