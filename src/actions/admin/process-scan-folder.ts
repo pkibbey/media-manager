@@ -67,8 +67,6 @@ export async function processScanFolder(folderPath: string): Promise<{
   directories?: string[];
 }> {
   try {
-    console.log(`Starting scan of folder: ${folderPath}`);
-
     if (!folderPath || typeof folderPath !== 'string') {
       throw new Error('Invalid folder path provided');
     }
@@ -80,10 +78,7 @@ export async function processScanFolder(folderPath: string): Promise<{
       throw new Error(`Cannot access folder at path: ${folderPath}`);
     }
 
-    // Get the files from the folder
-    console.log('Scanning folder for files...');
     const { files, directories } = await getFilesFromFolder(folderPath);
-    console.log(`Found ${files?.length} files to process`);
 
     if (!files || files.length === 0) {
       return {
@@ -96,9 +91,6 @@ export async function processScanFolder(folderPath: string): Promise<{
     }
 
     const results = await processScanResults(files);
-    console.log(
-      `Processing complete. Added: ${results.filesAdded}, Skipped: ${results.filesSkipped}`,
-    );
 
     return {
       success: true,

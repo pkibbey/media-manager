@@ -1,5 +1,6 @@
 'use server';
 
+import { isValid } from 'date-fns';
 import { ExifTool } from 'exiftool-vendored';
 import { v4 } from 'uuid';
 import { createSupabase } from '@/lib/supabase';
@@ -77,17 +78,20 @@ export async function processExif(mediaItem: MediaWithExif) {
       // Add mimetype to the file_types table
       // Update mimetype of the media item
 
+      const now = new Date().toISOString();
+      const exif_timestamp = exif.DateTimeOriginal || exif.CreateDate;
+
       // Extract useful EXIF data into a structured format
       exifData = {
         id: v4(),
         aperture: exif.FNumber || null,
         camera_make: exif.Make || null,
         camera_model: exif.Model || null,
-        created_date: String(exif.DateTimeOriginal) || undefined,
+        created_date: now,
         digital_zoom_ratio: exif.DigitalZoomRatio
           ? Number.parseFloat(exif.DigitalZoomRatio.toString())
           : null,
-        exif_timestamp: String(exif.CreateDate) || null,
+        exif_timestamp: isValid(exif_timestamp) ? String(exif_timestamp) : null,
         exposure_time: exif.ExposureTime || null,
         focal_length_35mm: exif.FocalLengthIn35mmFormat
           ? Number.parseFloat(exif.FocalLengthIn35mmFormat.toString())
