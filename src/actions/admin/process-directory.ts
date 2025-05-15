@@ -11,7 +11,6 @@ import type { FileDetails, ScanResults } from '@/types/scan-types';
 async function addFileToDatabase(
   file: FileDetails,
 ): Promise<{ success: boolean; error?: string }> {
-  console.log('addFileToDatabase: ', file);
   try {
     const supabase = createSupabase();
 
@@ -73,7 +72,6 @@ export async function processScanResults(
       (results.mediaTypeStats[file.mediaType.mime_type] || 0) + 1;
 
     // Add file to database
-    console.log('add file to db: ', file);
     const addResult = await addFileToDatabase(file);
 
     if (addResult.success) {

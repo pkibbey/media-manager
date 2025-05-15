@@ -36,7 +36,6 @@ async function getFilesAnDirectories(folderPath: string): Promise<{
       const FileType = await fileTypeFromFile(fullPath);
 
       const mimeType = FileType?.mime || 'application/octet-stream';
-      console.log('mimeType: ', mimeType);
 
       const mediaTypeId = await getOrCreateMediaType(mimeType);
 
@@ -96,7 +95,6 @@ export async function processScanFolder(folderPath: string): Promise<{
     }
 
     const { files, directories } = await getFilesAnDirectories(folderPath);
-    console.log('files: ', files);
 
     if (!files || files.length === 0) {
       return {

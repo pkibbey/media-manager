@@ -113,12 +113,6 @@ export async function getOrCreateMediaType(
     const supabase = createSupabase();
     const typeName = getCategoryFromMimeType(mimeType);
 
-    const { data: existingTypes } = await supabase
-      .from('media_types')
-      .select('id')
-      .limit(10);
-    console.log('existingTypes: ', existingTypes);
-
     // First, check if the media type already exists
     const { data: existingType } = await supabase
       .from('media_types')
@@ -134,7 +128,6 @@ export async function getOrCreateMediaType(
 
     // If not found, insert a new media type
     const typeId = uuid();
-    console.log('not existingType new typeId: ', typeId);
     const { error: insertError } = await supabase.from('media_types').insert({
       id: typeId,
       category: typeName,
