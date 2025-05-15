@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.10.0",
   "scripts": {
-    "dev": "NODE_DEBUG=exiftool-vendored next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "biome lint ./src",
