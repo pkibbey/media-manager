@@ -11,3 +11,4 @@
 
 -- Move the file-type checking to the file-type step, to help speed up initial import
 
+-- handle adding and removing files from the source directory - scan for changes

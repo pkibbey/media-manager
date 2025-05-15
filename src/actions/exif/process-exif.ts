@@ -140,7 +140,9 @@ export async function processExif(mediaItem: MediaWithExif) {
       const extractionStart = performance.now();
       const extractionResult = await extractExifData(mediaItem);
       const extractionTime = performance.now() - extractionStart;
-      console.log(`EXIF extraction took ${extractionTime}ms for ${mediaItem.id}`);
+      console.log(
+        `EXIF extraction took ${extractionTime}ms for ${mediaItem.id}`,
+      );
 
       if (!extractionResult.success) {
         return {
@@ -212,7 +214,9 @@ export async function processExif(mediaItem: MediaWithExif) {
     }
 
     const totalTime = performance.now() - totalStart;
-    console.log(`Total EXIF processing took ${totalTime}ms for ${mediaItem.id}`);
+    console.log(
+      `Total EXIF processing took ${totalTime}ms for ${mediaItem.id}`,
+    );
 
     return { success: true };
   } catch (error) {
