@@ -84,7 +84,7 @@ export async function generateSharpThumbnail(
   mediaItem: MediaWithRelations,
 ): Promise<Buffer> {
   return sharp(mediaItem.media_path)
-    .rotate(mediaItem.exif_data?.orientation || 0)
+    .rotate(orientationToDegrees(mediaItem.exif_data?.orientation))
     .resize({
       width: THUMBNAIL_SIZE,
       height: THUMBNAIL_SIZE,
@@ -123,5 +123,18 @@ export async function processNativeThumbnail(
     return await generateSharpThumbnail(mediaItem);
   } catch (_alternativeRawError) {
     return null;
+  }
+}
+
+function orientationToDegrees(orientation?: number | null): number {
+  switch (orientation) {
+    case 3:
+      return 180;
+    case 6:
+      return 90;
+    case 8:
+      return 270;
+    default:
+      return 0;
   }
 }
