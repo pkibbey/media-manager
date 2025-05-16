@@ -67,20 +67,13 @@ export async function convertRawThumbnail(
   const tempDir = '/tmp';
   const tempOutputFile = path.join(tempDir, `${v4()}.jpg`);
 
-  try {
-    // Resize to 1024px and convert to JPEG
-    // -T: Output a thumbnail image
-    // -w: Use camera's white balance
-    await execAsync(`dcraw -T -w "${rawFilePath}" -o 1 > "${tempOutputFile}"`);
+  // Resize to 1024px and convert to JPEG
+  // -T: Output a thumbnail image
+  // -w: Use camera's white balance
+  await execAsync(`dcraw -T -w "${rawFilePath}" -o 1 > "${tempOutputFile}"`);
 
-    const imageBuffer = await fs.readFile(tempOutputFile);
-    await fs.unlink(tempOutputFile);
+  const imageBuffer = await fs.readFile(tempOutputFile);
+  await fs.unlink(tempOutputFile);
 
-    return imageBuffer;
-  } catch (error) {
-    console.error('Error converting RAW thumbnail with dcraw:', error);
-    throw new Error(
-      `Failed to convert RAW thumbnail: ${(error as Error).message}`,
-    );
-  }
+  return imageBuffer;
 }

@@ -1,20 +1,13 @@
 'use server';
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { exiftool } from 'exiftool-vendored';
-import sharp from 'sharp';
-import { v4 } from 'uuid';
 import { countResults, processInChunks } from '@/lib/batch-processing';
-import {
-  BACKGROUND_COLOR,
-  THUMBNAIL_QUALITY,
-  THUMBNAIL_SIZE,
-} from '@/lib/consts';
-import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
+import {
+  processNativeThumbnail,
+  processRawThumbnail,
+} from '@/lib/thumbnail-generators';
+import { storeThumbnail } from '@/lib/thumbnail-storage';
 import type { MediaWithRelations } from '@/types/media-types';
-import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed';
 
 /**
  * Generate a thumbnail for a single media item
@@ -24,182 +17,16 @@ import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed
  */
 async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   try {
-    const supabase = createSupabase();
+    // Generate thumbnail based on media type
+    let thumbnailBuffer: Buffer;
 
     try {
-      // Generate unique ID for the thumbnail
-      const thumbnailId = v4();
-      const thumbnailFilename = `${thumbnailId}.jpg`;
-      const tempThumbnailPath = path.join('/tmp', thumbnailFilename);
-
-      // Try to extract thumbnail using ExifTool
-      let thumbnailBuffer: Buffer;
-
-      // Convert NEF to JPEG if necessary
-      // We are using the is native property to determine if the file needs conversion
+      // Choose appropriate thumbnail generation strategy based on media type
       if (!mediaItem.media_types?.is_native) {
-        try {
-          // Use dcraw to extract high-quality JPEG from NEF file
-          thumbnailBuffer = await processRawWithDcraw(mediaItem.media_path);
-
-          // Resize to fit our thumbnail dimensions
-          try {
-            thumbnailBuffer = await sharp(thumbnailBuffer)
-              .rotate()
-              .resize({
-                width: THUMBNAIL_SIZE,
-                height: THUMBNAIL_SIZE,
-                withoutEnlargement: true,
-                fit: 'contain',
-                background: BACKGROUND_COLOR,
-              })
-              .jpeg({ quality: THUMBNAIL_QUALITY })
-              .toBuffer();
-          } catch (sharpResizeError) {
-            console.error(
-              `Error resizing RAW image with Sharp for media ${mediaItem.id}:`,
-              sharpResizeError,
-            );
-            // Return a partial success - we couldn't process this specific file
-            return {
-              success: false,
-              error:
-                sharpResizeError instanceof Error
-                  ? `Error resizing RAW image: ${sharpResizeError.message}`
-                  : 'Error resizing RAW image',
-            };
-          }
-        } catch (_rawProcessError) {
-          // Fallback to alternative dcraw method
-          try {
-            thumbnailBuffer = await convertRawThumbnail(mediaItem.media_path);
-
-            // Resize to fit thumbnail dimensions
-            try {
-              thumbnailBuffer = await sharp(thumbnailBuffer)
-                .resize({
-                  width: THUMBNAIL_SIZE,
-                  height: THUMBNAIL_SIZE,
-                  withoutEnlargement: true,
-                  fit: 'contain',
-                  background: BACKGROUND_COLOR,
-                })
-                .jpeg({ quality: THUMBNAIL_QUALITY })
-                .toBuffer();
-            } catch (sharpResizeError) {
-              // Return a partial success - we couldn't process this specific file
-              return {
-                success: false,
-                error:
-                  sharpResizeError instanceof Error
-                    ? `Error resizing alternative RAW image: ${sharpResizeError.message}`
-                    : 'Error resizing alternative RAW image',
-              };
-            }
-          } catch (_alternativeRawError) {
-            // Continue to original method if both RAW approaches fail
-            throw new Error(
-              'Raw processing failed, falling back to standard methods',
-            );
-          }
-        }
+        thumbnailBuffer = await processRawThumbnail(mediaItem);
       } else {
-        // Original method for native files
-        try {
-          // Extract embedded thumbnail using ExifTool
-          await exiftool.extractThumbnail(
-            mediaItem.media_path,
-            tempThumbnailPath,
-          );
-
-          // Read the thumbnail file
-          thumbnailBuffer = await fs.readFile(tempThumbnailPath);
-
-          // Clean up temp file
-          await fs.unlink(tempThumbnailPath);
-        } catch (_extractError) {
-          // Fallback to Sharp if ExifTool couldn't extract a thumbnail
-          try {
-            const image = sharp(mediaItem.media_path);
-            thumbnailBuffer = await image
-              .rotate()
-              .resize({
-                width: THUMBNAIL_SIZE,
-                height: THUMBNAIL_SIZE,
-                withoutEnlargement: true,
-                fit: 'contain',
-                background: BACKGROUND_COLOR,
-              })
-              .jpeg({ quality: THUMBNAIL_QUALITY })
-              .toBuffer();
-          } catch (sharpError) {
-            console.error(
-              `Error processing with Sharp for media ${mediaItem.id}:`,
-              sharpError,
-            );
-            // Return a partial success - we couldn't process this specific file
-            // but we don't want to break the whole batch
-            return {
-              success: false,
-              error:
-                sharpError instanceof Error
-                  ? `Unsupported image format: ${sharpError.message}`
-                  : 'Unsupported image format',
-            };
-          }
-        }
+        thumbnailBuffer = await processNativeThumbnail(mediaItem);
       }
-
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('thumbnails')
-        .upload(thumbnailFilename, thumbnailBuffer, {
-          contentType: 'image/jpeg',
-          cacheControl: '31536000', // Cache for a year
-        });
-
-      if (uploadError) {
-        throw new Error(`Failed to upload thumbnail: ${uploadError.message}`);
-      }
-
-      // Get public URL for the thumbnail
-      const { data: urlData } = supabase.storage
-        .from('thumbnails')
-        .getPublicUrl(thumbnailFilename);
-
-      const thumbnailUrl = urlData.publicUrl;
-
-      // Add the thumbnail to the thumbnail_data table
-      const { error: insertError } = await supabase
-        .from('thumbnail_data')
-        .insert({
-          id: v4(),
-          created_date: new Date().toISOString(),
-          media_id: mediaItem.id,
-          thumbnail_url: thumbnailUrl,
-        });
-
-      if (insertError) {
-        throw new Error(
-          `Failed to insert thumbnail data: ${insertError.message}`,
-        );
-      }
-
-      // Update the media item with the thumbnail URL
-      const { error: updateError } = await setMediaAsThumbnailProcessed(
-        mediaItem.id,
-      );
-
-      if (updateError) {
-        throw new Error(
-          `Failed to update media item with thumbnail URL: ${updateError.message}`,
-        );
-      }
-
-      return {
-        success: true,
-        thumbnailUrl,
-      };
     } catch (processingError) {
       console.error(
         `Error generating thumbnail for media ${mediaItem.id}:`,
@@ -210,10 +37,15 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
         success: false,
         error:
           processingError instanceof Error
-            ? processingError.message
-            : 'Unknown processing error',
+            ? `Thumbnail generation failed: ${processingError.message}`
+            : 'Thumbnail generation failed',
       };
     }
+
+    // Store the thumbnail and update database
+    const storageResult = await storeThumbnail(mediaItem.id, thumbnailBuffer);
+
+    return storageResult;
   } catch (error) {
     return {
       success: false,
@@ -252,7 +84,7 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       return { success: true, processed: 0, message: 'No items to process' };
     }
 
-    // Process items in batches with controlled concurrency using the utility
+    // Process items in batches with controlled concurrency
     const results = await processInChunks(
       mediaItems,
       processMediaThumbnail,
@@ -269,7 +101,7 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       }
     });
 
-    // Count succeeded and failed results with custom success predicate
+    // Count succeeded and failed results
     const { succeeded, failed } = countResults(
       results,
       (value) => value.success,
