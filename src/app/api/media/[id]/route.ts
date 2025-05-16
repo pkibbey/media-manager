@@ -9,7 +9,7 @@ import {
   IMAGE_DETAIL_SIZE,
   THUMBNAIL_QUALITY,
 } from '@/lib/consts';
-import { convertRawThumbnail, processRawWithLibRaw } from '@/lib/raw-processor';
+import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
 import type { Tables } from '@/types/supabase';
 
@@ -76,10 +76,10 @@ export async function GET({ params }: { params: { id: string } }) {
         let rawProcessedBuffer: Buffer;
         try {
           // These functions take filePath and handle file reading internally
-          rawProcessedBuffer = await processRawWithLibRaw(filePath);
+          rawProcessedBuffer = await processRawWithDcraw(filePath);
         } catch (dcrawError) {
           console.error(
-            `Error with processRawWithLibRaw for ${filePath}, trying convertRawThumbnail:`,
+            `Error with processRawWithDcraw for ${filePath}, trying convertRawThumbnail:`,
             dcrawError,
           );
           rawProcessedBuffer = await convertRawThumbnail(filePath); // Fallback

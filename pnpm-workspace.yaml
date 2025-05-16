@@ -3,7 +3,6 @@ onlyBuiltDependencies:
   - '@tensorflow/tfjs-node'
   - canvas
   - core-js
-  - libraw.js
   - mmmagic
   - protobufjs
   - sharp
