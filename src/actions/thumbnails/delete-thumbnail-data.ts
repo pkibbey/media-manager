@@ -8,7 +8,7 @@ import { createSupabase } from '@/lib/supabase';
  * @param batchSize Number of items to process in each batch
  * @returns Object with count of reset items and any error
  */
-export async function deleteThumbnailData(batchSize = 1000) {
+export async function deleteThumbnailData(batchSize = 100) {
   try {
     const supabase = createSupabase();
     let totalReset = 0;
