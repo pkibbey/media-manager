@@ -224,11 +224,7 @@ export default function AdvancedAnalysisAdminPage() {
           </TabsContent>
 
           <TabsContent value="processing" className="space-y-4 mt-4">
-            <Alert
-              variant={
-                analysisStats?.remaining === 0 ? 'default' : 'destructive'
-              }
-            >
+            <Alert>
               <AlertDescription>
                 {analysisStats?.remaining === 0
                   ? 'All items have been processed.'

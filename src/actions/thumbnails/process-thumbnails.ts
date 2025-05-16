@@ -16,19 +16,6 @@ import { createSupabase } from '@/lib/supabase';
 import type { MediaWithRelations } from '@/types/media-types';
 import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed';
 
-// Helper function to check if a file is a Nikon NEF Raw file
-async function isCameraRawFile(mime_type?: string | null): Promise<boolean> {
-  if (!mime_type) {
-    return false;
-  }
-
-  // NOTE: Currently only checks for TIFF and Nikon NEF formats
-  return (
-    mime_type.startsWith('image/tiff') ||
-    mime_type.startsWith('image/x-nikon-nef')
-  );
-}
-
 /**
  * Generate a thumbnail for a single media item
  *
@@ -50,26 +37,40 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
       // Try to extract thumbnail using ExifTool
       let thumbnailBuffer: Buffer;
 
-      const isRawFile = await isCameraRawFile(mediaItem.media_types?.mime_type);
-
-      // Special handling for Nikon NEF files
-      if (isRawFile) {
+      // Convert NEF to JPEG if necessary
+      // We are using the is native property to determine if the file needs conversion
+      if (!mediaItem.media_types?.is_native) {
         try {
           // Use dcraw to extract high-quality JPEG from NEF file
           thumbnailBuffer = await processRawWithDcraw(mediaItem.media_path);
 
           // Resize to fit our thumbnail dimensions
-          thumbnailBuffer = await sharp(thumbnailBuffer)
-            .rotate()
-            .resize({
-              width: THUMBNAIL_SIZE,
-              height: THUMBNAIL_SIZE,
-              withoutEnlargement: true,
-              fit: 'contain',
-              background: BACKGROUND_COLOR,
-            })
-            .jpeg({ quality: THUMBNAIL_QUALITY })
-            .toBuffer();
+          try {
+            thumbnailBuffer = await sharp(thumbnailBuffer)
+              .rotate()
+              .resize({
+                width: THUMBNAIL_SIZE,
+                height: THUMBNAIL_SIZE,
+                withoutEnlargement: true,
+                fit: 'contain',
+                background: BACKGROUND_COLOR,
+              })
+              .jpeg({ quality: THUMBNAIL_QUALITY })
+              .toBuffer();
+          } catch (sharpResizeError) {
+            console.error(
+              `Error resizing RAW image with Sharp for media ${mediaItem.id}:`,
+              sharpResizeError,
+            );
+            // Return a partial success - we couldn't process this specific file
+            return {
+              success: false,
+              error:
+                sharpResizeError instanceof Error
+                  ? `Error resizing RAW image: ${sharpResizeError.message}`
+                  : 'Error resizing RAW image',
+            };
+          }
         } catch (rawProcessError) {
           console.error(
             'Error processing NEF with dcraw, trying fallback:',
@@ -81,16 +82,31 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
             thumbnailBuffer = await convertRawThumbnail(mediaItem.media_path);
 
             // Resize to fit thumbnail dimensions
-            thumbnailBuffer = await sharp(thumbnailBuffer)
-              .resize({
-                width: THUMBNAIL_SIZE,
-                height: THUMBNAIL_SIZE,
-                withoutEnlargement: true,
-                fit: 'contain',
-                background: BACKGROUND_COLOR,
-              })
-              .jpeg({ quality: THUMBNAIL_QUALITY })
-              .toBuffer();
+            try {
+              thumbnailBuffer = await sharp(thumbnailBuffer)
+                .resize({
+                  width: THUMBNAIL_SIZE,
+                  height: THUMBNAIL_SIZE,
+                  withoutEnlargement: true,
+                  fit: 'contain',
+                  background: BACKGROUND_COLOR,
+                })
+                .jpeg({ quality: THUMBNAIL_QUALITY })
+                .toBuffer();
+            } catch (sharpResizeError) {
+              console.error(
+                `Error resizing alternative RAW image with Sharp for media ${mediaItem.id}:`,
+                sharpResizeError,
+              );
+              // Return a partial success - we couldn't process this specific file
+              return {
+                success: false,
+                error:
+                  sharpResizeError instanceof Error
+                    ? `Error resizing alternative RAW image: ${sharpResizeError.message}`
+                    : 'Error resizing alternative RAW image',
+              };
+            }
           } catch (alternativeRawError) {
             console.error(
               'Error with alternative RAW processing, using original method:',
@@ -103,7 +119,7 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
           }
         }
       } else {
-        // Original method for non-NEF files
+        // Original method for native files
         try {
           // Extract embedded thumbnail using ExifTool
           await exiftool.extractThumbnail(
@@ -118,18 +134,35 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
           await fs.unlink(tempThumbnailPath);
         } catch (_extractError) {
           // Fallback to Sharp if ExifTool couldn't extract a thumbnail
-          const image = sharp(mediaItem.media_path);
-          thumbnailBuffer = await image
-            .rotate()
-            .resize({
-              width: THUMBNAIL_SIZE,
-              height: THUMBNAIL_SIZE,
-              withoutEnlargement: true,
-              fit: 'contain',
-              background: BACKGROUND_COLOR,
-            })
-            .jpeg({ quality: THUMBNAIL_QUALITY })
-            .toBuffer();
+          try {
+            console.log('mediaItem.media_path: ', mediaItem.media_path);
+            const image = sharp(mediaItem.media_path);
+            thumbnailBuffer = await image
+              .rotate()
+              .resize({
+                width: THUMBNAIL_SIZE,
+                height: THUMBNAIL_SIZE,
+                withoutEnlargement: true,
+                fit: 'contain',
+                background: BACKGROUND_COLOR,
+              })
+              .jpeg({ quality: THUMBNAIL_QUALITY })
+              .toBuffer();
+          } catch (sharpError) {
+            console.error(
+              `Error processing with Sharp for media ${mediaItem.id}:`,
+              sharpError,
+            );
+            // Return a partial success - we couldn't process this specific file
+            // but we don't want to break the whole batch
+            return {
+              success: false,
+              error:
+                sharpError instanceof Error
+                  ? `Unsupported image format: ${sharpError.message}`
+                  : 'Unsupported image format',
+            };
+          }
         }
       }
 
@@ -222,10 +255,13 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
       .select(
-        '*, media_types(*), exif_data(*), thumbnail_data(*), analysis_data(*)',
+        '*, media_types!inner(*), exif_data(*), thumbnail_data(*), analysis_data(*)',
       )
       .is('is_thumbnail_processed', false)
+      .ilike('media_types.mime_type', '%image%')
       .limit(limit);
+
+    console.log('mediaItems: ', mediaItems);
 
     if (findError) {
       throw new Error(`Failed to find unprocessed items: ${findError.message}`);
@@ -241,6 +277,16 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       processMediaThumbnail,
       concurrency,
     );
+
+    // Log any rejected promises for debugging
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(
+          `Failed to process item ${index} (mediaId: ${mediaItems[index]?.id}):`,
+          result.reason,
+        );
+      }
+    });
 
     // Count succeeded and failed results with custom success predicate
     const { succeeded, failed } = countResults(

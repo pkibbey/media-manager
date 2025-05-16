@@ -20,7 +20,7 @@ async function checkFilesExistInDatabase(
   const existingPaths = new Set<string>();
 
   // Process in small batches to avoid URI too long errors
-  const BATCH_SIZE = 50; // Adjust based on your URL length constraints
+  const BATCH_SIZE = 500; // Adjust based on your URL length constraints
 
   for (let i = 0; i < mediaPaths.length; i += BATCH_SIZE) {
     const batch = mediaPaths.slice(i, i + BATCH_SIZE);

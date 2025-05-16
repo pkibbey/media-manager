@@ -35,10 +35,10 @@ export default function BrowsePage() {
     category: 'all',
     dateFrom: null,
     dateTo: null,
-    hasExif: 'yes', // Default to 'yes' because we need exif data to display images
+    hasExif: 'all',
     hasLocation: 'all',
-    hasThumbnail: 'yes', // Default to 'yes' because we need thumbnail data to display images
-    hasAnalysis: 'yes', // Default to 'yes' because we prefer analysis data to display images
+    hasThumbnail: 'all',
+    hasAnalysis: 'all',
     includeHidden: false,
     includeDeleted: false,
   });
