@@ -1,8 +1,8 @@
 'use server';
 
 import { isValid } from 'date-fns';
+import { exiftool } from 'exiftool-vendored';
 import { v4 } from 'uuid';
-import { exiftool } from '@/lib/exiftool';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaWithExif } from '@/types/media-types';
 

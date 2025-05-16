@@ -2,7 +2,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { ExifTool } from 'exiftool-vendored';
+import { exiftool } from 'exiftool-vendored';
 import sharp from 'sharp';
 import { v4 } from 'uuid';
 import { countResults, processInChunks } from '@/lib/batch-processing';
@@ -25,8 +25,6 @@ import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed
 async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   try {
     const supabase = createSupabase();
-    // Create a new ExifTool instance for this operation
-    const exiftool = new ExifTool();
 
     try {
       // Generate unique ID for the thumbnail
@@ -216,8 +214,6 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
         thumbnailUrl,
       };
     } catch (processingError) {
-      // Make sure to clean up resources in case of error
-      await exiftool.end();
       console.error(
         `Error generating thumbnail for media ${mediaItem.id}:`,
         processingError,
