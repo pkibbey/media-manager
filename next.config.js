@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ['localhost:3000', '192.168.1.170:3000'],
+  allowedDevOrigins: [
+    'localhost:3000',
+    '192.168.1.170:3000',
+    'image-server:3000',
+  ],
   reactStrictMode: true,
   devIndicators: false,
   images: {
