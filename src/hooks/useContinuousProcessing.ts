@@ -201,7 +201,13 @@ export default function useContinuousProcessing<
         }
 
         if (batchProcessed === 0) {
-          break;
+          // Option 1: Just continue to the next batch, don't break
+          // continue;
+
+          // Option 2: Only break if there are truly no remaining items
+          if (!hasRemainingItemsFn()) {
+            break;
+          }
         }
 
         if (onBatchComplete) {
