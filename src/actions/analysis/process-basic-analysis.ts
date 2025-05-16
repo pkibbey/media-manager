@@ -2,7 +2,7 @@
 
 import { processSequentially } from '@/lib/batch-processing';
 import { createSupabase } from '@/lib/supabase';
-import { processForObjects } from './process-for-objects';
+import { processForObjectsTensorFlow } from './process-for-objects';
 
 /**
  * Process analysis for multiple media items in batch
@@ -32,7 +32,7 @@ export async function processBasicAnalysis(limit = 10) {
 
     // Process items sequentially
     const processFn = (item: (typeof mediaItems)[0]) =>
-      processForObjects(item.id);
+      processForObjectsTensorFlow(item.id);
     const processingResult = await processSequentially(mediaItems, processFn);
 
     return {

@@ -13,4 +13,10 @@
 
 -- handle adding and removing files from the source directory - scan for changes
 
--- remember to add dcraw insytructions
+-- remember to add dcraw instructions
+
+-- consider when a good time to optimize is
+
+-- you could always optimize the code too, to balance tech debt
+
+-- find failed files and figure out how to process them
