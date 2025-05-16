@@ -11,7 +11,7 @@ import {
   THUMBNAIL_QUALITY,
   THUMBNAIL_SIZE,
 } from '@/lib/consts';
-import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
+import { convertRawThumbnail, processRawWithLibRaw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaWithRelations } from '@/types/media-types';
 import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed';
@@ -42,7 +42,7 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
       if (!mediaItem.media_types?.is_native) {
         try {
           // Use dcraw to extract high-quality JPEG from NEF file
-          thumbnailBuffer = await processRawWithDcraw(mediaItem.media_path);
+          thumbnailBuffer = await processRawWithLibRaw(mediaItem.media_path);
 
           // Resize to fit our thumbnail dimensions
           try {
