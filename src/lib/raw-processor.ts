@@ -17,14 +17,12 @@ const execAsync = promisify(exec);
  */
 export async function processRawWithDcraw(
   rawFilePath: string,
-): Promise<Buffer> {
+): Promise<Buffer | null> {
   // Validate file exists before processing
   try {
     await fs.access(rawFilePath);
   } catch (_error) {
-    throw new Error(
-      `RAW file does not exist or is not accessible: ${rawFilePath}`,
-    );
+    return null;
   }
 
   // Create temporary file paths
@@ -51,9 +49,8 @@ export async function processRawWithDcraw(
     await fs.unlink(tempOutputFile);
 
     return imageBuffer;
-  } catch (error) {
-    console.error('Error processing RAW file with dcraw:', error);
-    throw new Error(`Failed to process RAW file: ${(error as Error).message}`);
+  } catch (_error) {
+    return null;
   }
 }
 
@@ -63,17 +60,21 @@ export async function processRawWithDcraw(
  */
 export async function convertRawThumbnail(
   rawFilePath: string,
-): Promise<Buffer> {
-  const tempDir = '/tmp';
-  const tempOutputFile = path.join(tempDir, `${v4()}.jpg`);
+): Promise<Buffer | null> {
+  try {
+    const tempDir = '/tmp';
+    const tempOutputFile = path.join(tempDir, `${v4()}.jpg`);
 
-  // Resize to 1024px and convert to JPEG
-  // -T: Output a thumbnail image
-  // -w: Use camera's white balance
-  await execAsync(`dcraw -T -w "${rawFilePath}" -o 1 > "${tempOutputFile}"`);
+    // Resize to 1024px and convert to JPEG
+    // -T: Output a thumbnail image
+    // -w: Use camera's white balance
+    await execAsync(`dcraw -T -w "${rawFilePath}" -o 1 > "${tempOutputFile}"`);
 
-  const imageBuffer = await fs.readFile(tempOutputFile);
-  await fs.unlink(tempOutputFile);
+    const imageBuffer = await fs.readFile(tempOutputFile);
+    await fs.unlink(tempOutputFile);
 
-  return imageBuffer;
+    return imageBuffer;
+  } catch (_error) {
+    return null;
+  }
 }

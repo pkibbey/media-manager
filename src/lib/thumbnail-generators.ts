@@ -11,9 +11,13 @@ import { convertRawThumbnail, processRawWithDcraw } from './raw-processor';
  */
 export async function generateRawThumbnailPrimary(
   mediaPath: string,
-): Promise<Buffer> {
+): Promise<Buffer | null> {
   // Use dcraw to extract high-quality JPEG from RAW file
   const rawBuffer = await processRawWithDcraw(mediaPath);
+
+  if (!rawBuffer) {
+    return null;
+  }
 
   // Resize to fit our thumbnail dimensions
   return sharp(rawBuffer)
@@ -34,8 +38,12 @@ export async function generateRawThumbnailPrimary(
  */
 export async function generateRawThumbnailFallback(
   mediaPath: string,
-): Promise<Buffer> {
+): Promise<Buffer | null> {
   const rawBuffer = await convertRawThumbnail(mediaPath);
+
+  if (!rawBuffer) {
+    return null;
+  }
 
   // Resize to fit our thumbnail dimensions
   return sharp(rawBuffer)

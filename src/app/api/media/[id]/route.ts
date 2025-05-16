@@ -11,12 +11,6 @@ import {
 } from '@/lib/consts';
 import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
-import type { Tables } from '@/types/supabase';
-
-// Helper function to check if a file is a Nikon NEF Raw file
-function isNikonNef(filePath: string): boolean {
-  return filePath.toLowerCase().endsWith('.nef');
-}
 
 export async function GET({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -30,13 +24,11 @@ export async function GET({ params }: { params: { id: string } }) {
     // Correctly define the type for mediaItem
     const { data: mediaItem, error: mediaError } = await supabase
       .from('media')
-      .select(
-        `
+      .select(`
         exif_data ( width, height, orientation ),
         media_path,
-        media_types ( mime_type )
-      `,
-      )
+        media_types ( mime_type, is_native )
+      `)
       .eq('id', id)
       .single();
 
@@ -48,8 +40,7 @@ export async function GET({ params }: { params: { id: string } }) {
     }
 
     // Ensure media_types is correctly typed and accessed
-    const mediaTypeRelation =
-      mediaItem.media_types as Tables<'media_types'> | null;
+    const mediaTypeRelation = mediaItem.media_types;
     const mimeType = mediaTypeRelation?.mime_type;
 
     if (!mimeType) {
@@ -71,30 +62,30 @@ export async function GET({ params }: { params: { id: string } }) {
     let outputBuffer: Buffer;
     let contentType: string;
 
-    if (isNikonNef(filePath)) {
+    if (mediaItem.media_types?.is_native) {
       try {
-        let rawProcessedBuffer: Buffer;
+        let rawProcessedBuffer: Buffer | null = null;
         try {
           // These functions take filePath and handle file reading internally
           rawProcessedBuffer = await processRawWithDcraw(filePath);
-        } catch (dcrawError) {
-          console.error(
-            `Error with processRawWithDcraw for ${filePath}, trying convertRawThumbnail:`,
-            dcrawError,
-          );
+        } catch (_dcrawError) {
           rawProcessedBuffer = await convertRawThumbnail(filePath); // Fallback
         }
+
+        if (!rawProcessedBuffer) {
+          return NextResponse.json(
+            { error: 'Error processing RAW image file' },
+            { status: 500 },
+          );
+        }
+
         // Convert the processed RAW buffer to JPEG, applying EXIF rotation
         outputBuffer = await sharp(rawProcessedBuffer)
           .rotate()
           .jpeg()
           .toBuffer();
         contentType = 'image/jpeg';
-      } catch (rawProcessingError) {
-        console.error(
-          `Error processing NEF file ${filePath}:`,
-          rawProcessingError,
-        );
+      } catch (_rawProcessingError) {
         return NextResponse.json(
           { error: 'Error processing RAW image file' },
           { status: 500 },
