@@ -69,12 +69,7 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
                   : 'Error resizing RAW image',
             };
           }
-        } catch (rawProcessError) {
-          console.error(
-            'Error processing NEF with dcraw, trying fallback:',
-            rawProcessError,
-          );
-
+        } catch (_rawProcessError) {
           // Fallback to alternative dcraw method
           try {
             thumbnailBuffer = await convertRawThumbnail(mediaItem.media_path);
@@ -92,10 +87,6 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
                 .jpeg({ quality: THUMBNAIL_QUALITY })
                 .toBuffer();
             } catch (sharpResizeError) {
-              console.error(
-                `Error resizing alternative RAW image with Sharp for media ${mediaItem.id}:`,
-                sharpResizeError,
-              );
               // Return a partial success - we couldn't process this specific file
               return {
                 success: false,
@@ -105,11 +96,7 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
                     : 'Error resizing alternative RAW image',
               };
             }
-          } catch (alternativeRawError) {
-            console.error(
-              'Error with alternative RAW processing, using original method:',
-              alternativeRawError,
-            );
+          } catch (_alternativeRawError) {
             // Continue to original method if both RAW approaches fail
             throw new Error(
               'Raw processing failed, falling back to standard methods',
