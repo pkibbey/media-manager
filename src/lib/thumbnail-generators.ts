@@ -10,10 +10,10 @@ import { convertRawThumbnail, processRawWithDcraw } from './raw-processor';
  * Generate thumbnail from a RAW file using primary dcraw method
  */
 export async function generateRawThumbnailPrimary(
-  mediaPath: string,
+  mediaItem: MediaWithRelations,
 ): Promise<Buffer | null> {
   // Use dcraw to extract high-quality JPEG from RAW file
-  const rawBuffer = await processRawWithDcraw(mediaPath);
+  const rawBuffer = await processRawWithDcraw(mediaItem.media_path);
 
   if (!rawBuffer) {
     return null;
@@ -37,9 +37,9 @@ export async function generateRawThumbnailPrimary(
  * Generate thumbnail from a RAW file using fallback method
  */
 export async function generateRawThumbnailFallback(
-  mediaPath: string,
+  mediaItem: MediaWithRelations,
 ): Promise<Buffer | null> {
-  const rawBuffer = await convertRawThumbnail(mediaPath);
+  const rawBuffer = await convertRawThumbnail(mediaItem.media_path);
 
   if (!rawBuffer) {
     return null;
@@ -81,10 +81,10 @@ export async function extractExifThumbnail(mediaPath: string): Promise<Buffer> {
  * Generate thumbnail directly with Sharp
  */
 export async function generateSharpThumbnail(
-  mediaPath: string,
+  mediaItem: MediaWithRelations,
 ): Promise<Buffer> {
-  return sharp(mediaPath)
-    .rotate()
+  return sharp(mediaItem.media_path)
+    .rotate(mediaItem.exif_data?.orientation || 0)
     .resize({
       width: THUMBNAIL_SIZE,
       height: THUMBNAIL_SIZE,
@@ -103,10 +103,10 @@ export async function processRawThumbnail(
   mediaItem: MediaWithRelations,
 ): Promise<Buffer | null> {
   try {
-    return await generateRawThumbnailPrimary(mediaItem.media_path);
+    return await generateRawThumbnailPrimary(mediaItem);
   } catch (_rawProcessError) {
     try {
-      return await generateRawThumbnailFallback(mediaItem.media_path);
+      return await generateRawThumbnailFallback(mediaItem);
     } catch (_alternativeRawError) {
       return null;
     }
@@ -120,12 +120,8 @@ export async function processNativeThumbnail(
   mediaItem: MediaWithRelations,
 ): Promise<Buffer | null> {
   try {
-    return await extractExifThumbnail(mediaItem.media_path);
-  } catch (_extractError) {
-    try {
-      return await generateSharpThumbnail(mediaItem.media_path);
-    } catch (_alternativeRawError) {
-      return null;
-    }
+    return await generateSharpThumbnail(mediaItem);
+  } catch (_alternativeRawError) {
+    return null;
   }
 }
