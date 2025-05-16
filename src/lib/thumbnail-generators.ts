@@ -93,14 +93,14 @@ export async function generateSharpThumbnail(
  */
 export async function processRawThumbnail(
   mediaItem: MediaWithRelations,
-): Promise<Buffer> {
+): Promise<Buffer | null> {
   try {
     return await generateRawThumbnailPrimary(mediaItem.media_path);
   } catch (_rawProcessError) {
     try {
       return await generateRawThumbnailFallback(mediaItem.media_path);
     } catch (_alternativeRawError) {
-      throw new Error('All raw processing methods failed');
+      return null;
     }
   }
 }
@@ -110,14 +110,14 @@ export async function processRawThumbnail(
  */
 export async function processNativeThumbnail(
   mediaItem: MediaWithRelations,
-): Promise<Buffer> {
+): Promise<Buffer | null> {
   try {
     return await extractExifThumbnail(mediaItem.media_path);
-  } catch (extractError) {
-    // Fallback to Sharp if ExifTool couldn't extract a thumbnail
-    console.log(
-      `Failed to extract thumbnail with ExifTool, using Sharp fallback: ${extractError}`,
-    );
-    return await generateSharpThumbnail(mediaItem.media_path);
+  } catch (_extractError) {
+    try {
+      return await generateSharpThumbnail(mediaItem.media_path);
+    } catch (_alternativeRawError) {
+      return null;
+    }
   }
 }

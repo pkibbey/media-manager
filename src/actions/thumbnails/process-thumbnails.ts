@@ -16,40 +16,53 @@ import type { MediaWithRelations } from '@/types/media-types';
  * @returns Object with success status and any error message
  */
 async function processMediaThumbnail(mediaItem: MediaWithRelations) {
+  let thumbnailBuffer: Buffer | null = null;
   try {
-    // Generate thumbnail based on media type
-    let thumbnailBuffer: Buffer;
-
-    try {
-      // Choose appropriate thumbnail generation strategy based on media type
-      if (!mediaItem.media_types?.is_native) {
-        thumbnailBuffer = await processRawThumbnail(mediaItem);
-      } else {
-        thumbnailBuffer = await processNativeThumbnail(mediaItem);
-      }
-    } catch (processingError) {
-      console.error(
-        `Error generating thumbnail for media ${mediaItem.id}:`,
-        processingError,
-      );
-
-      return {
-        success: false,
-        error:
-          processingError instanceof Error
-            ? `Thumbnail generation failed: ${processingError.message}`
-            : 'Thumbnail generation failed',
-      };
+    // Choose appropriate thumbnail generation strategy based on media type
+    if (!mediaItem.media_types?.is_native) {
+      thumbnailBuffer = await processRawThumbnail(mediaItem);
+    } else {
+      thumbnailBuffer = await processNativeThumbnail(mediaItem);
     }
-
-    // Store the thumbnail and update database
-    const storageResult = await storeThumbnail(mediaItem.id, thumbnailBuffer);
-
-    return storageResult;
-  } catch (error) {
+  } catch (processingError) {
+    console.error(
+      `Error generating thumbnail for media ${mediaItem.id}:`,
+      processingError,
+    );
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error:
+        processingError instanceof Error
+          ? `Thumbnail generation failed: ${processingError.message}`
+          : 'Thumbnail generation failed',
+    };
+  }
+
+  if (!thumbnailBuffer) {
+    console.error(
+      `No thumbnail generated for media ${mediaItem.id}. Skipping storage.`,
+    );
+    return {
+      success: false,
+      error: 'No thumbnail generated',
+    };
+  }
+
+  try {
+    // Store the thumbnail and update database
+    const storageResult = await storeThumbnail(mediaItem.id, thumbnailBuffer);
+    return storageResult;
+  } catch (storageError) {
+    console.error(
+      `Error storing thumbnail for media ${mediaItem.id}:`,
+      storageError,
+    );
+    return {
+      success: false,
+      error:
+        storageError instanceof Error
+          ? `Thumbnail storage failed: ${storageError.message}`
+          : 'Thumbnail storage failed',
     };
   }
 }
