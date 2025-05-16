@@ -14,11 +14,12 @@ export async function getThumbnailStats() {
     // Get the total count of all media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select('id, media_types!inner(mime_type)', {
+      .select('id, is_exif_processed, media_types!inner(mime_type)', {
         count: 'exact',
         head: true,
       })
-      .ilike('media_types.mime_type', '%image%');
+      .ilike('media_types.mime_type', '%image%')
+      .is('is_exif_processed', true);
 
     if (totalError) {
       throw new Error(`Failed to get total count: ${totalError.message}`);
@@ -27,14 +28,16 @@ export async function getThumbnailStats() {
     // Get count of items with thumbnails
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
-      .select('is_thumbnail_processed, media_types(mime_type)', {
-        count: 'exact',
-        head: true,
-      })
+      .select(
+        'is_thumbnail_processed, is_exif_processed, media_types(mime_type)',
+        {
+          count: 'exact',
+          head: true,
+        },
+      )
       .is('is_thumbnail_processed', true)
       .ilike('media_types.mime_type', '%image%');
 
-    console.log('processedCount: ', processedCount);
     if (processedError) {
       throw new Error(
         `Failed to get processed count: ${processedError.message}`,

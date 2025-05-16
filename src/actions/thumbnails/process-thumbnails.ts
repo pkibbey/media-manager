@@ -135,7 +135,6 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
         } catch (_extractError) {
           // Fallback to Sharp if ExifTool couldn't extract a thumbnail
           try {
-            console.log('mediaItem.media_path: ', mediaItem.media_path);
             const image = sharp(mediaItem.media_path);
             thumbnailBuffer = await image
               .rotate()
@@ -257,11 +256,10 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       .select(
         '*, media_types!inner(*), exif_data(*), thumbnail_data(*), analysis_data(*)',
       )
+      .is('is_exif_processed', true)
       .is('is_thumbnail_processed', false)
       .ilike('media_types.mime_type', '%image%')
       .limit(limit);
-
-    console.log('mediaItems: ', mediaItems);
 
     if (findError) {
       throw new Error(`Failed to find unprocessed items: ${findError.message}`);

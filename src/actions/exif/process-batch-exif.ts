@@ -56,13 +56,13 @@ export async function processBatchExif(limit = 10, concurrency = 3) {
       if (result.status === 'fulfilled') {
         const extractionResult = result.value;
 
+        // Always mark the media as processed
+        mediaIdsToUpdate.push(extractionResult.mediaId);
+
         if (!extractionResult.success) {
           failed++;
           return;
         }
-
-        // Always mark the media as processed
-        mediaIdsToUpdate.push(extractionResult.mediaId);
 
         // Add EXIF data to batch if available
         if (
