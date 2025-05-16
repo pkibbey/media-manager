@@ -38,7 +38,6 @@ export async function processRawWithDcraw(
     // -c: Output to stdout (we redirect to a file)
     // -q 0: Use high-quality conversion
     const command = `dcraw -e -c -q 0 "${absoluteRawPath}" > "${tempOutputFile}"`;
-    console.log(`Executing: ${command}`);
 
     await execAsync(command);
 
