@@ -39,9 +39,6 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   }
 
   if (!thumbnailBuffer) {
-    console.error(
-      `No thumbnail generated for media ${mediaItem.id}. Skipping storage.`,
-    );
     return {
       success: false,
       error: 'No thumbnail generated',
