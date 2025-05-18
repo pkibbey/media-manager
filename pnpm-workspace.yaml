@@ -6,5 +6,6 @@ onlyBuiltDependencies:
   - canvas
   - core-js
   - mmmagic
+  - onnxruntime-node
   - protobufjs
   - sharp

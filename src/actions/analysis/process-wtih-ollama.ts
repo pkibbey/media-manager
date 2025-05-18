@@ -300,6 +300,7 @@ export default async function processWithOllama({
     };
   }
 }
+
 function setMediaAsAdvancedAnalysisProcessed(mediaId: string) {
   const supabase = createSupabase();
 

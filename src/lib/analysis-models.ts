@@ -1,4 +1,4 @@
-import { pipeline } from '@xenova/transformers';
+import { pipeline } from '@huggingface/transformers';
 import * as canvas from 'canvas'; // Ensure canvas is imported if not already
 import * as faceapi from 'face-api.js';
 import ollama from 'ollama';
@@ -22,7 +22,7 @@ export async function getObjectDetector(): Promise<
     objectDetectorPromise = pipeline(
       'object-detection',
       'Xenova/detr-resnet-50',
-      { quantized: false },
+      { device: 'cuda', dtype: 'fp16' }, // Use float16 for faster inference
     );
   }
   return objectDetectorPromise;
@@ -98,7 +98,7 @@ export async function getQualityAssessment(): Promise<
     sentimentAnalyzerPromise = pipeline(
       'image-classification',
       'shivarama23/DiT_image_quality',
-      { quantized: false },
+      { device: 'cuda', dtype: 'fp16' },
     );
   }
   return sentimentAnalyzerPromise;
@@ -111,6 +111,7 @@ export async function getSafetyLevelDetector(): Promise<
     safetyLevelDetectorPromise = pipeline(
       'image-classification',
       'AdamCodd/vit-base-nsfw-detector',
+      { device: 'cuda', dtype: 'fp16' },
     );
   }
   return safetyLevelDetectorPromise;
