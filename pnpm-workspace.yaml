@@ -3,6 +3,7 @@ ignoredBuiltDependencies:
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - '@tensorflow/tfjs-node'
+  - '@tensorflow/tfjs-node-gpu'
   - canvas
   - core-js
   - mmmagic

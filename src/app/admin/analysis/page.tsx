@@ -1,7 +1,7 @@
 'use client';
 
 import { Image, RefreshCw } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import deleteAnalysisData from '@/actions/analysis/delete-analysis-data';
 import { getAnalysisStats } from '@/actions/analysis/get-analysis-stats';
 import { processBasicAnalysis } from '@/actions/analysis/process-basic-analysis';
@@ -43,7 +43,6 @@ export default function AnalysisAdminPage() {
   } = useAdminData<AnalysisStatsType>({
     fetchFunction: getAnalysisStats,
   });
-  const [lastBatchResult, setLastBatchResult] = useState<any>(null);
 
   const resetAnalysisData = async () => {
     const { error, count } = await deleteAnalysisData();
@@ -72,9 +71,6 @@ export default function AnalysisAdminPage() {
   const processBatchFunction = useCallback(
     async (size: number) => {
       const result = await processBasicAnalysis(size);
-
-      // Store the result for UI display
-      setLastBatchResult(result);
 
       // Refresh stats after processing
       await refreshStats();
@@ -120,14 +116,14 @@ export default function AnalysisAdminPage() {
     stopProcessing,
     batchSize,
     setBatchSize,
-    totalProcessingTime, // Added
-    estimatedTimeLeft, // Added
-    itemsProcessedThisSession, // Added
+    totalProcessingTime,
+    estimatedTimeLeft,
+    itemsProcessedThisSession,
   } = useContinuousProcessing({
     processBatchFn: processBatchFunction,
     hasRemainingItemsFn: () => (analysisStats?.remaining || 0) > 0,
     onBatchComplete: handleBatchComplete,
-    getTotalRemainingItemsFn: () => analysisStats?.remaining || 0, // Added
+    getTotalRemainingItemsFn: () => analysisStats?.remaining || 0,
   });
 
   return (
@@ -259,27 +255,19 @@ export default function AnalysisAdminPage() {
                       Processing Status:
                     </h4>
                     <div className="text-sm space-y-1">
-                      {lastBatchResult && (
-                        <p>
-                          Last batch: {lastBatchResult.processed || 0} items
-                          processed
-                          {lastBatchResult.failed
-                            ? ` (${lastBatchResult.failed} failed)`
-                            : ''}
-                        </p>
-                      )}
-                      <p>
+                      <div>
                         Items processed this session:{' '}
                         {itemsProcessedThisSession}
-                      </p>
-                      <p>
-                        Total processing time this session:{' '}
-                        {formatTime(totalProcessingTime)}
-                      </p>
-                      <p>
-                        Estimated time remaining:{' '}
-                        {formatTime(estimatedTimeLeft)}
-                      </p>
+                      </div>
+                      <div>
+                        Total processing time: {formatTime(totalProcessingTime)}
+                      </div>
+                      <div>
+                        Estimated time left:{' '}
+                        {estimatedTimeLeft !== null
+                          ? formatTime(estimatedTimeLeft)
+                          : 'Calculating...'}
+                      </div>
                     </div>
                   </div>
                 )}

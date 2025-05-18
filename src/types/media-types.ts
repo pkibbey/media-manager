@@ -35,6 +35,10 @@ export type MediaWithMimeAndExif = Media & {
   exif_data: Tables<'exif_data'> | null;
 };
 
+export type MediaWithThumbnail = Media & {
+  thumbnail_data: Tables<'thumbnail_data'> | null;
+};
+
 export type MediaWithRelations = Media & {
   media_types: Tables<'media_types'> | null;
   exif_data: Tables<'exif_data'> | null;

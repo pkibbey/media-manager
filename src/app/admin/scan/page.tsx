@@ -1,8 +1,8 @@
 'use client';
 
-import { FolderSearch, RefreshCw, Scan, Trash2 } from 'lucide-react'; // Added Trash2
+import { FolderSearch, RefreshCw, Scan, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { deleteAllMediaItems } from '@/actions/admin/delete-all-media'; // Import the new action
+import { deleteAllMediaItems } from '@/actions/admin/delete-all-media';
 import { getScanStats } from '@/actions/admin/get-scan-stats';
 import { processScanFolder } from '@/actions/admin/process-scan-folder';
 import ActionButton from '@/components/admin/action-button';

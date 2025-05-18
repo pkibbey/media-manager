@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, Image, RefreshCw } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { getAdvancedAnalysisStats } from '@/actions/analysis/get-advanced-analysis-stats';
 import {
   deleteAdvancedAnalysisData,
@@ -37,8 +37,6 @@ export default function AdvancedAnalysisAdminPage() {
     fetchFunction: getAdvancedAnalysisStats,
   });
 
-  const [lastBatchResult, setLastBatchResult] = useState<any>(null);
-
   const resetAnalysisData = async () => {
     const { error, count } = await deleteAdvancedAnalysisData();
 
@@ -69,9 +67,6 @@ export default function AdvancedAnalysisAdminPage() {
   const processBatchFunction = useCallback(
     async (size: number) => {
       const result = await processAdvancedAnalysis(size);
-
-      // Store the result for UI display
-      setLastBatchResult(result);
 
       // Refresh stats after processing
       await refreshStats();
@@ -332,25 +327,6 @@ export default function AdvancedAnalysisAdminPage() {
                       <span>{formatTime(estimatedTimeLeft)}</span>
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {lastBatchResult && (
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Last Batch Results</h3>
-                <div className="text-sm">
-                  <p>
-                    Processed: {lastBatchResult.processed || 0} items
-                    {lastBatchResult.failed
-                      ? ` (${lastBatchResult.failed} failed)`
-                      : ''}
-                  </p>
-                  {lastBatchResult.error && (
-                    <p className="text-destructive">
-                      Error: {lastBatchResult.error}
-                    </p>
-                  )}
                 </div>
               </div>
             )}
