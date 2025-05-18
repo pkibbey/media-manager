@@ -1,7 +1,7 @@
-import tf from '@tensorflow/tfjs-node-gpu';
-import cocoSsdModel from '../model/cocoSsdModel.js';
+const tf = require('@tensorflow/tfjs-node-gpu');
+const cocoSsdModel = require('../model/cocoSsdModel.cjs');
 
-export default async function analysisBasicHandler(_request, _reply) {
+async function analysisBasicHandler(_request, _reply) {
   // Get image url from request body
   const { imageUrl } = _request.body;
   if (!imageUrl) {
@@ -13,6 +13,7 @@ export default async function analysisBasicHandler(_request, _reply) {
   if (!response.ok) {
     return { error: 'Failed to fetch image' };
   }
+
   const arrayBuffer = await response.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   const input = tf.node.decodeJpeg(buffer);
@@ -23,6 +24,7 @@ export default async function analysisBasicHandler(_request, _reply) {
       error: 'Model is not loaded yet. Please try again in a moment.',
     };
   }
+
   const objects = await cocoSsdModel.value.detect(input);
   const objectsWithBoundingBoxes = objects.map((object) => ({
     ...object,
@@ -33,5 +35,8 @@ export default async function analysisBasicHandler(_request, _reply) {
       height: object.bbox[3],
     },
   }));
+
   return objectsWithBoundingBoxes;
 }
+
+module.exports = analysisBasicHandler;

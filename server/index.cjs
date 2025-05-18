@@ -1,5 +1,5 @@
-import Fastify from 'fastify';
-import analysisBasicHandler from './handlers/analysisBasic.js';
+const Fastify = require('fastify');
+const analysisBasicHandler = require('./handlers/analysisBasic.cjs');
 
 // Fastify server with Pino logger
 const fastify = Fastify({

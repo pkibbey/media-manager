@@ -11,7 +11,7 @@
     "format": "biome format --write ./src",
     "types": "supabase gen types typescript --local > src/types/supabase.ts",
     "sync": "supabase migrations up --local --include-all && pnpm types && pnpm format",
-    "fastify": "node server/index.js"
+    "fastify": "node server/index.cjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.5.1",
