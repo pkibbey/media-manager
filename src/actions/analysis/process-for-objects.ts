@@ -26,6 +26,7 @@ export async function processForObjects(mediaItem: MediaWithThumbnail) {
     throw new Error('Failed to fetch object data');
   }
   const objects = await objectFetch.json();
+  console.log('objects: ', objects);
 
   const endTime = Date.now(); // Record end time
   const processingTime = endTime - startTime; // Calculate processing time
