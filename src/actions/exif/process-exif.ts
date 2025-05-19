@@ -137,12 +137,7 @@ export async function processExif(mediaItem: MediaWithExif) {
     let exifData: ExifData | null = null;
 
     try {
-      const extractionStart = performance.now();
       const extractionResult = await extractExifData(mediaItem);
-      const extractionTime = performance.now() - extractionStart;
-      console.log(
-        `EXIF extraction took ${extractionTime}ms for ${mediaItem.id}`,
-      );
 
       if (!extractionResult.success) {
         return {

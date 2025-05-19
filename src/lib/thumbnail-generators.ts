@@ -19,6 +19,8 @@ export async function generateRawThumbnailPrimary(
     return null;
   }
 
+  console.log('Primary RAW thumbnail generation successful');
+
   // Resize to fit our thumbnail dimensions
   return sharp(rawBuffer)
     .rotate()
@@ -44,6 +46,8 @@ export async function generateRawThumbnailFallback(
   if (!rawBuffer) {
     return null;
   }
+
+  console.log('Fallback RAW thumbnail generation successful');
 
   // Resize to fit our thumbnail dimensions
   return sharp(rawBuffer)

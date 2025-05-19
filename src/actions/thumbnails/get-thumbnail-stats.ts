@@ -14,16 +14,23 @@ export async function getThumbnailStats() {
     // Get the total count of all media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select('id, is_exif_processed, media_types!inner(mime_type)', {
-        count: 'exact',
-        head: true,
-      })
+      .select(
+        'id, is_thumbnail_processed, is_exif_processed, media_types!inner(mime_type, is_ignored)',
+        {
+          count: 'exact',
+          head: true,
+        },
+      )
+      .is('is_exif_processed', true)
+      .is('is_thumbnail_processed', false)
       .ilike('media_types.mime_type', '%image%')
-      .is('is_exif_processed', true);
+      .is('media_types.is_ignored', false);
 
     if (totalError) {
       throw new Error(`Failed to get total count: ${totalError.message}`);
     }
+
+    console.log('totalCount: ', totalCount);
 
     // Get count of items with thumbnails
     const { count: processedCount, error: processedError } = await supabase
@@ -35,14 +42,18 @@ export async function getThumbnailStats() {
           head: true,
         },
       )
+      .is('is_exif_processed', true)
       .is('is_thumbnail_processed', true)
-      .ilike('media_types.mime_type', '%image%');
+      .ilike('media_types.mime_type', '%image%')
+      .is('media_types.is_ignored', false);
 
     if (processedError) {
       throw new Error(
         `Failed to get processed count: ${processedError.message}`,
       );
     }
+
+    console.log('processedCount: ', processedCount);
 
     // Calculate remaining items
     const remainingCount = (totalCount || 0) - (processedCount || 0);

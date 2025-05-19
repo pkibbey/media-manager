@@ -7,7 +7,6 @@ const cocoSsdModel = { value: null };
   cocoSsdModel.value = await cocossd.load({
     base: 'lite_mobilenet_v2',
   });
-  console.log('COCO-SSD model loaded');
 })();
 
 module.exports = cocoSsdModel;

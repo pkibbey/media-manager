@@ -197,17 +197,15 @@ export default function useContinuousProcessing<
             setEstimatedTimeLeft(averageTimePerBatch * batchesRemaining);
           } else {
             setEstimatedTimeLeft(0);
+            // If no more items remaining according to external count, break the loop
+            break;
           }
         }
 
-        if (batchProcessed === 0) {
-          // Option 1: Just continue to the next batch, don't break
-          // continue;
-
-          // Option 2: Only break if there are truly no remaining items
-          if (!hasRemainingItemsFn()) {
-            break;
-          }
+        // Break the processing loop:
+        if (batchProcessed === 0 || !hasRemainingItemsFn()) {
+          console.log('Breaking processing loop: no more items to process');
+          break;
         }
 
         if (onBatchComplete) {

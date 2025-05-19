@@ -17,12 +17,13 @@ import type { MediaWithRelations } from '@/types/media-types';
  */
 async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   let thumbnailBuffer: Buffer | null = null;
+  console.log('mediaItem: ', mediaItem);
   try {
     // Choose appropriate thumbnail generation strategy based on media type
-    if (!mediaItem.media_types?.is_native) {
-      thumbnailBuffer = await processRawThumbnail(mediaItem);
-    } else {
+    if (mediaItem.media_types?.is_native) {
       thumbnailBuffer = await processNativeThumbnail(mediaItem);
+    } else {
+      thumbnailBuffer = await processRawThumbnail(mediaItem);
     }
   } catch (processingError) {
     console.error(
@@ -84,14 +85,24 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       .is('is_exif_processed', true)
       .is('is_thumbnail_processed', false)
       .ilike('media_types.mime_type', '%image%')
+      .is('media_types.is_ignored', false)
       .limit(limit);
 
     if (findError) {
       throw new Error(`Failed to find unprocessed items: ${findError.message}`);
     }
 
+    console.log('mediaItems: ', mediaItems);
+
     if (!mediaItems || mediaItems.length === 0) {
-      return { success: true, processed: 0, message: 'No items to process' };
+      console.log('No items found for thumbnail processing');
+      return {
+        success: true,
+        error: null,
+        processed: 0,
+        message: 'No items to process',
+        total: 0,
+      };
     }
 
     // Process items in batches with controlled concurrency
@@ -119,6 +130,7 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
 
     return {
       success: true,
+      error: null,
       processed: succeeded,
       failed,
       total: mediaItems.length,
@@ -127,6 +139,9 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
+      total: 0,
+      failed: 0,
+      processed: 0,
     };
   }
 }
