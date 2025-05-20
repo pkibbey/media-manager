@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/analysis-utils';
 import { formatBytes } from '@/lib/consts';
 import type { ObjectsType, SafetyLevelType } from '@/types/analysis';
+import { AnalysisBoundingBoxes } from './analysis-bounding-boxes'; // Import the new component
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
 
@@ -46,6 +47,7 @@ export function MediaDetail() {
   const fileName = media.media_path.split('/').pop() || media.media_path;
 
   const objects = media.analysis_data?.objects as ObjectsType[];
+  console.log('objects: ', objects);
   const contentWarnings = media.analysis_data
     ?.content_warnings as SafetyLevelType[];
 
@@ -209,6 +211,7 @@ export function MediaDetail() {
               className="max-h-[300px] w-full object-contain"
               width={Math.min(media.exif_data?.width || 600, 600)}
               height={Math.min(media.exif_data?.height || 600, 600)}
+              unoptimized
             />
           </div>
 
@@ -406,27 +409,41 @@ export function MediaDetail() {
                     </>
                   )} */}
 
-                  {objects && objects.length > 0 && (
-                    <>
-                      <Separator />
-                      <DetailField
-                        label="Objects Detected"
-                        value={
-                          <div className="flex flex-wrap gap-1">
-                            {objects.map((object, index) => (
-                              <Badge
-                                key={index}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {object.label} ({object.score.toFixed(2)})
-                              </Badge>
-                            ))}
-                          </div>
-                        }
-                      />
-                    </>
-                  )}
+                  <div className="flex gap-4">
+                    <div>
+                      {objects && objects.length > 0 && (
+                        <>
+                          <Separator />
+                          <DetailField
+                            label="Objects Detected"
+                            value={
+                              <div className="flex flex-wrap gap-1">
+                                {objects.map((object, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
+                                    {object.label} ({object.score.toFixed(2)})
+                                  </Badge>
+                                ))}
+                              </div>
+                            }
+                          />
+                        </>
+                      )}
+                    </div>
+                    <div>
+                      {media.analysis_data && (
+                        <AnalysisBoundingBoxes
+                          mediaId={media.id}
+                          objects={objects}
+                          width={200}
+                          height={200}
+                        />
+                      )}
+                    </div>
+                  </div>
 
                   {media.analysis_data.colors &&
                     media.analysis_data.colors.length > 0 && (

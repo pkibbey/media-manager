@@ -14,7 +14,7 @@ export async function getExifStats() {
     // Get the total count of all media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select('*, media_types(*)', {
+      .select('*, media_types!inner(*)', {
         count: 'exact',
         head: true,
       })
@@ -53,12 +53,16 @@ export async function getExifStats() {
         remaining,
         percentComplete: Math.round(percentComplete * 100) / 100,
       },
-      error: null,
     };
   } catch (error) {
     console.error('Error getting EXIF stats:', error);
     return {
-      stats: null,
+      stats: {
+        total: 0,
+        processed: 0,
+        remaining: 0,
+        percentComplete: 0,
+      },
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }

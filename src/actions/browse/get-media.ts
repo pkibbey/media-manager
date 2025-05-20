@@ -25,7 +25,7 @@ export async function getMedia(
     .select(
       `
       *,
-      media_types(*),
+      media_types!inner(*),
       thumbnail_data(*),
       exif_data(*),
       analysis_data(*)

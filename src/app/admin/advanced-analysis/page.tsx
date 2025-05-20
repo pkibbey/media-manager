@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
 interface AdvancedAnalysisStatsType {
@@ -117,7 +118,6 @@ export default function AdvancedAnalysisAdminPage() {
     itemsProcessedThisSession,
   } = useContinuousProcessing({
     processBatchFn: processBatchFunction,
-    hasRemainingItemsFn: () => (analysisStats?.remaining || 0) > 0,
     onBatchComplete: handleBatchComplete,
     getTotalRemainingItemsFn: () => analysisStats?.remaining || 0,
   });
@@ -236,7 +236,7 @@ export default function AdvancedAnalysisAdminPage() {
                 <input
                   type="range"
                   min="1"
-                  max="10"
+                  max={MAX_BATCH_SIZE}
                   step="1"
                   value={batchSize}
                   onChange={(e) => setBatchSize(Number(e.target.value))}

@@ -14,23 +14,17 @@ export async function getThumbnailStats() {
     // Get the total count of all media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select(
-        'id, is_thumbnail_processed, is_exif_processed, media_types!inner(mime_type, is_ignored)',
-        {
-          count: 'exact',
-          head: true,
-        },
-      )
+      .select('*, media_types!inner(*)', {
+        count: 'exact',
+        head: true,
+      })
       .is('is_exif_processed', true)
-      .is('is_thumbnail_processed', false)
       .ilike('media_types.mime_type', '%image%')
       .is('media_types.is_ignored', false);
 
     if (totalError) {
       throw new Error(`Failed to get total count: ${totalError.message}`);
     }
-
-    console.log('totalCount: ', totalCount);
 
     // Get count of items with thumbnails
     const { count: processedCount, error: processedError } = await supabase
@@ -53,8 +47,6 @@ export async function getThumbnailStats() {
       );
     }
 
-    console.log('processedCount: ', processedCount);
-
     // Calculate remaining items
     const remainingCount = (totalCount || 0) - (processedCount || 0);
     const percentComplete = totalCount
@@ -68,12 +60,16 @@ export async function getThumbnailStats() {
         remaining: remainingCount,
         percentComplete,
       },
-      error: null,
     };
   } catch (error) {
     console.error('Error getting thumbnail stats:', error);
     return {
-      stats: null,
+      stats: {
+        total: 0,
+        processed: 0,
+        remaining: 0,
+        percentComplete: 0,
+      },
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }

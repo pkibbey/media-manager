@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
 interface ThumbnailStatsType {
@@ -93,7 +94,7 @@ export default function ThumbnailAdminPage() {
         };
       }
 
-      return { success: false, error: result.error };
+      return { success: false, error: result.error || 'Unknown error' };
     } catch (e) {
       console.error('Error processing batch:', e);
       return {
@@ -121,7 +122,6 @@ export default function ThumbnailAdminPage() {
     itemsProcessedThisSession,
   } = useContinuousProcessing({
     processBatchFn: processBatchFunction,
-    hasRemainingItemsFn: () => (thumbnailStats?.remaining || 0) > 0,
     onBatchComplete: handleBatchComplete,
     getTotalRemainingItemsFn: () => thumbnailStats?.remaining || 0,
   });
@@ -236,7 +236,7 @@ export default function ThumbnailAdminPage() {
                       id="batch-size"
                       type="number"
                       min="1"
-                      max="100"
+                      max={MAX_BATCH_SIZE}
                       value={batchSize}
                       onChange={(e) =>
                         setBatchSize(Number.parseInt(e.target.value) || 10)

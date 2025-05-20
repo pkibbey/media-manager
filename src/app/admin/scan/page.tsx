@@ -291,7 +291,7 @@ export default function MediaScanPage() {
         <StatsCard
           title="Media Library Status"
           total={scanStats?.total || 0}
-          processed={scanStats?.scanned || 0}
+          processed={scanStats?.processed || 0}
           isLoading={isLoading}
           icon={<FolderSearch className="h-4 w-4" />}
           className="w-full"

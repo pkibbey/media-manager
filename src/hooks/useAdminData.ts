@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 // This type definition matches the common pattern in the server actions
 interface AdminDataResponse<T> {
-  stats: T | null;
-  error: string | null;
+  stats: T;
+  error?: string;
 }
 
 interface UseAdminDataProps<T> {

@@ -3,7 +3,9 @@ import { toast } from 'sonner';
 
 interface UseSettingsFormProps<T> {
   initialSettings: T;
-  saveSettings: (settings: T) => Promise<{ success: boolean; message?: string }>;
+  saveSettings: (
+    settings: T,
+  ) => Promise<{ success: boolean; message?: string }>;
   onSuccessMessage?: string;
 }
 
@@ -16,16 +18,16 @@ export function useSettingsForm<T>({
   const [isSaving, setIsSaving] = useState(false);
 
   const updateSetting = <K extends keyof T>(key: K, value: T[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
+
     setIsSaving(true);
     try {
       const result = await saveSettings(settings);
-      
+
       if (result.success) {
         toast.success(onSuccessMessage);
       } else {

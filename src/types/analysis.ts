@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 const BoundingBoxSchema = z.object({
-  xmin: z.number().describe('The minimum x-coordinate of the bounding box'),
-  ymin: z.number().describe('The minimum y-coordinate of the bounding box'),
-  xmax: z.number().describe('The maximum x-coordinate of the bounding box'),
-  ymax: z.number().describe('The maximum y-coordinate of the bounding box'),
+  bottom: z.number().describe('The bottom coordinate of the bounding box'),
+  left: z.number().describe('The left coordinate of the bounding box'),
+  right: z.number().describe('The right coordinate of the bounding box'),
+  top: z.number().describe('The top coordinate of the bounding box'),
 });
 
 const ObjectsSchema = z.object({

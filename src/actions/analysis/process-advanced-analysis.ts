@@ -21,7 +21,13 @@ export async function processAdvancedAnalysis(limit = 10) {
     }
 
     if (!mediaItems || mediaItems.length === 0) {
-      return { success: true, processed: 0, message: 'No items to process' };
+      return {
+        success: true,
+        processed: 0,
+        failed: 0,
+        total: 0,
+        message: 'No items to process',
+      };
     }
 
     // Process items sequentially instead of in parallel
@@ -58,6 +64,8 @@ export async function processAdvancedAnalysis(limit = 10) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
+      failed: 0,
+      total: 0,
       processed: 0,
     };
   }

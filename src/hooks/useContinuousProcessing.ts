@@ -1,71 +1,34 @@
 import { useCallback, useRef, useState } from 'react';
 
-interface ProcessingOptions<T> {
-  /**
-   * The batch processing function that will be called repeatedly
-   */
-  processBatchFn: (batchSize: number) => Promise<T>;
+type BatchResult = {
+  success: boolean;
+  processed: number;
+  failed: number;
+  total: number;
+  error?: string;
+  batchProcessingTime?: number;
+};
 
-  /**
-   * Function to check if there are remaining items to process
-   * Returns true if there are more items to process
-   */
-  hasRemainingItemsFn: () => boolean;
+type ProcessingResult = {
+  success: boolean;
+  error?: string;
+  data?: BatchResult[]; // Array of batch results for continuous
+  message?: string;
+};
 
-  /**
-   * Optional callback function after each batch is processed
-   */
-  onBatchComplete?: (result: T) => Promise<void> | void;
-
-  /**
-   * Initial batch size
-   */
+interface ProcessingOptions {
+  processBatchFn: (batchSize: number) => Promise<BatchResult>;
+  onBatchComplete?: (result: BatchResult) => Promise<void> | void;
   initialBatchSize?: number;
-
-  /**
-   * Function to get the total number of items remaining to process
-   */
   getTotalRemainingItemsFn: () => Promise<number> | number;
 }
 
-interface ProcessingResult<T> {
-  /**
-   * Whether the processing was successful
-   */
-  success: boolean;
-
-  /**
-   * Optional error message if processing failed
-   */
-  error?: string;
-
-  /**
-   * Additional data returned by the processing function
-   */
-  data?: T;
-
-  /**
-   * Message to display to the user
-   */
-  message?: string;
-}
-
-export default function useContinuousProcessing<
-  T = {
-    success: boolean;
-    processed: number;
-    failed: number;
-    total: number;
-    error?: string;
-    batchProcessingTime?: number; // Added to track batch processing time
-  },
->({
+export default function useContinuousProcessing({
   processBatchFn,
-  hasRemainingItemsFn,
   onBatchComplete,
-  initialBatchSize = 1,
+  initialBatchSize = 8,
   getTotalRemainingItemsFn,
-}: ProcessingOptions<T>) {
+}: ProcessingOptions) {
   const [isContinuousProcessing, setIsContinuousProcessing] = useState(false);
   const [batchSize, setBatchSize] = useState<number>(initialBatchSize);
   const processingRef = useRef(false);
@@ -75,142 +38,80 @@ export default function useContinuousProcessing<
   );
   const [itemsProcessedThisSession, setItemsProcessedThisSession] = useState(0);
 
-  /**
-   * Process a single batch
-   */
-  const processSingleBatch = useCallback(async (): Promise<
-    ProcessingResult<T>
-  > => {
-    try {
-      const startTime = Date.now();
-      const result = await processBatchFn(batchSize);
-      const endTime = Date.now();
-      const currentBatchProcessingTime = endTime - startTime;
+  const processSingleBatch =
+    useCallback(async (): Promise<ProcessingResult> => {
+      try {
+        const startTime = Date.now();
+        const result = await processBatchFn(batchSize);
+        const endTime = Date.now();
+        setTotalProcessingTime((t) => t + (endTime - startTime));
+        setItemsProcessedThisSession((n) => n + (result.processed || 0));
 
-      // Update total processing time
-      const newTotalProcessingTime =
-        totalProcessingTime + currentBatchProcessingTime;
-      setTotalProcessingTime(newTotalProcessingTime);
+        if (onBatchComplete) await onBatchComplete(result);
 
-      // Calculate items in this batch
-      let itemsInBatch = 0;
-      if (result && typeof result === 'object' && 'processed' in result) {
-        itemsInBatch = (result as any).processed || 0;
-      }
-
-      // Calculate the updated total count of processed items
-      const updatedItemsProcessed = itemsProcessedThisSession + itemsInBatch;
-      setItemsProcessedThisSession(updatedItemsProcessed);
-
-      if (onBatchComplete) {
-        await onBatchComplete(result);
-      }
-
-      // Estimate time left using the updated values instead of state values
-      if (updatedItemsProcessed > 0) {
+        // Estimate time left
         const totalRemainingItems = await getTotalRemainingItemsFn();
-        if (totalRemainingItems > 0) {
-          // Calculate average time per batch instead of per item
-          const averageTimePerBatch =
-            newTotalProcessingTime /
-            Math.ceil(updatedItemsProcessed / batchSize);
-          // Calculate number of batches remaining
+        if (totalRemainingItems > 0 && result.processed > 0) {
+          const avgTimePerBatch = endTime - startTime;
           const batchesRemaining = Math.ceil(totalRemainingItems / batchSize);
-          // Estimate total time remaining
-          setEstimatedTimeLeft(averageTimePerBatch * batchesRemaining);
+          setEstimatedTimeLeft(avgTimePerBatch * batchesRemaining);
         } else {
           setEstimatedTimeLeft(0);
         }
+
+        return {
+          success: true,
+          data: [result],
+          message: 'Batch processed successfully',
+        };
+      } catch (e) {
+        return {
+          success: false,
+          error: e instanceof Error ? e.message : 'Unknown error',
+        };
       }
+    }, [processBatchFn, batchSize, onBatchComplete, getTotalRemainingItemsFn]);
 
-      return {
-        success: true,
-        data: result,
-        message: 'Batch processed successfully',
-      };
-    } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : 'An unknown error occurred',
-      };
-    }
-  }, [
-    processBatchFn,
-    batchSize,
-    onBatchComplete,
-    totalProcessingTime,
-    getTotalRemainingItemsFn,
-    itemsProcessedThisSession,
-  ]);
-
-  /**
-   * Process all remaining items continuously
-   */
-  const processAllRemaining = useCallback(async (): Promise<
-    ProcessingResult<unknown>
-  > => {
-    try {
+  const processAllRemaining =
+    useCallback(async (): Promise<ProcessingResult> => {
       setIsContinuousProcessing(true);
       processingRef.current = true;
-      setItemsProcessedThisSession(0); // Reset for the new session
-      setTotalProcessingTime(0); // Reset for the new session
+      setItemsProcessedThisSession(0);
+      setTotalProcessingTime(0);
       setEstimatedTimeLeft(null);
 
       let processedTotal = 0;
-      const batchResults = [];
+      const batchResults: BatchResult[] = [];
       let accumulatedProcessingTime = 0;
       let batchesProcessed = 0;
 
-      while (hasRemainingItemsFn() && processingRef.current) {
+      while (processingRef.current) {
         const batchStartTime = Date.now();
         const result = await processBatchFn(batchSize);
         const batchEndTime = Date.now();
-        const currentBatchProcessingTime = batchEndTime - batchStartTime;
 
-        accumulatedProcessingTime += currentBatchProcessingTime;
-        setTotalProcessingTime(accumulatedProcessingTime);
         batchesProcessed++;
+        accumulatedProcessingTime += batchEndTime - batchStartTime;
+        setTotalProcessingTime(accumulatedProcessingTime);
 
         batchResults.push(result);
 
-        // Calculate items processed in this batch
-        let batchProcessed = 0;
-        if (result && typeof result === 'object' && 'processed' in result) {
-          batchProcessed = (result as any).processed || 0;
-          processedTotal += batchProcessed;
+        processedTotal += result.processed || 0;
+        setItemsProcessedThisSession(processedTotal);
+
+        // Estimate time left
+        const totalRemainingItems = await getTotalRemainingItemsFn();
+        if (totalRemainingItems > 0 && result.processed > 0) {
+          const avgTimePerBatch = accumulatedProcessingTime / batchesProcessed;
+          const batchesRemaining = Math.ceil(totalRemainingItems / batchSize);
+          setEstimatedTimeLeft(avgTimePerBatch * batchesRemaining);
+        } else {
+          setEstimatedTimeLeft(0);
         }
 
-        // Update the running total of processed items
-        const updatedItemsProcessed = processedTotal;
-        setItemsProcessedThisSession(updatedItemsProcessed);
+        if (onBatchComplete) await onBatchComplete(result);
 
-        // Estimate time left using the updated value directly
-        if (getTotalRemainingItemsFn && batchesProcessed > 0) {
-          const totalRemainingItems = await getTotalRemainingItemsFn();
-          if (totalRemainingItems > 0) {
-            // Calculate average time per batch
-            const averageTimePerBatch =
-              accumulatedProcessingTime / batchesProcessed;
-            // Calculate number of batches remaining
-            const batchesRemaining = Math.ceil(totalRemainingItems / batchSize);
-            // Estimate total time remaining
-            setEstimatedTimeLeft(averageTimePerBatch * batchesRemaining);
-          } else {
-            setEstimatedTimeLeft(0);
-            // If no more items remaining according to external count, break the loop
-            break;
-          }
-        }
-
-        // Break the processing loop:
-        if (batchProcessed === 0 || !hasRemainingItemsFn()) {
-          console.log('Breaking processing loop: no more items to process');
-          break;
-        }
-
-        if (onBatchComplete) {
-          await onBatchComplete(result);
-        }
+        if (!result.processed) break;
       }
 
       processingRef.current = false;
@@ -221,34 +122,12 @@ export default function useContinuousProcessing<
         message: `Successfully processed ${processedTotal} items`,
         data: batchResults,
       };
-    } catch (e) {
-      processingRef.current = false;
-      setIsContinuousProcessing(false);
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : 'An unknown error occurred',
-      };
-    }
-  }, [
-    processBatchFn,
-    batchSize,
-    hasRemainingItemsFn,
-    onBatchComplete,
-    getTotalRemainingItemsFn,
-  ]);
+    }, [processBatchFn, batchSize, getTotalRemainingItemsFn, onBatchComplete]);
 
-  /**
-   * Stop the continuous processing
-   */
-  const stopProcessing = useCallback(async (): Promise<
-    ProcessingResult<null>
-  > => {
+  const stopProcessing = useCallback(async (): Promise<ProcessingResult> => {
     processingRef.current = false;
     setIsContinuousProcessing(false);
-    return {
-      success: true,
-      message: 'Processing stopped',
-    };
+    return { success: true, message: 'Processing stopped' };
   }, []);
 
   return {

@@ -2,7 +2,6 @@
 
 import fs from 'node:fs/promises';
 import { NextResponse } from 'next/server';
-// import path from 'node:path'; // Not used
 import sharp from 'sharp';
 import {
   BACKGROUND_COLOR,
@@ -12,121 +11,72 @@ import {
 import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
 import { createSupabase } from '@/lib/supabase';
 
-export async function GET({ params }: { params: { id: string } }) {
+export async function GET(
+  _request: Request,
+  { params }: { params: { id: string } },
+) {
   const { id } = params;
   const supabase = createSupabase();
 
-  if (!id) {
-    return NextResponse.json({ error: 'Missing media ID' }, { status: 400 });
-  }
-
   try {
-    // Correctly define the type for mediaItem
+    // Get media details from database
     const { data: mediaItem, error: mediaError } = await supabase
       .from('media')
       .select(`
-        exif_data ( width, height, orientation ),
         media_path,
         media_types ( mime_type, is_native )
       `)
       .eq('id', id)
       .single();
 
-    if (mediaError || !mediaItem) {
-      return NextResponse.json(
-        { error: `Media not found: ${mediaError?.message || 'No record'}` },
-        { status: 404 },
-      );
-    }
-
-    // Ensure media_types is correctly typed and accessed
-    const mediaTypeRelation = mediaItem.media_types;
-    const mimeType = mediaTypeRelation?.mime_type;
-
-    if (!mimeType) {
-      return NextResponse.json(
-        { error: 'MIME type not found for this item' },
-        { status: 500 },
-      );
+    if (mediaError || !mediaItem || !mediaItem.media_path) {
+      console.error(`Media not found or invalid for ID: ${id}`);
+      return NextResponse.json({ error: 'Media not found' }, { status: 404 });
     }
 
     const filePath = mediaItem.media_path;
+    const isRawFormat = mediaItem.media_types.is_native === false;
 
-    if (!filePath) {
-      return NextResponse.json(
-        { error: 'File path not found for this item' },
-        { status: 500 },
-      );
-    }
+    let imageBuffer: Buffer | null = null;
 
-    let outputBuffer: Buffer;
-    let contentType: string;
-
-    if (mediaItem.media_types?.is_native) {
+    // Process image based on type
+    if (isRawFormat) {
+      // Handle RAW image format
       try {
-        let rawProcessedBuffer: Buffer | null = null;
-        try {
-          // These functions take filePath and handle file reading internally
-          rawProcessedBuffer = await processRawWithDcraw(filePath);
-        } catch (_dcrawError) {
-          rawProcessedBuffer = await convertRawThumbnail(filePath); // Fallback
-        }
-
-        if (!rawProcessedBuffer) {
-          return NextResponse.json(
-            { error: 'Error processing RAW image file' },
-            { status: 500 },
-          );
-        }
-
-        // Convert the processed RAW buffer to JPEG, applying EXIF rotation
-        outputBuffer = await sharp(rawProcessedBuffer)
-          .rotate()
-          .jpeg()
-          .toBuffer();
-        contentType = 'image/jpeg';
-      } catch (_rawProcessingError) {
+        imageBuffer = await processRawWithDcraw(filePath).catch(() =>
+          convertRawThumbnail(filePath),
+        );
+      } catch (_error) {
+        console.error(`Failed to process RAW image: ${filePath}`);
         return NextResponse.json(
-          { error: 'Error processing RAW image file' },
+          { error: 'Failed to process image' },
           { status: 500 },
         );
       }
     } else {
-      // For non-NEF files, read the file into a buffer first
-      let imageBuffer: Buffer;
+      // Handle standard image format
       try {
         imageBuffer = await fs.readFile(filePath);
-      } catch (e) {
-        console.error(`Error reading file ${filePath}:`, e);
+      } catch (_error) {
+        console.error(`Failed to read file: ${filePath}`);
         return NextResponse.json(
-          { error: 'Error reading media file' },
+          { error: 'Failed to read image file' },
           { status: 500 },
         );
       }
-
-      if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
-        outputBuffer = imageBuffer;
-        contentType = 'image/jpeg';
-      } else {
-        // Convert other non-JPEG images to JPEG, applying EXIF rotation
-        try {
-          outputBuffer = await sharp(imageBuffer).rotate().jpeg().toBuffer();
-          contentType = 'image/jpeg';
-        } catch (conversionError) {
-          console.error(
-            `Error converting image ${filePath} to JPEG:`,
-            conversionError,
-          );
-          return NextResponse.json(
-            { error: 'Error converting image' },
-            { status: 500 },
-          );
-        }
-      }
     }
 
-    // Resize to fit thumbnail dimensions
-    const thumbnailBuffer = await sharp(outputBuffer)
+    if (!imageBuffer) {
+      console.error(`Image buffer is null for ID: ${id}`);
+      return NextResponse.json(
+        { error: 'Failed to process image' },
+        { status: 500 },
+      );
+    }
+
+    // Create thumbnail from image buffer
+    const thumbnailBuffer = await sharp(imageBuffer)
+      .rotate() // Apply EXIF rotation
       .resize({
         width: IMAGE_DETAIL_SIZE,
         height: IMAGE_DETAIL_SIZE,
@@ -137,15 +87,16 @@ export async function GET({ params }: { params: { id: string } }) {
       .jpeg({ quality: THUMBNAIL_QUALITY })
       .toBuffer();
 
+    // Return the image
     return new NextResponse(thumbnailBuffer, {
       status: 200,
       headers: {
-        'Content-Type': contentType,
-        'Content-Length': outputBuffer.length.toString(),
+        'Content-Type': 'image/jpeg',
+        'Content-Length': thumbnailBuffer.length.toString(),
       },
     });
   } catch (error) {
-    console.error('Error fetching media:', error);
+    console.error('Error processing image:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 },

@@ -18,7 +18,12 @@ export async function getAdvancedAnalysisStats() {
 
     if (totalError) {
       return {
-        stats: null,
+        stats: {
+          total: 0,
+          processed: 0,
+          remaining: 0,
+          percentComplete: 0,
+        },
         error: totalError.message,
       };
     }
@@ -36,7 +41,12 @@ export async function getAdvancedAnalysisStats() {
 
     if (processedError) {
       return {
-        stats: null,
+        stats: {
+          total: 0,
+          processed: 0,
+          remaining: 0,
+          percentComplete: 0,
+        },
         error: processedError.message,
       };
     }
@@ -54,12 +64,16 @@ export async function getAdvancedAnalysisStats() {
         remaining,
         percentComplete,
       },
-      error: null,
     };
   } catch (error) {
     console.error('Error getting advanced analysis stats:', error);
     return {
-      stats: null,
+      stats: {
+        total: 0,
+        processed: 0,
+        remaining: 0,
+        percentComplete: 0,
+      },
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }

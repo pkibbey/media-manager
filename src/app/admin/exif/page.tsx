@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
 export default function ExifAdminPage() {
@@ -114,7 +115,6 @@ export default function ExifAdminPage() {
     itemsProcessedThisSession,
   } = useContinuousProcessing({
     processBatchFn: processBatchFunction,
-    hasRemainingItemsFn: () => (exifStats?.remaining || 0) > 0,
     onBatchComplete: handleBatchComplete,
     getTotalRemainingItemsFn: () => exifStats?.remaining || 0,
   });
@@ -228,7 +228,7 @@ export default function ExifAdminPage() {
                       id="batch-size"
                       type="number"
                       min="1"
-                      max="100"
+                      max={MAX_BATCH_SIZE}
                       value={batchSize}
                       onChange={(e) =>
                         setBatchSize(Number.parseInt(e.target.value) || 10)

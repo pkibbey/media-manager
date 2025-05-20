@@ -31,6 +31,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MAX_BATCH_SIZE } from '@/lib/consts';
 import type { AppSettings, SettingsCategory } from '@/types/settings';
 
 export default function SettingsPage() {
@@ -403,7 +404,7 @@ function AnalysisSettings({
               id="batchSize"
               type="number"
               min="1"
-              max="50"
+              max={MAX_BATCH_SIZE}
               value={batchSize}
               onChange={(e) =>
                 setBatchSize(Number.parseInt(e.target.value) || 1)
@@ -518,7 +519,7 @@ function ExifSettings({
               id="exifBatchSize"
               type="number"
               min="1"
-              max="100"
+              max={MAX_BATCH_SIZE}
               value={batchSize}
               onChange={(e) =>
                 setBatchSize(Number.parseInt(e.target.value) || 1)
@@ -735,7 +736,7 @@ function SystemSettings({
               id="maxConcurrentJobs"
               type="number"
               min="1"
-              max="10"
+              max={MAX_BATCH_SIZE}
               value={maxConcurrentJobs}
               onChange={(e) =>
                 setMaxConcurrentJobs(Number.parseInt(e.target.value) || 1)

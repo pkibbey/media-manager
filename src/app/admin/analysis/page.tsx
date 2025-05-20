@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
 interface AnalysisStatsType {
@@ -121,7 +122,6 @@ export default function AnalysisAdminPage() {
     itemsProcessedThisSession,
   } = useContinuousProcessing({
     processBatchFn: processBatchFunction,
-    hasRemainingItemsFn: () => (analysisStats?.remaining || 0) > 0,
     onBatchComplete: handleBatchComplete,
     getTotalRemainingItemsFn: () => analysisStats?.remaining || 0,
   });
@@ -223,7 +223,7 @@ export default function AnalysisAdminPage() {
                       id="batch-size"
                       type="number"
                       min="1"
-                      max="3"
+                      max={MAX_BATCH_SIZE}
                       value={batchSize}
                       onChange={(e) =>
                         setBatchSize(Number.parseInt(e.target.value) || 10)

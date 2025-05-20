@@ -17,18 +17,39 @@ import type { MediaWithRelations } from '@/types/media-types';
  */
 async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   let thumbnailBuffer: Buffer | null = null;
-  console.log('mediaItem: ', mediaItem);
   try {
+    console.log('[processMediaThumbnail] Start processing mediaItem', {
+      id: mediaItem.id,
+      media_types: mediaItem.media_types,
+      is_native: mediaItem.media_types?.is_native,
+      mime_type: mediaItem.media_types?.mime_type,
+    });
     // Choose appropriate thumbnail generation strategy based on media type
     if (mediaItem.media_types?.is_native) {
+      console.log(
+        `[processMediaThumbnail] Using processNativeThumbnail for media ${mediaItem.id}`,
+      );
       thumbnailBuffer = await processNativeThumbnail(mediaItem);
     } else {
+      console.log(
+        `[processMediaThumbnail] Using processRawThumbnail for media ${mediaItem.id}`,
+      );
       thumbnailBuffer = await processRawThumbnail(mediaItem);
     }
+    console.log(
+      `[processMediaThumbnail] Thumbnail buffer generated for media ${mediaItem.id}:`,
+      {
+        bufferType: typeof thumbnailBuffer,
+        bufferLength: thumbnailBuffer?.length,
+      },
+    );
   } catch (processingError) {
     console.error(
-      `Error generating thumbnail for media ${mediaItem.id}:`,
+      `[processMediaThumbnail] Error generating thumbnail for media ${mediaItem.id}:`,
       processingError,
+      {
+        mediaItem,
+      },
     );
     return {
       success: false,
@@ -40,6 +61,9 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   }
 
   if (!thumbnailBuffer) {
+    console.warn(
+      `[processMediaThumbnail] No thumbnail generated for media ${mediaItem.id}`,
+    );
     return {
       success: false,
       error: 'No thumbnail generated',
@@ -48,12 +72,22 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
 
   try {
     // Store the thumbnail and update database
+    console.log(
+      `[processMediaThumbnail] Storing thumbnail for media ${mediaItem.id}`,
+    );
     const storageResult = await storeThumbnail(mediaItem.id, thumbnailBuffer);
+    console.log(
+      `[processMediaThumbnail] Storage result for media ${mediaItem.id}:`,
+      storageResult,
+    );
     return storageResult;
   } catch (storageError) {
     console.error(
-      `Error storing thumbnail for media ${mediaItem.id}:`,
+      `[processMediaThumbnail] Error storing thumbnail for media ${mediaItem.id}:`,
       storageError,
+      {
+        mediaItem,
+      },
     );
     return {
       success: false,
@@ -92,23 +126,38 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       throw new Error(`Failed to find unprocessed items: ${findError.message}`);
     }
 
-    console.log('mediaItems: ', mediaItems);
-
     if (!mediaItems || mediaItems.length === 0) {
       console.log('No items found for thumbnail processing');
       return {
         success: true,
-        error: null,
+        failed: 0,
         processed: 0,
-        message: 'No items to process',
         total: 0,
+        message: 'No items to process',
       };
     }
+
+    console.log(
+      `Found ${mediaItems.length} items for thumbnail processing:`,
+      mediaItems.map((item) => item.id),
+    );
 
     // Process items in batches with controlled concurrency
     const results = await processInChunks(
       mediaItems,
-      processMediaThumbnail,
+      async (mediaItem) => {
+        console.log(`Processing media item ID: ${mediaItem.id}`);
+        const result = await processMediaThumbnail(mediaItem);
+        if (result.success) {
+          console.log(`Successfully processed media item ID: ${mediaItem.id}`);
+        } else {
+          console.error(
+            `Failed to process media item ID: ${mediaItem.id}`,
+            result.error,
+          );
+        }
+        return result;
+      },
       concurrency,
     );
 
@@ -130,10 +179,10 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
 
     return {
       success: true,
-      error: null,
       processed: succeeded,
       failed,
       total: mediaItems.length,
+      message: 'Batch processing completed',
     };
   } catch (error) {
     return {
@@ -142,6 +191,7 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       total: 0,
       failed: 0,
       processed: 0,
+      message: 'Batch processing failed',
     };
   }
 }

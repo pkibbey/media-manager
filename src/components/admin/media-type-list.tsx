@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { toast } from 'sonner';
 import {
   deleteMediaType,
   updateMediaType,
@@ -64,17 +63,7 @@ export default function MediaTypeList({
       if (!result.success) {
         throw result.error;
       }
-
-      toast.success(
-        `${type.mime_type} (${type.mime_type}) is now ${
-          value ? 'ignored' : 'not ignored'
-        }`,
-      );
-
-      await onUpdate();
-    } catch (_err) {
-      toast.error('Failed to update media type. Please try again.');
-    }
+    } catch (_err) {}
   };
 
   // Handle toggle for is_native
@@ -87,17 +76,7 @@ export default function MediaTypeList({
       if (!result.success) {
         throw result.error;
       }
-
-      toast.success(
-        `${type.mime_type} (${type.mime_type}) is now ${
-          value ? 'natively supported' : 'not natively supported'
-        }`,
-      );
-
-      await onUpdate();
-    } catch (_err) {
-      toast.error('Failed to update media type. Please try again.');
-    }
+    } catch (_err) {}
   };
 
   // Handle deleting a media type
@@ -117,14 +96,8 @@ export default function MediaTypeList({
         throw result.error;
       }
 
-      toast.success(`${type.mime_type} (${type.mime_type}) has been deleted`);
-
       await onUpdate();
-    } catch (_err) {
-      toast.error(
-        'Failed to delete media type. It may be in use by existing media.',
-      );
-    }
+    } catch (_err) {}
   };
 
   if (isLoading) {
@@ -200,7 +173,7 @@ export default function MediaTypeList({
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`ignore-${type.id}`}
-                          checked={type.is_ignored}
+                          defaultChecked={type.is_ignored}
                           onCheckedChange={(value) =>
                             handleToggleIgnored(type, !!value)
                           }
@@ -213,7 +186,7 @@ export default function MediaTypeList({
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`native-${type.id}`}
-                          checked={type.is_native}
+                          defaultChecked={type.is_native}
                           onCheckedChange={(value) =>
                             handleToggleNative(type, !!value)
                           }

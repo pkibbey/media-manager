@@ -14,9 +14,10 @@ export async function generateRawThumbnailPrimary(
 ): Promise<Buffer | null> {
   // Use dcraw to extract high-quality JPEG from RAW file
   const rawBuffer = await processRawWithDcraw(mediaItem.media_path);
+  console.log('rawBuffer: ', rawBuffer);
 
   if (!rawBuffer) {
-    return null;
+    throw new Error('Failed to process RAW file with dcraw');
   }
 
   console.log('Primary RAW thumbnail generation successful');
@@ -107,10 +108,13 @@ export async function processRawThumbnail(
   mediaItem: MediaWithRelations,
 ): Promise<Buffer | null> {
   try {
+    console.log('try generating with dcraw: ');
     return await generateRawThumbnailPrimary(mediaItem);
   } catch (_rawProcessError) {
+    console.log('_rawProcessError: ', _rawProcessError);
     try {
-      return await generateRawThumbnailFallback(mediaItem);
+      console.log('Falling back to generateSharpThumbnail');
+      return await generateSharpThumbnail(mediaItem);
     } catch (_alternativeRawError) {
       return null;
     }

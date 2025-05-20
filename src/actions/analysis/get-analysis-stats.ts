@@ -11,22 +11,14 @@ import { createSupabase } from '@/lib/supabase';
  *
  * @returns Object with analysis processing statistics
  */
-export async function getAnalysisStats(): Promise<{
-  stats: {
-    total: number;
-    processed: number;
-    remaining: number;
-    percentComplete: number;
-  } | null;
-  error: string | null;
-}> {
+export async function getAnalysisStats() {
   try {
     const supabase = createSupabase();
 
     // Get the total count of media items
     const { count: totalCount, error: totalError } = await supabase
       .from('media')
-      .select('*, media_types(is_ignored)', {
+      .select('*, media_types!inner(*)', {
         count: 'exact',
         head: true,
       })
@@ -67,12 +59,16 @@ export async function getAnalysisStats(): Promise<{
         remaining,
         percentComplete: Math.round(percentComplete * 100) / 100,
       },
-      error: null,
     };
   } catch (error) {
     console.error('Error getting analysis stats:', error);
     return {
-      stats: null,
+      stats: {
+        total: 0,
+        processed: 0,
+        remaining: 0,
+        percentComplete: 0,
+      },
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }

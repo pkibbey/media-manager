@@ -1,42 +1,104 @@
+import sharp from 'sharp';
 import { v4 } from 'uuid';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaWithThumbnail } from '@/types/media-types';
+import { setMediaAsBasicAnalysisProcessed } from './set-media-as-analysis-processed';
+
+type TensorflowPredictions = {
+  num_detections: number;
+  raw_detection_boxes: number[];
+  detection_boxes: number[][];
+  raw_detection_scores: number[];
+  detection_scores: number[];
+  detection_classes: number[];
+  detection_anchor_indices: number[];
+  detection_multiclass_scores: number[][];
+};
+
+const CONFIDENCE_THRESHOLD = 0.7; // Set a default confidence threshold
 
 export async function processForObjects(mediaItem: MediaWithThumbnail) {
-  // Get media URL from database
   const supabase = createSupabase();
-  const startTime = Date.now(); // Record start time
+  const startTime = Date.now();
 
-  // Determine the base URL for server-side fetch
-  const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
+  const tensorflowServerUrl =
+    process.env.TENSORFLOW_SERVER_URL ||
+    'http://image-server:8501/v1/models/mobilenet_v2:predict';
+
+  // Fetch the image
+  // const imageResponse = await fetch(
+  //   mediaItem.thumbnail_data?.thumbnail_url || '',
+  // );
+  // const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+  // Use sharp to decode and get raw pixel data (RGB)
+  const image = sharp(mediaItem.media_path).removeAlpha();
+  const { width, height } = await image.metadata();
+  const raw = await image.raw().toBuffer();
+
+  // Convert raw buffer to nested array [height][width][channels]
+  const channels = 3; // RGB
+  const imageArray: number[][][] = [];
+  for (let y = 0; y < height!; y++) {
+    const row: number[][] = [];
+    for (let x = 0; x < width!; x++) {
+      const idx = (y * width! + x) * channels;
+      row.push([
+        raw[idx], // R
+        raw[idx + 1], // G
+        raw[idx + 2], // B
+      ]);
+    }
+    imageArray.push(row);
+  }
 
   // Basic analysis
-  const objectFetch = await fetch(`${baseUrl}/analysis/basic`, {
+  const objectFetch = await fetch(tensorflowServerUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    // NOTE: we are using media_path here but we could use the thumbnail_path
     body: JSON.stringify({
-      imageUrl: mediaItem.thumbnail_data?.thumbnail_url,
+      instances: [imageArray],
+      params: {
+        confidence_threshold: CONFIDENCE_THRESHOLD, // Add the confidence threshold
+      },
     }),
   });
 
   if (!objectFetch.ok) {
     throw new Error('Failed to fetch object data');
   }
-  const objects = await objectFetch.json();
-  console.log('objects: ', objects);
+  const objectsResponse = await objectFetch.json();
 
-  const endTime = Date.now(); // Record end time
-  const processingTime = endTime - startTime; // Calculate processing time
+  const predictions = objectsResponse.predictions[0] as TensorflowPredictions;
 
-  // Upsert analysis_data record for this media_id
+  // For each item,
+  console.log(
+    'predictions.detection_boxes: ',
+    predictions.detection_boxes[0],
+    predictions.detection_classes[0],
+    predictions.detection_scores[0],
+  );
+  // Map predictions to labels
+  const detectionsWithLabels = predictions.detection_boxes
+    .map((box, index) => ({
+      label: cocoLabels[predictions.detection_classes[index] - 1] || 'unknown',
+      score: predictions.detection_scores[index],
+      box: {
+        top: box[0] * height!,
+        left: box[1] * width!,
+        bottom: box[2] * height!,
+        right: box[3] * width!,
+      },
+    }))
+    .filter((d) => d.score > 0.5);
+
   const { error: upsertError } = await supabase.from('analysis_data').upsert(
     {
       id: v4(),
       media_id: mediaItem.id,
-      objects,
+      objects: detectionsWithLabels, // Store the labeled detections
       content_warnings: [],
     },
     { onConflict: 'media_id' },
@@ -48,7 +110,6 @@ export async function processForObjects(mediaItem: MediaWithThumbnail) {
     );
   }
 
-  // Update the media item to mark it as processed
   const { error: updateError } = await setMediaAsBasicAnalysisProcessed(
     mediaItem.id,
   );
@@ -57,14 +118,91 @@ export async function processForObjects(mediaItem: MediaWithThumbnail) {
     throw new Error(`Failed to update media status: ${updateError.message}`);
   }
 
+  const endTime = Date.now();
+  const processingTime = endTime - startTime;
+
   return { success: true, processingTime };
 }
 
-function setMediaAsBasicAnalysisProcessed(mediaId: string) {
-  const supabase = createSupabase();
-
-  return supabase
-    .from('media')
-    .update({ is_basic_processed: true })
-    .eq('id', mediaId);
-}
+const cocoLabels = [
+  'person',
+  'bicycle',
+  'car',
+  'motorcycle',
+  'airplane',
+  'bus',
+  'train',
+  'truck',
+  'boat',
+  'traffic light',
+  'fire hydrant',
+  'stop sign',
+  'parking meter',
+  'bench',
+  'bird',
+  'cat',
+  'dog',
+  'horse',
+  'sheep',
+  'cow',
+  'elephant',
+  'bear',
+  'zebra',
+  'giraffe',
+  'backpack',
+  'umbrella',
+  'handbag',
+  'tie',
+  'suitcase',
+  'frisbee',
+  'skis',
+  'snowboard',
+  'sports ball',
+  'kite',
+  'baseball bat',
+  'baseball glove',
+  'skateboard',
+  'surfboard',
+  'tennis racket',
+  'bottle',
+  'wine glass',
+  'cup',
+  'fork',
+  'knife',
+  'spoon',
+  'bowl',
+  'banana',
+  'apple',
+  'sandwich',
+  'orange',
+  'broccoli',
+  'carrot',
+  'hot dog',
+  'pizza',
+  'donut',
+  'cake',
+  'chair',
+  'couch',
+  'potted plant',
+  'bed',
+  'dining table',
+  'toilet',
+  'tv',
+  'laptop',
+  'mouse',
+  'remote',
+  'keyboard',
+  'cell phone',
+  'microwave',
+  'oven',
+  'toaster',
+  'sink',
+  'refrigerator',
+  'book',
+  'clock',
+  'vase',
+  'scissors',
+  'teddy bear',
+  'hair drier',
+  'toothbrush',
+];

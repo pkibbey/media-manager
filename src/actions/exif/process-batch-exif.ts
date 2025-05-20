@@ -27,8 +27,9 @@ export async function processBatchExif(limit = 10, concurrency = 3) {
     // Find media items that need EXIF processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('*, exif_data(*)')
+      .select('*, exif_data(*), media_types!inner(*)')
       .is('is_exif_processed', false)
+      .is('media_types.is_ignored', false)
       .limit(limit);
 
     if (findError) {
@@ -36,7 +37,13 @@ export async function processBatchExif(limit = 10, concurrency = 3) {
     }
 
     if (!mediaItems || mediaItems.length === 0) {
-      return { success: true, processed: 0, message: 'No items to process' };
+      return {
+        success: true,
+        processed: 0,
+        failed: 0,
+        total: 0,
+        message: 'No items to process',
+      };
     }
 
     // Extract EXIF data for all media items in parallel chunks
@@ -123,6 +130,8 @@ export async function processBatchExif(limit = 10, concurrency = 3) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
+      failed: 0,
+      total: 0,
       processed: 0,
     };
   }
