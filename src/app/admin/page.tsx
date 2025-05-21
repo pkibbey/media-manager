@@ -39,13 +39,6 @@ export default async function AdminOverviewPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
-            title="Analysis"
-            total={analysisResponse.stats.total || 0}
-            processed={analysisResponse.stats.processed || 0}
-            isLoading={false}
-            icon={<Database className="h-4 w-4" />}
-          />
-          <StatsCard
             title="EXIF"
             total={exifResponse.stats.total || 0}
             processed={exifResponse.stats.processed || 0}
@@ -58,6 +51,13 @@ export default async function AdminOverviewPage() {
             processed={thumbnailResponse.stats.processed || 0}
             isLoading={false}
             icon={<FileVideo className="h-4 w-4" />}
+          />
+          <StatsCard
+            title="Analysis"
+            total={analysisResponse.stats.total || 0}
+            processed={analysisResponse.stats.processed || 0}
+            isLoading={false}
+            icon={<Database className="h-4 w-4" />}
           />
           <StatsCard
             title="Storage"

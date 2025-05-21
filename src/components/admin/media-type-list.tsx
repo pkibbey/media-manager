@@ -1,10 +1,16 @@
 'use client';
 
-import { useState } from 'react';
 import {
-  deleteMediaType,
-  updateMediaType,
-} from '@/actions/admin/manage-media-types';
+  EyeOff,
+  File,
+  FileText,
+  Image as ImageIcon,
+  Monitor,
+  Music,
+  Video,
+} from 'lucide-react';
+import { useState } from 'react';
+import { updateMediaType } from '@/actions/admin/manage-media-types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,26 +19,37 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import type { MediaType } from '@/types/media-types';
-
-// Adding a simple Skeleton component since we don't have access to the project's full UI library
-function Skeleton({ className }: { className: string }) {
-  return <div className={`animate-pulse bg-muted rounded ${className}`} />;
-}
 
 interface MediaTypeListProps {
   mediaTypes: MediaType[];
-  isLoading: boolean;
   onUpdate: () => Promise<void>;
+}
+
+// Add a function to get the icon for a category
+function getCategoryIcon(category: string) {
+  switch (category) {
+    case 'audio':
+      return <Music className="mr-2 text-blue-500" size={18} />;
+    case 'video':
+      return <Video className="mr-2 text-purple-500" size={18} />;
+    case 'image':
+      return <ImageIcon className="mr-2 text-green-500" size={18} />;
+    case 'text':
+      return <FileText className="mr-2 text-gray-500" size={18} />;
+    case 'application':
+      return <File className="mr-2 text-orange-500" size={18} />;
+    default:
+      return <File className="mr-2 text-muted-foreground" size={18} />;
+  }
 }
 
 export default function MediaTypeList({
   mediaTypes,
-  isLoading,
   onUpdate,
 }: MediaTypeListProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -63,6 +80,7 @@ export default function MediaTypeList({
       if (!result.success) {
         throw result.error;
       }
+      await onUpdate(); // Refresh UI after update
     } catch (_err) {}
   };
 
@@ -76,49 +94,9 @@ export default function MediaTypeList({
       if (!result.success) {
         throw result.error;
       }
+      await onUpdate(); // Refresh UI after update
     } catch (_err) {}
   };
-
-  // Handle deleting a media type
-  const handleDeleteMediaType = async (type: MediaType) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete this media type: ${type.mime_type} (${type.mime_type})? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const result = await deleteMediaType(type.id);
-
-      if (!result.success) {
-        throw result.error;
-      }
-
-      await onUpdate();
-    } catch (_err) {}
-  };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-5 w-40" />
-                <Skeleton className="h-4 w-32" />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Skeleton className="h-16 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   const allMediaTypes =
     activeTab === 'all' ? mediaTypes : groupedTypes[activeTab] || [];
@@ -140,78 +118,80 @@ export default function MediaTypeList({
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {allMediaTypes.length === 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>No media types found</CardTitle>
-                  <CardDescription>
-                    {activeTab === 'all'
-                      ? 'No media types have been created yet. They are automatically generated when scanning directories.'
-                      : `No media types found in the ${activeTab} mime_type.`}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            ) : (
-              allMediaTypes.map((type) => (
-                <Card key={type.id}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {allMediaTypes.map((type) => {
+              const category = type.mime_type.split('/')[0];
+              const subType = type.mime_type.split('/')[1];
+              return (
+                <Card
+                  key={type.id}
+                  className={cn(type.is_ignored && 'opacity-30')}
+                >
                   <CardHeader>
-                    <CardTitle>{type.mime_type}</CardTitle>
-                    <CardDescription>
-                      Category: {type.mime_type}{' '}
-                      {type.is_ignored && '(Ignored)'}
-                    </CardDescription>
+                    <CardTitle className="flex items-center">
+                      {getCategoryIcon(category)}
+                      {subType}
+                    </CardTitle>
+                    <CardDescription>{category}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {type.type_description && (
-                      <p className="text-sm text-muted-foreground">
-                        {type.type_description}
-                      </p>
-                    )}
-
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`ignore-${type.id}`}
-                          defaultChecked={type.is_ignored}
-                          onCheckedChange={(value) =>
-                            handleToggleIgnored(type, !!value)
-                          }
-                        />
-                        <Label htmlFor={`ignore-${type.id}`}>
-                          Ignore files of this type
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`native-${type.id}`}
-                          defaultChecked={type.is_native}
-                          onCheckedChange={(value) =>
-                            handleToggleNative(type, !!value)
-                          }
-                        />
-                        <Label htmlFor={`native-${type.id}`}>
-                          Can be displayed natively
-                        </Label>
-                      </div>
-                    </div>
-
                     <Separator />
 
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end space-x-2">
                       <Button
-                        variant="destructive"
+                        variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteMediaType(type)}
+                        title={
+                          type.is_ignored
+                            ? 'Unignore files of this type'
+                            : 'Ignore files of this type'
+                        }
+                        className="gap-2 cursor-pointer"
+                        onClick={() =>
+                          handleToggleIgnored(type, !type.is_ignored)
+                        }
+                        aria-label="Toggle ignore"
                       >
-                        Delete
+                        <EyeOff
+                          size={16}
+                          strokeWidth={2}
+                          fill={type.is_ignored ? 'currentColor' : 'none'}
+                        />
+                        <Label className="text-xs cursor-pointer">
+                          {type.is_ignored ? 'Unignore' : 'Ignore'}
+                        </Label>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title={
+                          type.is_native
+                            ? 'Mark as not natively displayable'
+                            : 'Mark as natively displayable'
+                        }
+                        className={cn(
+                          'gap-2 cursor-pointer',
+                          type.is_native
+                            ? 'text-green-600'
+                            : 'text-muted-foreground',
+                        )}
+                        onClick={() =>
+                          handleToggleNative(type, !type.is_native)
+                        }
+                        aria-label="Toggle native"
+                      >
+                        <Monitor
+                          size={16}
+                          strokeWidth={2}
+                          fill={type.is_native ? 'currentColor' : 'none'}
+                        />
+                        <Label className="text-xs cursor-pointer">Native</Label>
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
-              ))
-            )}
+              );
+            })}
           </div>
         </TabsContent>
       </Tabs>

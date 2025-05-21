@@ -27,7 +27,7 @@ export async function getExifStats() {
     // Get count of items with EXIF data
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
-      .select('is_exif_processed, media_types(is_ignored)', {
+      .select('is_exif_processed, media_types!inner(is_ignored)', {
         count: 'exact',
         head: true,
       })

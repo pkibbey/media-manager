@@ -97,7 +97,6 @@ export default function AdminFileTypesPage() {
 
         <MediaTypeList
           mediaTypes={mediaTypes || []}
-          isLoading={isLoading}
           onUpdate={fetchMediaTypes}
         />
       </div>
