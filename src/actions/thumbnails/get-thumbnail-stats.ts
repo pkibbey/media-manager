@@ -30,7 +30,7 @@ export async function getThumbnailStats() {
     const { count: processedCount, error: processedError } = await supabase
       .from('media')
       .select(
-        'is_thumbnail_processed, is_exif_processed, media_types(mime_type)',
+        'is_thumbnail_processed, is_exif_processed, media_types!inner(mime_type)',
         {
           count: 'exact',
           head: true,

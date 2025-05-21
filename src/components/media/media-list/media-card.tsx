@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import type React from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,11 @@ import { formatBytes } from '@/lib/consts';
 import { cn } from '@/lib/utils';
 import type { MediaWithRelations } from '@/types/media-types';
 import { useMediaSelection } from './media-selection-context';
+
+const BrowserObjectDetection = dynamic(
+  () => import('@/components/admin/BrowserObjectDetection'),
+  { ssr: false },
+);
 
 interface MediaCardProps {
   media: MediaWithRelations;
@@ -27,6 +33,8 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
 
   const fileName = media.media_path.split('/').pop() || media.media_path;
   const thumbnail = media.thumbnail_data?.thumbnail_url;
+  console.log('media: ', media.exif_data);
+  console.log('thumbnail: ', thumbnail);
 
   return (
     <Card
@@ -43,14 +51,22 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
       {/* Thumbnail image */}
       <div className="aspect-square overflow-hidden bg-muted relative">
         {thumbnail && media.exif_data ? (
-          <Image
-            src={thumbnail}
-            alt={fileName}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            width={media.exif_data.width}
-            height={media.exif_data.height}
-          />
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <Image
+              src={thumbnail}
+              alt={fileName}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              width={media.exif_data.width}
+              height={media.exif_data.height}
+            />
+            {/* Browser-based object detection overlay */}
+            <BrowserObjectDetection
+              imageUrl={thumbnail}
+              width={media.exif_data.width}
+              height={media.exif_data.height}
+            />
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
             {media.media_types?.type_description?.toUpperCase() || 'No Preview'}

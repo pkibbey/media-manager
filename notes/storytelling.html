@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crafting Your Digital Narrative: An Interactive Exploration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Visualization & Content Choices:
+        - Report Info (Overall themes & Sections 1-9): Goal: Inform & Guide. Viz/Presentation: Thematic sections with summarized text, expandable details. Interaction: Scroll navigation, click to expand. Justification: Organizes complex info logically. Library: HTML/CSS/JS.
+        - Report Info (Table 1 - Data Types): Goal: Inform about data diversity. Viz/Presentation: Interactive grid of cards. Interaction: Click card to show modal with 'Examples' & 'Potential Insights'. Justification: Clear, engaging presentation of categorized info. Library: HTML/CSS/JS.
+        - Report Info (Chart - Data Type Categories): Goal: Show variety of data. Viz/Presentation: Doughnut chart showing categories from Table 1 (Health, Location, Financial, etc.). Interaction: Hover for tooltips. Justification: Quick visual summary of data diversity. Library: Chart.js.
+        - Report Info (Section 3 & 4 - Quantified vs. Qualified Self, Emotional Depth): Goal: Explain concepts. Viz/Presentation: Contrasting text blocks, conceptual info graphics (e.g., Equanima's Four Pillars as a list). Interaction: Static display, possibly hover effects. Justification: Clarifies abstract concepts. Library: HTML/CSS.
+        - Report Info (Section 6 - Feedback Loop & Pattern Types): Goal: Explain processes. Viz/Presentation: HTML/CSS diagrams for 'Collect → Analyze → Reflect → Act → Refine' cycle and 'Descriptive → Diagnostic → Predictive → Prescriptive' patterns. Interaction: Static or hover to highlight. Justification: Visualizes core processes effectively. Library: HTML/CSS/JS.
+        - Report Info (Table 2 - Tools): Goal: Showcase available tools. Viz/Presentation: Interactive grid of cards. Interaction: Click card to show modal with 'Primary Function', 'Data Types', 'Emphasis'. Justification: Organizes tool info accessibly. Library: HTML/CSS/JS.
+        - Report Info (Chart - Tool Emphasis): Goal: Show distribution of tool focuses. Viz/Presentation: Bar chart showing counts of tools by 'Emphasis' (e.g., Emotional Precision, Holistic Tracking). Interaction: Hover for tooltips. Justification: Visual comparison of tool categories. Library: Chart.js.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+    <style>
+        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; height: 300px; max-height: 400px; }
+        @media (min-width: 768px) { .chart-container { height: 350px; } }
+        .active-nav { color: #c2410c; /* text-orange-700 */ font-weight: 600; border-bottom: 2px solid #c2410c; }
+        .nav-item { transition: all 0.3s ease; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .accordion-button.open + .accordion-content { max-height: 1000px; /* Arbitrary large value */ }
+        .sticky-nav { position: sticky; top: 0; z-index: 50; background-color: rgba(255, 251, 235, 0.9); backdrop-filter: blur(5px); }
+    </style>
+</head>
+<body class="bg-amber-50 text-neutral-800">
+
+    <nav id="navbar" class="sticky-nav shadow-md">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-orange-700">Digital Narrative Explorer</span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#introduction" class="nav-item px-3 py-2 rounded-md text-sm font-medium text-neutral-700 hover:text-orange-600">Introduction</a>
+                        <a href="#data-landscape" class="nav-item px-3 py-2 rounded-md text-sm font-medium text-neutral-700 hover:text-orange-600">Data Landscape</a>
+                        <a href="#understanding-self" class="nav-item px-3 py-2 rounded-md text-sm font-medium text-neutral-700 hover:text-orange-600">Understanding Self</a>
+                        <a href="#tools-techniques" class="nav-item px-3 py-2 rounded-md text-sm font-medium text-neutral-700 hover:text-orange-600">Tools & Techniques</a>
+                        <a href="#behavioral-change" class="nav-item px-3 py-2 rounded-md text-sm font-medium text-neutral-700 hover:text-orange-600">Behavioral Change</a>
+                        <a href="#ethics" class="nav-item px-3 py-2 rounded-md text-sm font-medium text-neutral-700 hover:text-orange-600">Ethics</a>
+                        <a href="#conclusion" class="nav-item px-3 py-2 rounded-md text-sm font-medium text-neutral-700 hover:text-orange-600">Conclusion</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-neutral-600 hover:text-orange-600 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <svg class="hidden h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#introduction" class="nav-item block px-3 py-2 rounded-md text-base font-medium text-neutral-700 hover:text-orange-600 hover:bg-orange-100">Introduction</a>
+                <a href="#data-landscape" class="nav-item block px-3 py-2 rounded-md text-base font-medium text-neutral-700 hover:text-orange-600 hover:bg-orange-100">Data Landscape</a>
+                <a href="#understanding-self" class="nav-item block px-3 py-2 rounded-md text-base font-medium text-neutral-700 hover:text-orange-600 hover:bg-orange-100">Understanding Self</a>
+                <a href="#tools-techniques" class="nav-item block px-3 py-2 rounded-md text-base font-medium text-neutral-700 hover:text-orange-600 hover:bg-orange-100">Tools & Techniques</a>
+                <a href="#behavioral-change" class="nav-item block px-3 py-2 rounded-md text-base font-medium text-neutral-700 hover:text-orange-600 hover:bg-orange-100">Behavioral Change</a>
+                <a href="#ethics" class="nav-item block px-3 py-2 rounded-md text-base font-medium text-neutral-700 hover:text-orange-600 hover:bg-orange-100">Ethics</a>
+                <a href="#conclusion" class="nav-item block px-3 py-2 rounded-md text-base font-medium text-neutral-700 hover:text-orange-600 hover:bg-orange-100">Conclusion</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <section id="introduction" class="py-12 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-orange-700 mb-6">1. Introduction: The Power of Personal Data Storytelling</h2>
+            <p class="mb-4 text-lg">Welcome to an exploration of how your personal data can become a powerful tool for self-discovery and growth. In an age of increasing digital information, we have an unprecedented opportunity to learn about ourselves. This application, based on the report "Crafting Your Digital Narrative," guides you through understanding and utilizing your data for deeper insights.</p>
+            <div class="space-y-4">
+                <div>
+                    <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">What is the Evolving Digital Self?</button>
+                    <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                        <p>The volume of digital data we collect about ourselves has surged, creating a "digital archive" of our lives. This is linked to the "Quantified Self" movement—seeking "self-knowledge through numbers." However, interest is shifting beyond mere cataloging to profound self-understanding, discerning behavioral patterns, and learning from experiences, including mistakes. This aligns with "personal science," where individuals conduct self-directed studies for personal insights.</p>
+                    </div>
+                </div>
+                <div>
+                    <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">Why Storytelling and Emotional Context?</button>
+                    <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                        <p>Many find current tools, like photo apps, too focused on positivity, lacking depth for true human experience understanding. This highlights a need for "storytelling and emotional context." Data storytelling infuses raw data with narrative and emotion, making it "human." It helps understand *what* is happening, *why* it matters, and *what actions* to take. The goal is to turn metrics into insights for growth and resilience, moving from "Quantified Self" to a "Qualified Self" that integrates subjective experiences.</p>
+                    </div>
+                </div>
+                 <div>
+                    <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">Defining Personal Data Storytelling</button>
+                    <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                        <p>Personal data storytelling is crafting a narrative using your data. It combines data analysis, visualization, and storytelling to communicate insights engagingly. It "humanizes data" by appealing to feelings and values, transforming reports into shared interactive experiences. A data story has three elements: data, narrative, and visuals. The narrative provides context, explaining the broader message and answering the "so what?" behind the data, moving from descriptive ("what happened?") to diagnostic ("why?") and prescriptive ("what to do next?") patterns.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="data-landscape" class="py-12 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-orange-700 mb-6">2. Your Digital Footprint: Categories of Personal Data</h2>
+            <p class="mb-6 text-lg">Our digital lives generate a vast array of data. Understanding these categories is the first step towards harnessing their potential for self-insight. Each data stream offers a unique lens into different, interconnected aspects of your life. Integrating these diverse types is key to a holistic self-understanding.</p>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" id="dataTypesGrid">
+            </div>
+            <h3 class="text-2xl font-semibold text-orange-700 mb-4 mt-8">Visualizing Data Diversity</h3>
+            <p class="mb-4">The chart below gives a sense of the common categories of personal data people track. Recognizing this diversity is key to building a comprehensive self-narrative.</p>
+            <div class="chart-container bg-white p-4 rounded-lg shadow">
+                <canvas id="dataTypeCategoriesChart"></canvas>
+            </div>
+             <div class="mt-8">
+                <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">Challenges and Opportunities in Integrating Data</button>
+                <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                    <p class="font-semibold">Challenges:</p>
+                    <ul class="list-disc pl-5 mb-2">
+                        <li><strong>Fragmented Data:</strong> Data stored in disparate systems and formats.</li>
+                        <li><strong>Alignment & Heterogeneity:</strong> Differences in format, timing, and interpretation. Noisy data can mislead.</li>
+                        <li><strong>Computational Needs:</strong> Processing large multimodal datasets requires significant resources.</li>
+                        <li><strong>Privacy Concerns:</strong> Integrating sensitive data increases risks.</li>
+                    </ul>
+                    <p class="font-semibold">Opportunities:</p>
+                    <ul class="list-disc pl-5">
+                        <li><strong>Holistic View:</strong> A 360-degree perspective for understanding complex situations.</li>
+                        <li><strong>Deeper Insights:</strong> Enables novel frameworks and comprehensive observations.</li>
+                        <li><strong>Mimicking Human Cognition:</strong> AI can process multiple info types like humans do.</li>
+                        <li><strong>Enhanced Self-Awareness:</strong> Crucial for understanding links between lifestyle and mental health.</li>
+                    </ul>
+                    <p class="mt-2">Achieving a "single source of truth" (SSOT) by consolidating diverse data can overcome fragmentation, enabling detection of comprehensive patterns for holistic self-understanding, provided privacy is rigorously upheld.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="understanding-self" class="py-12 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-orange-700 mb-6">3. Beyond Numbers: Understanding Your Self</h2>
+            <p class="mb-6 text-lg">The journey with personal data is about moving from mere quantification to a richer, more qualified understanding of who you are. This involves embracing emotional depth and recognizing the nuances that numbers alone can't capture.</p>
+            <div class="grid md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold text-orange-700 mb-3">The Quantified Self vs. The Qualified Self</h3>
+                    <p class="mb-2"><strong class="text-neutral-700">Quantified Self:</strong> Focuses on "self-knowledge through numbers." While powerful, it risks "data fetishism"—an overemphasis on metrics that can lead to reductionist views and impose predetermined ideals, potentially distancing you from genuine self-knowledge.</p>
+                    <p><strong class="text-neutral-700">Qualified Self:</strong> Emerges as a response, recognizing that self-tracking is both quantitative and qualitative. It applies tracking to phenomena like mood and develops "qualitative feedback loops." This means shifting from counting "steps to states of being," seeking emotional precision beyond vague labels. It integrates subjective experiences, emotions, and narratives for a holistic understanding.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-2xl font-semibold text-orange-700 mb-3">Embracing Emotional Depth</h3>
+                    <p class="mb-2">Many feel current tools are "too positive," failing to capture the full human experience. Traditional mood trackers often oversimplify emotions. This creates an "emotional data gap."</p>
+                    <p class="mb-2">To bridge this, tools need to focus on <strong class="text-neutral-700">emotional precision</strong>. For example, Equanima uses AI to analyze natural language journal entries into "Four Pillars":</p>
+                    <ul class="list-disc pl-5 mb-2">
+                        <li>Emotions</li>
+                        <li>Needs</li>
+                        <li>Body Signals</li>
+                        <li>Reactions</li>
+                    </ul>
+                    <p>This allows a multi-dimensional map of emotional experiences. Understanding your emotions and their triggers is key to self-awareness and growth. "Name it, you can navigate it."</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="tools-techniques" class="py-12 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-orange-700 mb-6">4. Tools & Techniques for Your Narrative</h2>
+            <p class="mb-6 text-lg">A variety of tools and techniques can help you collect, analyze, and craft narratives from your personal data. From digital journaling apps to sophisticated analytics platforms, these resources can support your journey of self-discovery.</p>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" id="toolsGrid">
+            </div>
+            <h3 class="text-2xl font-semibold text-orange-700 mb-4 mt-8">Focus of Available Tools</h3>
+            <p class="mb-4">Different tools emphasize various aspects of personal data exploration. The chart below illustrates common areas of focus found in the recommended tools, highlighting trends in how technology supports self-understanding.</p>
+            <div class="chart-container bg-white p-4 rounded-lg shadow">
+                <canvas id="toolEmphasisChart"></canvas>
+            </div>
+            <div class="mt-8">
+                <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">The Power of "Personal Science"</button>
+                <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                    <p>"Personal science" involves conducting self-directed, N-of-1 studies to explore personally consequential questions. This means you become an empirical researcher of your own life. Examples include tracking blood values to optimize diet or identifying allergy triggers. Tools like Reflect, with "Self-Experimentation" features, directly empower this. This shifts you from passive data consumption to active self-discovery, leading to highly personalized insights and interventions. The causal relationship is: Personal Hypothesis/Question → Structured Data Collection/Self-Experimentation → Empirical Validation/Causal Understanding → Highly Tailored Behavioral Change/Personalized Growth.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="behavioral-change" class="py-12 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-orange-700 mb-6">5. From Data to Action: Driving Behavioral Change</h2>
+            <p class="mb-6 text-lg">The ultimate goal of exploring personal data is often to foster positive behavioral change and personal growth. This involves identifying patterns, understanding their implications, and translating those insights into actionable steps.</p>
+
+            <div class="bg-white p-6 rounded-lg shadow mb-8">
+                <h3 class="text-2xl font-semibold text-orange-700 mb-3">The Feedback Loop for Growth</h3>
+                <p class="mb-4">Personal growth through data is a continuous, iterative cycle:</p>
+                <div class="flex flex-wrap justify-around items-center text-center">
+                    <div class="p-2"><span class="font-semibold text-lg">Collect</span><span class="text-orange-600 text-2xl mx-2">&rarr;</span></div>
+                    <div class="p-2"><span class="font-semibold text-lg">Analyze</span><span class="text-orange-600 text-2xl mx-2">&rarr;</span></div>
+                    <div class="p-2"><span class="font-semibold text-lg">Reflect</span><span class="text-orange-600 text-2xl mx-2">&rarr;</span></div>
+                    <div class="p-2"><span class="font-semibold text-lg">Act</span><span class="text-orange-600 text-2xl mx-2">&rarr;</span></div>
+                    <div class="p-2"><span class="font-semibold text-lg">Refine</span></div>
+                </div>
+                <p class="mt-4">The feedback loop is the engine. Reflection is critical, transforming raw data into meaningful understanding. Without deliberate reflection, data remains just information. The causal chain: Data Collection &rarr; Pattern Analysis &rarr; Reflection (Sensemaking) &rarr; Actionable Insights/Behavioral Change &rarr; New Data Collection.</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow mb-8">
+                <h3 class="text-2xl font-semibold text-orange-700 mb-3">Types of Patterns in Your Data</h3>
+                <p class="mb-4">Understanding different types of patterns helps you move from observation to action:</p>
+                <ul class="space-y-3">
+                    <li><strong>Descriptive:</strong> What happened? (e.g., daily steps, sleep duration)</li>
+                    <li><strong>Diagnostic:</strong> Why did it happen? (e.g., emotional eating triggers, reasons for missed exercise)</li>
+                    <li><strong>Predictive:</strong> What could happen in the future? (e.g., anticipating future needs based on past trends)</li>
+                    <li><strong>Prescriptive:</strong> What can we do next? (e.g., tailored coping techniques based on emotional patterns)</li>
+                </ul>
+                <p class="mt-3">This progression forms a "causal ladder" to deeper self-understanding and actionable change.</p>
+            </div>
+             <div>
+                <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">Translating Insights into Actionable Steps</button>
+                <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                    <p>The aim is to use self-knowledge for self-improvement. Understanding patterns empowers you to "choose better." Self-monitoring itself can influence behavior. A structured approach involves defining behaviors, selecting data collection methods, setting schedules, and optionally, using rewards. Tailored coping techniques, sometimes AI-driven, offer direct guidance. The goal is to turn abstract insights into concrete actions, moving from passive reporting to active guidance for self-mastery.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="ethics" class="py-12 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-orange-700 mb-6">6. Mindful Engagement: Ethical Considerations</h2>
+            <p class="mb-6 text-lg">Engaging with personal data requires mindfulness about privacy, data security, and the potential psychological impacts. Responsible data use is key to ensuring technology supports well-being.</p>
+            <div class="space-y-4">
+                <div>
+                    <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">Privacy and Data Security</button>
+                    <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                        <p>Continuous data collection raises significant privacy concerns about data ownership and use without consent. Data can be accessed by commercial, governmental, and research agencies. Sharing on social media blurs private/public lines. Healthcare data is especially sensitive (HIPAA, GDPR). Visualizations and systems need privacy by design: de-identification, access controls, security. Multimodal AI increases exposure risk. Mitigation includes robust privacy standards, anonymization, secure storage, and federated learning. Some tools prioritize local storage for privacy.</p>
+                    </div>
+                </div>
+                <div>
+                    <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">Addressing "Data Fetishism"</button>
+                    <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                        <p>"Data fetishism" is becoming enticed by numerical data, oversimplifying complex human phenomena into reductionist metrics. This can impose predetermined ideals, distancing users from genuine self-knowledge. The "positive-only" critique of some apps is an example. Constant self-monitoring, if not mindful, can lead to anxiety or unhealthy obsession with performance metrics, pressuring individuals to constantly optimize.</p>
+                    </div>
+                </div>
+                <div>
+                    <button class="accordion-button w-full text-left text-xl font-semibold text-neutral-700 p-4 bg-amber-100 rounded-lg shadow hover:bg-orange-100 transition duration-150">Promoting Responsible Data Use for Well-being</button>
+                    <div class="accordion-content bg-white p-4 rounded-b-lg shadow">
+                        <p>The goal is a balance between using tech for self-improvement and maintaining psychological well-being. Mindful engagement is key. Critically ask "Why?" for tracking projects, ensuring motivation is genuine. Human-Centered Design (HCD), with compassionate empathy, is vital for tools that serve human needs and address pain points, preventing negative consequences. Ethical dimensions, like data/algorithmic bias, must be considered. The paradox: data meant to empower can lead to reductionism or anxiety if not approached mindfully. Causal relationship: Unfiltered Data &rarr; Fetishism &rarr; Negative Impact; Mindful/Contextual Data &rarr; Holistic Understanding &rarr; Empowerment. Personal data literacy is crucial. Tools should promote user agency, critical reflection, and a balanced self-view.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" class="py-12 scroll-mt-16">
+            <h2 class="text-3xl font-bold text-orange-700 mb-6">7. Your Journey to a Richer Self-Narrative</h2>
+            <p class="mb-4 text-lg">The escalating volume of personal digital data offers an unparalleled opportunity for profound self-understanding and growth. Personal data storytelling, enriched with emotional context, transforms raw numbers into relatable experiences and actionable insights.</p>
+            <p class="mb-4">Integrating diverse data types is crucial for a holistic self-view. Combined with iterative reflection and feedback loops, this drives sustainable behavioral change. The shift from a "quantified" to a "qualified" self emphasizes subjective experience and emotional precision.</p>
+            <p class="mb-4">The future lies in human-centered tools prioritizing well-being, privacy, and agency. AI and multimodal data integration will enable more nuanced insights, supporting personalized "personal science."</p>
+            <p class="font-semibold text-xl text-teal-700">The ultimate vision is to empower you to become an active architect of your own self-narrative, fostering resilience, empathy, and a deeper, more authentic connection to your inner self.</p>
+        </section>
+    </main>
+
+    <footer class="bg-neutral-800 text-amber-50 mt-12">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+            <p>&copy; <span id="currentYear"></span> Digital Narrative Explorer. Inspired by research on personal data and self-understanding.</p>
+            <p class="text-sm text-neutral-400 mt-1">This is a conceptual application for exploring report content.</p>
+        </div>
+    </footer>
+
+    <div id="itemModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button absolute top-2 right-4 text-2xl font-bold cursor-pointer text-neutral-600 hover:text-red-500">&times;</span>
+            <h3 id="modalTitle" class="text-2xl font-bold text-orange-700 mb-4"></h3>
+            <div id="modalBody" class="text-neutral-700"></div>
+        </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const currentYearSpan = document.getElementById('currentYear');
+        if (currentYearSpan) {
+            currentYearSpan.textContent = new Date().getFullYear();
+        }
+
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileMenuButton && mobileMenu) {
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+                mobileMenuButton.querySelectorAll('svg').forEach(svg => svg.classList.toggle('hidden'));
+            });
+        }
+        
+        document.querySelectorAll('#mobile-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+                mobileMenuButton.querySelectorAll('svg').forEach(svg => svg.classList.toggle('hidden'));
+            });
+        });
+
+        const navItems = document.querySelectorAll('.nav-item');
+        const sections = document.querySelectorAll('main section');
+
+        function updateActiveNav() {
+            let currentSectionId = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.scrollY >= sectionTop - (document.getElementById('navbar').offsetHeight + 20)) {
+                    currentSectionId = section.getAttribute('id');
+                }
+            });
+
+            navItems.forEach(item => {
+                item.classList.remove('active-nav');
+                if (item.getAttribute('href') === `#${currentSectionId}`) {
+                    item.classList.add('active-nav');
+                }
+            });
+        }
+        window.addEventListener('scroll', updateActiveNav);
+        updateActiveNav();
+
+
+        const dataTypes = [
+            { name: "Health & Wellness", examples: "Sleep patterns, heart rate, diet, physical activity, glucose levels, symptoms, medication, body signals.", insights: "Identifying triggers for health issues, understanding impact of habits on well-being, optimizing physical performance, recognizing unmet needs.", icon: "&#x1F9D1;&#x200D;&#x2695;&#xFE0F;" },
+            { name: "Location", examples: "GPS tracks, frequented places, travel routes, traffic patterns.", insights: "Understanding behavioral patterns in physical spaces, identifying environmental influences on mood/habits, optimizing routines, discovering new places.", icon: "&#x1F30D;" },
+            { name: "Financial", examples: "Income, expenses, spending habits, investments, budget adherence.", insights: "Recognizing emotional spending, identifying areas for savings, aligning spending with values, understanding financial stressors.", icon: "&#x1F4B0;" },
+            { name: "Communication", examples: "Email volume, response times, call logs (duration, frequency), text message tone/sentiment.", insights: "Analyzing communication styles, identifying key relationships, recognizing emotional patterns in interactions, improving social skills.", icon: "&#x1F4E7;" },
+            { name: "Social Media", examples: "Activity patterns, engagement metrics, content consumption, follower growth, demographics.", insights: "Assessing online persona vs. authentic self, understanding digital habits, identifying content influences, recognizing social patterns.", icon: "&#x1F4F1;" },
+            { name: "Productivity & Habits", examples: "Time tracking, task completion rates, computer usage, reading habits, habit adherence.", insights: "Optimizing work habits, identifying procrastination triggers, understanding consistency, aligning actions with goals.", icon: "&#x23F0;" },
+            { name: "Journaling", examples: "Textual entries, mood tracking, annotations (people, places, topics), multimedia.", insights: "Deep emotional insight, pattern recognition for behavior change, self-reflection on experiences, tracking personal growth narrative.", icon: "&#x1F4DD;" }
+        ];
+
+        const tools = [
+            { name: "Equanima", features: "Natural language journaling, AI processing into Emotions, Needs, Body Signals, Reactions, Mood Radar Charts, Micro-pattern Detection, Tailored coping techniques.", data: "Text (natural language), AI-derived emotional data.", emphasis: "Emotional Precision, Self-Awareness, Behavioral Change", icon: "&#x1F9E0;" },
+            { name: "Wandering Mind", features: "Journaling with social network content integration, tagging (people, locations, topics), emotion curve timeline, bubble charts, related story display.", data: "Text, Images, Social Media Content, Location, Emotion.", emphasis: "Narrative Reflection, Pattern Visualization, Self-Reflection", icon: "&#x1F4AD;" },
+            { name: "Reflect", features: "All-in-one tracking (mood, symptoms, habits, productivity), powerful visualizations, correlation discovery, self-experimentation, weekly/monthly reports.", data: "Mood, Symptoms, Sleep, Diet, Exercise, Productivity, Health devices (Oura, WHOOP, Apple Health), Local Weather.", emphasis: "Holistic Tracking, Self-Experimentation, Pattern Identification", icon: "&#x1F50D;" },
+            { name: "Daylio", features: "Visual mood & activity tracking, personal infographics, habit analysis, goal tracking.", data: "Mood, Activities (user-defined icons).", emphasis: "Accessible Visual Patterns, Habit Understanding, Self-Care", icon: "&#x1F603;" },
+            { name: "Day One Journal", features: "Multimedia journaling (photos, videos, voice notes, sketches), rich text formatting, categories, \"on this day\" notifications.", data: "Text, Images, Video, Audio, Web Articles, Social Media.", emphasis: "Rich Memory Archive, Creative Expression, Reliving Moments", icon: "&#x1F4F7;" },
+            { name: "Exist.io", features: "Data centralization from various apps/services, automatic correlation detection, personalized goals, custom tagging.", data: "Fitness, Sleep, Mood, Productivity, Location, Weather, Social Media, Financial (via integrations).", emphasis: "Cross-Domain Insights, Holistic View, Automated Insights", icon: "&#x1F50C;" },
+            { name: "Narrative Clip", features: "Automatic wearable camera (photos every 30s), GPS tracking, companion app for organizing and sharing moments.", data: "Images, Location (GPS).", emphasis: "Photographic Memory, Reliving Events & Emotions, Candid Capture", icon: "&#x1F4F8;" },
+            { name: "Spreadsheets (Sheets/Excel)", features: "DIY tracking system with charts, custom metrics, manual data entry.", data: "Any data type (user-defined).", emphasis: "Privacy, Control, Customization, Basic Visualization", icon: "&#x1F4CA;" }
+        ];
+
+        const dataTypesGrid = document.getElementById('dataTypesGrid');
+        const toolsGrid = document.getElementById('toolsGrid');
+        const modal = document.getElementById('itemModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        const closeButton = modal.querySelector('.close-button');
+
+        function populateGrid(gridElement, items, type) {
+            if (!gridElement) return;
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-6 rounded-lg shadow hover:shadow-xl transition-shadow duration-300 cursor-pointer flex flex-col items-center text-center';
+                card.innerHTML = `<div class="text-4xl mb-3">${item.icon}</div><h3 class="text-xl font-semibold text-orange-600 mb-2">${item.name}</h3>`;
+                if (type === 'tool') {
+                    card.innerHTML += `<p class="text-sm text-neutral-600">${item.emphasis.split(', ')[0]}</p>`;
+                } else {
+                     card.innerHTML += `<p class="text-sm text-neutral-600">${item.insights.substring(0,50)}...</p>`;
+                }
+                card.addEventListener('click', () => {
+                    modalTitle.textContent = item.name;
+                    if (type === 'dataType') {
+                        modalBody.innerHTML = `<p class="mb-2"><strong>Examples:</strong> ${item.examples}</p><p><strong>Potential Insights:</strong> ${item.insights}</p>`;
+                    } else if (type === 'tool') {
+                        modalBody.innerHTML = `<p class="mb-2"><strong>Key Features:</strong> ${item.features}</p><p class="mb-2"><strong>Data Supported:</strong> ${item.data}</p><p><strong>Emphasis:</strong> ${item.emphasis}</p>`;
+                    }
+                    modal.style.display = 'block';
+                });
+                gridElement.appendChild(card);
+            });
+        }
+
+        populateGrid(dataTypesGrid, dataTypes, 'dataType');
+        populateGrid(toolsGrid, tools, 'tool');
+
+        if (closeButton) {
+            closeButton.onclick = () => modal.style.display = 'none';
+        }
+        window.onclick = (event) => {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+
+        const accordionButtons = document.querySelectorAll('.accordion-button');
+        accordionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const content = button.nextElementSibling;
+                button.classList.toggle('open');
+            });
+        });
+
+        const dataTypeCategoriesCtx = document.getElementById('dataTypeCategoriesChart');
+        if (dataTypeCategoriesCtx) {
+            const categoryCounts = dataTypes.length;
+            new Chart(dataTypeCategoriesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: dataTypes.map(dt => dt.name),
+                    datasets: [{
+                        label: 'Data Type Categories',
+                        data: dataTypes.map(() => 100 / categoryCounts), // Equal distribution for visual representation
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
+                            'rgba(199, 199, 199, 0.7)'
+                        ],
+                        borderColor: dataTypes.map(() => 'rgba(255, 255, 255, 1)'),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 20, padding: 10 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: Represents one distinct category of personal data.`;
+                                }
+                            }
+                        },
+                        title: { display: true, text: 'Overview of Personal Data Categories', font: {size: 16, weight: 'bold'}, color: '#4B5563'}
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true
+                    }
+                }
+            });
+        }
+
+        const toolEmphasisCtx = document.getElementById('toolEmphasisChart');
+        if (toolEmphasisCtx) {
+            const emphasisCounts = {};
+            tools.forEach(tool => {
+                const emphases = tool.emphasis.split(', ').map(e => e.trim());
+                emphases.forEach(e => {
+                    emphasisCounts[e] = (emphasisCounts[e] || 0) + 1;
+                });
+            });
+            const emphasisLabels = Object.keys(emphasisCounts);
+            const emphasisData = Object.values(emphasisCounts);
+
+            new Chart(toolEmphasisCtx, {
+                type: 'bar',
+                data: {
+                    labels: emphasisLabels,
+                    datasets: [{
+                        label: 'Number of Tools by Emphasis',
+                        data: emphasisData,
+                        backgroundColor: [
+                            'rgba(234, 88, 12, 0.7)', // orange-600
+                            'rgba(20, 184, 166, 0.7)', // teal-500
+                            'rgba(217, 119, 6, 0.7)', // amber-600
+                            'rgba(96, 165, 250, 0.7)', // blue-400
+                            'rgba(168, 85, 247, 0.7)', // purple-500
+                            'rgba(236, 72, 153, 0.7)', // pink-500
+                            'rgba(163, 163, 163, 0.7)' // neutral-400
+                        ],
+                        borderColor: emphasisLabels.map(() => 'rgba(255, 255, 255, 1)'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        y: { ticks: { autoSkip: false, font: {size: 10} } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Tool Emphasis Distribution', font: {size: 16, weight: 'bold'}, color: '#4B5563'},
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.x !== null) {
+                                        label += context.parsed.x + (context.parsed.x === 1 ? ' tool' : ' tools');
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+    });
+</script>
+</body>
+</html>
