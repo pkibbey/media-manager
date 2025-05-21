@@ -14,9 +14,6 @@ export function AnalysisBoundingBoxes({
   width,
   height,
 }: AnalysisBoundingBoxesProps) {
-  const trainedWidth = 224;
-  const trainedHeight = 224;
-
   return (
     <div className="relative w-full h-full">
       <Image
@@ -34,10 +31,10 @@ export function AnalysisBoundingBoxes({
             console.log('box: ', box);
 
             // Scale the bounding box coordinates to the actual image dimensions
-            const scaledLeft = (box.left / trainedWidth) * width;
-            const scaledTop = (box.top / trainedHeight) * height;
-            const scaledRight = (box.right / trainedWidth) * width;
-            const scaledBottom = (box.bottom / trainedHeight) * height;
+            const scaledLeft = (box.left / width) * width;
+            const scaledTop = (box.top / height) * height;
+            const scaledRight = (box.right / width) * width;
+            const scaledBottom = (box.bottom / height) * height;
 
             const leftPercent = (scaledLeft / width) * 100;
             const topPercent = (scaledTop / height) * 100;

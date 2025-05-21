@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderSearch, RefreshCw, Scan, Trash2 } from 'lucide-react';
+import { FolderSearch, Scan, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { deleteAllMediaItems } from '@/actions/admin/delete-all-media';
 import { getScanStats } from '@/actions/admin/get-scan-stats';
@@ -78,18 +78,6 @@ export default function MediaScanPage() {
     } catch (e) {
       console.error('Failed to refresh stats:', e);
     }
-  };
-
-  // Original refreshStats for action button use
-  const refreshStatsWithResult = async () => {
-    const response = await getScanStats();
-
-    if (response.stats) {
-      setScanStats(response.stats);
-      return { success: true };
-    }
-
-    return { success: false, error: response.error || 'Unknown error' };
   };
 
   // Scan folders and process
@@ -270,22 +258,11 @@ export default function MediaScanPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">Media Scanner</h2>
-            <p className="text-muted-foreground">
-              Scan directories and import new media files
-            </p>
-          </div>
-          <ActionButton
-            action={refreshStatsWithResult}
-            variant="outline"
-            loadingMessage="Refreshing..."
-            successMessage="Stats updated"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh Stats
-          </ActionButton>
+        <div>
+          <h2 className="text-2xl font-bold">Media Scanner</h2>
+          <p className="text-muted-foreground">
+            Scan directories and import new media files
+          </p>
         </div>
 
         <StatsCard
@@ -385,20 +362,7 @@ export default function MediaScanPage() {
                 </ActionButton>
                 {/* New Button to Delete All Media Items */}
                 <ActionButton
-                  action={async () => {
-                    if (
-                      !confirm(
-                        'Are you sure you want to delete ALL media items?',
-                      )
-                    )
-                      return { success: false, error: 'Deletion cancelled' };
-
-                    const result = await deleteAllMediaItems();
-                    if (result.success) {
-                      await refreshStats(); // Refresh stats after deletion
-                    }
-                    return result;
-                  }}
+                  action={deleteAllMediaItems}
                   disabled={isProcessing} // Disable if a scan is in progress
                   variant="destructive" // Use destructive variant for delete actions
                   loadingMessage="Deleting all media items..."

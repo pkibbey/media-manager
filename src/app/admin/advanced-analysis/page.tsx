@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Image, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Image } from 'lucide-react';
 import { useCallback } from 'react';
 import { getAdvancedAnalysisStats } from '@/actions/analysis/get-advanced-analysis-stats';
 import {
@@ -33,7 +33,6 @@ export default function AdvancedAnalysisAdminPage() {
     isLoading,
     error,
     refresh: refreshStats,
-    refreshWithResult: refreshStatsWithResult,
   } = useAdminData<AdvancedAnalysisStatsType>({
     fetchFunction: getAdvancedAnalysisStats,
   });
@@ -125,22 +124,11 @@ export default function AdvancedAnalysisAdminPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">Advanced AI Analysis</h2>
-            <p className="text-muted-foreground">
-              Manage deep understanding of media content
-            </p>
-          </div>
-          <ActionButton
-            action={refreshStatsWithResult}
-            variant="outline"
-            loadingMessage="Refreshing..."
-            successMessage="Stats updated"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh Stats
-          </ActionButton>
+        <div>
+          <h2 className="text-2xl font-bold">Advanced AI Analysis</h2>
+          <p className="text-muted-foreground">
+            Manage deep understanding of media content
+          </p>
         </div>
 
         {error && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { Image, RefreshCw, Settings } from 'lucide-react';
+import { Image, Settings } from 'lucide-react';
 import { useCallback } from 'react';
 import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
 import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
@@ -17,9 +17,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdminData } from '@/hooks/useAdminData';
 import useContinuousProcessing from '@/hooks/useContinuousProcessing';
@@ -40,7 +40,6 @@ export default function ThumbnailAdminPage() {
     isLoading,
     error,
     refresh: refreshStats,
-    refreshWithResult: refreshStatsWithResult,
   } = useAdminData<ThumbnailStatsType>({
     fetchFunction: getThumbnailStats,
   });
@@ -129,22 +128,11 @@ export default function ThumbnailAdminPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">Thumbnail Processing</h2>
-            <p className="text-muted-foreground">
-              Generate and manage thumbnails for your media library
-            </p>
-          </div>
-          <ActionButton
-            action={refreshStatsWithResult}
-            variant="outline"
-            loadingMessage="Refreshing..."
-            successMessage="Stats updated"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh Stats
-          </ActionButton>
+        <div>
+          <h2 className="text-2xl font-bold">Thumbnail Processing</h2>
+          <p className="text-muted-foreground">
+            Generate and manage thumbnails for your media library
+          </p>
         </div>
 
         {error && (
@@ -230,22 +218,23 @@ export default function ThumbnailAdminPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="batch-size">Batch Size</Label>
-                  <div className="flex items-center gap-4">
-                    <Input
+                  <Label htmlFor="batch-size">Batch Size ({batchSize})</Label>
+                  <div className="space-y-2">
+                    <Slider
                       id="batch-size"
-                      type="number"
-                      min="1"
+                      min={1}
                       max={MAX_BATCH_SIZE}
-                      value={batchSize}
-                      onChange={(e) =>
-                        setBatchSize(Number.parseInt(e.target.value) || 10)
-                      }
-                      className="max-w-[120px]"
+                      step={1}
+                      value={[batchSize]}
+                      onValueChange={(value) => setBatchSize(value[0])}
                     />
-                    <span className="text-sm text-muted-foreground">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Smaller</span>
+                      <span>Larger</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
                       Number of items to process in a single batch
-                    </span>
+                    </p>
                   </div>
                 </div>
 

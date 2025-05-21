@@ -43,25 +43,6 @@ export function useAdminData<T>({
     fetchData();
   }, [fetchData]);
 
-  // Action for refreshing data with result format for ActionButton
-  const refreshWithResult = useCallback(async () => {
-    try {
-      const response = await fetchFunction();
-
-      if (response.stats) {
-        setData(response.stats);
-        return { success: true };
-      }
-
-      return { success: false, error: response.error || 'Unknown error' };
-    } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : 'Unknown error',
-      };
-    }
-  }, [fetchFunction]);
-
   // Simple refresh function for internal use
   const refresh = useCallback(async () => {
     try {
@@ -85,6 +66,5 @@ export function useAdminData<T>({
     error,
     setError,
     refresh,
-    refreshWithResult,
   };
 }

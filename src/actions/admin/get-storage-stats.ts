@@ -71,6 +71,12 @@ export async function getStorageStats() {
   } catch (error) {
     console.error('Error getting storage stats:', error);
     return {
+      stats: {
+        totalBytes: 0,
+        quotaBytes: 0,
+        percentUsed: 0,
+        buckets: [],
+      },
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }

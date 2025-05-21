@@ -20,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/analysis-utils';
 import { formatBytes } from '@/lib/consts';
 import type { ObjectsType, SafetyLevelType } from '@/types/analysis';
-import { AnalysisBoundingBoxes } from './analysis-bounding-boxes'; // Import the new component
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
 
@@ -386,29 +385,6 @@ export function MediaDetail() {
                       />
                     )}
 
-                  {/* {sentiments && (
-                    <>
-                      <Separator />
-                      <DetailField
-                        label="Sentiment"
-                        className="capitalize"
-                        value={
-                          <Badge
-                            variant={
-                              sentiments.label === 'positive'
-                                ? 'success'
-                                : sentiments.label === 'negative'
-                                  ? 'destructive'
-                                  : 'secondary'
-                            }
-                          >
-                            {sentiments.label} ({sentiments.score.toFixed(2)})
-                          </Badge>
-                        }
-                      />
-                    </>
-                  )} */}
-
                   <div className="flex gap-4">
                     <div>
                       {objects && objects.length > 0 && (
@@ -431,16 +407,6 @@ export function MediaDetail() {
                             }
                           />
                         </>
-                      )}
-                    </div>
-                    <div>
-                      {media.analysis_data && (
-                        <AnalysisBoundingBoxes
-                          mediaId={media.id}
-                          objects={objects}
-                          width={200}
-                          height={200}
-                        />
                       )}
                     </div>
                   </div>

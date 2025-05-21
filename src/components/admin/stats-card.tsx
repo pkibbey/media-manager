@@ -8,7 +8,6 @@ interface StatsCardProps {
   total: number;
   processed: number;
   icon?: React.ReactNode;
-  errorCount?: number;
   isLoading?: boolean;
   className?: string;
 }
@@ -18,14 +17,11 @@ export function StatsCard({
   total,
   processed,
   icon,
-  errorCount = 0,
   isLoading = false,
   className = '',
 }: StatsCardProps) {
   // Calculate statistics
-  const remaining = Math.max(0, total - processed);
   const percentComplete = total > 0 ? Math.round((processed / total) * 100) : 0;
-  const hasErrors = errorCount > 0;
 
   return (
     <Card className={className}>
@@ -33,7 +29,7 @@ export function StatsCard({
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {icon && <div className="text-muted-foreground">{icon}</div>}
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4">
         <div className="text-2xl font-bold">
           {isLoading ? (
             <span className="text-muted-foreground animate-pulse">
@@ -47,20 +43,6 @@ export function StatsCard({
         </div>
 
         <Progress value={percentComplete} className="h-2 mt-2" />
-
-        <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">
-          <div>
-            <span className="font-medium">Remaining:</span> {remaining}
-          </div>
-          <div>
-            <span className="font-medium">Complete:</span> {percentComplete}%
-          </div>
-          {hasErrors && (
-            <div className="col-span-2 text-destructive">
-              <span className="font-medium">Errors:</span> {errorCount}
-            </div>
-          )}
-        </div>
       </CardContent>
     </Card>
   );
