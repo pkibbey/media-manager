@@ -37,7 +37,8 @@
         "useButtonType": "off",
         "useSemanticElements": "off",
         "noNoninteractiveTabindex": "off",
-        "useMediaCaption": "off"
+        "useMediaCaption": "off",
+        "noSvgWithoutTitle": "off"
       },
       "correctness": {
         "noUnusedImports": "error",

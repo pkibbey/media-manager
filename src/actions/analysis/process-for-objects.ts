@@ -1,7 +1,6 @@
 import sharp from 'sharp';
-import { v4 } from 'uuid';
-import { createSupabase } from '@/lib/supabase';
-import type { MediaWithThumbnail } from '@/types/media-types';
+import type { MediaWithRelations } from '@/types/media-types';
+import { saveDetectedObjects } from './save-detected-objects';
 import { setMediaAsBasicAnalysisProcessed } from './set-media-as-analysis-processed';
 
 type TensorflowPredictions = {
@@ -17,8 +16,8 @@ type TensorflowPredictions = {
 
 const CONFIDENCE_THRESHOLD = 0.7; // Set a default confidence threshold
 
-export async function processForObjects(mediaItem: MediaWithThumbnail) {
-  const supabase = createSupabase();
+export async function processForObjects(mediaItem: MediaWithRelations) {
+  console.log('has objects: ', !!mediaItem.analysis_data?.objects.length);
   const startTime = Date.now();
 
   const tensorflowServerUrl =
@@ -26,13 +25,13 @@ export async function processForObjects(mediaItem: MediaWithThumbnail) {
     'http://image-server:8501/v1/models/mobilenet_v2:predict';
 
   // Fetch the image
-  // const imageResponse = await fetch(
-  //   mediaItem.thumbnail_data?.thumbnail_url || '',
-  // );
-  // const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+  const imageResponse = await fetch(
+    mediaItem.thumbnail_data?.thumbnail_url || '',
+  );
+  const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
 
   // Use sharp to decode and get raw pixel data (RGB)
-  const image = sharp(mediaItem.media_path).removeAlpha();
+  const image = sharp(imageBuffer).removeAlpha();
   const { width, height } = await image.metadata();
   const raw = await image.raw().toBuffer();
 
@@ -73,15 +72,8 @@ export async function processForObjects(mediaItem: MediaWithThumbnail) {
 
   const predictions = objectsResponse.predictions[0] as TensorflowPredictions;
 
-  // For each item,
-  console.log(
-    'predictions.detection_boxes: ',
-    predictions.detection_boxes[0],
-    predictions.detection_classes[0],
-    predictions.detection_scores[0],
-  );
-  // Map predictions to labels
-  const detectionsWithLabels = predictions.detection_boxes
+  // Map detectedObjects to labels
+  const detectedObjects = predictions.detection_boxes
     .map((box, index) => ({
       label: cocoLabels[predictions.detection_classes[index] - 1] || 'unknown',
       score: predictions.detection_scores[index],
@@ -94,14 +86,9 @@ export async function processForObjects(mediaItem: MediaWithThumbnail) {
     }))
     .filter((d) => d.score > 0.5);
 
-  const { error: upsertError } = await supabase.from('analysis_data').upsert(
-    {
-      id: v4(),
-      media_id: mediaItem.id,
-      objects: detectionsWithLabels, // Store the labeled detections
-      content_warnings: [],
-    },
-    { onConflict: 'media_id' },
+  const { error: upsertError } = await saveDetectedObjects(
+    mediaItem,
+    detectedObjects,
   );
 
   if (upsertError) {

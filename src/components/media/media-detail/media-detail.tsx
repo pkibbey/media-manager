@@ -10,7 +10,6 @@ import {
   MapPin,
   Trash,
 } from 'lucide-react';
-import Image from 'next/image';
 import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/analysis-utils';
 import { formatBytes } from '@/lib/consts';
 import type { ObjectsType, SafetyLevelType } from '@/types/analysis';
+import { BoundingBoxImage } from './bounding-box-image';
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
 
@@ -45,10 +45,12 @@ export function MediaDetail() {
   const media = selectedMedia[0];
   const fileName = media.media_path.split('/').pop() || media.media_path;
 
-  const objects = media.analysis_data?.objects as ObjectsType[];
-  console.log('objects: ', objects);
-  const contentWarnings = media.analysis_data
-    ?.content_warnings as SafetyLevelType[];
+  const objects = media.analysis_data?.objects;
+  const objectsWithType = objects ? (objects as ObjectsType[]) : [];
+  console.log('objectsWithType: ', objectsWithType);
+
+  const contentWarnings = (media.analysis_data?.content_warnings ||
+    []) as SafetyLevelType[];
 
   const processingStatus = (
     <div className="grid grid-cols-2 gap-4 mt-4">
@@ -204,13 +206,11 @@ export function MediaDetail() {
         <div className="flex-1 overflow-auto">
           {/* Preview */}
           <div className="p-4 border-b">
-            <Image
+            <BoundingBoxImage
               src={`/api/media/${media.id}`}
               alt={fileName}
-              className="max-h-[300px] w-full object-contain"
               width={Math.min(media.exif_data?.width || 600, 600)}
               height={Math.min(media.exif_data?.height || 600, 600)}
-              unoptimized
             />
           </div>
 
@@ -387,14 +387,14 @@ export function MediaDetail() {
 
                   <div className="flex gap-4">
                     <div>
-                      {objects && objects.length > 0 && (
+                      {objectsWithType && objectsWithType.length > 0 && (
                         <>
                           <Separator />
                           <DetailField
                             label="Objects Detected"
                             value={
                               <div className="flex flex-wrap gap-1">
-                                {objects.map((object, index) => (
+                                {objectsWithType.map((object, index) => (
                                   <Badge
                                     key={index}
                                     variant="outline"
