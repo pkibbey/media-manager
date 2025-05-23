@@ -1,19 +1,11 @@
 'use client';
 
+import { Checkbox } from '@radix-ui/react-checkbox';
 import { Label } from '@radix-ui/react-label';
-import { format } from 'date-fns';
-import { Calendar as CalendarIcon, FilterX, Search } from 'lucide-react';
-import type React from 'react';
+import { FilterX, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -53,8 +45,6 @@ export default function FileFilters({
     onFilterChange({
       search: '',
       category: 'all',
-      dateFrom: null,
-      dateTo: null,
       hasExif: 'all',
       hasLocation: 'all',
       hasThumbnail: 'all',
@@ -103,66 +93,6 @@ export default function FileFilters({
                 <SelectItem value="data">Documents</SelectItem>
               </SelectContent>
             </Select>
-          </Label>
-        </div>
-
-        {/* Date From */}
-        <div>
-          <Label className="text-sm font-medium mb-1 block">
-            From Date
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {filters.dateFrom ? (
-                    format(filters.dateFrom, 'PPP')
-                  ) : (
-                    <span>Any date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={filters.dateFrom || undefined}
-                  onSelect={(date) => date && updateFilter('dateFrom', date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </Label>
-        </div>
-
-        {/* Date To */}
-        <div>
-          <Label className="text-sm font-medium mb-1 block">
-            To Date
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {filters.dateTo ? (
-                    format(filters.dateTo, 'PPP')
-                  ) : (
-                    <span>Any date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={filters.dateTo || undefined}
-                  onSelect={(date) => date && updateFilter('dateTo', date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
           </Label>
         </div>
       </div>

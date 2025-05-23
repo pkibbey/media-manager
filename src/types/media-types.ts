@@ -7,8 +7,6 @@ import type { Tables } from './supabase';
 export interface MediaFiltersType {
   search: string;
   category: 'all' | 'image' | 'video' | 'audio' | 'application';
-  dateFrom: Date | null;
-  dateTo: Date | null;
   hasExif: 'all' | 'yes' | 'no';
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';

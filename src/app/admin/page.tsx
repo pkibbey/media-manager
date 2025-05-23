@@ -1,5 +1,4 @@
-import { Database, FileImage, FileVideo, HardDrive } from 'lucide-react';
-import { getStorageStats } from '@/actions/admin/get-storage-stats';
+import { Database, FileImage, FileVideo } from 'lucide-react';
 import { getAnalysisStats } from '@/actions/analysis/get-analysis-stats';
 import { getExifStats } from '@/actions/exif/get-exif-stats';
 import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
@@ -17,13 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default async function AdminOverviewPage() {
   // Fetch all stats on the server
-  const [analysisResponse, exifResponse, thumbnailResponse, storageResponse] =
-    await Promise.all([
-      getAnalysisStats(),
-      getExifStats(),
-      getThumbnailStats(),
-      getStorageStats(),
-    ]);
+  const [analysisResponse, exifResponse, thumbnailResponse] = await Promise.all(
+    [getAnalysisStats(), getExifStats(), getThumbnailStats()],
+  );
 
   return (
     <AdminLayout>
@@ -59,20 +54,13 @@ export default async function AdminOverviewPage() {
             isLoading={false}
             icon={<Database className="h-4 w-4" />}
           />
-          <StatsCard
-            title="Storage"
-            total={100}
-            processed={storageResponse.stats?.percentUsed || 0}
-            isLoading={false}
-            icon={<HardDrive className="h-4 w-4" />}
-          />
         </div>
 
         <Tabs defaultValue="analysis">
           <TabsList>
-            <TabsTrigger value="analysis">Analysis</TabsTrigger>
             <TabsTrigger value="exif">EXIF Data</TabsTrigger>
             <TabsTrigger value="thumbnails">Thumbnails</TabsTrigger>
+            <TabsTrigger value="analysis">Analysis</TabsTrigger>
           </TabsList>
 
           <TabsContent value="analysis" className="space-y-4 mt-4">

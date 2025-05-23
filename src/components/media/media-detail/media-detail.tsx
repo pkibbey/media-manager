@@ -1,5 +1,6 @@
 'use client';
 
+import type { DetectedObject } from '@tensorflow-models/coco-ssd';
 import { Eye, EyeOff, FileType, HardDrive, MapPin, Trash } from 'lucide-react';
 import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/analysis-utils';
 import { formatBytes } from '@/lib/consts';
-import type { ObjectsType, SafetyLevelType } from '@/types/analysis';
+import type { SafetyLevelType } from '@/types/analysis';
 import { BoundingBoxImage } from './bounding-box-image';
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
@@ -37,8 +38,9 @@ export function MediaDetail() {
   const fileName = media.media_path.split('/').pop() || media.media_path;
 
   const objects = media.analysis_data?.objects;
-  const objectsWithType = objects ? (objects as ObjectsType[]) : [];
-  console.log('objectsWithType: ', objectsWithType);
+  const objectsWithType = objects
+    ? (objects as unknown as DetectedObject[])
+    : [];
 
   const contentWarnings = (media.analysis_data?.content_warnings ||
     []) as SafetyLevelType[];
@@ -199,6 +201,7 @@ export function MediaDetail() {
             <BoundingBoxImage
               src={`/api/media/${media.id}`}
               alt={fileName}
+              objects={objectsWithType}
               width={Math.min(media.exif_data?.width || 600, 600)}
               height={Math.min(media.exif_data?.height || 600, 600)}
             />
@@ -366,7 +369,7 @@ export function MediaDetail() {
                                     variant="outline"
                                     className="text-xs"
                                   >
-                                    {object.label} ({object.score.toFixed(2)})
+                                    {object.class} ({object.score.toFixed(2)})
                                   </Badge>
                                 ))}
                               </div>

@@ -3,7 +3,7 @@
 import { createSupabase } from '@/lib/supabase';
 import processWithOllama from './process-wtih-ollama';
 
-export async function processAdvancedAnalysis(limit = 10) {
+export async function processAdvancedAnalysis(limit = 10, concurrency = 3) {
   try {
     const supabase = createSupabase();
 
@@ -30,33 +30,41 @@ export async function processAdvancedAnalysis(limit = 10) {
       };
     }
 
-    // Process items sequentially instead of in parallel
+    // Process items in parallel with concurrency limit
     let succeeded = 0;
     let failed = 0;
     let totalBatchProcessingTime = 0;
+    let idx = 0;
+    const items = mediaItems || [];
 
-    for (let i = 0; i < mediaItems.length; i++) {
-      const item = mediaItems[i];
-
-      try {
-        const result = await processWithOllama({ mediaId: item.id });
-        if (result.success) {
-          succeeded++;
-          totalBatchProcessingTime += result.processingTime || 0;
-        } else {
+    async function worker() {
+      while (idx < items.length) {
+        const myIdx = idx++;
+        const item = items[myIdx];
+        try {
+          const result = await processWithOllama({ mediaId: item.id });
+          if (result.success) {
+            succeeded++;
+            totalBatchProcessingTime += result.processingTime || 0;
+          } else {
+            failed++;
+          }
+        } catch (itemError) {
+          console.error(`Error processing item ${item.id}:`, itemError);
           failed++;
         }
-      } catch (itemError) {
-        console.error(`Error processing item ${item.id}:`, itemError);
-        failed++;
       }
     }
+
+    // Launch workers
+    const workers = Array.from({ length: concurrency }, () => worker());
+    await Promise.all(workers);
 
     return {
       success: true,
       processed: succeeded,
       failed,
-      total: mediaItems.length,
+      total: items.length,
       batchProcessingTime: totalBatchProcessingTime,
     };
   } catch (error) {

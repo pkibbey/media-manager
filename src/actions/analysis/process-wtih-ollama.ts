@@ -1,6 +1,6 @@
 'use server';
 
-import ollama from 'ollama';
+import { Ollama } from 'ollama'; // Changed import
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { VISION_MODEL } from '@/lib/consts';
@@ -13,8 +13,15 @@ import type { TablesInsert } from '@/types/supabase';
     including detected objects, scene analysis, colors, and any text found in the image
 */
 
+const SimplifiedImageDescriptionSchema = z.object({
+  image_description: z.string().describe('A concise description of the image'),
+});
+
+const simplifiedUserPrompt =
+  'Analyze this image and provide a concise description of its content.';
+
 // Schema for advanced analysis with more detailed information
-const AdvancedImageDescriptionSchema = z.object({
+const _AdvancedImageDescriptionSchema = z.object({
   image_description: z
     .string()
     .describe('A very detailed description of the image'),
@@ -140,6 +147,27 @@ const AdvancedImageDescriptionSchema = z.object({
     ),
 });
 
+const _advancedUserPrompt = `
+  Analyze this image and return:
+    A very detailed description of the image,
+    Objects detected in the image - name, bounding box attributes,
+    The scenes detected in the image - portrait, landscape, etc.,
+    The time of day the image was taken - morning, afternoon, evening, night,
+    The setting of the image - indoor, outdoor, beach, etc. - include confidence score,
+    Any text detected in the image,
+    Keyword tags related to the image, useful for search,
+    Dominant colors in the image,
+    People detected in the image - description, bounding box attributes,
+    Emotions expressed in the image - joy, sadness, anger, etc.,
+    Artistic elements in the image - focus, lighting, composition, color palette, style, mood,
+    Assessment of image quality - focus, lighting, composition, color balance, noise level, artifacts, overall quality,
+    Content warning for various difrent categories - violence, adult, etc.
+  Inlude confidence scores for all attributes where applicable.
+`;
+
+// Create an Ollama client instance, explicitly setting the host.
+const ollamaClient = new Ollama({ host: process.env.OLLAMA_HOST });
+
 export default async function processWithOllama({
   mediaId,
 }: {
@@ -175,34 +203,19 @@ export default async function processWithOllama({
     const base64Image = Buffer.from(imageBuffer).toString('base64');
 
     // Convert the Zod schema to JSON Schema format
-    const jsonSchema = zodToJsonSchema(AdvancedImageDescriptionSchema);
+    const jsonSchema = zodToJsonSchema(SimplifiedImageDescriptionSchema);
 
     const messages = [
       {
         role: 'user',
-        content: `
-          Analyze this image and return:
-            A very detailed description of the image,
-            Objects detected in the image - name, bounding box attributes,
-            The scenes detected in the image - portrait, landscape, etc.,
-            The time of day the image was taken - morning, afternoon, evening, night,
-            The setting of the image - indoor, outdoor, beach, etc. - include confidence score,
-            Any text detected in the image,
-            Keyword tags related to the image, useful for search,
-            Dominant colors in the image,
-            People detected in the image - description, bounding box attributes,
-            Emotions expressed in the image - joy, sadness, anger, etc.,
-            Artistic elements in the image - focus, lighting, composition, color palette, style, mood,
-            Assessment of image quality - focus, lighting, composition, color balance, noise level, artifacts, overall quality,
-            Content warning for various difrent categories - violence, adult, etc.
-          Inlude confidence scores for all attributes where applicable.
-        `,
+        content: simplifiedUserPrompt,
         images: [base64Image],
       },
     ];
 
     // Time the Ollama API call
-    const response = await ollama.chat({
+    const response = await ollamaClient.chat({
+      // Use ollamaClient
       model: VISION_MODEL,
       messages: messages,
       format: jsonSchema,
@@ -223,7 +236,8 @@ export default async function processWithOllama({
       const parsedContent = JSON.parse(response.message.content);
 
       // Validate the parsed content against the schema
-      const parsedResult = AdvancedImageDescriptionSchema.parse(parsedContent);
+      const parsedResult =
+        SimplifiedImageDescriptionSchema.parse(parsedContent);
 
       const upsertObject: TablesInsert<'analysis_data'> = {
         ...parsedResult,

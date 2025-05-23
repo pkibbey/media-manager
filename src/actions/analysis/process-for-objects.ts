@@ -7,6 +7,7 @@ import { saveDetectedObjects } from './save-detected-objects';
 import { setMediaAsBasicAnalysisProcessed } from './set-media-as-analysis-processed';
 
 const CONFIDENCE_THRESHOLD = 0.7; // Set a default confidence threshold
+const MAX_BOXES = 5; // Maximum number of boxes to detect
 
 // Number of items to process in parallel - adjust based on memory and GPU capacity
 // M3 MacBook Air should handle 3-4 concurrent items well
@@ -152,7 +153,11 @@ export async function processBatchForObjects(
           const tensor = tf.node.decodeJpeg(imageBuffer, 3);
 
           // Run object detection
-          const predictions = await model.detect(tensor, CONFIDENCE_THRESHOLD);
+          const predictions = await model.detect(
+            tensor,
+            MAX_BOXES,
+            CONFIDENCE_THRESHOLD,
+          );
 
           // Clean up right away
           tensor.dispose();

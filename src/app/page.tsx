@@ -33,8 +33,6 @@ export default function Home() {
   const [filters, setFilters] = useState<MediaFiltersType>({
     search: '',
     category: 'all',
-    dateFrom: null,
-    dateTo: null,
     hasExif: 'yes',
     hasLocation: 'all',
     hasThumbnail: 'yes',

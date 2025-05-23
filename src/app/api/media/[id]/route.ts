@@ -15,7 +15,7 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const { id } = params;
+  const { id } = await params;
   const supabase = createSupabase();
 
   try {

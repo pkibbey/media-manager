@@ -1,11 +1,12 @@
 import type { DetectedObject } from '@tensorflow-models/coco-ssd';
 import type React from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface BoundingBoxImageProps {
   src: string;
   width: number;
   height: number;
+  objects?: DetectedObject[];
   alt?: string;
   maxWidth?: number | string;
   maxHeight?: number | string;
@@ -19,20 +20,18 @@ export const BoundingBoxImage: React.FC<BoundingBoxImageProps> = ({
   src,
   width,
   height,
+  objects,
   alt = '',
   maxWidth = '100%',
   maxHeight = 400,
 }) => {
-  const [objects, setObjects] = useState<DetectedObject[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [predictionTime, setPredictionTime] = useState<number | null>(null);
-
   const containerRef = useRef<HTMLDivElement>(null);
   const [displaySize, setDisplaySize] = useState({ width, height });
 
   const imageRef = useRef<HTMLImageElement>(null); // Add ref for hidden img
 
-  const objectsWithType = objects ? (objects as DetectedObject[]) : [];
+  // The size that bounding boxes were generated for
+  const ORIGINAL_BBOX_SIZE = 224;
 
   // Update display size based on actual rendered image size
   useEffect(() => {
@@ -44,43 +43,12 @@ export const BoundingBoxImage: React.FC<BoundingBoxImageProps> = ({
         });
       }
     }
+    // Store updateSize in a ref so it can be used in onLoad
+    (window as any)._boundingBoxUpdateSize = updateSize;
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
-
-  // Dynamically import tfjs and coco-ssd only in the browser
-  const runDetection = useCallback(async (img: HTMLImageElement) => {
-    setLoading(true);
-    setObjects([]);
-    setPredictionTime(null);
-    try {
-      const tf = await import('@tensorflow/tfjs');
-      await import('@tensorflow/tfjs-backend-webgpu');
-      await tf.setBackend('webgpu');
-      await tf.ready();
-      const cocoSsd = await import('@tensorflow-models/coco-ssd');
-      const model = await cocoSsd.load();
-      const start = performance.now();
-      const preds = await model.detect(img);
-      const end = performance.now();
-      setPredictionTime(end - start);
-      setObjects(preds);
-    } catch (err) {
-      setObjects([]);
-      setPredictionTime(null);
-      alert(`Error running detection: ${err}`);
-    }
-    setLoading(false);
-  }, []);
-
-  // Run detection when image loads
-  useEffect(() => {
-    if (imageRef.current && src) {
-      runDetection(imageRef.current);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src, runDetection]);
 
   return (
     <div
@@ -93,18 +61,6 @@ export const BoundingBoxImage: React.FC<BoundingBoxImageProps> = ({
         maxHeight,
       }}
     >
-      {loading && (
-        <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-          Detecting...
-        </div>
-      )}
-      {predictionTime !== null && (
-        <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-          Prediction time: {predictionTime.toFixed(0)} ms
-        </div>
-      )}
-
-      {/* Use a plain <img> for accurate sizing and ref */}
       {/** biome-ignore lint/performance/noImgElement: <used to load the image> */}
       <img
         ref={imageRef}
@@ -114,12 +70,9 @@ export const BoundingBoxImage: React.FC<BoundingBoxImageProps> = ({
         height={height}
         style={{ width: '100%', height: 'auto', display: 'block' }}
         onLoad={() => {
-          if (imageRef.current) {
-            setDisplaySize({
-              width: imageRef.current.naturalWidth,
-              height: imageRef.current.naturalHeight,
-            });
-            runDetection(imageRef.current);
+          // Always update display size after image loads
+          if (typeof (window as any)._boundingBoxUpdateSize === 'function') {
+            (window as any)._boundingBoxUpdateSize();
           }
         }}
         crossOrigin="anonymous"
@@ -137,11 +90,11 @@ export const BoundingBoxImage: React.FC<BoundingBoxImageProps> = ({
           height: '100%',
         }}
       >
-        {objectsWithType.map((obj, i) => {
+        {objects?.map((obj, i) => {
           const [x, y, boxWidth, boxHeight] = obj.bbox;
-          // Use natural image size for scaling
-          const scaleX = displaySize.width / width;
-          const scaleY = displaySize.height / height;
+          // Use original bbox size for scaling
+          const scaleX = displaySize.width / ORIGINAL_BBOX_SIZE;
+          const scaleY = displaySize.height / ORIGINAL_BBOX_SIZE;
           const scaledX = x * scaleX;
           const scaledY = y * scaleY;
           const scaledWidth = boxWidth * scaleX;
