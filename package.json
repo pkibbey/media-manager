@@ -58,6 +58,7 @@
     "@types/react-dom": "19.1.5",
     "knip": "^5.57.2",
     "postcss": "8.5.3",
+    "supabase": "^2.23.4",
     "typescript": "5.8.3"
   }
 }

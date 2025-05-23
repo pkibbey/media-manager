@@ -2,7 +2,7 @@
 
 import { createSupabase } from '@/lib/supabase';
 import type { MediaType } from '@/types/media-types';
-import type { TablesInsert } from '@/types/supabase';
+import type { TablesInsert, TablesUpdate } from '@/types/supabase';
 
 /**
  * Fetch all media types from the database
@@ -34,7 +34,7 @@ export async function getMediaTypes(): Promise<{
  */
 export async function updateMediaType(
   id: string,
-  updates: Partial<MediaType>,
+  updates: TablesUpdate<'media_types'>,
 ): Promise<{ success: boolean; error: unknown }> {
   try {
     const supabase = createSupabase();
