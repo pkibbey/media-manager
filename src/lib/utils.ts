@@ -10,35 +10,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Convert GPS coordinates from DMS (Degrees, Minutes, Seconds) to decimal format
- *
- * @param dms - Array of degrees, minutes, seconds
- * @param ref - Reference direction (N, S, E, W)
- * @returns Decimal coordinates or null if invalid
- */
-export function convertDMSToDecimal(
-  dms: [number, number, number] | number[] | undefined,
-  ref: string | undefined,
-): number | null {
-  if (!dms || dms.length < 3 || !ref) {
-    return null;
-  }
-
-  // Extract degrees, minutes, seconds
-  const [degrees, minutes, seconds] = dms;
-
-  // Convert to decimal
-  let decimal = degrees + minutes / 60 + seconds / 3600;
-
-  // Apply negative value for south or west
-  if (ref === 'S' || ref === 'W') {
-    decimal = -decimal;
-  }
-
-  return decimal;
-}
-
-/**
  * Format GPS coordinates for display
  *
  * @param latitude - Latitude in decimal format

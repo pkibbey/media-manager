@@ -55,28 +55,6 @@ export async function updateMediaType(
 }
 
 /**
- * Delete a media type
- * Note: This will fail if there are media items using this type
- */
-export async function deleteMediaType(
-  id: string,
-): Promise<{ success: boolean; error: unknown }> {
-  try {
-    const supabase = createSupabase();
-    const { error } = await supabase.from('media_types').delete().eq('id', id);
-
-    if (error) {
-      throw error;
-    }
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Error deleting media type:', error);
-    return { success: false, error };
-  }
-}
-
-/**
  * Delete all media types
  * Note: This will fail if there are media items using any of the types
  */

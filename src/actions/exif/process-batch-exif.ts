@@ -93,7 +93,6 @@ export async function processBatchExif(limit = 10, concurrency = 3) {
         .from('exif_data')
         .upsert(exifDataToInsert, {
           onConflict: 'media_id',
-          ignoreDuplicates: false,
         });
 
       if (insertError) {

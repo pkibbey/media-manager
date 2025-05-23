@@ -21,17 +21,6 @@ const ObjectsSchema = z.object({
 
 export type ObjectsType = z.infer<typeof ObjectsSchema>;
 
-const SentimentSchema = z.object({
-  label: z.string().describe('The sentiment label'),
-  score: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe('The confidence score of the sentiment'),
-});
-
-export type SentimentType = z.infer<typeof SentimentSchema>;
-
 const SafetyLevelSchema = z.object({
   label: z.string().describe('The safety level label'),
   score: z
@@ -42,5 +31,3 @@ const SafetyLevelSchema = z.object({
 });
 
 export type SafetyLevelType = z.infer<typeof SafetyLevelSchema>;
-
-export type ThresholdType = Record<number, number>;

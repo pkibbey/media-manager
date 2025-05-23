@@ -28,13 +28,6 @@ export interface MediaSelectionState {
 export type Media = Tables<'media'>;
 export type MediaType = Tables<'media_types'>;
 
-export type MediaResponse = Promise<PostgrestResponse<Media>>;
-
-export type MediaWithMimeAndExif = Media & {
-  media_types: Tables<'media_types'> | null;
-  exif_data: Tables<'exif_data'> | null;
-};
-
 export type MediaWithThumbnail = Media & {
   thumbnail_data: Tables<'thumbnail_data'> | null;
 };
@@ -53,8 +46,3 @@ export type MediaWithExif = Media & {
 export type MediaWithRelationsResponse = Promise<
   PostgrestResponse<MediaWithRelations>
 >;
-
-export type ThumnailWithRelations = Tables<'thumbnail_data'> & {
-  media: Tables<'media'> | null;
-  media_types: Tables<'media_types'> | null;
-};
