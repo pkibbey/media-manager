@@ -36,7 +36,7 @@ export type Database = {
     Tables: {
       analysis_data: {
         Row: {
-          artistic_elements: Json[]
+          artistic_elements: Json | null
           colors: string[]
           content_warnings: Json[] | null
           emotions: string[]
@@ -46,7 +46,7 @@ export type Database = {
           keywords: string[]
           media_id: string
           objects: Json[]
-          people: string[]
+          people: Json[] | null
           quality_assessment: Json | null
           scene_types: string[]
           setting: string | null
@@ -54,7 +54,7 @@ export type Database = {
           time_of_day: string | null
         }
         Insert: {
-          artistic_elements?: Json[]
+          artistic_elements?: Json | null
           colors?: string[]
           content_warnings?: Json[] | null
           emotions?: string[]
@@ -64,7 +64,7 @@ export type Database = {
           keywords?: string[]
           media_id: string
           objects?: Json[]
-          people?: string[]
+          people?: Json[] | null
           quality_assessment?: Json | null
           scene_types?: string[]
           setting?: string | null
@@ -72,7 +72,7 @@ export type Database = {
           time_of_day?: string | null
         }
         Update: {
-          artistic_elements?: Json[]
+          artistic_elements?: Json | null
           colors?: string[]
           content_warnings?: Json[] | null
           emotions?: string[]
@@ -82,7 +82,7 @@ export type Database = {
           keywords?: string[]
           media_id?: string
           objects?: Json[]
-          people?: string[]
+          people?: Json[] | null
           quality_assessment?: Json | null
           scene_types?: string[]
           setting?: string | null

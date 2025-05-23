@@ -2,6 +2,7 @@
 
 import { createSupabase } from '@/lib/supabase';
 import type { FileDetails } from '@/types/scan-types';
+import type { TablesInsert } from '@/types/supabase';
 
 /**
  * Add a single file to the database
@@ -13,14 +14,15 @@ export async function addFileToDatabase(
   try {
     const supabase = createSupabase();
 
-    const { error: upsertError } = await supabase.from('media').upsert(
-      {
-        media_path: file.path,
-        media_type_id: file.mediaType.id,
-        size_bytes: file.size,
-      },
-      { onConflict: 'media_path', ignoreDuplicates: true },
-    );
+    const media: TablesInsert<'media'> = {
+      media_path: file.path,
+      media_type_id: file.mediaType.id,
+      size_bytes: file.size,
+    };
+
+    const { error: upsertError } = await supabase
+      .from('media')
+      .upsert(media, { onConflict: 'media_path', ignoreDuplicates: true });
 
     if (upsertError) {
       return { success: false, error: upsertError.message };

@@ -2,6 +2,7 @@
 
 import { createSupabase } from '@/lib/supabase';
 import type { MediaType } from '@/types/media-types';
+import type { TablesInsert } from '@/types/supabase';
 
 /**
  * Fetch all media types from the database
@@ -96,15 +97,17 @@ export async function getOrCreateMediaType(
   try {
     const supabase = createSupabase();
 
-    const { error: upsertError } = await supabase.from('media_types').upsert(
-      {
-        mime_type: mimeType,
-        description: `${mimeType.split('/')[0]} files`,
-        is_ignored: false,
-        is_native: true,
-      },
-      { onConflict: 'mime_type', ignoreDuplicates: true },
-    );
+    const upsertObject: TablesInsert<'media_types'> = {
+      mime_type: mimeType,
+      description: `${mimeType.split('/')[0]} files`,
+    };
+
+    const { error: upsertError } = await supabase
+      .from('media_types')
+      .upsert(upsertObject, {
+        onConflict: 'mime_type',
+        ignoreDuplicates: true,
+      });
 
     if (upsertError) {
       console.error('Error upserting media type:', upsertError);

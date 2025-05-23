@@ -1,5 +1,6 @@
 import { v4 } from 'uuid';
 import { setMediaAsThumbnailProcessed } from '@/actions/thumbnails/set-media-as-thumbnail-processed';
+import type { TablesInsert } from '@/types/supabase';
 import { createSupabase } from './supabase';
 
 interface StorageResult {
@@ -38,14 +39,15 @@ export async function storeThumbnail(
 
     const thumbnailUrl = urlData.publicUrl;
 
+    const upsertObject: TablesInsert<'thumbnail_data'> = {
+      media_id: mediaId,
+      thumbnail_url: thumbnailUrl,
+    };
+
     // Add the thumbnail to the thumbnail_data table (use upsert to allow updates)
-    const { error: upsertError } = await supabase.from('thumbnail_data').upsert(
-      {
-        media_id: mediaId,
-        thumbnail_url: thumbnailUrl,
-      },
-      { onConflict: 'media_id' },
-    );
+    const { error: upsertError } = await supabase
+      .from('thumbnail_data')
+      .upsert(upsertObject, { onConflict: 'media_id' });
 
     if (upsertError) {
       throw new Error(

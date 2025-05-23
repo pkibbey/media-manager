@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { VISION_MODEL } from '@/lib/consts';
 import { createSupabase } from '@/lib/supabase';
+import type { TablesInsert } from '@/types/supabase';
 
 /*
     Ollama vision capabilities with structured outputs
@@ -217,43 +218,33 @@ export default async function processWithOllama({
       throw new Error('No content received from Ollama');
     }
 
-    // Try to parse the response content as JSON
-    let parsedContent: Record<string, any>;
     try {
-      parsedContent = JSON.parse(response.message.content) as Record<
-        string,
-        any
-      >;
+      // Try to parse the response content as JSON
+      const parsedContent = JSON.parse(response.message.content);
+
+      // Validate the parsed content against the schema
+      const parsedResult = AdvancedImageDescriptionSchema.parse(parsedContent);
+
+      const upsertObject: TablesInsert<'analysis_data'> = {
+        ...parsedResult,
+        media_id: mediaId,
+      };
+
+      // Use upsert instead of select+insert/update
+      const { error: upsertError } = await supabase
+        .from('analysis_data')
+        .upsert(upsertObject, { onConflict: 'media_id' });
+
+      if (upsertError) {
+        throw new Error(
+          `Failed to upsert analysis data: ${upsertError.message}`,
+        );
+      }
     } catch (e) {
       console.error('Failed to parse Ollama response:', e);
       throw new Error(
         `Failed to parse analysis response: ${e instanceof Error ? e.message : 'Unknown error'}`,
       );
-    }
-
-    // Create the analysis data object for database insertion
-    const analysis_data = {
-      media_id: mediaId,
-      image_description: parsedContent.image_description || null,
-      objects: parsedContent.objects || [],
-      scene_types: parsedContent.scene_types || [],
-      time_of_day: parsedContent.time_of_day || null,
-      setting: parsedContent.setting || null,
-      colors: parsedContent.colors || [],
-      keywords: parsedContent.keywords || [],
-      sentiments: parsedContent.sentiments,
-      faces: parsedContent.faces,
-      content_warnings: parsedContent.content_warnings,
-      quality_assessment: parsedContent.quality_assessment,
-    };
-
-    // Use upsert instead of select+insert/update
-    const { error: upsertError } = await supabase
-      .from('analysis_data')
-      .upsert(analysis_data, { onConflict: 'media_id' });
-
-    if (upsertError) {
-      throw new Error(`Failed to upsert analysis data: ${upsertError.message}`);
     }
 
     // Update the media item to mark it as processed
