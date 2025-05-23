@@ -53,6 +53,7 @@ export async function processBasicAnalysis(limit = 10) {
       failed: batchResult.failedCount,
       total: mediaItems.length,
       batchProcessingTime: batchResult.totalProcessingTime,
+      message: `Processed ${batchResult.processedCount} items (${batchResult.failedCount} failed) in basic analysis`,
     };
   } catch (error) {
     console.error('Error in batch analysis processing:', error);
@@ -62,6 +63,7 @@ export async function processBasicAnalysis(limit = 10) {
       failed: 0,
       total: 0,
       processed: 0,
+      message: 'Basic analysis batch processing failed',
     };
   } finally {
     // Clean up memory after large batches

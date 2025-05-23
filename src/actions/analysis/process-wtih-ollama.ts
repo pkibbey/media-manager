@@ -4,7 +4,6 @@ import { Ollama } from 'ollama'; // Changed import
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { VISION_MODEL } from '@/lib/consts';
-import { createSupabase } from '@/lib/supabase';
 import type { TablesInsert } from '@/types/supabase';
 
 /*
@@ -168,32 +167,28 @@ const _advancedUserPrompt = `
 // Create an Ollama client instance, explicitly setting the host.
 const ollamaClient = new Ollama({ host: process.env.OLLAMA_HOST });
 
-export default async function processWithOllama({
+/**
+ * Process a single media item with Ollama for advanced analysis (batch-optimized version)
+ * This version returns analysis data without performing database operations immediately
+ */
+export async function processWithOllamaBatchOptimized({
   mediaId,
+  thumbnailUrl,
 }: {
   mediaId: string;
+  thumbnailUrl: string;
 }): Promise<{
   success: boolean;
+  mediaId: string;
+  processingTime: number;
   error?: string;
-  processingTime?: number;
+  analysisData?: TablesInsert<'analysis_data'>;
 }> {
-  // Verify the file exists and read it
+  const startTime = Date.now();
+
   try {
-    // Get media URL from database
-    const supabase = createSupabase();
-    const { data: mediaData } = await supabase
-      .from('media')
-      .select('*, thumbnail_data(*)')
-      .eq('id', mediaId)
-      .single();
-
-    const imageUrl = mediaData?.thumbnail_data?.thumbnail_url;
-    if (!imageUrl) throw new Error('Image URL not found');
-
-    const startTime = Date.now(); // Record start time
-
     // Fetch the image from the URL
-    const imageResponse = await fetch(imageUrl);
+    const imageResponse = await fetch(thumbnailUrl);
     if (!imageResponse.ok) {
       throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
     }
@@ -215,7 +210,6 @@ export default async function processWithOllama({
 
     // Time the Ollama API call
     const response = await ollamaClient.chat({
-      // Use ollamaClient
       model: VISION_MODEL,
       messages: messages,
       format: jsonSchema,
@@ -224,8 +218,8 @@ export default async function processWithOllama({
       },
     });
 
-    const endTime = Date.now(); // Record end time
-    const processingTime = endTime - startTime; // Calculate processing time
+    const endTime = Date.now();
+    const processingTime = endTime - startTime;
 
     if (!response.message.content) {
       throw new Error('No content received from Ollama');
@@ -239,51 +233,33 @@ export default async function processWithOllama({
       const parsedResult =
         SimplifiedImageDescriptionSchema.parse(parsedContent);
 
-      const upsertObject: TablesInsert<'analysis_data'> = {
+      const analysisData: TablesInsert<'analysis_data'> = {
         ...parsedResult,
         media_id: mediaId,
       };
 
-      // Use upsert instead of select+insert/update
-      const { error: upsertError } = await supabase
-        .from('analysis_data')
-        .upsert(upsertObject, { onConflict: 'media_id' });
-
-      if (upsertError) {
-        throw new Error(
-          `Failed to upsert analysis data: ${upsertError.message}`,
-        );
-      }
+      return {
+        success: true,
+        mediaId,
+        processingTime,
+        analysisData,
+      };
     } catch (e) {
       console.error('Failed to parse Ollama response:', e);
-      throw new Error(
-        `Failed to parse analysis response: ${e instanceof Error ? e.message : 'Unknown error'}`,
-      );
+      return {
+        success: false,
+        mediaId,
+        processingTime,
+        error: `Failed to parse analysis response: ${e instanceof Error ? e.message : 'Unknown error'}`,
+      };
     }
-
-    // Update the media item to mark it as processed
-    const { error: updateError } =
-      await setMediaAsAdvancedAnalysisProcessed(mediaId);
-
-    if (updateError) {
-      throw new Error(`Failed to update media status: ${updateError.message}`);
-    }
-
-    return { success: true, processingTime };
   } catch (error) {
-    console.error('Error reading image file:', error);
+    console.error('Error processing image with Ollama:', error);
     return {
       success: false,
+      mediaId,
+      processingTime: Date.now() - startTime,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
-}
-
-function setMediaAsAdvancedAnalysisProcessed(mediaId: string) {
-  const supabase = createSupabase();
-
-  return supabase
-    .from('media')
-    .update({ is_advanced_processed: true })
-    .eq('id', mediaId);
 }

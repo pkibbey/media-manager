@@ -1,7 +1,6 @@
 'use client';
 
 import { Image } from 'lucide-react';
-import { useCallback } from 'react';
 import deleteAnalysisData from '@/actions/analysis/delete-analysis-data';
 import { getAnalysisStats } from '@/actions/analysis/get-analysis-stats';
 import { processBasicAnalysis } from '@/actions/analysis/process-basic-analysis';
@@ -21,96 +20,40 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAdminData } from '@/hooks/useAdminData';
-import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { type DeleteResult, useAdminData } from '@/hooks/useAdminData';
 import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
-interface AnalysisStatsType {
-  total: number;
-  processed: number;
-  remaining: number;
-  percentComplete: number;
-}
-
 export default function AnalysisAdminPage() {
-  const {
-    data: analysisStats,
-    setData: setAnalysisStats,
-    isLoading,
-    error,
-    refresh: refreshStats,
-  } = useAdminData<AnalysisStatsType>({
-    fetchFunction: getAnalysisStats,
-  });
-
-  const resetAnalysisData = async () => {
-    const { error, count } = await deleteAnalysisData();
-
-    if (error) {
-      console.error('Error resetting analysis data:', error);
-      return { success: false, error: error.message };
-    }
-
-    if (count) {
-      setAnalysisStats((prev: any) => ({
-        ...prev,
-        total: prev.total - count,
-        processed: prev.processed - count,
-        remaining: prev.remaining + count,
-      }));
-    }
-
-    // Refresh stats after resetting
-    await refreshStats();
-
-    return { success: true, message: `Reset ${count} analysis data items` };
-  };
-
-  // Process batch function for continuous processing
-  const processBatchFunction = useCallback(
-    async (size: number) => {
-      const result = await processBasicAnalysis(size);
-
-      // Refresh stats after processing
-      await refreshStats();
-
-      return result;
-    },
-    [refreshStats],
-  );
-
-  // Process a batch of items (for manual batch processing)
-  const processBatch = async () => {
+  // Wrapper to match DeleteResult interface
+  const deleteAnalysisDataWrapper = async (): Promise<DeleteResult> => {
     try {
-      const result = await processBasicAnalysis(batchSize);
-
-      if (result.success) {
-        await refreshStats();
+      const result = await deleteAnalysisData();
+      if (result.error) {
         return {
-          success: true,
-          message: `Processed ${result.processed} items (${result.failed || 0} failed)`,
+          success: false,
+          error: result.error.message || 'Unknown error',
         };
       }
-
-      return { success: false, error: result.error };
+      return {
+        success: true,
+        count: result.count || 0,
+        message: `Reset ${result.count || 0} analysis data items`,
+      };
     } catch (e) {
-      console.error('Error processing batch:', e);
       return {
         success: false,
-        error:
-          e instanceof Error ? e.message : 'Unknown error processing batch',
+        error: e instanceof Error ? e.message : 'Unknown error',
       };
     }
   };
 
-  // Handle batch completion
-  const handleBatchComplete = useCallback(async () => {
-    await refreshStats();
-  }, [refreshStats]);
-
-  // Set up continuous processing
   const {
+    data: analysisStats,
+    isLoading,
+    error,
+    processBatch,
+    resetData,
     isContinuousProcessing,
     processAllRemaining,
     stopProcessing,
@@ -119,10 +62,10 @@ export default function AnalysisAdminPage() {
     totalProcessingTime,
     estimatedTimeLeft,
     itemsProcessedThisSession,
-  } = useContinuousProcessing({
-    processBatchFn: processBatchFunction,
-    onBatchComplete: handleBatchComplete,
-    getTotalRemainingItemsFn: () => analysisStats?.remaining || 0,
+  } = useAdminData({
+    fetchFunction: getAnalysisStats,
+    processFunction: processBasicAnalysis,
+    deleteFunction: deleteAnalysisDataWrapper,
   });
 
   return (
@@ -302,15 +245,17 @@ export default function AnalysisAdminPage() {
                     Process All
                   </ActionButton>
                 )}
-                <ActionButton
-                  action={resetAnalysisData}
-                  variant="destructive"
-                  disabled={isContinuousProcessing}
-                  loadingMessage="Resetting analysis data..."
-                  successMessage="Analysis data reset successfully"
-                >
-                  Reset Analysis Data
-                </ActionButton>
+                {resetData && (
+                  <ActionButton
+                    action={resetData}
+                    variant="destructive"
+                    disabled={isContinuousProcessing}
+                    loadingMessage="Resetting analysis data..."
+                    successMessage="Analysis data reset successfully"
+                  >
+                    Reset Analysis Data
+                  </ActionButton>
+                )}
               </CardFooter>
             </Card>
           </TabsContent>

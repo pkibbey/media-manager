@@ -25,60 +25,6 @@ export async function processInChunks<T, R>(
 }
 
 /**
- * Process items sequentially
- *
- * @param items - Array of items to process
- * @param processFn - Function to process each item
- * @param options - Options for sequential processing
- * @returns Object with processing results and statistics
- */
-export async function processSequentially<
-  T,
-  R extends { success: boolean; processingTime?: number },
->(
-  items: T[],
-  processFn: (item: T) => Promise<R>,
-): Promise<{
-  results: R[];
-  succeeded: number;
-  failed: number;
-  total: number;
-  totalProcessingTime: number;
-}> {
-  let succeeded = 0;
-  let failed = 0;
-  let totalProcessingTime = 0;
-  const results: R[] = [];
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-
-    try {
-      const result = await processFn(item);
-      results.push(result);
-
-      if (result.success) {
-        succeeded++;
-        totalProcessingTime += result.processingTime || 0;
-      } else {
-        failed++;
-      }
-    } catch (error) {
-      console.error(`Error processing item ${i + 1}:`, error);
-      failed++;
-    }
-  }
-
-  return {
-    results,
-    succeeded,
-    failed,
-    total: items.length,
-    totalProcessingTime,
-  };
-}
-
-/**
  * Count succeeded and failed results from Promise.allSettled
  *
  * @param results - Results from Promise.allSettled

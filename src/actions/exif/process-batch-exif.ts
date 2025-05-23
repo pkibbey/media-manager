@@ -124,6 +124,7 @@ export async function processBatchExif(limit = 10, concurrency = 3) {
       processed: succeeded,
       failed,
       total: mediaItems.length,
+      message: `Processed ${succeeded} items (${failed} failed) for EXIF data`,
     };
   } catch (error) {
     console.error('Error in batch EXIF processing:', error);
@@ -133,6 +134,7 @@ export async function processBatchExif(limit = 10, concurrency = 3) {
       failed: 0,
       total: 0,
       processed: 0,
+      message: 'EXIF batch processing failed',
     };
   }
 }

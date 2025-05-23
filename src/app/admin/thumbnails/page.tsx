@@ -1,9 +1,9 @@
 'use client';
 
 import { Image } from 'lucide-react';
-import { useCallback } from 'react';
 import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
 import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
+import { processBatchThumbnails } from '@/actions/thumbnails/process-thumbnails';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
 import { StatsCard } from '@/components/admin/stats-card';
@@ -20,94 +20,37 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAdminData } from '@/hooks/useAdminData';
-import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { type DeleteResult, useAdminData } from '@/hooks/useAdminData';
 import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
-interface ThumbnailStatsType {
-  total: number;
-  processed: number;
-  remaining: number;
-  percentComplete: number;
-}
-
 export default function ThumbnailAdminPage() {
-  const {
-    data: thumbnailStats,
-    setData: setThumbnailStats,
-    isLoading,
-    error,
-    refresh: refreshStats,
-  } = useAdminData<ThumbnailStatsType>({
-    fetchFunction: getThumbnailStats,
-  });
-
-  const resetThumbnailData = async () => {
-    const { error, count } = await deleteThumbnailData();
-
-    if (error) {
-      console.error('Error resetting thumbnail data:', error);
-      return { success: false, error: String(error) };
+  // Wrapper to match DeleteResult interface
+  const deleteThumbnailDataWrapper = async (): Promise<DeleteResult> => {
+    try {
+      const result = await deleteThumbnailData();
+      if (result.error) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        count: result.count || 0,
+        message: `Reset ${result.count || 0} thumbnail data items`,
+      };
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : 'Unknown error',
+      };
     }
-
-    if (count) {
-      setThumbnailStats((prev: any) => ({
-        ...prev,
-        total: prev.total - count,
-        processed: prev.processed - count,
-        remaining: prev.remaining + count,
-      }));
-    }
-
-    // Refresh stats after resetting
-    await refreshStats();
-
-    return { success: true, message: `Reset ${count} thumbnail data items` };
   };
 
-  // Unified batch processing function for both manual and continuous processing
-  const handleBatchProcess = useCallback(
-    async (size: number) => {
-      try {
-        const result = await fetch('/api/thumbnails/process', {
-          method: 'POST',
-          body: JSON.stringify({ limit: size }),
-        });
-        const json = await result.json();
-        await refreshStats();
-        // Always return a BatchResult shape
-        return {
-          success: !!json.success,
-          processed: json.processed ?? 0,
-          failed: json.failed ?? 0,
-          total: json.total ?? 0,
-          error: json.error,
-          message: json.message,
-        };
-      } catch (e) {
-        console.error('Error processing batch:', e);
-        return {
-          success: false,
-          processed: 0,
-          failed: 0,
-          total: 0,
-          error:
-            e instanceof Error ? e.message : 'Unknown error processing batch',
-          message: 'Batch processing failed',
-        };
-      }
-    },
-    [refreshStats],
-  );
-
-  // Handle batch completion
-  const handleBatchComplete = useCallback(async () => {
-    await refreshStats();
-  }, [refreshStats]);
-
-  // Set up continuous processing
   const {
+    data: thumbnailStats,
+    isLoading,
+    error,
+    processBatch,
+    resetData,
     isContinuousProcessing,
     processAllRemaining,
     stopProcessing,
@@ -116,10 +59,10 @@ export default function ThumbnailAdminPage() {
     totalProcessingTime,
     estimatedTimeLeft,
     itemsProcessedThisSession,
-  } = useContinuousProcessing({
-    processBatchFn: handleBatchProcess,
-    onBatchComplete: handleBatchComplete,
-    getTotalRemainingItemsFn: () => thumbnailStats?.remaining || 0,
+  } = useAdminData({
+    fetchFunction: getThumbnailStats,
+    processFunction: processBatchThumbnails,
+    deleteFunction: deleteThumbnailDataWrapper,
   });
 
   return (
@@ -270,7 +213,7 @@ export default function ThumbnailAdminPage() {
               </CardContent>
               <CardFooter className="flex flex-wrap gap-2">
                 <ActionButton
-                  action={() => handleBatchProcess(batchSize)}
+                  action={processBatch}
                   disabled={
                     thumbnailStats?.remaining === 0 || isContinuousProcessing
                   }
@@ -310,15 +253,17 @@ export default function ThumbnailAdminPage() {
                     Process All Remaining
                   </ActionButton>
                 )}
-                <ActionButton
-                  action={resetThumbnailData}
-                  variant="destructive"
-                  disabled={isContinuousProcessing}
-                  loadingMessage="Resetting thumbnail data..."
-                  successMessage="Thumbnail data reset successfully"
-                >
-                  Reset Thumbnail Data
-                </ActionButton>
+                {resetData && (
+                  <ActionButton
+                    action={resetData}
+                    variant="destructive"
+                    disabled={isContinuousProcessing}
+                    loadingMessage="Resetting thumbnail data..."
+                    successMessage="Thumbnail data reset successfully"
+                  >
+                    Reset Thumbnail Data
+                  </ActionButton>
+                )}
               </CardFooter>
             </Card>
           </TabsContent>

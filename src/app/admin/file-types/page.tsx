@@ -1,7 +1,7 @@
 'use client';
 
 import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   deleteAllMediaTypes,
@@ -19,11 +19,7 @@ export default function AdminFileTypesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch all media types on page load
-  useEffect(() => {
-    fetchMediaTypes();
-  }, []);
-
-  const fetchMediaTypes = async () => {
+  const fetchMediaTypes = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -41,7 +37,12 @@ export default function AdminFileTypesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Initialize data on component mount
+  useEffect(() => {
+    fetchMediaTypes();
+  }, [fetchMediaTypes]);
 
   const handleDeleteAllMediaTypes = async () => {
     if (
@@ -85,7 +86,7 @@ export default function AdminFileTypesPage() {
             disabled={isDeleting || isLoading || !mediaTypes?.length}
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete All Media Types
+            {isDeleting ? 'Deleting...' : 'Delete All Media Types'}
           </Button>
         </div>
 
@@ -95,10 +96,16 @@ export default function AdminFileTypesPage() {
           </div>
         )}
 
-        <MediaTypeList
-          mediaTypes={mediaTypes || []}
-          onUpdate={fetchMediaTypes}
-        />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-gray-500">Loading media types...</div>
+          </div>
+        ) : (
+          <MediaTypeList
+            mediaTypes={mediaTypes || []}
+            onUpdate={fetchMediaTypes}
+          />
+        )}
       </div>
     </AdminLayout>
   );

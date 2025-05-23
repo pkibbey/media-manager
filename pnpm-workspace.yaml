@@ -1,13 +1,6 @@
-ignoredBuiltDependencies:
-  - '@tensorflow/tfjs-node-gpu'
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - '@tensorflow/tfjs-node'
-  - '@tensorflow/tfjs-node-gpu'
-  - canvas
   - core-js
-  - mmmagic
-  - onnxruntime-node
-  - protobufjs
   - sharp
   - supabase

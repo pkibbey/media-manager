@@ -2,9 +2,8 @@
 
 import * as tf from '@tensorflow/tfjs-node';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import { createSupabase } from '@/lib/supabase';
 import type { MediaWithRelations } from '@/types/media-types';
-import { saveDetectedObjects } from './save-detected-objects';
-import { setMediaAsBasicAnalysisProcessed } from './set-media-as-analysis-processed';
 
 const CONFIDENCE_THRESHOLD = 0.7; // Set a default confidence threshold
 const MAX_BOXES = 5; // Maximum number of boxes to detect
@@ -40,74 +39,11 @@ async function initTensorFlowAndLoadModel() {
 }
 
 /**
- * Process a single media item for object detection
- */
-export async function processForObjects(mediaItem: MediaWithRelations) {
-  console.log('has objects: ', !!mediaItem.analysis_data?.objects.length);
-  const startTime = Date.now();
-
-  try {
-    // Use shared model initialization
-    const model = await initTensorFlowAndLoadModel();
-
-    // Fetch the image
-    const imageResponse = await fetch(
-      mediaItem.thumbnail_data?.thumbnail_url || '',
-    );
-
-    const imageBuffer = new Uint8Array(await imageResponse.arrayBuffer());
-    // Use tf.node.decodeJpeg since we know thumbnails are always in JPEG format
-    // This is more efficient than using the generic decodeImage
-    const tensor = tf.node.decodeJpeg(imageBuffer, 3, 1, false, false);
-
-    // Run object detection
-    const predictions = await model.detect(tensor, CONFIDENCE_THRESHOLD);
-
-    // Clean up the tensor to free memory
-    tensor.dispose();
-
-    // Save detected objects to database using original COCO-SSD format
-    const { error: upsertError } = await saveDetectedObjects(
-      mediaItem,
-      predictions,
-    );
-
-    if (upsertError) {
-      throw new Error(
-        `Failed to upsert analysis data: ${(upsertError as Error).message}`,
-      );
-    }
-
-    // Mark as processed
-    const { error: updateError } = await setMediaAsBasicAnalysisProcessed(
-      mediaItem.id,
-    );
-
-    if (updateError) {
-      throw new Error(`Failed to update media status: ${updateError.message}`);
-    }
-
-    const endTime = Date.now();
-    const processingTime = endTime - startTime;
-
-    return {
-      success: true,
-      processingTime,
-      objectCount: predictions.length,
-    };
-  } catch (error) {
-    console.error('Error in local object detection:', error);
-    throw new Error(
-      `Failed to process image for objects: ${(error as Error).message}`,
-    );
-  }
-}
-
-/**
  * Process a batch of media items for object detection efficiently
  * - Loads the model once for the entire batch
  * - Processes multiple items concurrently
  * - Manages memory efficiently
+ * - Uses grouped database operations for optimal performance
  */
 export async function processBatchForObjects(
   mediaItems: MediaWithRelations[],
@@ -122,7 +58,7 @@ export async function processBatchForObjects(
     // Initialize TF and load model once for all items
     const model = await initTensorFlowAndLoadModel();
 
-    // Process items with controlled concurrency
+    // Process items with controlled concurrency (CPU-intensive work first)
     const results = [];
     for (let i = 0; i < mediaItems.length; i += concurrency) {
       const chunk = mediaItems.slice(i, i + concurrency);
@@ -139,6 +75,7 @@ export async function processBatchForObjects(
               processingTime: 0,
               message: 'Already processed',
               objectCount: mediaItem.analysis_data.objects.length,
+              analysisData: null, // No new data to save
             };
           }
 
@@ -149,7 +86,6 @@ export async function processBatchForObjects(
           const imageBuffer = new Uint8Array(await imageResponse.arrayBuffer());
 
           // Use tf.node.decodeJpeg since we know thumbnails are always in JPEG format
-          // This is more efficient than using the generic decodeImage
           const tensor = tf.node.decodeJpeg(imageBuffer, 3);
 
           // Run object detection
@@ -162,33 +98,16 @@ export async function processBatchForObjects(
           // Clean up right away
           tensor.dispose();
 
-          // Save to database - using original COCO-SSD format
-          const { error: upsertError } = await saveDetectedObjects(
-            mediaItem,
-            predictions,
-          );
-
-          if (upsertError) {
-            throw new Error(
-              `Failed to upsert: ${(upsertError as Error).message}`,
-            );
-          }
-
-          // Mark as processed
-          const { error: updateError } = await setMediaAsBasicAnalysisProcessed(
-            mediaItem.id,
-          );
-
-          if (updateError) {
-            throw new Error(`Failed to update status: ${updateError.message}`);
-          }
-
           const itemEndTime = Date.now();
           return {
             mediaItemId: mediaItem.id,
             success: true,
             processingTime: itemEndTime - itemStartTime,
             objectCount: predictions.length,
+            analysisData: {
+              media_id: mediaItem.id,
+              objects: predictions, // Store the original COCO-SSD format
+            },
           };
         } catch (error) {
           console.error(`Error processing item ${mediaItem.id}:`, error);
@@ -197,6 +116,7 @@ export async function processBatchForObjects(
             success: false,
             processingTime: Date.now() - itemStartTime,
             error: error instanceof Error ? error.message : 'Unknown error',
+            analysisData: null,
           };
         }
       });
@@ -212,6 +132,55 @@ export async function processBatchForObjects(
       }
     }
 
+    // Prepare grouped database operations
+    const supabase = createSupabase();
+    const analysisDataToInsert: Array<{ media_id: string; objects: any[] }> =
+      [];
+    const mediaIdsToUpdate: string[] = [];
+    let failed = 0;
+
+    // Process results and prepare batch operations
+    results.forEach((result) => {
+      if (result.success) {
+        mediaIdsToUpdate.push(result.mediaItemId);
+        if (result.analysisData) {
+          analysisDataToInsert.push(result.analysisData);
+        }
+      } else {
+        failed++;
+      }
+    });
+
+    // Perform grouped database operations
+    // 1. Insert analysis data in batches if there are any to insert
+    if (analysisDataToInsert.length > 0) {
+      const { error: insertError } = await supabase
+        .from('analysis_data')
+        .upsert(analysisDataToInsert, {
+          onConflict: 'media_id',
+        });
+
+      if (insertError) {
+        throw new Error(
+          `Failed to batch insert analysis data: ${insertError.message}`,
+        );
+      }
+    }
+
+    // 2. Update all processed media items in a single operation
+    if (mediaIdsToUpdate.length > 0) {
+      const { error: updateError } = await supabase
+        .from('media')
+        .update({ is_basic_processed: true })
+        .in('id', mediaIdsToUpdate);
+
+      if (updateError) {
+        throw new Error(
+          `Failed to batch update media items: ${updateError.message}`,
+        );
+      }
+    }
+
     const batchEndTime = Date.now();
     const totalProcessingTime = batchEndTime - batchStartTime;
     const successCount = results.filter((r) => r.success).length;
@@ -221,7 +190,7 @@ export async function processBatchForObjects(
       batchResults: results,
       totalProcessingTime,
       processedCount: successCount,
-      failedCount: results.length - successCount,
+      failedCount: failed,
     };
   } catch (error) {
     console.error('Batch processing error:', error);

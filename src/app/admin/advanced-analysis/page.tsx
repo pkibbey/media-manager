@@ -1,7 +1,6 @@
 'use client';
 
 import { AlertTriangle, Image } from 'lucide-react';
-import { useCallback } from 'react';
 import { getAdvancedAnalysisStats } from '@/actions/analysis/get-advanced-analysis-stats';
 import {
   deleteAdvancedAnalysisData,
@@ -13,100 +12,40 @@ import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAdminData } from '@/hooks/useAdminData';
-import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { type DeleteResult, useAdminData } from '@/hooks/useAdminData';
 import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
-interface AdvancedAnalysisStatsType {
-  total: number;
-  processed: number;
-  remaining: number;
-  percentComplete: number;
-}
-
 export default function AdvancedAnalysisAdminPage() {
-  // Use the shared admin data hook
-  const {
-    data: analysisStats,
-    setData: setAnalysisStats,
-    isLoading,
-    error,
-    refresh: refreshStats,
-  } = useAdminData<AdvancedAnalysisStatsType>({
-    fetchFunction: getAdvancedAnalysisStats,
-  });
-
-  const resetAnalysisData = async () => {
-    const { error, count } = await deleteAdvancedAnalysisData();
-
-    if (error) {
-      console.error('Error resetting advanced analysis data:', error);
-      return { success: false, error: error.message };
-    }
-
-    if (count) {
-      setAnalysisStats((prev: any) => ({
-        ...prev,
-        total: prev.total - count,
-        processed: prev.processed - count,
-        remaining: prev.remaining + count,
-      }));
-    }
-
-    // Refresh stats after resetting
-    await refreshStats();
-
-    return {
-      success: true,
-      message: `Reset ${count} advanced analysis data items`,
-    };
-  };
-
-  // Process batch function for continuous processing
-  const processBatchFunction = useCallback(
-    async (size: number) => {
-      const result = await processAdvancedAnalysis(size);
-
-      // Refresh stats after processing
-      await refreshStats();
-
-      return result;
-    },
-    [refreshStats],
-  );
-
-  // Process a batch of items (for manual batch processing)
-  const processBatch = async () => {
+  // Wrapper to match DeleteResult interface
+  const deleteAdvancedAnalysisDataWrapper = async (): Promise<DeleteResult> => {
     try {
-      const result = await processAdvancedAnalysis(batchSize);
-
-      if (result.success) {
-        await refreshStats();
+      const result = await deleteAdvancedAnalysisData();
+      if (result.error) {
         return {
-          success: true,
-          message: `Processed ${result.processed} items (${result.failed || 0} failed)`,
+          success: false,
+          error: result.error.message || 'Unknown error',
         };
       }
-
-      return { success: false, error: result.error };
+      return {
+        success: true,
+        count: result.count || 0,
+        message: `Reset ${result.count || 0} advanced analysis data items`,
+      };
     } catch (e) {
-      console.error('Error processing batch:', e);
       return {
         success: false,
-        error:
-          e instanceof Error ? e.message : 'Unknown error processing batch',
+        error: e instanceof Error ? e.message : 'Unknown error',
       };
     }
   };
 
-  // Handle batch completion
-  const handleBatchComplete = useCallback(async () => {
-    await refreshStats();
-  }, [refreshStats]);
-
-  // Set up continuous processing
   const {
+    data: analysisStats,
+    isLoading,
+    error,
+    processBatch,
+    resetData,
     isContinuousProcessing,
     processAllRemaining,
     stopProcessing,
@@ -115,10 +54,10 @@ export default function AdvancedAnalysisAdminPage() {
     totalProcessingTime,
     estimatedTimeLeft,
     itemsProcessedThisSession,
-  } = useContinuousProcessing({
-    processBatchFn: processBatchFunction,
-    onBatchComplete: handleBatchComplete,
-    getTotalRemainingItemsFn: () => analysisStats?.remaining || 0,
+  } = useAdminData({
+    fetchFunction: getAdvancedAnalysisStats,
+    processFunction: processAdvancedAnalysis,
+    deleteFunction: deleteAdvancedAnalysisDataWrapper,
   });
 
   return (
@@ -284,15 +223,17 @@ export default function AdvancedAnalysisAdminPage() {
                 </ActionButton>
               )}
 
-              <ActionButton
-                action={resetAnalysisData}
-                variant="destructive"
-                disabled={isContinuousProcessing}
-                loadingMessage="Resetting analysis data..."
-                successMessage="Analysis data reset"
-              >
-                Reset Analysis Data
-              </ActionButton>
+              {resetData && (
+                <ActionButton
+                  action={resetData}
+                  variant="destructive"
+                  disabled={isContinuousProcessing}
+                  loadingMessage="Resetting analysis data..."
+                  successMessage="Analysis data reset"
+                >
+                  Reset Analysis Data
+                </ActionButton>
+              )}
             </div>
           </TabsContent>
 

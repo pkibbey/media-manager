@@ -1,7 +1,6 @@
 'use client';
 
 import { FileImage } from 'lucide-react';
-import { useCallback } from 'react';
 import deleteExifData from '@/actions/exif/delete-exif-data';
 import { getExifStats } from '@/actions/exif/get-exif-stats';
 import { processBatchExif } from '@/actions/exif/process-batch-exif';
@@ -21,89 +20,37 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAdminData } from '@/hooks/useAdminData';
-import useContinuousProcessing from '@/hooks/useContinuousProcessing';
+import { type DeleteResult, useAdminData } from '@/hooks/useAdminData';
 import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
 export default function ExifAdminPage() {
-  const {
-    data: exifStats,
-    setData: setExifStats,
-    isLoading,
-    error,
-    refresh: refreshStats,
-  } = useAdminData({
-    fetchFunction: getExifStats,
-  });
-
-  const resetExifData = async () => {
-    const { error, count } = await deleteExifData();
-
-    if (error) {
-      console.error('Error resetting EXIF data:', error);
-      return { success: false, error: error.message };
-    }
-
-    if (count) {
-      setExifStats((prev: any) => ({
-        ...prev,
-        total: prev.total - count,
-        processed: prev.processed - count,
-        remaining: prev.remaining + count,
-      }));
-    }
-
-    // Refresh stats after resetting
-    await refreshStats();
-
-    return { success: true, message: `Reset ${count} EXIF data items` };
-  };
-
-  // Process batch function for continuous processing
-  const processBatchFunction = useCallback(
-    async (size: number) => {
-      const result = await processBatchExif(size);
-
-      // Refresh stats after processing
-      await refreshStats();
-
-      return result;
-    },
-    [refreshStats],
-  );
-
-  // Process a batch of items (for manual batch processing)
-  const processBatch = async () => {
+  // Wrapper to match DeleteResult interface
+  const deleteExifDataWrapper = async (): Promise<DeleteResult> => {
     try {
-      const result = await processBatchExif(batchSize);
-
-      if (result.success) {
-        await refreshStats();
-        return {
-          success: true,
-          message: `Processed ${result.processed} items (${result.failed || 0} failed)`,
-        };
+      const result = await deleteExifData();
+      if (result.error) {
+        return { success: false, error: result.error.message };
       }
-
-      return { success: false, error: result.error };
+      return {
+        success: true,
+        count: result.count || 0,
+        message: `Reset ${result.count || 0} EXIF data items`,
+      };
     } catch (e) {
-      console.error('Error processing batch:', e);
       return {
         success: false,
-        error:
-          e instanceof Error ? e.message : 'Unknown error processing batch',
+        error: e instanceof Error ? e.message : 'Unknown error',
       };
     }
   };
 
-  // Handle batch completion
-  const handleBatchComplete = useCallback(async () => {
-    await refreshStats();
-  }, [refreshStats]);
-
-  // Set up continuous processing
   const {
+    data: exifStats,
+    isLoading,
+    error,
+    processBatch,
+    resetData,
     isContinuousProcessing,
     processAllRemaining,
     stopProcessing,
@@ -112,10 +59,10 @@ export default function ExifAdminPage() {
     totalProcessingTime,
     estimatedTimeLeft,
     itemsProcessedThisSession,
-  } = useContinuousProcessing({
-    processBatchFn: processBatchFunction,
-    onBatchComplete: handleBatchComplete,
-    getTotalRemainingItemsFn: () => exifStats?.remaining || 0,
+  } = useAdminData({
+    fetchFunction: getExifStats,
+    processFunction: processBatchExif,
+    deleteFunction: deleteExifDataWrapper,
   });
 
   return (
@@ -265,7 +212,7 @@ export default function ExifAdminPage() {
               </CardContent>
               <CardFooter className="flex flex-wrap gap-2">
                 <ActionButton
-                  action={processBatch}
+                  action={() => processBatch()}
                   disabled={
                     exifStats?.remaining === 0 || isContinuousProcessing
                   }
@@ -305,15 +252,17 @@ export default function ExifAdminPage() {
                     Process All Remaining
                   </ActionButton>
                 )}
-                <ActionButton
-                  action={resetExifData}
-                  variant="destructive"
-                  disabled={isContinuousProcessing}
-                  loadingMessage="Resetting EXIF data..."
-                  successMessage="EXIF data reset successfully"
-                >
-                  Reset Exif Data
-                </ActionButton>
+                {resetData && (
+                  <ActionButton
+                    action={resetData}
+                    variant="destructive"
+                    disabled={isContinuousProcessing}
+                    loadingMessage="Resetting EXIF data..."
+                    successMessage="EXIF data reset successfully"
+                  >
+                    Reset Exif Data
+                  </ActionButton>
+                )}
               </CardFooter>
             </Card>
 
