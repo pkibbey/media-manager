@@ -1,3 +1,5 @@
+'use server';
+
 import { createSupabase } from '@/lib/supabase';
 import type { MediaWithThumbnail } from '@/types/media-types';
 

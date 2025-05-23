@@ -1,3 +1,5 @@
+'use server';
+
 import sharp from 'sharp';
 import type { MediaWithRelations } from '@/types/media-types';
 import { saveDetectedObjects } from './save-detected-objects';
