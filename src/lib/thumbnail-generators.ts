@@ -39,17 +39,23 @@ async function generateRawThumbnailPrimary(
 async function generateSharpThumbnail(
   mediaItem: MediaWithRelations,
 ): Promise<Buffer> {
-  return sharp(mediaItem.media_path)
-    .rotate(orientationToDegrees(mediaItem.exif_data?.orientation))
-    .resize({
-      width: THUMBNAIL_SIZE,
-      height: THUMBNAIL_SIZE,
-      withoutEnlargement: true,
-      fit: 'contain',
-      background: BACKGROUND_COLOR,
-    })
-    .jpeg({ quality: THUMBNAIL_QUALITY })
-    .toBuffer();
+  try {
+    const result = await sharp(mediaItem.media_path)
+      .rotate(orientationToDegrees(mediaItem.exif_data?.orientation))
+      .resize({
+        width: THUMBNAIL_SIZE,
+        height: THUMBNAIL_SIZE,
+        withoutEnlargement: true,
+        fit: 'contain',
+        background: BACKGROUND_COLOR,
+      })
+      .jpeg({ quality: THUMBNAIL_QUALITY })
+      .toBuffer();
+    return result;
+  } catch (error) {
+    console.error('Error generating thumbnail with Sharp:', error);
+    throw new Error('Failed to generate thumbnail with Sharp');
+  }
 }
 
 /**

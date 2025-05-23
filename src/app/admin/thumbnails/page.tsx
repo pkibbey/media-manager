@@ -4,7 +4,6 @@ import { Image } from 'lucide-react';
 import { useCallback } from 'react';
 import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
 import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
-import { processBatchThumbnails } from '@/actions/thumbnails/process-thumbnails';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
 import { StatsCard } from '@/components/admin/stats-card';
@@ -67,42 +66,40 @@ export default function ThumbnailAdminPage() {
     return { success: true, message: `Reset ${count} thumbnail data items` };
   };
 
-  // Process batch function for continuous processing
-  const processBatchFunction = useCallback(
+  // Unified batch processing function for both manual and continuous processing
+  const handleBatchProcess = useCallback(
     async (size: number) => {
-      const result = await processBatchThumbnails(size);
-
-      // Refresh stats after processing
-      await refreshStats();
-
-      return result;
+      try {
+        const result = await fetch('/api/thumbnails/process', {
+          method: 'POST',
+          body: JSON.stringify({ limit: size }),
+        });
+        const json = await result.json();
+        await refreshStats();
+        // Always return a BatchResult shape
+        return {
+          success: !!json.success,
+          processed: json.processed ?? 0,
+          failed: json.failed ?? 0,
+          total: json.total ?? 0,
+          error: json.error,
+          message: json.message,
+        };
+      } catch (e) {
+        console.error('Error processing batch:', e);
+        return {
+          success: false,
+          processed: 0,
+          failed: 0,
+          total: 0,
+          error:
+            e instanceof Error ? e.message : 'Unknown error processing batch',
+          message: 'Batch processing failed',
+        };
+      }
     },
     [refreshStats],
   );
-
-  // Process a batch of items (for manual batch processing)
-  const processBatch = async () => {
-    try {
-      const result = await processBatchThumbnails(batchSize);
-
-      if (result.success) {
-        await refreshStats();
-        return {
-          success: true,
-          message: `Processed ${result.processed} items (${result.failed || 0} failed)`,
-        };
-      }
-
-      return { success: false, error: result.error || 'Unknown error' };
-    } catch (e) {
-      console.error('Error processing batch:', e);
-      return {
-        success: false,
-        error:
-          e instanceof Error ? e.message : 'Unknown error processing batch',
-      };
-    }
-  };
 
   // Handle batch completion
   const handleBatchComplete = useCallback(async () => {
@@ -120,7 +117,7 @@ export default function ThumbnailAdminPage() {
     estimatedTimeLeft,
     itemsProcessedThisSession,
   } = useContinuousProcessing({
-    processBatchFn: processBatchFunction,
+    processBatchFn: handleBatchProcess,
     onBatchComplete: handleBatchComplete,
     getTotalRemainingItemsFn: () => thumbnailStats?.remaining || 0,
   });
@@ -273,7 +270,7 @@ export default function ThumbnailAdminPage() {
               </CardContent>
               <CardFooter className="flex flex-wrap gap-2">
                 <ActionButton
-                  action={processBatch}
+                  action={() => handleBatchProcess(batchSize)}
                   disabled={
                     thumbnailStats?.remaining === 0 || isContinuousProcessing
                   }

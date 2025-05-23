@@ -21,8 +21,6 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
     console.log('[processMediaThumbnail] Start processing mediaItem', {
       id: mediaItem.id,
       media_types: mediaItem.media_types,
-      is_native: mediaItem.media_types?.is_native,
-      mime_type: mediaItem.media_types?.mime_type,
     });
     // Choose appropriate thumbnail generation strategy based on media type
     if (mediaItem.media_types?.is_native) {
