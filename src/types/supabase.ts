@@ -102,42 +102,6 @@ export type Database = {
           },
         ]
       }
-      app_settings: {
-        Row: {
-          analysis: Json | null
-          created_at: string | null
-          exif: Json | null
-          id: string
-          key: string
-          storage: Json | null
-          system: Json | null
-          thumbnails: Json | null
-          updated_at: string | null
-        }
-        Insert: {
-          analysis?: Json | null
-          created_at?: string | null
-          exif?: Json | null
-          id?: string
-          key?: string
-          storage?: Json | null
-          system?: Json | null
-          thumbnails?: Json | null
-          updated_at?: string | null
-        }
-        Update: {
-          analysis?: Json | null
-          created_at?: string | null
-          exif?: Json | null
-          id?: string
-          key?: string
-          storage?: Json | null
-          system?: Json | null
-          thumbnails?: Json | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       exif_data: {
         Row: {
           aperture: number | null

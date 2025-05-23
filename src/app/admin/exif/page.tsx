@@ -1,6 +1,6 @@
 'use client';
 
-import { FileImage, Settings } from 'lucide-react';
+import { FileImage } from 'lucide-react';
 import { useCallback } from 'react';
 import deleteExifData from '@/actions/exif/delete-exif-data';
 import { getExifStats } from '@/actions/exif/get-exif-stats';
@@ -148,7 +148,6 @@ export default function ExifAdminPage() {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="processing">Processing</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4 mt-4">
@@ -343,30 +342,6 @@ export default function ExifAdminPage() {
                       Stores structured data for searching and organization
                     </li>
                   </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>EXIF Processing Settings</CardTitle>
-                <CardDescription>
-                  Configure EXIF data extraction options
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center p-6">
-                  <div className="flex flex-col items-center text-center space-y-2">
-                    <Settings className="h-8 w-8 text-muted-foreground" />
-                    <h4 className="text-sm font-medium">Advanced Settings</h4>
-                    <p className="text-sm text-muted-foreground max-w-md">
-                      EXIF processing settings will be available in a future
-                      update. This will include options for location processing,
-                      timestamp correction, and specific metadata handling.
-                    </p>
-                  </div>
                 </div>
               </CardContent>
             </Card>

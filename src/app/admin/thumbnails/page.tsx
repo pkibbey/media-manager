@@ -1,6 +1,6 @@
 'use client';
 
-import { Image, Settings } from 'lucide-react';
+import { Image } from 'lucide-react';
 import { useCallback } from 'react';
 import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
 import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
@@ -155,7 +155,6 @@ export default function ThumbnailAdminPage() {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="processing">Processing</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4 mt-4">
@@ -324,30 +323,6 @@ export default function ThumbnailAdminPage() {
                   Reset Thumbnail Data
                 </ActionButton>
               </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Thumbnail Settings</CardTitle>
-                <CardDescription>
-                  Configure thumbnail generation options
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center p-6">
-                  <div className="flex flex-col items-center text-center space-y-2">
-                    <Settings className="h-8 w-8 text-muted-foreground" />
-                    <h4 className="text-sm font-medium">Advanced Settings</h4>
-                    <p className="text-sm text-muted-foreground max-w-md">
-                      Thumbnail configuration settings will be available in a
-                      future update. This will include options for thumbnail
-                      sizes, quality settings, and caching preferences.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
             </Card>
           </TabsContent>
         </Tabs>

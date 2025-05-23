@@ -156,7 +156,6 @@ export default function AnalysisAdminPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="processing">Processing</TabsTrigger>
             <TabsTrigger value="insights">Insights</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4 mt-4">
@@ -347,30 +346,6 @@ export default function AnalysisAdminPage() {
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analysis Processing Settings</CardTitle>
-                <CardDescription>Configure AI analysis options</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    Image analysis uses the <code>minicpm-v</code> vision model
-                    through Ollama to analyze media content. The system:
-                  </p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>Identifies unprocessed media items</li>
-                    <li>Extracts image content as base64</li>
-                    <li>Sends to the vision model for analysis</li>
-                    <li>Processes structured JSON responses</li>
-                    <li>Stores results for searching and organization</li>
-                  </ul>
                 </div>
               </CardContent>
             </Card>

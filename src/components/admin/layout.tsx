@@ -17,7 +17,6 @@ const navItems = [
   { name: 'Thumbnails', href: '/admin/thumbnails' },
   { name: 'Object Analysis', href: '/admin/analysis' },
   { name: 'Advanced Analysis', href: '/admin/advanced-analysis' },
-  { name: 'Settings', href: '/admin/settings' },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
