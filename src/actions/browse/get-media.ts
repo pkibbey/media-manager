@@ -1,6 +1,5 @@
 'use server';
 
-import { format } from 'date-fns';
 import { createSupabase } from '@/lib/supabase';
 import type {
   MediaFiltersType,
@@ -13,7 +12,7 @@ export async function getMedia(
   filters: MediaFiltersType,
   page = 1,
   pageSize = 50,
-  sortField = 'created_date',
+  sortField = 'id',
   sortDirection: 'asc' | 'desc' = 'desc',
 ): MediaWithRelationsResponse {
   const supabase = createSupabase();
@@ -48,17 +47,6 @@ export async function getMedia(
   // Filter by file type
   if (filters.category !== 'all') {
     query = query.ilike('media_types.mime_type', `${filters.category}%`);
-  }
-
-  // Date range filtering
-  if (filters.dateFrom) {
-    const fromDate = format(filters.dateFrom, 'yyyy-MM-dd');
-    query = query.gte('created_date', fromDate);
-  }
-
-  if (filters.dateTo) {
-    const toDate = format(filters.dateTo, 'yyyy-MM-dd');
-    query = query.lte('created_date', toDate);
   }
 
   // Text search (media_path)

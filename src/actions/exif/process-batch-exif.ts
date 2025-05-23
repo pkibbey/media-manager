@@ -2,7 +2,8 @@
 
 import { processInChunks } from '@/lib/batch-processing';
 import { createSupabase } from '@/lib/supabase';
-import { type ExifData, extractExifData } from './process-exif';
+import type { TablesInsert } from '@/types/supabase';
+import { extractExifData } from './process-exif';
 
 /**
  * Process EXIF data for multiple media items in batch with optimized database operations
@@ -54,7 +55,7 @@ export async function processBatchExif(limit = 10, concurrency = 3) {
     );
 
     // Prepare database operations
-    const exifDataToInsert: ExifData[] = [];
+    const exifDataToInsert: TablesInsert<'exif_data'>[] = [];
     const mediaIdsToUpdate: string[] = [];
     let failed = 0;
 

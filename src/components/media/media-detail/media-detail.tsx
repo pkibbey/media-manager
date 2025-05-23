@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Calendar,
-  Eye,
-  EyeOff,
-  FileType,
-  HardDrive,
-  Image as ImageIcon,
-  MapPin,
-  Trash,
-} from 'lucide-react';
+import { Eye, EyeOff, FileType, HardDrive, MapPin, Trash } from 'lucide-react';
 import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -142,8 +133,7 @@ export function MediaDetail() {
               {Object.entries(
                 selectedMedia.reduce(
                   (acc, file) => {
-                    const type =
-                      file.media_types?.type_description || 'unknown';
+                    const type = file.media_types?.description || 'unknown';
                     acc[type] = (acc[type] || 0) + 1;
                     return acc;
                   },
@@ -278,30 +268,6 @@ export function MediaDetail() {
                 )}
 
                 <Separator />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailField
-                    label="Date Created"
-                    value={
-                      <div className="flex items-center gap-2">
-                        <Calendar size={16} />
-                        {formatDate(media.created_date)}
-                      </div>
-                    }
-                  />
-
-                  {media.exif_data?.created_date && (
-                    <DetailField
-                      label="Photo Taken"
-                      value={
-                        <div className="flex items-center gap-2">
-                          <ImageIcon size={16} />
-                          {formatDate(media.exif_data?.created_date)}
-                        </div>
-                      }
-                    />
-                  )}
-                </div>
 
                 {media.exif_data?.gps_latitude &&
                   media.exif_data?.gps_longitude && (
@@ -486,13 +452,6 @@ export function MediaDetail() {
                 <Separator />
 
                 {processingStatus}
-
-                <Separator />
-
-                <DetailField
-                  label="Imported"
-                  value={formatDate(media.created_date)}
-                />
 
                 {media.exif_data && (
                   <>

@@ -16,8 +16,7 @@ export async function storeThumbnail(
   thumbnailBuffer: Buffer,
 ): Promise<StorageResult> {
   const supabase = createSupabase();
-  const thumbnailId = v4();
-  const thumbnailFilename = `${thumbnailId}.jpg`;
+  const thumbnailFilename = `${v4()}.jpg`;
 
   try {
     // Upload to Supabase Storage
@@ -39,19 +38,18 @@ export async function storeThumbnail(
 
     const thumbnailUrl = urlData.publicUrl;
 
-    // Add the thumbnail to the thumbnail_data table
-    const { error: insertError } = await supabase
-      .from('thumbnail_data')
-      .insert({
-        id: v4(),
-        created_date: new Date().toISOString(),
+    // Add the thumbnail to the thumbnail_data table (use upsert to allow updates)
+    const { error: upsertError } = await supabase.from('thumbnail_data').upsert(
+      {
         media_id: mediaId,
         thumbnail_url: thumbnailUrl,
-      });
+      },
+      { onConflict: 'media_id' },
+    );
 
-    if (insertError) {
+    if (upsertError) {
       throw new Error(
-        `Failed to insert thumbnail data: ${insertError.message}`,
+        `Failed to upsert thumbnail data: ${upsertError.message}`,
       );
     }
 

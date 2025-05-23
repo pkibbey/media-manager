@@ -2,9 +2,8 @@
 
 import { isValid } from 'date-fns';
 import { exiftool } from 'exiftool-vendored';
-import { v4 } from 'uuid';
 import type { MediaWithExif } from '@/types/media-types';
-import type { Tables } from '@/types/supabase';
+import type { TablesInsert } from '@/types/supabase';
 
 /**
  * Extract EXIF data from a media item without performing database operations
@@ -24,16 +23,13 @@ export async function extractExifData(mediaItem: MediaWithExif) {
       };
     }
 
-    const now = new Date().toISOString();
     const exif_timestamp = exif.DateTimeOriginal || exif.CreateDate;
 
     // Extract useful EXIF data into a structured format
-    const exifData: Tables<'exif_data'> = {
-      id: v4(),
+    const exifData: TablesInsert<'exif_data'> = {
       aperture: exif.FNumber || null,
       camera_make: exif.Make || null,
       camera_model: exif.Model || null,
-      created_date: now,
       digital_zoom_ratio: exif.DigitalZoomRatio
         ? Number.parseFloat(exif.DigitalZoomRatio.toString())
         : null,

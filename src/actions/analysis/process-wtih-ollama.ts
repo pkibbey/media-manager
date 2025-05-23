@@ -1,7 +1,6 @@
 'use server';
 
 import ollama from 'ollama';
-import { v4 } from 'uuid';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { VISION_MODEL } from '@/lib/consts';
@@ -234,7 +233,6 @@ export default async function processWithOllama({
 
     // Create the analysis data object for database insertion
     const analysis_data = {
-      id: v4(),
       media_id: mediaId,
       image_description: parsedContent.image_description || null,
       objects: parsedContent.objects || [],
@@ -247,40 +245,15 @@ export default async function processWithOllama({
       faces: parsedContent.faces,
       content_warnings: parsedContent.content_warnings,
       quality_assessment: parsedContent.quality_assessment,
-      created_date: new Date().toISOString(),
     };
 
-    // Check if analysis_data already exists for this media_id
-    const { data: existingAnalysis, error: selectError } = await supabase
+    // Use upsert instead of select+insert/update
+    const { error: upsertError } = await supabase
       .from('analysis_data')
-      .select('id')
-      .eq('media_id', mediaId)
-      .limit(1)
-      .single();
+      .upsert(analysis_data, { onConflict: 'media_id' });
 
-    if (selectError) {
-      throw new Error(`Failed to check analysis_data: ${selectError.message}`);
-    }
-
-    let insertError: unknown = null;
-
-    if (existingAnalysis) {
-      // Update existingAnalysis record
-      ({ error: insertError } = await supabase
-        .from('analysis_data')
-        .update(analysis_data)
-        .eq('media_id', mediaId));
-    } else {
-      // Insert new record
-      ({ error: insertError } = await supabase
-        .from('analysis_data')
-        .insert(analysis_data));
-    }
-
-    if (insertError) {
-      throw new Error(
-        `Failed to insert/update analysis data: ${(insertError as Error).message}`,
-      );
+    if (upsertError) {
+      throw new Error(`Failed to upsert analysis data: ${upsertError.message}`);
     }
 
     // Update the media item to mark it as processed

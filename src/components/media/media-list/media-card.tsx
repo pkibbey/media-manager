@@ -55,7 +55,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
           </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            {media.media_types?.type_description?.toUpperCase() || 'No Preview'}
+            {media.media_types?.description?.toUpperCase() || 'No Preview'}
           </div>
         )}
 
@@ -71,7 +71,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
           <div className="text-sm font-medium truncate w-full">{fileName}</div>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline" className="text-xs">
-              {media.media_types?.type_description || 'Unknown'}
+              {media.media_types?.description || 'Unknown'}
             </Badge>
             <span className="text-xs text-muted-foreground">
               {formatBytes(media.size_bytes)}

@@ -1,6 +1,5 @@
 'use server';
 
-import { v4 as uuid } from 'uuid';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaType } from '@/types/media-types';
 
@@ -89,6 +88,7 @@ export async function deleteAllMediaTypes(): Promise<{
 
 /**
  * Get or create a media type in the database
+ * Uses upsert, but does not update on conflict (only inserts if not exists)
  */
 export async function getOrCreateMediaType(
   mimeType: string,
@@ -96,35 +96,35 @@ export async function getOrCreateMediaType(
   try {
     const supabase = createSupabase();
 
-    // First, check if the media type already exists
-    const { data: existingType } = await supabase
+    const { error: upsertError } = await supabase.from('media_types').upsert(
+      {
+        mime_type: mimeType,
+        description: `${mimeType.split('/')[0]} files`,
+        is_ignored: false,
+        is_native: true,
+      },
+      { onConflict: 'mime_type', ignoreDuplicates: true },
+    );
+
+    if (upsertError) {
+      console.error('Error upserting media type:', upsertError);
+      return null;
+    }
+
+    // Now fetch the id (either the one we just inserted, or the existing one)
+    const { data: foundType, error: selectError } = await supabase
       .from('media_types')
-      .select('id, mime_type')
+      .select('id')
       .eq('mime_type', mimeType)
       .limit(1)
       .single();
 
-    if (existingType) {
-      // Return the existingType id
-      return existingType.id;
-    }
-
-    // If not found, insert a new media type
-    const typeId = uuid();
-    const { error: insertError } = await supabase.from('media_types').insert({
-      id: typeId,
-      mime_type: mimeType,
-      type_description: `${mimeType.split('/')[0]} files`,
-      is_ignored: false,
-      is_native: true,
-    });
-
-    if (insertError) {
-      console.error('Error inserting media type:', insertError);
+    if (selectError || !foundType) {
+      console.error('Error fetching media type after upsert:', selectError);
       return null;
     }
 
-    return typeId;
+    return foundType.id;
   } catch (error) {
     console.error('Error in getOrCreateMediaType:', error);
     return null;
