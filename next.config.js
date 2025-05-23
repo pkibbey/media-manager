@@ -15,6 +15,20 @@ const nextConfig = {
     },
     serverComponentsHmrCache: false,
   },
+  // Configure TensorFlow.js usage in Next.js
+  webpack: (config, { isServer }) => {
+    // Handle TensorFlow.js Node native modules
+    if (isServer) {
+      config.externals = [
+        ...config.externals,
+        '@tensorflow/tfjs-node',
+        'canvas',
+        'sharp',
+      ];
+    }
+
+    return config;
+  },
 };
 
 module.exports = nextConfig;

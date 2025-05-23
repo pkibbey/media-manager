@@ -1,25 +1,26 @@
 import { z } from 'zod';
 
-const BoundingBoxSchema = z.object({
-  bottom: z.number().describe('The bottom coordinate of the bounding box'),
-  left: z.number().describe('The left coordinate of the bounding box'),
-  right: z.number().describe('The right coordinate of the bounding box'),
-  top: z.number().describe('The top coordinate of the bounding box'),
-});
-
-const ObjectsSchema = z.object({
-  label: z.string().describe('The name of the object'),
+// New schema matching the COCO-SSD format
+const DetectedObjectSchema = z.object({
+  class: z.string().describe('The name of the object'),
   score: z
     .number()
     .min(0)
     .max(1)
     .describe('The confidence score of the object detection'),
-  box: BoundingBoxSchema.describe(
-    'The bounding box coordinates of the detected object',
-  ),
+  bbox: z
+    .tuple([
+      z.number().describe('y coordinate'),
+      z.number().describe('x coordinate'),
+      z.number().describe('height'),
+      z.number().describe('width'),
+    ])
+    .describe(
+      'The bounding box coordinates of the detected object [y, x, height, width]',
+    ),
 });
 
-export type ObjectsType = z.infer<typeof ObjectsSchema>;
+export type DetectedObjectType = z.infer<typeof DetectedObjectSchema>;
 
 const SafetyLevelSchema = z.object({
   label: z.string().describe('The safety level label'),

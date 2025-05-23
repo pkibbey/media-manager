@@ -1,8 +1,11 @@
 'use server';
 
-import { processSequentially } from '@/lib/batch-processing';
 import { createSupabase } from '@/lib/supabase';
-import { processForObjects } from './process-for-objects';
+import { clearModelCache, processBatchForObjects } from './process-for-objects';
+
+// Number of items to process in parallel with the M3 GPU
+// Adjust if experiencing memory issues
+const DEFAULT_CONCURRENCY = 3;
 
 /**
  * Process analysis for multiple media items in batch
@@ -38,16 +41,18 @@ export async function processBasicAnalysis(limit = 10) {
       };
     }
 
-    // Process items sequentially
-    const processFn = (item: (typeof mediaItems)[0]) => processForObjects(item);
-    const processingResult = await processSequentially(mediaItems, processFn);
+    // Use optimized batch processing
+    const batchResult = await processBatchForObjects(
+      mediaItems,
+      DEFAULT_CONCURRENCY,
+    );
 
     return {
-      success: true,
-      processed: processingResult.succeeded,
-      failed: processingResult.failed,
-      total: processingResult.total,
-      batchProcessingTime: processingResult.totalProcessingTime,
+      success: batchResult.success,
+      processed: batchResult.processedCount,
+      failed: batchResult.failedCount,
+      total: mediaItems.length,
+      batchProcessingTime: batchResult.totalProcessingTime,
     };
   } catch (error) {
     console.error('Error in batch analysis processing:', error);
@@ -58,5 +63,10 @@ export async function processBasicAnalysis(limit = 10) {
       total: 0,
       processed: 0,
     };
+  } finally {
+    // Clean up memory after large batches
+    if (limit > 50) {
+      await clearModelCache();
+    }
   }
 }
