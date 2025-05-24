@@ -1,11 +1,11 @@
 'use server';
 
+import { DEFAULT_CONCURRENCY } from '@/lib/consts';
 import { createSupabase } from '@/lib/supabase';
 import { clearModelCache, processBatchForObjects } from './process-for-objects';
 
 // Number of items to process in parallel with the M3 GPU
 // Adjust if experiencing memory issues
-const DEFAULT_CONCURRENCY = 3;
 
 /**
  * Process analysis for multiple media items in batch

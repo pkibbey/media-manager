@@ -2,6 +2,7 @@
 
 import type { DetectedObject } from '@tensorflow-models/coco-ssd';
 import { Eye, EyeOff, FileType, HardDrive, MapPin, Trash } from 'lucide-react';
+import type { PredictionType } from 'nsfwjs';
 import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,11 +11,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate } from '@/lib/analysis-utils';
 import { formatBytes } from '@/lib/consts';
-import type { SafetyLevelType } from '@/types/analysis';
 import { BoundingBoxImage } from './bounding-box-image';
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
-
 export function MediaDetail() {
   const { selectedMedia, toggleHideSelected, toggleDeleteSelected } =
     useMediaSelection();
@@ -43,7 +42,7 @@ export function MediaDetail() {
     : [];
 
   const contentWarnings = (media.analysis_data?.content_warnings ||
-    []) as SafetyLevelType[];
+    []) as PredictionType[];
 
   const processingStatus = (
     <div className="grid grid-cols-2 gap-4 mt-4">
@@ -412,23 +411,23 @@ export function MediaDetail() {
                     <>
                       <Separator />
                       <DetailField
-                        label="Safety Level"
+                        label="Content Warnings"
                         value={
                           <div className="flex flex-wrap gap-1">
                             {contentWarnings.map((safetyLevel, index) => (
                               <Badge
                                 key={index}
                                 variant={
-                                  safetyLevel.label === 'safe'
+                                  safetyLevel.className === 'Neutral'
                                     ? 'success'
-                                    : safetyLevel.label === 'sensitive'
+                                    : safetyLevel.className === 'Sexy'
                                       ? 'warning'
                                       : 'destructive'
                                 }
                                 className="text-xs"
                               >
-                                {safetyLevel.label} (
-                                {safetyLevel.score.toFixed(2)})
+                                {safetyLevel.className} (
+                                {safetyLevel.probability.toFixed(2)})
                               </Badge>
                             ))}
                           </div>

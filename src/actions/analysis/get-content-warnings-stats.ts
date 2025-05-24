@@ -2,7 +2,7 @@
 
 import { createSupabase } from '@/lib/supabase';
 
-export async function getAdvancedAnalysisStats() {
+export async function getContentWarningsStats() {
   const supabase = createSupabase();
 
   try {
@@ -13,8 +13,10 @@ export async function getAdvancedAnalysisStats() {
         count: 'exact',
         head: true,
       })
-      .is('is_basic_processed', true)
+      .is('is_thumbnail_processed', true)
       .is('media_types.is_ignored', false);
+
+    console.log('total: ', total);
 
     if (totalError) {
       return {
@@ -35,8 +37,11 @@ export async function getAdvancedAnalysisStats() {
         count: 'exact',
         head: true,
       })
-      .is('is_advanced_processed', true)
+      .is('is_thumbnail_processed', true)
+      .is('is_content_warnings_processed', true)
       .is('media_types.is_ignored', false);
+
+    console.log('processed: ', processed);
 
     if (processedError) {
       return {
@@ -65,7 +70,7 @@ export async function getAdvancedAnalysisStats() {
       },
     };
   } catch (error) {
-    console.error('Error getting advanced analysis stats:', error);
+    console.error('Error getting content warning stats:', error);
     return {
       stats: {
         total: 0,

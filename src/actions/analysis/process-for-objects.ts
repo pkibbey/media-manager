@@ -2,15 +2,12 @@
 
 import * as tf from '@tensorflow/tfjs-node';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import { DEFAULT_CONCURRENCY } from '@/lib/consts';
 import { createSupabase } from '@/lib/supabase';
 import type { MediaWithRelations } from '@/types/media-types';
 
 const CONFIDENCE_THRESHOLD = 0.7; // Set a default confidence threshold
 const MAX_BOXES = 5; // Maximum number of boxes to detect
-
-// Number of items to process in parallel - adjust based on memory and GPU capacity
-// M3 MacBook Air should handle 3-4 concurrent items well
-const DEFAULT_CONCURRENCY = 3;
 
 // Cache for the model to avoid reloading
 let cachedModel: cocoSsd.ObjectDetection | null = null;

@@ -193,6 +193,7 @@ export type Database = {
           id: string
           is_advanced_processed: boolean
           is_basic_processed: boolean
+          is_content_warnings_processed: boolean
           is_deleted: boolean
           is_exif_processed: boolean
           is_hidden: boolean
@@ -206,6 +207,7 @@ export type Database = {
           id?: string
           is_advanced_processed?: boolean
           is_basic_processed?: boolean
+          is_content_warnings_processed?: boolean
           is_deleted?: boolean
           is_exif_processed?: boolean
           is_hidden?: boolean
@@ -219,6 +221,7 @@ export type Database = {
           id?: string
           is_advanced_processed?: boolean
           is_basic_processed?: boolean
+          is_content_warnings_processed?: boolean
           is_deleted?: boolean
           is_exif_processed?: boolean
           is_hidden?: boolean
