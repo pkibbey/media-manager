@@ -146,7 +146,8 @@ CREATE TABLE IF NOT EXISTS "public"."media" (
     "is_exif_processed" boolean DEFAULT false NOT NULL,
     "is_basic_processed" boolean DEFAULT false NOT NULL,
     "is_thumbnail_processed" boolean DEFAULT false NOT NULL,
-    "is_advanced_processed" boolean DEFAULT false NOT NULL
+    "is_advanced_processed" boolean DEFAULT false NOT NULL,
+    "visual_hash" "text"
 );
 
 
@@ -278,6 +279,10 @@ CREATE INDEX "idx_media_type_deleted_hidden" ON "public"."media" USING "btree" (
 
 
 CREATE INDEX "idx_media_type_mime_type" ON "public"."media_types" USING "btree" ("mime_type");
+
+
+
+CREATE INDEX "idx_media_visual_hash" ON "public"."media" USING "btree" ("visual_hash");
 
 
 

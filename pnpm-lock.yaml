@@ -92,6 +92,9 @@ importers:
       sharp:
         specifier: 0.34.2
         version: 0.34.2
+      sharp-phash:
+        specifier: ^2.2.0
+        version: 2.2.0(sharp@0.34.2)
       sonner:
         specifier: ^2.0.3
         version: 2.0.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -1876,6 +1879,12 @@ packages:
 
   set-blocking@2.0.0:
     resolution: {integrity: sha512-KiKBS8AnWGEyLzofFfmvKwpdPzqiy16LvQfK3yv/fVH7Bj13/wl3JSR1J+rfgRE9q7xUJK4qvgS8raSOeLUehw==}
+
+  sharp-phash@2.2.0:
+    resolution: {integrity: sha512-/gBoes9EycJkt/2aakKl9BeSGxFbPpZ5lCDtpRRlnU+vkqqcdXi8YLIlXnJsTtTBmaL82zh1bPkV7uZSSIsj8w==}
+    engines: {node: '>= 10'}
+    peerDependencies:
+      sharp: '>= 0.32.0'
 
   sharp@0.34.2:
     resolution: {integrity: sha512-lszvBmB9QURERtyKT2bNmsgxXK0ShJrL/fvqlonCo7e6xBF8nT8xU6pW+PMIbLsz0RxQk3rgH9kd8UmvOzlMJg==}
@@ -3705,6 +3714,10 @@ snapshots:
   semver@7.7.2: {}
 
   set-blocking@2.0.0: {}
+
+  sharp-phash@2.2.0(sharp@0.34.2):
+    dependencies:
+      sharp: 0.34.2
 
   sharp@0.34.2:
     dependencies:

@@ -4,24 +4,33 @@ import { BACKGROUND_COLOR, THUMBNAIL_QUALITY, THUMBNAIL_SIZE } from './consts';
 import { processRawWithDcraw } from './raw-processor';
 
 /**
+ * Represents the result of thumbnail generation.
+ * thumbnailBuffer: Buffer containing the thumbnail image.
+ * imageFingerprint: Buffer containing a raw image fingerprint (e.g., for pHash), or null if not generated.
+ */
+export type ThumbnailGenerationResult = {
+  thumbnailBuffer: Buffer;
+  imageFingerprint: Buffer | null;
+};
+
+/**
  * Generate thumbnail from a RAW file using primary dcraw method
  */
 async function generateRawThumbnailPrimary(
   mediaItem: MediaWithRelations,
-): Promise<Buffer | null> {
+): Promise<ThumbnailGenerationResult | null> {
   // Use dcraw to extract high-quality JPEG from RAW file
   const rawBuffer = await processRawWithDcraw(mediaItem.media_path);
-  console.log('rawBuffer: ', rawBuffer);
 
   if (!rawBuffer) {
     throw new Error('Failed to process RAW file with dcraw');
   }
 
-  console.log('Primary RAW thumbnail generation successful');
+  const sharpInstance = sharp(rawBuffer).rotate();
 
   // Resize to fit our thumbnail dimensions
-  return sharp(rawBuffer)
-    .rotate()
+  const thumbnailBuffer = await sharpInstance
+    .clone()
     .resize({
       width: THUMBNAIL_SIZE,
       height: THUMBNAIL_SIZE,
@@ -31,17 +40,31 @@ async function generateRawThumbnailPrimary(
     })
     .jpeg({ quality: THUMBNAIL_QUALITY })
     .toBuffer();
+
+  // Generate a small, grayscale, raw pixel buffer for fingerprinting/hashing
+  const imageFingerprint = await sharpInstance
+    .clone()
+    .greyscale()
+    .resize(16, 16, { fit: 'fill' }) // Small, fixed size
+    .raw()
+    .toBuffer();
+
+  return { thumbnailBuffer, imageFingerprint };
 }
 
 /**
- * Generate thumbnail directly with Sharp
+ * Generate thumbnail directly with Sharp and create an image fingerprint
  */
 async function generateSharpThumbnail(
   mediaItem: MediaWithRelations,
-): Promise<Buffer> {
+): Promise<ThumbnailGenerationResult> {
   try {
-    const result = await sharp(mediaItem.media_path)
-      .rotate(orientationToDegrees(mediaItem.exif_data?.orientation))
+    const sharpInstance = sharp(mediaItem.media_path).rotate(
+      orientationToDegrees(mediaItem.exif_data?.orientation),
+    );
+
+    const thumbnailBuffer = await sharpInstance
+      .clone() // Clone the instance for thumbnail generation
       .resize({
         width: THUMBNAIL_SIZE,
         height: THUMBNAIL_SIZE,
@@ -51,10 +74,22 @@ async function generateSharpThumbnail(
       })
       .jpeg({ quality: THUMBNAIL_QUALITY })
       .toBuffer();
-    return result;
+
+    // Generate a small, grayscale, raw pixel buffer for fingerprinting/hashing
+    const imageFingerprint = await sharpInstance
+      .clone() // Clone the instance again for fingerprint generation
+      .greyscale()
+      .resize(16, 16, { fit: 'fill' }) // Small, fixed size
+      .raw()
+      .toBuffer();
+
+    return { thumbnailBuffer, imageFingerprint };
   } catch (error) {
-    console.error('Error generating thumbnail with Sharp:', error);
-    throw new Error('Failed to generate thumbnail with Sharp');
+    console.error(
+      'Error generating thumbnail or fingerprint with Sharp:',
+      error,
+    );
+    throw new Error('Failed to generate thumbnail or fingerprint with Sharp');
   }
 }
 
@@ -63,7 +98,7 @@ async function generateSharpThumbnail(
  */
 export async function processRawThumbnail(
   mediaItem: MediaWithRelations,
-): Promise<Buffer | null> {
+): Promise<ThumbnailGenerationResult | null> {
   try {
     console.log('try generating with dcraw: ');
     return await generateRawThumbnailPrimary(mediaItem);
@@ -83,10 +118,11 @@ export async function processRawThumbnail(
  */
 export async function processNativeThumbnail(
   mediaItem: MediaWithRelations,
-): Promise<Buffer | null> {
+): Promise<ThumbnailGenerationResult | null> {
   try {
     return await generateSharpThumbnail(mediaItem);
-  } catch (_alternativeRawError) {
+  } catch (_sharpError) {
+    // Error is already logged in generateSharpThumbnail
     return null;
   }
 }

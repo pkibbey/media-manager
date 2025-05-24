@@ -5,18 +5,96 @@ import { createSupabase } from '@/lib/supabase';
 import {
   processNativeThumbnail,
   processRawThumbnail,
+  type ThumbnailGenerationResult,
 } from '@/lib/thumbnail-generators';
 import { storeThumbnail } from '@/lib/thumbnail-storage';
 import type { MediaWithRelations } from '@/types/media-types';
 
 /**
- * Generate a thumbnail for a single media item
+ * Generates a perceptual hash (dHash) from a raw 16x16 grayscale image fingerprint buffer.
+ * dHash compares adjacent pixels to create a hash that's resilient to small changes.
+ * @param fingerprint - The raw 16x16 grayscale image fingerprint buffer (256 bytes).
+ * @returns A hex string representation of the perceptual hash, or null if generation fails.
+ */
+async function generateVisualHashFromFingerprint(
+  fingerprint: Buffer,
+): Promise<string | null> {
+  try {
+    if (!fingerprint || fingerprint.length !== 256) {
+      console.error(
+        '[generateVisualHashFromFingerprint] Invalid fingerprint buffer length:',
+        fingerprint?.length,
+      );
+      return null;
+    }
+
+    // Implement difference hash (dHash) algorithm
+    // Compare each pixel with the pixel to its right
+    const hash: number[] = [];
+
+    for (let row = 0; row < 16; row++) {
+      for (let col = 0; col < 15; col++) {
+        // Only go to 15 to compare with next pixel
+        const currentPixel = fingerprint[row * 16 + col];
+        const nextPixel = fingerprint[row * 16 + col + 1];
+
+        // If current pixel is brighter than next pixel, set bit to 1
+        hash.push(currentPixel > nextPixel ? 1 : 0);
+      }
+    }
+
+    // Convert the binary hash to a hexadecimal string
+    const hashString = convertBinaryToHex(hash);
+
+    console.log(
+      '[generateVisualHashFromFingerprint] dHash generated:',
+      hashString,
+    );
+
+    return hashString;
+  } catch (error) {
+    console.error(
+      '[generateVisualHashFromFingerprint] Error generating visual hash:',
+      error,
+    );
+    return null;
+  }
+}
+
+/**
+ * Converts an array of binary bits to a hexadecimal string.
+ * @param binaryArray - Array of 1s and 0s
+ * @returns Hexadecimal string representation
+ */
+function convertBinaryToHex(binaryArray: number[]): string {
+  let hexString = '';
+
+  // Process 4 bits at a time to create hex digits
+  for (let i = 0; i < binaryArray.length; i += 4) {
+    const nibble = binaryArray.slice(i, i + 4);
+
+    // Pad with zeros if needed
+    while (nibble.length < 4) {
+      nibble.push(0);
+    }
+
+    // Convert 4 bits to decimal then to hex
+    const decimal = nibble[0] * 8 + nibble[1] * 4 + nibble[2] * 2 + nibble[3];
+    hexString += decimal.toString(16);
+  }
+
+  return hexString;
+}
+
+/**
+ * Generate a thumbnail for a single media item and update its visual hash
  *
  * @param mediaItem - The media item to process
  * @returns Object with success status and any error message
  */
 async function processMediaThumbnail(mediaItem: MediaWithRelations) {
-  let thumbnailBuffer: Buffer | null = null;
+  let generationResult: ThumbnailGenerationResult | null = null;
+
   try {
     console.log('[processMediaThumbnail] Start processing mediaItem', {
       id: mediaItem.id,
@@ -24,44 +102,63 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
     });
     // Choose appropriate thumbnail generation strategy based on media type
     if (mediaItem.media_types?.is_native) {
-      console.log(
-        `[processMediaThumbnail] Using processNativeThumbnail for media ${mediaItem.id}`,
-      );
-      thumbnailBuffer = await processNativeThumbnail(mediaItem);
+      generationResult = await processNativeThumbnail(mediaItem);
     } else {
-      console.log(
-        `[processMediaThumbnail] Using processRawThumbnail for media ${mediaItem.id}`,
-      );
-      thumbnailBuffer = await processRawThumbnail(mediaItem);
+      generationResult = await processRawThumbnail(mediaItem);
     }
-    console.log(
-      `[processMediaThumbnail] Thumbnail buffer generated for media ${mediaItem.id}:`,
-      {
-        bufferType: typeof thumbnailBuffer,
-        bufferLength: thumbnailBuffer?.length,
-      },
-    );
   } catch (processingError) {
-    console.error(
-      `[processMediaThumbnail] Error generating thumbnail for media ${mediaItem.id}:`,
-      processingError,
-      {
-        mediaItem,
-      },
-    );
     return {
       success: false,
       error:
         processingError instanceof Error
-          ? `Thumbnail generation failed: ${processingError.message}`
-          : 'Thumbnail generation failed',
+          ? `Thumbnail/Fingerprint generation failed: ${processingError.message}`
+          : 'Thumbnail/Fingerprint generation failed',
     };
   }
 
-  if (!thumbnailBuffer) {
-    console.warn(
-      `[processMediaThumbnail] No thumbnail generated for media ${mediaItem.id}`,
+  // Process and store visual hash if fingerprint was generated
+  if (generationResult?.imageFingerprint) {
+    const visualHash = await generateVisualHashFromFingerprint(
+      generationResult.imageFingerprint,
     );
+    if (visualHash) {
+      try {
+        const supabase = createSupabase();
+        const { error: updateError } = await supabase
+          .from('media')
+          .update({ visual_hash: visualHash })
+          .eq('id', mediaItem.id);
+
+        if (updateError) {
+          console.error(
+            `[processMediaThumbnail] Failed to update visual hash for media ${mediaItem.id}:`,
+            updateError.message,
+          );
+          // Note: We are not returning failure for the whole function here,
+          // as thumbnail processing might still succeed.
+        } else {
+          console.log(
+            `[processMediaThumbnail] Successfully updated visual hash for media ${mediaItem.id}`,
+          );
+        }
+      } catch (dbError) {
+        console.error(
+          `[processMediaThumbnail] Exception during visual hash update for media ${mediaItem.id}:`,
+          dbError,
+        );
+      }
+    } else {
+      console.log(
+        `[processMediaThumbnail] No visual hash generated for media ${mediaItem.id} (fingerprint might have been empty or hash generation failed).`,
+      );
+    }
+  } else {
+    console.log(
+      `[processMediaThumbnail] No image fingerprint available for media ${mediaItem.id}, skipping visual hash.`,
+    );
+  }
+
+  if (!generationResult?.thumbnailBuffer) {
     return {
       success: false,
       error: 'No thumbnail generated',
@@ -70,15 +167,15 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
 
   try {
     // Store the thumbnail and update database
-    console.log(
-      `[processMediaThumbnail] Storing thumbnail for media ${mediaItem.id}`,
+    const storageResult = await storeThumbnail(
+      mediaItem.id,
+      generationResult.thumbnailBuffer,
     );
-    const storageResult = await storeThumbnail(mediaItem.id, thumbnailBuffer);
     console.log(
       `[processMediaThumbnail] Storage result for media ${mediaItem.id}:`,
       storageResult,
     );
-    return storageResult;
+    return storageResult; // This determines the primary success/failure of the function
   } catch (storageError) {
     console.error(
       `[processMediaThumbnail] Error storing thumbnail for media ${mediaItem.id}:`,
