@@ -9,7 +9,7 @@
 export async function processInChunks<T, R>(
   items: T[],
   processFn: (item: T) => Promise<R>,
-  concurrency = 3,
+  concurrency = 5,
 ): Promise<Array<PromiseSettledResult<R>>> {
   const results: Array<PromiseSettledResult<R>> = [];
 

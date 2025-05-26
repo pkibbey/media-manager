@@ -31,23 +31,6 @@ export async function deleteSelectedDuplicates(
     // Delete in transaction-like manner (though Supabase doesn't support true transactions)
     // Delete associated data first, then the media items
 
-    console.log(
-      `[deleteSelectedDuplicates] Deleting ${mediaIds.length} media items and associated data`,
-    );
-
-    // Delete thumbnail data
-    const { error: thumbnailError } = await supabase
-      .from('thumbnail_data')
-      .delete()
-      .in('media_id', mediaIds);
-
-    if (thumbnailError) {
-      console.warn(
-        '[deleteSelectedDuplicates] Error deleting thumbnail data:',
-        thumbnailError.message,
-      );
-    }
-
     // Delete EXIF data
     const { error: exifError } = await supabase
       .from('exif_data')
@@ -85,10 +68,6 @@ export async function deleteSelectedDuplicates(
     }
 
     deletedCount = count || 0;
-
-    console.log(
-      `[deleteSelectedDuplicates] Successfully deleted ${deletedCount} media items`,
-    );
 
     return {
       success: true,

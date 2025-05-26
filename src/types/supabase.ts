@@ -190,6 +190,7 @@ export type Database = {
       }
       media: {
         Row: {
+          file_hash: string | null
           id: string
           is_advanced_processed: boolean
           is_basic_processed: boolean
@@ -201,9 +202,11 @@ export type Database = {
           media_path: string
           media_type_id: string
           size_bytes: number
+          thumbnail_url: string | null
           visual_hash: string | null
         }
         Insert: {
+          file_hash?: string | null
           id?: string
           is_advanced_processed?: boolean
           is_basic_processed?: boolean
@@ -215,9 +218,11 @@ export type Database = {
           media_path: string
           media_type_id: string
           size_bytes: number
+          thumbnail_url?: string | null
           visual_hash?: string | null
         }
         Update: {
+          file_hash?: string | null
           id?: string
           is_advanced_processed?: boolean
           is_basic_processed?: boolean
@@ -229,6 +234,7 @@ export type Database = {
           media_path?: string
           media_type_id?: string
           size_bytes?: number
+          thumbnail_url?: string | null
           visual_hash?: string | null
         }
         Relationships: [
@@ -264,32 +270,6 @@ export type Database = {
           mime_type?: string
         }
         Relationships: []
-      }
-      thumbnail_data: {
-        Row: {
-          id: string
-          media_id: string
-          thumbnail_url: string
-        }
-        Insert: {
-          id?: string
-          media_id: string
-          thumbnail_url: string
-        }
-        Update: {
-          id?: string
-          media_id?: string
-          thumbnail_url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "thumbnails_file_id_fkey"
-            columns: ["media_id"]
-            isOneToOne: true
-            referencedRelation: "media"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {

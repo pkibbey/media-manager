@@ -18,14 +18,14 @@ import { processWithOllamaBatchOptimized } from './process-wtih-ollama';
  * @param concurrency - Number of items to process in parallel
  * @returns Object with count of processed items and any errors
  */
-export async function processAdvancedAnalysis(limit = 10, concurrency = 3) {
+export async function processAdvancedAnalysis(limit = 10, concurrency = 5) {
   try {
     const supabase = createSupabase();
 
     // Find media items that need analysis processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('*, media_types(is_ignored), thumbnail_data(thumbnail_url)')
+      .select('*, media_types(is_ignored)')
       .eq('is_thumbnail_processed', true)
       .eq('is_advanced_processed', false)
       .is('media_types.is_ignored', false)
@@ -45,9 +45,6 @@ export async function processAdvancedAnalysis(limit = 10, concurrency = 3) {
       };
     }
 
-    console.log(
-      `Processing advanced analysis for ${mediaItems.length} items with concurrency ${concurrency}`,
-    );
     const batchStartTime = Date.now();
 
     // Process items with controlled concurrency (AI processing first)
@@ -68,7 +65,7 @@ export async function processAdvancedAnalysis(limit = 10, concurrency = 3) {
 
         try {
           // Check if thumbnail URL exists
-          if (!item.thumbnail_data?.thumbnail_url) {
+          if (!item.thumbnail_url) {
             console.warn(`No thumbnail URL for item ${item.id}, skipping`);
             results.push({
               success: false,
@@ -81,7 +78,7 @@ export async function processAdvancedAnalysis(limit = 10, concurrency = 3) {
 
           const result = await processWithOllamaBatchOptimized({
             mediaId: item.id,
-            thumbnailUrl: item.thumbnail_data.thumbnail_url,
+            thumbnailUrl: item.thumbnail_url,
           });
 
           results.push(result);

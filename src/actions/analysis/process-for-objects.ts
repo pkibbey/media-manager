@@ -23,7 +23,6 @@ async function initTensorFlowAndLoadModel() {
   // tf-node will automatically use the best available hardware
   // Metal GPU will be used on M-series Macs if TF_METAL_DEVICE=1 is set
   await tf.ready();
-  console.log('TensorFlow.js initialized with backend:', tf.getBackend());
 
   // Load the COCO-SSD model (MobileNet v2)
   const model = await cocoSsd.load({
@@ -46,9 +45,6 @@ export async function processBatchForObjects(
   mediaItems: MediaWithRelations[],
   concurrency = DEFAULT_CONCURRENCY,
 ) {
-  console.log(
-    `Processing batch of ${mediaItems.length} items with concurrency ${concurrency}`,
-  );
   const batchStartTime = Date.now();
 
   try {
@@ -77,9 +73,7 @@ export async function processBatchForObjects(
           }
 
           // Fetch and process the image
-          const imageResponse = await fetch(
-            mediaItem.thumbnail_data?.thumbnail_url || '',
-          );
+          const imageResponse = await fetch(mediaItem.thumbnail_url || '');
           const imageBuffer = new Uint8Array(await imageResponse.arrayBuffer());
 
           // Use tf.node.decodeJpeg since we know thumbnails are always in JPEG format
@@ -215,6 +209,5 @@ export async function clearModelCache() {
     if (global.gc) {
       global.gc();
     }
-    console.log('Model cache cleared');
   }
 }

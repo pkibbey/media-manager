@@ -74,10 +74,6 @@ export async function processScanResults(
     results.filesAdded = insertedCount;
     results.filesSkipped = files.length - insertedCount;
 
-    console.log(
-      `Batch processed ${files.length} files: ${insertedCount} added, ${results.filesSkipped} skipped (already existed)`,
-    );
-
     return results;
   } catch (error) {
     console.error('Error in batch file processing:', error);

@@ -30,7 +30,6 @@ export async function getScanStats() {
       error: null,
     };
   } catch (error) {
-    console.error('Error getting scan stats:', error);
     return {
       stats: {
         total: 0,
@@ -38,7 +37,8 @@ export async function getScanStats() {
         remaining: 0,
         percentComplete: 0,
       },
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error:
+        error instanceof Error ? error.message : 'Error getting scan stats',
     };
   }
 }

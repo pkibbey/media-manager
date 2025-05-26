@@ -26,7 +26,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
   };
 
   const fileName = media.media_path.split('/').pop() || media.media_path;
-  const thumbnail = media.thumbnail_data?.thumbnail_url;
+  const thumbnail = media.thumbnail_url;
 
   return (
     <Card

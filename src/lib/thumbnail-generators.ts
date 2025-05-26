@@ -85,11 +85,7 @@ async function generateSharpThumbnail(
       .toBuffer();
 
     return { thumbnailBuffer, imageFingerprint };
-  } catch (error) {
-    console.error(
-      'Error generating thumbnail or fingerprint with Sharp:',
-      error,
-    );
+  } catch (_error) {
     throw new Error('Failed to generate thumbnail or fingerprint with Sharp');
   }
 }
@@ -102,12 +98,9 @@ export async function processRawThumbnail(
   fileBuffer: Buffer,
 ): Promise<ThumbnailGenerationResult | null> {
   try {
-    console.log('try generating with dcraw: ');
     return await generateRawThumbnailPrimary(fileBuffer);
   } catch (_rawProcessError) {
-    console.log('_rawProcessError: ', _rawProcessError);
     try {
-      console.log('Falling back to generateSharpThumbnail');
       return await generateSharpThumbnail(mediaItem, fileBuffer);
     } catch (_alternativeRawError) {
       return null;
@@ -125,7 +118,6 @@ export async function processNativeThumbnail(
   try {
     return await generateSharpThumbnail(mediaItem, fileBuffer);
   } catch (_sharpError) {
-    // Error is already logged in generateSharpThumbnail
     return null;
   }
 }

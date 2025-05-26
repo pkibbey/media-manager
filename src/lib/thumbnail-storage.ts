@@ -1,6 +1,5 @@
 import { v4 } from 'uuid';
-import { setMediaAsThumbnailProcessed } from '@/actions/thumbnails/set-media-as-thumbnail-processed';
-import type { TablesInsert } from '@/types/supabase';
+import type { TablesUpdate } from '@/types/supabase';
 import { createSupabase } from './supabase';
 
 interface StorageResult {
@@ -37,17 +36,16 @@ export async function storeThumbnail(
       .from('thumbnails')
       .getPublicUrl(thumbnailFilename);
 
-    const thumbnailUrl = urlData.publicUrl;
-
-    const upsertObject: TablesInsert<'thumbnail_data'> = {
-      media_id: mediaId,
-      thumbnail_url: thumbnailUrl,
+    const updateData: TablesUpdate<'media'> = {
+      thumbnail_url: urlData.publicUrl,
+      is_thumbnail_processed: true, // Mark as processed
     };
 
-    // Add the thumbnail to the thumbnail_data table (use upsert to allow updates)
+    // Add the thumbnail to the media table
     const { error: upsertError } = await supabase
-      .from('thumbnail_data')
-      .upsert(upsertObject, { onConflict: 'media_id' });
+      .from('media')
+      .update(updateData)
+      .eq('id', mediaId);
 
     if (upsertError) {
       throw new Error(
@@ -55,18 +53,9 @@ export async function storeThumbnail(
       );
     }
 
-    // Update the media item status
-    const { error: updateError } = await setMediaAsThumbnailProcessed(mediaId);
-
-    if (updateError) {
-      throw new Error(
-        `Failed to update media item with thumbnail URL: ${updateError.message}`,
-      );
-    }
-
     return {
       success: true,
-      thumbnailUrl,
+      thumbnailUrl: urlData.publicUrl,
     };
   } catch (error) {
     return {

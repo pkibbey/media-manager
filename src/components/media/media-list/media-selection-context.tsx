@@ -116,13 +116,13 @@ export function MediaSelectionProvider({
   const toggleHideSelected = async () => {
     // This would be implemented to call a server action
     // to toggle the is_hidden flag on selected files
-    console.log('Toggle hide for files:', Array.from(selection.selectedIds));
+    console.info('Toggle hide for files:', Array.from(selection.selectedIds));
   };
 
   const toggleDeleteSelected = async () => {
     // This would be implemented to call a server action
     // to toggle the is_deleted flag on selected files
-    console.log('Toggle delete for files:', Array.from(selection.selectedIds));
+    console.info('Toggle delete for files:', Array.from(selection.selectedIds));
   };
 
   const selectedMedia = useMemo(() => {

@@ -20,9 +20,7 @@ export async function processBasicAnalysis(limit = 10) {
     // Find media items that need analysis processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select(
-        '*, thumbnail_data(*), analysis_data(*), exif_data(*), media_types(*)',
-      )
+      .select('*, analysis_data(*), exif_data(*), media_types(*)')
       .eq('is_thumbnail_processed', true)
       .eq('is_basic_processed', false)
       .limit(limit);
