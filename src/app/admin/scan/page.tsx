@@ -25,7 +25,7 @@ export default function MediaScanPage() {
   const [scanStats, setScanStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [folderPath, setFolderPath] = useState<string>(
+  const [folderPaths, setFolderPaths] = useState<string>(
     process.env.NEXT_PUBLIC_MEDIA_SCAN_PATH || '',
   );
   const [scanProgress, setScanProgress] = useState<{
@@ -82,29 +82,37 @@ export default function MediaScanPage() {
 
   // Scan folders and process
   const scanFolders = async () => {
-    if (!folderPath.trim()) {
+    // Split input by comma, trim, and filter out empty strings
+    const paths = folderPaths
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    if (paths.length === 0) {
       return {
         success: false,
-        error: 'Please enter a valid folder path',
+        error: 'Please enter at least one valid folder path',
       };
     }
 
     setIsProcessing(true);
-    // Initialize scan progress for the entire operation
     setScanProgress({
       status: 'Initializing scan...',
       processed: 0,
-      total: 0, // This will be cumulative total files found
+      total: 0,
       error: undefined,
       processingComplete: false,
     });
 
-    // Tracks all unique folder paths encountered to avoid reprocessing.
     const allEncounteredFolders = new Set<string>();
-    allEncounteredFolders.add(folderPath.replace(/\/$/, '')); // Normalize and add initial path
+    const foldersToProcessQueue: string[] = [];
 
-    // Queue of folder paths to process
-    const foldersToProcessQueue: string[] = [folderPath.replace(/\/$/, '')];
+    // Add all initial paths
+    for (const path of paths) {
+      const normalized = path.replace(/\/$/, '');
+      allEncounteredFolders.add(normalized);
+      foldersToProcessQueue.push(normalized);
+    }
 
     let cumulativeProcessedCount = 0;
     let cumulativeSkippedCount = 0;
@@ -294,25 +302,32 @@ export default function MediaScanPage() {
                   <div>
                     <Input
                       id="folder-path"
-                      placeholder="/path/to/media/folder"
-                      value={folderPath}
-                      onChange={(e) => setFolderPath(e.target.value)}
+                      placeholder="/path/to/media/folder, /another/path"
+                      value={folderPaths}
+                      onChange={(e) => setFolderPaths(e.target.value)}
                       className={
-                        !folderPath.trim().startsWith('/') &&
-                        folderPath.trim() !== ''
+                        folderPaths
+                          .split(',')
+                          .some(
+                            (p) => p.trim() !== '' && !p.trim().startsWith('/'),
+                          )
                           ? 'border-red-500'
                           : ''
                       }
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Enter the absolute path to the folder you want to scan
+                      Enter one or more absolute folder paths, separated by
+                      commas
                     </p>
-                    {!folderPath.trim().startsWith('/') &&
-                      folderPath.trim() !== '' && (
-                        <p className="text-xs text-red-500 mt-1">
-                          Path must be absolute (start with /)
-                        </p>
-                      )}
+                    {folderPaths
+                      .split(',')
+                      .some(
+                        (p) => p.trim() !== '' && !p.trim().startsWith('/'),
+                      ) && (
+                      <p className="text-xs text-red-500 mt-1">
+                        All paths must be absolute (start with /)
+                      </p>
+                    )}
                   </div>
                 </div>
 

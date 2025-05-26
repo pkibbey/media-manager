@@ -49,7 +49,7 @@
     "tailwind-merge": "3.3.0",
     "tw-animate-css": "^1.3.0",
     "uuid": "^11.1.0",
-    "zod": "3.25.25",
+    "zod": "3.25.28",
     "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {
@@ -58,7 +58,7 @@
     "@types/react": "19.1.5",
     "@types/react-dom": "19.1.5",
     "autoprefixer": "^10.4.21",
-    "knip": "^5.57.2",
+    "knip": "^5.58.0",
     "postcss": "8.5.3",
     "supabase": "^2.23.4",
     "tailwindcss": "^4.1.7",

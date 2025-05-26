@@ -111,11 +111,11 @@ importers:
         specifier: ^11.1.0
         version: 11.1.0
       zod:
-        specifier: 3.25.25
-        version: 3.25.25
+        specifier: 3.25.28
+        version: 3.25.28
       zod-to-json-schema:
         specifier: ^3.24.5
-        version: 3.24.5(zod@3.25.25)
+        version: 3.24.5(zod@3.25.28)
     devDependencies:
       '@biomejs/biome':
         specifier: 2.0.0-beta.5
@@ -133,8 +133,8 @@ importers:
         specifier: ^10.4.21
         version: 10.4.21(postcss@8.5.3)
       knip:
-        specifier: ^5.57.2
-        version: 5.57.2(@types/node@22.15.21)(typescript@5.8.3)
+        specifier: ^5.58.0
+        version: 5.58.0(@types/node@22.15.21)(typescript@5.8.3)
       postcss:
         specifier: 8.5.3
         version: 8.5.3
@@ -1514,8 +1514,8 @@ packages:
     resolution: {integrity: sha512-wpxZs9NoxZaJESJGIZTyDEaYpl0FKSA+FB9aJiyemKhMwkxQg63h4T1KJgUGHpTqPDNRcmmYLugrRjJlBtWvRA==}
     hasBin: true
 
-  knip@5.57.2:
-    resolution: {integrity: sha512-6a5h4MLfn71DxfwkLaA447+4SSFtEs/LVX1241yqX/B1ARGiCQTstA1adF949JESIMwUUJP/JLCH9TSn+aRFMg==}
+  knip@5.58.0:
+    resolution: {integrity: sha512-U3+ADL9mylwia7bU85CYeHSdMI7DIpaCzH37NZ8rru/dgq56iyiS0oTELhfNaCYu+TcRyuijU2YQf9o0zUGA5w==}
     engines: {node: '>=18.18.0'}
     hasBin: true
     peerDependencies:
@@ -2129,8 +2129,8 @@ packages:
     peerDependencies:
       zod: ^3.24.4
 
-  zod@3.25.25:
-    resolution: {integrity: sha512-ZIe8jLjydG09F/5joIm10fSKa3pQ64YS1OfhQzNVwbHEd0MeAF3A9CbcKl5/1Pr6Wr37TMJtEWki8X2Y/2MvGQ==}
+  zod@3.25.28:
+    resolution: {integrity: sha512-/nt/67WYKnr5by3YS7LroZJbtcCBurDKKPBPWWzaxvVCGuG/NOsiKkrjoOhI8mJ+SQUXEbUzeB3S+6XDUEEj7Q==}
 
 snapshots:
 
@@ -3421,7 +3421,7 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  knip@5.57.2(@types/node@22.15.21)(typescript@5.8.3):
+  knip@5.58.0(@types/node@22.15.21)(typescript@5.8.3):
     dependencies:
       '@nodelib/fs.walk': 1.2.8
       '@types/node': 22.15.21
@@ -3436,8 +3436,8 @@ snapshots:
       smol-toml: 1.3.4
       strip-json-comments: 5.0.1
       typescript: 5.8.3
-      zod: 3.25.25
-      zod-validation-error: 3.4.1(zod@3.25.25)
+      zod: 3.25.28
+      zod-validation-error: 3.4.1(zod@3.25.28)
 
   lightningcss-darwin-arm64@1.30.1:
     optional: true
@@ -3954,12 +3954,12 @@ snapshots:
       y18n: 5.0.8
       yargs-parser: 20.2.9
 
-  zod-to-json-schema@3.24.5(zod@3.25.25):
+  zod-to-json-schema@3.24.5(zod@3.25.28):
     dependencies:
-      zod: 3.25.25
+      zod: 3.25.28
 
-  zod-validation-error@3.4.1(zod@3.25.25):
+  zod-validation-error@3.4.1(zod@3.25.28):
     dependencies:
-      zod: 3.25.25
+      zod: 3.25.28
 
-  zod@3.25.25: {}
+  zod@3.25.28: {}
