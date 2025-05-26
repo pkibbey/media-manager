@@ -43,8 +43,9 @@ export async function GET(
     if (isRawFormat) {
       // Handle RAW image format
       try {
-        imageBuffer = await processRawWithDcraw(filePath).catch(() =>
-          convertRawThumbnail(filePath),
+        const rawFileBuffer = await fs.readFile(filePath);
+        imageBuffer = await processRawWithDcraw(rawFileBuffer).catch(() =>
+          convertRawThumbnail(rawFileBuffer),
         );
       } catch (_error) {
         console.error(`Failed to process RAW image: ${filePath}`);

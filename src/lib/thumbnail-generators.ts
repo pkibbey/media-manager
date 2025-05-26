@@ -17,10 +17,10 @@ export type ThumbnailGenerationResult = {
  * Generate thumbnail from a RAW file using primary dcraw method
  */
 async function generateRawThumbnailPrimary(
-  mediaItem: MediaWithRelations,
+  fileBuffer: Buffer,
 ): Promise<ThumbnailGenerationResult | null> {
   // Use dcraw to extract high-quality JPEG from RAW file
-  const rawBuffer = await processRawWithDcraw(mediaItem.media_path);
+  const rawBuffer = await processRawWithDcraw(fileBuffer);
 
   if (!rawBuffer) {
     throw new Error('Failed to process RAW file with dcraw');
@@ -57,9 +57,10 @@ async function generateRawThumbnailPrimary(
  */
 async function generateSharpThumbnail(
   mediaItem: MediaWithRelations,
+  fileBuffer: Buffer,
 ): Promise<ThumbnailGenerationResult> {
   try {
-    const sharpInstance = sharp(mediaItem.media_path).rotate(
+    const sharpInstance = sharp(fileBuffer).rotate(
       orientationToDegrees(mediaItem.exif_data?.orientation),
     );
 
@@ -98,15 +99,16 @@ async function generateSharpThumbnail(
  */
 export async function processRawThumbnail(
   mediaItem: MediaWithRelations,
+  fileBuffer: Buffer,
 ): Promise<ThumbnailGenerationResult | null> {
   try {
     console.log('try generating with dcraw: ');
-    return await generateRawThumbnailPrimary(mediaItem);
+    return await generateRawThumbnailPrimary(fileBuffer);
   } catch (_rawProcessError) {
     console.log('_rawProcessError: ', _rawProcessError);
     try {
       console.log('Falling back to generateSharpThumbnail');
-      return await generateSharpThumbnail(mediaItem);
+      return await generateSharpThumbnail(mediaItem, fileBuffer);
     } catch (_alternativeRawError) {
       return null;
     }
@@ -118,9 +120,10 @@ export async function processRawThumbnail(
  */
 export async function processNativeThumbnail(
   mediaItem: MediaWithRelations,
+  fileBuffer: Buffer,
 ): Promise<ThumbnailGenerationResult | null> {
   try {
-    return await generateSharpThumbnail(mediaItem);
+    return await generateSharpThumbnail(mediaItem, fileBuffer);
   } catch (_sharpError) {
     // Error is already logged in generateSharpThumbnail
     return null;

@@ -1,5 +1,7 @@
 'use server';
 
+import fs from 'node:fs/promises';
+import XXH from 'xxhashjs';
 import { countResults, processInChunks } from '@/lib/batch-processing';
 import { createSupabase } from '@/lib/supabase';
 import {
@@ -87,24 +89,53 @@ function convertBinaryToHex(binaryArray: number[]): string {
 }
 
 /**
- * Generate a thumbnail for a single media item and update its visual hash
+ * Generate a thumbnail for a single media item and update its visual hash and file hash
  *
  * @param mediaItem - The media item to process
  * @returns Object with success status and any error message
  */
 async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   let generationResult: ThumbnailGenerationResult | null = null;
+  let fileBuffer: Buffer;
 
   try {
-    console.log('[processMediaThumbnail] Start processing mediaItem', {
-      id: mediaItem.id,
-      media_types: mediaItem.media_types,
-    });
+    // Read the file buffer once
+    if (!mediaItem.media_path) {
+      return {
+        success: false,
+        error: 'No media_path available on media item',
+      };
+    }
+    fileBuffer = await fs.readFile(mediaItem.media_path);
+  } catch (fileReadError) {
+    return {
+      success: false,
+      error:
+        fileReadError instanceof Error
+          ? `Failed to read file: ${fileReadError.message}`
+          : 'Failed to read file',
+    };
+  }
+
+  // Generate file_hash using xxhash (xxh64)
+  let fileHash: string | null = null;
+  try {
+    // Use a fixed seed for deterministic hashing
+    fileHash = XXH.h64(fileBuffer, 0xabcd).toString(16);
+  } catch (hashError) {
+    console.error(
+      '[processMediaThumbnail] Error generating file hash:',
+      hashError,
+    );
+    fileHash = null;
+  }
+
+  try {
     // Choose appropriate thumbnail generation strategy based on media type
     if (mediaItem.media_types?.is_native) {
-      generationResult = await processNativeThumbnail(mediaItem);
+      generationResult = await processNativeThumbnail(mediaItem, fileBuffer);
     } else {
-      generationResult = await processRawThumbnail(mediaItem);
+      generationResult = await processRawThumbnail(mediaItem, fileBuffer);
     }
   } catch (processingError) {
     return {
@@ -117,37 +148,12 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   }
 
   // Process and store visual hash if fingerprint was generated
+  let visualHash: string | null = null;
   if (generationResult?.imageFingerprint) {
-    const visualHash = await generateVisualHashFromFingerprint(
+    visualHash = await generateVisualHashFromFingerprint(
       generationResult.imageFingerprint,
     );
-    if (visualHash) {
-      try {
-        const supabase = createSupabase();
-        const { error: updateError } = await supabase
-          .from('media')
-          .update({ visual_hash: visualHash })
-          .eq('id', mediaItem.id);
-
-        if (updateError) {
-          console.error(
-            `[processMediaThumbnail] Failed to update visual hash for media ${mediaItem.id}:`,
-            updateError.message,
-          );
-          // Note: We are not returning failure for the whole function here,
-          // as thumbnail processing might still succeed.
-        } else {
-          console.log(
-            `[processMediaThumbnail] Successfully updated visual hash for media ${mediaItem.id}`,
-          );
-        }
-      } catch (dbError) {
-        console.error(
-          `[processMediaThumbnail] Exception during visual hash update for media ${mediaItem.id}:`,
-          dbError,
-        );
-      }
-    } else {
+    if (!visualHash) {
       console.log(
         `[processMediaThumbnail] No visual hash generated for media ${mediaItem.id} (fingerprint might have been empty or hash generation failed).`,
       );
@@ -165,8 +171,9 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
     };
   }
 
+  let thumbnailUrl: string | null = null;
   try {
-    // Store the thumbnail and update database
+    // Store the thumbnail and get the URL
     const storageResult = await storeThumbnail(
       mediaItem.id,
       generationResult.thumbnailBuffer,
@@ -175,7 +182,11 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
       `[processMediaThumbnail] Storage result for media ${mediaItem.id}:`,
       storageResult,
     );
-    return storageResult; // This determines the primary success/failure of the function
+    if (storageResult.success && storageResult.thumbnailUrl) {
+      thumbnailUrl = storageResult.thumbnailUrl;
+    } else if (!storageResult.success) {
+      return storageResult;
+    }
   } catch (storageError) {
     console.error(
       `[processMediaThumbnail] Error storing thumbnail for media ${mediaItem.id}:`,
@@ -192,6 +203,57 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
           : 'Thumbnail storage failed',
     };
   }
+
+  // Save visual_hash, file_hash, and thumbnail URL in a single DB update
+  try {
+    const supabase = createSupabase();
+    const updateFields: Record<string, any> = {
+      is_thumbnail_processed: true,
+    };
+    if (visualHash) updateFields.visual_hash = visualHash;
+    if (fileHash) updateFields.file_hash = fileHash;
+    if (thumbnailUrl) updateFields.thumbnail_url = thumbnailUrl;
+
+    const { error: updateError } = await supabase
+      .from('media')
+      .update(updateFields)
+      .eq('id', mediaItem.id);
+
+    if (updateError) {
+      console.error(
+        `[processMediaThumbnail] Failed to update hashes/thumbnail for media ${mediaItem.id}:`,
+        updateError.message,
+      );
+      return {
+        success: false,
+        error: `Failed to update hashes/thumbnail: ${updateError.message}`,
+      };
+    }
+    console.log(
+      `[processMediaThumbnail] Successfully updated hashes/thumbnail for media ${mediaItem.id}`,
+    );
+  } catch (dbError) {
+    console.error(
+      `[processMediaThumbnail] Exception during hashes/thumbnail update for media ${mediaItem.id}:`,
+      dbError,
+    );
+    return {
+      success: false,
+      error:
+        dbError instanceof Error
+          ? `DB update failed: ${dbError.message}`
+          : 'DB update failed',
+    };
+  }
+
+  return {
+    success: true,
+    message: 'Thumbnail, visual hash, and file hash processed and saved',
+    visualHash,
+    fileHash,
+    thumbnailUrl,
+    error: null,
+  };
 }
 
 /**
