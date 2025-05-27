@@ -21,7 +21,7 @@ import { extractExifData } from './process-exif';
  * @param concurrency - Number of items to process in parallel
  * @returns Object with count of processed items and any errors
  */
-export async function processBatchExif(limit = 10, concurrency = 5) {
+export async function processBatchExif(limit = 10, concurrency = 3) {
   try {
     const supabase = createSupabase();
 
@@ -117,12 +117,14 @@ export async function processBatchExif(limit = 10, concurrency = 5) {
       }
     }
 
+    const succeeded = mediaIdsToUpdate.length;
+
     return {
       success: true,
-      processed: mediaIdsToUpdate.length,
+      processed: succeeded,
       failed,
       total: mediaItems.length,
-      message: `Processed ${mediaIdsToUpdate.length} items (${failed} failed) for EXIF data`,
+      message: `Processed ${succeeded} items (${failed} failed) for EXIF data`,
     };
   } catch (error) {
     console.error('Error in batch EXIF processing:', error);

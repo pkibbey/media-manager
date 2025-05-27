@@ -25,6 +25,7 @@ export async function getMedia(
       `
       *,
       media_types(*),
+      thumbnail_data(*),
       exif_data(*),
       analysis_data(*)
     `,
@@ -79,9 +80,9 @@ export async function getMedia(
   if (filters.hasThumbnail !== 'all') {
     const hasThumbnail = filters.hasThumbnail === 'yes';
     if (hasThumbnail) {
-      query = query.not('thumbnail_url', 'is', null);
+      query = query.not('thumbnail_data', 'is', null);
     } else {
-      query = query.is('thumbnail_url', null);
+      query = query.is('thumbnail_data', null);
     }
   }
 

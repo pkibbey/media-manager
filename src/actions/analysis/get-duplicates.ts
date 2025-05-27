@@ -86,6 +86,7 @@ export async function getDuplicates(
       .select(`
         *,
         media_types!inner(*),
+        thumbnail_data(*),
         exif_data(*),
         analysis_data(*)
       `)
@@ -110,6 +111,10 @@ export async function getDuplicates(
         },
       };
     }
+
+    console.log(
+      `[getDuplicates] Analyzing ${mediaItems.length} items for duplicates`,
+    );
 
     // Find duplicates using hash comparison
     const duplicateGroups: Map<string, MediaWithRelations[]> = new Map();
@@ -242,6 +247,10 @@ export async function getDuplicates(
       exactMatches,
       similarMatches,
     };
+
+    console.log(
+      `[getDuplicates] Found ${stats.totalGroups} duplicate groups with ${stats.totalDuplicateItems} items`,
+    );
 
     return { groups, stats };
   } catch (error) {

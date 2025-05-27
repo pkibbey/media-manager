@@ -16,6 +16,8 @@ export async function getContentWarningsStats() {
       .is('is_thumbnail_processed', true)
       .is('media_types.is_ignored', false);
 
+    console.log('total: ', total);
+
     if (totalError) {
       return {
         stats: {
@@ -38,6 +40,8 @@ export async function getContentWarningsStats() {
       .is('is_thumbnail_processed', true)
       .is('is_content_warnings_processed', true)
       .is('media_types.is_ignored', false);
+
+    console.log('processed: ', processed);
 
     if (processedError) {
       return {

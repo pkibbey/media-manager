@@ -64,9 +64,9 @@ function DuplicateItem({ item, isSelected, onSelect }: DuplicateItemProps) {
       <CardContent className="p-4">
         <div className="flex items-start space-x-3">
           <div className="flex-shrink-0">
-            {item.thumbnail_url ? (
+            {item.thumbnail_data?.thumbnail_url ? (
               <Image
-                src={item.thumbnail_url}
+                src={item.thumbnail_data.thumbnail_url}
                 alt="Thumbnail"
                 width={64}
                 height={64}

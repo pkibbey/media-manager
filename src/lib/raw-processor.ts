@@ -31,33 +31,8 @@ export async function processRawWithDcraw(
     // -c: Output to stdout (we redirect to a file)
     // -q 0: Use high-quality conversion
     const command = `dcraw -e -c -q 0 "${tempInputFile}" > "${tempOutputFile}"`;
-    // Capture stderr for diagnostics
-    await execAsync(command).catch((err) => {
-      // Log error and stderr if dcraw fails
-      console.error(
-        '[processRawWithDcraw] dcraw failed:',
-        err.stderr || err.message,
-      );
-      throw err;
-    });
-    // Check output file exists and is not empty
-    let imageBuffer: Buffer | null = null;
-    try {
-      const stat = await fs.stat(tempOutputFile);
-      if (stat.size > 0) {
-        imageBuffer = await fs.readFile(tempOutputFile);
-      } else {
-        console.error(
-          '[processRawWithDcraw] Output JPEG is empty:',
-          tempOutputFile,
-        );
-      }
-    } catch (statErr) {
-      console.error(
-        '[processRawWithDcraw] Could not stat/read output JPEG:',
-        statErr,
-      );
-    }
+    await execAsync(command);
+    const imageBuffer = await fs.readFile(tempOutputFile);
     // Clean up
     await fs.unlink(tempInputFile);
     await fs.unlink(tempOutputFile);

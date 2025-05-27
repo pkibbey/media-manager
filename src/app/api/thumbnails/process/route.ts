@@ -3,7 +3,7 @@ import { processBatchThumbnails } from '@/actions/thumbnails/process-thumbnails'
 
 export async function POST(req: NextRequest) {
   try {
-    const { limit = 10, concurrency = 5 } = await req.json().catch(() => ({}));
+    const { limit = 10, concurrency = 3 } = await req.json().catch(() => ({}));
 
     const result = await processBatchThumbnails(limit, concurrency);
     return NextResponse.json(result);

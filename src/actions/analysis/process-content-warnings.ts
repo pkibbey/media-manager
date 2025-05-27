@@ -16,7 +16,7 @@ import type { TablesInsert } from '@/types/supabase';
  * @param concurrency - Number of concurrent processing tasks
  * @returns BatchResult object with success/failure information
  */
-export async function processContentWarnings(limit = 10, concurrency = 5) {
+export async function processContentWarnings(limit = 10, concurrency = 3) {
   try {
     const startTime = Date.now();
     const supabase = createSupabase();
@@ -24,10 +24,10 @@ export async function processContentWarnings(limit = 10, concurrency = 5) {
     // Find unprocessed media items that have thumbnails but don't have content warnings yet
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('*')
+      .select('*, thumbnail_data(*)')
       .eq('is_thumbnail_processed', true)
       .eq('is_content_warnings_processed', false) // Only get items that haven't been processed for content warnings
-      .not('thumbnail_url', 'is', null)
+      .not('thumbnail_data.thumbnail_url', 'is', null)
       .limit(limit);
 
     if (findError) {
@@ -43,6 +43,8 @@ export async function processContentWarnings(limit = 10, concurrency = 5) {
         message: 'No items to process',
       };
     }
+
+    console.log(`Processing content warnings for ${mediaItems.length} items`);
 
     // Process the content warnings
     const results = await processBatchForContentWarnings(
@@ -145,7 +147,9 @@ export async function processBatchForContentWarnings(
   const processContentWarnings = async (mediaItem: MediaWithRelations) => {
     try {
       // Fetch the image buffer (use thumbnail for speed)
-      const imageResponse = await fetch(mediaItem.thumbnail_url || '');
+      const imageResponse = await fetch(
+        mediaItem.thumbnail_data?.thumbnail_url || '',
+      );
       const imageBuffer = new Uint8Array(await imageResponse.arrayBuffer());
 
       // Decode JPEG

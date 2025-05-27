@@ -60,6 +60,7 @@ export default function AudioPage() {
         if (!window.tf) {
           // Use the imported tf instead of loading from CDN
           window.tf = tf;
+          console.log('TensorFlow.js loaded successfully');
         }
       } catch (error) {
         console.error('Failed to load TensorFlow.js:', error);
@@ -181,6 +182,7 @@ export default function AudioPage() {
       setError(null);
 
       const path = selectedModel || modelPath;
+      console.log(`Loading model from: ${path}`);
 
       // Validate URL format for remote models
       if (path.startsWith('http') && !path.endsWith('model.json')) {
@@ -194,6 +196,7 @@ export default function AudioPage() {
       try {
         // First try loading as a graph model (SavedModel format)
         modelRef.current = await window.tf.loadGraphModel(path);
+        console.log('Graph model loaded successfully');
       } catch (graphError) {
         console.error(
           'Failed to load as graph model, trying layered model:',
@@ -203,6 +206,7 @@ export default function AudioPage() {
         try {
           // If graph model fails, try loading as a layered model (Keras format)
           modelRef.current = await window.tf.loadLayersModel(path);
+          console.log('Layered model loaded successfully');
         } catch (layeredError) {
           throw new Error(`Failed to load model: ${layeredError || 'Unknown error'}. 
             If you received a 404 error, please verify the URL is correct and the model.json file exists at that location.
@@ -254,6 +258,7 @@ export default function AudioPage() {
     try {
       // This is a placeholder for the actual model inference
       // The exact implementation will depend on the specific model type and architecture
+      console.log('Processing text with custom model:', text);
 
       // Simulating processing time
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -307,6 +312,7 @@ export default function AudioPage() {
       // Handle TensorFlow.js model files
       if (modelJsonFile) {
         const modelName = modelJsonFile.name;
+        console.log(`Processing TensorFlow.js model file: ${modelName}`);
 
         // Create a URL for the model.json file
         const modelUrl = URL.createObjectURL(modelJsonFile);
@@ -316,6 +322,7 @@ export default function AudioPage() {
         try {
           // First attempt to load as a graph model
           modelRef.current = await window.tf.loadGraphModel(modelUrl);
+          console.log('Graph model loaded successfully from uploaded file');
         } catch (graphError) {
           console.error(
             'Failed to load as graph model, trying layered model:',
@@ -325,6 +332,7 @@ export default function AudioPage() {
           try {
             // If that fails, try loading as a layers model
             modelRef.current = await window.tf.loadLayersModel(modelUrl);
+            console.log('Layered model loaded successfully from uploaded file');
           } catch (_layeredError) {
             throw new Error(
               'Failed to load model from the uploaded file. The model may not be in the correct TensorFlow.js format.',

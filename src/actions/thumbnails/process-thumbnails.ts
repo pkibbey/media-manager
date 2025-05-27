@@ -48,6 +48,11 @@ async function generateVisualHashFromFingerprint(
     // Convert the binary hash to a hexadecimal string
     const hashString = convertBinaryToHex(hash);
 
+    console.log(
+      '[generateVisualHashFromFingerprint] dHash generated:',
+      hashString,
+    );
+
     return hashString;
   } catch (error) {
     console.error(
@@ -117,7 +122,11 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   try {
     // Use a fixed seed for deterministic hashing
     fileHash = XXH.h64(fileBuffer, 0xabcd).toString(16);
-  } catch (_hashError) {
+  } catch (hashError) {
+    console.error(
+      '[processMediaThumbnail] Error generating file hash:',
+      hashError,
+    );
     fileHash = null;
   }
 
@@ -144,6 +153,15 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
     visualHash = await generateVisualHashFromFingerprint(
       generationResult.imageFingerprint,
     );
+    if (!visualHash) {
+      console.log(
+        `[processMediaThumbnail] No visual hash generated for media ${mediaItem.id} (fingerprint might have been empty or hash generation failed).`,
+      );
+    }
+  } else {
+    console.log(
+      `[processMediaThumbnail] No image fingerprint available for media ${mediaItem.id}, skipping visual hash.`,
+    );
   }
 
   if (!generationResult?.thumbnailBuffer) {
@@ -160,12 +178,23 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
       mediaItem.id,
       generationResult.thumbnailBuffer,
     );
+    console.log(
+      `[processMediaThumbnail] Storage result for media ${mediaItem.id}:`,
+      storageResult,
+    );
     if (storageResult.success && storageResult.thumbnailUrl) {
       thumbnailUrl = storageResult.thumbnailUrl;
     } else if (!storageResult.success) {
       return storageResult;
     }
   } catch (storageError) {
+    console.error(
+      `[processMediaThumbnail] Error storing thumbnail for media ${mediaItem.id}:`,
+      storageError,
+      {
+        mediaItem,
+      },
+    );
     return {
       success: false,
       error:
@@ -191,12 +220,23 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
       .eq('id', mediaItem.id);
 
     if (updateError) {
+      console.error(
+        `[processMediaThumbnail] Failed to update hashes/thumbnail for media ${mediaItem.id}:`,
+        updateError.message,
+      );
       return {
         success: false,
         error: `Failed to update hashes/thumbnail: ${updateError.message}`,
       };
     }
+    console.log(
+      `[processMediaThumbnail] Successfully updated hashes/thumbnail for media ${mediaItem.id}`,
+    );
   } catch (dbError) {
+    console.error(
+      `[processMediaThumbnail] Exception during hashes/thumbnail update for media ${mediaItem.id}:`,
+      dbError,
+    );
     return {
       success: false,
       error:
@@ -230,7 +270,9 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
     // Find media items that need thumbnail processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('*, media_types!inner(*), exif_data(*), analysis_data(*)')
+      .select(
+        '*, media_types!inner(*), exif_data(*), thumbnail_data(*), analysis_data(*)',
+      )
       .is('is_exif_processed', true)
       .is('is_thumbnail_processed', false)
       .ilike('media_types.mime_type', '%image%')
@@ -242,6 +284,7 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
     }
 
     if (!mediaItems || mediaItems.length === 0) {
+      console.log('No items found for thumbnail processing');
       return {
         success: true,
         failed: 0,
@@ -251,10 +294,27 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       };
     }
 
+    console.log(
+      `Found ${mediaItems.length} items for thumbnail processing:`,
+      mediaItems.map((item) => item.id),
+    );
+
     // Process items in batches with controlled concurrency
     const results = await processInChunks(
       mediaItems,
-      processMediaThumbnail,
+      async (mediaItem) => {
+        console.log(`Processing media item ID: ${mediaItem.id}`);
+        const result = await processMediaThumbnail(mediaItem);
+        if (result.success) {
+          console.log(`Successfully processed media item ID: ${mediaItem.id}`);
+        } else {
+          console.error(
+            `Failed to process media item ID: ${mediaItem.id}`,
+            result.error,
+          );
+        }
+        return result;
+      },
       concurrency,
     );
 
