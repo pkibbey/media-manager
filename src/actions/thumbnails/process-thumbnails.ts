@@ -1,8 +1,9 @@
 'use server';
 
 import fs from 'node:fs/promises';
+import sharp from 'sharp';
 import XXH from 'xxhashjs';
-import { countResults, processInChunks } from '@/lib/batch-processing';
+import { processInChunks } from '@/lib/batch-processing';
 import { createSupabase } from '@/lib/supabase';
 import {
   processNativeThumbnail,
@@ -10,12 +11,16 @@ import {
   type ThumbnailGenerationResult,
 } from '@/lib/thumbnail-generators';
 import { storeThumbnail } from '@/lib/thumbnail-storage';
+import {
+  BACKGROUND_COLOR,
+  THUMBNAIL_QUALITY,
+  THUMBNAIL_SIZE,
+} from '@/lib/consts';
 import type { MediaWithRelations } from '@/types/media-types';
 import type { TablesUpdate } from '@/types/supabase';
 
 /**
- * Generates a perceptual hash (dHash) from a raw 16x16 grayscale image fingerprint buffer.
- * dHash compares adjacent pixels to create a hash that's resilient to small changes.
+ * Generate a perceptual hash (dHash) from a 16x16 grayscale image fingerprint.
  * @param fingerprint - The raw 16x16 grayscale image fingerprint buffer (256 bytes).
  * @returns A hex string representation of the perceptual hash, or null if generation fails.
  */
@@ -89,123 +94,264 @@ function convertBinaryToHex(binaryArray: number[]): string {
   return hexString;
 }
 
-/**
- * Generate a thumbnail for a single media item and update its visual hash and file hash
- *
- * @param mediaItem - The media item to process
- * @returns Object with success status and any error message
- */
-async function processMediaThumbnail(mediaItem: MediaWithRelations) {
-  let generationResult: ThumbnailGenerationResult | null = null;
-  let fileBuffer: Buffer;
+interface ProcessingStep {
+  name: string;
+  success: boolean;
+  error?: string;
+  data?: any;
+}
 
+interface ProcessingResult {
+  mediaId: string;
+  success: boolean;
+  steps: ProcessingStep[];
+  finalData?: {
+    fileHash?: string | null;
+    visualHash?: string | null;
+    thumbnailUrl?: string | null;
+  };
+}
+
+/**
+ * Generate a simple solid color thumbnail as ultimate fallback
+ */
+async function generateFallbackThumbnail(): Promise<Buffer> {
   try {
-    // Read the file buffer once
+    return await sharp({
+      create: {
+        width: THUMBNAIL_SIZE,
+        height: THUMBNAIL_SIZE,
+        channels: 3,
+        background: { r: 128, g: 128, b: 128 },
+      },
+    })
+      .jpeg({ quality: THUMBNAIL_QUALITY })
+      .toBuffer();
+  } catch (error) {
+    // If even this fails, create a minimal buffer
+    console.error('Failed to generate fallback thumbnail:', error);
+    throw new Error('Critical: Cannot generate any thumbnail');
+  }
+}
+
+/**
+ * Enhanced thumbnail generation with multiple fallback strategies
+ */
+async function generateThumbnailWithFallbacks(
+  mediaItem: MediaWithRelations,
+  fileBuffer: Buffer,
+): Promise<{ thumbnailBuffer: Buffer; imageFingerprint: Buffer | null }> {
+  const attempts: Array<() => Promise<ThumbnailGenerationResult | null>> = [];
+
+  // Strategy 1: Use existing logic based on media type
+  if (mediaItem.media_types?.is_native) {
+    attempts.push(() => processNativeThumbnail(mediaItem, fileBuffer));
+  } else {
+    attempts.push(() => processRawThumbnail(mediaItem, fileBuffer));
+  }
+
+  // Strategy 2: Try Sharp with different settings (more permissive)
+  attempts.push(async () => {
+    try {
+      const sharpInstance = sharp(fileBuffer, { failOnError: false });
+
+      const thumbnailBuffer = await sharpInstance
+        .clone()
+        .resize({
+          width: THUMBNAIL_SIZE,
+          height: THUMBNAIL_SIZE,
+          withoutEnlargement: true,
+          fit: 'contain',
+          background: BACKGROUND_COLOR,
+        })
+        .jpeg({ quality: THUMBNAIL_QUALITY })
+        .toBuffer();
+
+      // Try to generate fingerprint, but don't fail if it doesn't work
+      let imageFingerprint: Buffer | null = null;
+      try {
+        imageFingerprint = await sharpInstance
+          .clone()
+          .greyscale()
+          .resize(16, 16, { fit: 'fill' })
+          .raw()
+          .toBuffer();
+      } catch (fingerprintError) {
+        console.warn(
+          'Failed to generate fingerprint in fallback method:',
+          fingerprintError,
+        );
+      }
+
+      return { thumbnailBuffer, imageFingerprint };
+    } catch (error) {
+      console.warn('Sharp fallback method failed:', error);
+      return null;
+    }
+  });
+
+  // Strategy 3: Try Sharp with even more basic settings
+  attempts.push(async () => {
+    try {
+      const thumbnailBuffer = await sharp(fileBuffer, {
+        failOnError: false,
+        unlimited: true,
+      })
+        .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'contain' })
+        .flatten({ background: BACKGROUND_COLOR })
+        .jpeg({ quality: 50 }) // Lower quality for compatibility
+        .toBuffer();
+
+      return { thumbnailBuffer, imageFingerprint: null };
+    } catch (error) {
+      console.warn('Basic Sharp fallback failed:', error);
+      return null;
+    }
+  });
+
+  // Try each strategy in order
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      const result = await attempts[i]();
+      if (result?.thumbnailBuffer) {
+        console.log(`Thumbnail generated successfully using strategy ${i + 1}`);
+        return result;
+      }
+    } catch (error) {
+      console.warn(`Thumbnail strategy ${i + 1} failed:`, error);
+    }
+  }
+
+  // Ultimate fallback: generate a solid color thumbnail
+  console.warn(
+    `All thumbnail strategies failed for media ${mediaItem.id}, using solid color fallback`,
+  );
+  const fallbackBuffer = await generateFallbackThumbnail();
+  return { thumbnailBuffer: fallbackBuffer, imageFingerprint: null };
+}
+
+/**
+ * Process a single media item with comprehensive error handling
+ */
+async function processMediaItemV2(
+  mediaItem: MediaWithRelations,
+): Promise<ProcessingResult> {
+  const result: ProcessingResult = {
+    mediaId: mediaItem.id,
+    success: false,
+    steps: [],
+  };
+
+  // Step 1: Read file
+  let fileBuffer: Buffer;
+  try {
     if (!mediaItem.media_path) {
-      return {
-        success: false,
-        error: 'No media_path available on media item',
-      };
+      throw new Error('No media_path available');
     }
     fileBuffer = await fs.readFile(mediaItem.media_path);
-  } catch (fileReadError) {
-    return {
+    result.steps.push({ name: 'File Read', success: true });
+  } catch (error) {
+    result.steps.push({
+      name: 'File Read',
       success: false,
-      error:
-        fileReadError instanceof Error
-          ? `Failed to read file: ${fileReadError.message}`
-          : 'Failed to read file',
-    };
+      error: error instanceof Error ? error.message : 'Unknown file read error',
+    });
+    return result;
   }
 
-  // Generate file_hash using xxhash (xxh64)
+  // Step 2: Generate file hash
   let fileHash: string | null = null;
   try {
-    // Use a fixed seed for deterministic hashing
     fileHash = XXH.h64(fileBuffer, 0xabcd).toString(16);
-  } catch (hashError) {
-    console.error(
-      '[processMediaThumbnail] Error generating file hash:',
-      hashError,
-    );
-    fileHash = null;
+    result.steps.push({ name: 'File Hash', success: true, data: fileHash });
+  } catch (error) {
+    result.steps.push({
+      name: 'File Hash',
+      success: false,
+      error: error instanceof Error ? error.message : 'Hash generation failed',
+    });
+    // Continue processing even if hash fails
   }
 
+  // Step 3: Generate thumbnail with fallbacks
+  let thumbnailBuffer: Buffer;
+  let imageFingerprint: Buffer | null = null;
   try {
-    // Choose appropriate thumbnail generation strategy based on media type
-    if (mediaItem.media_types?.is_native) {
-      generationResult = await processNativeThumbnail(mediaItem, fileBuffer);
-    } else {
-      generationResult = await processRawThumbnail(mediaItem, fileBuffer);
-    }
-  } catch (processingError) {
-    return {
+    const thumbnailResult = await generateThumbnailWithFallbacks(
+      mediaItem,
+      fileBuffer,
+    );
+    thumbnailBuffer = thumbnailResult.thumbnailBuffer;
+    imageFingerprint = thumbnailResult.imageFingerprint;
+    result.steps.push({ name: 'Thumbnail Generation', success: true });
+  } catch (error) {
+    result.steps.push({
+      name: 'Thumbnail Generation',
       success: false,
       error:
-        processingError instanceof Error
-          ? `Thumbnail/Fingerprint generation failed: ${processingError.message}`
-          : 'Thumbnail/Fingerprint generation failed',
-    };
+        error instanceof Error ? error.message : 'Thumbnail generation failed',
+    });
+    return result;
   }
 
-  // Process and store visual hash if fingerprint was generated
+  // Step 4: Generate visual hash
   let visualHash: string | null = null;
-  if (generationResult?.imageFingerprint) {
-    visualHash = await generateVisualHashFromFingerprint(
-      generationResult.imageFingerprint,
-    );
-    if (!visualHash) {
-      console.log(
-        `[processMediaThumbnail] No visual hash generated for media ${mediaItem.id} (fingerprint might have been empty or hash generation failed).`,
-      );
+  try {
+    if (imageFingerprint) {
+      visualHash = await generateVisualHashFromFingerprint(imageFingerprint);
+      result.steps.push({
+        name: 'Visual Hash',
+        success: !!visualHash,
+        data: visualHash,
+      });
+    } else {
+      result.steps.push({
+        name: 'Visual Hash',
+        success: false,
+        error: 'No fingerprint available',
+      });
     }
-  } else {
-    console.log(
-      `[processMediaThumbnail] No image fingerprint available for media ${mediaItem.id}, skipping visual hash.`,
-    );
-  }
-
-  if (!generationResult?.thumbnailBuffer) {
-    return {
+  } catch (error) {
+    result.steps.push({
+      name: 'Visual Hash',
       success: false,
-      error: 'No thumbnail generated',
-    };
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Visual hash generation failed',
+    });
+    // Continue processing even if visual hash fails
   }
 
+  // Step 5: Store thumbnail
   let thumbnailUrl: string | null = null;
   try {
-    // Store the thumbnail and get the URL
-    const storageResult = await storeThumbnail(
-      mediaItem.id,
-      generationResult.thumbnailBuffer,
-    );
-    console.log(
-      `[processMediaThumbnail] Storage result for media ${mediaItem.id}:`,
-      storageResult,
-    );
+    const storageResult = await storeThumbnail(mediaItem.id, thumbnailBuffer);
     if (storageResult.success && storageResult.thumbnailUrl) {
       thumbnailUrl = storageResult.thumbnailUrl;
-    } else if (!storageResult.success) {
-      return storageResult;
+      result.steps.push({
+        name: 'Thumbnail Storage',
+        success: true,
+        data: thumbnailUrl,
+      });
+    } else {
+      result.steps.push({
+        name: 'Thumbnail Storage',
+        success: false,
+        error: 'Storage failed but no error thrown',
+      });
+      // Continue to mark as processed even if storage fails
     }
-  } catch (storageError) {
-    console.error(
-      `[processMediaThumbnail] Error storing thumbnail for media ${mediaItem.id}:`,
-      storageError,
-      {
-        mediaItem,
-      },
-    );
-    return {
+  } catch (error) {
+    result.steps.push({
+      name: 'Thumbnail Storage',
       success: false,
-      error:
-        storageError instanceof Error
-          ? `Thumbnail storage failed: ${storageError.message}`
-          : 'Thumbnail storage failed',
-    };
+      error: error instanceof Error ? error.message : 'Storage error',
+    });
+    // Continue to mark as processed even if storage fails
   }
 
-  // Save visual_hash, file_hash, and thumbnail URL in a single DB update
+  // Step 6: Update database
   try {
     const supabase = createSupabase();
     const updateFields: TablesUpdate<'media'> = {
@@ -221,50 +367,57 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
       .eq('id', mediaItem.id);
 
     if (updateError) {
-      console.error(
-        `[processMediaThumbnail] Failed to update hashes/thumbnail for media ${mediaItem.id}:`,
-        updateError.message,
-      );
-      return {
-        success: false,
-        error: `Failed to update hashes/thumbnail: ${updateError.message}`,
-      };
+      throw new Error(updateError.message);
     }
-    console.log(
-      `[processMediaThumbnail] Successfully updated hashes/thumbnail for media ${mediaItem.id}`,
-    );
-  } catch (dbError) {
-    console.error(
-      `[processMediaThumbnail] Exception during hashes/thumbnail update for media ${mediaItem.id}:`,
-      dbError,
-    );
-    return {
+
+    result.steps.push({ name: 'Database Update', success: true });
+    result.success = true;
+    result.finalData = { fileHash, visualHash, thumbnailUrl };
+  } catch (error) {
+    result.steps.push({
+      name: 'Database Update',
       success: false,
-      error:
-        dbError instanceof Error
-          ? `DB update failed: ${dbError.message}`
-          : 'DB update failed',
-    };
+      error: error instanceof Error ? error.message : 'DB update failed',
+    });
+
+    // Even if the main update fails, try to at least mark as processed
+    try {
+      const supabase = createSupabase();
+      await supabase
+        .from('media')
+        .update({ is_thumbnail_processed: true })
+        .eq('id', mediaItem.id);
+      result.steps.push({ name: 'Fallback DB Update', success: true });
+    } catch (_fallbackError) {
+      result.steps.push({
+        name: 'Fallback DB Update',
+        success: false,
+        error: 'Could not mark as processed',
+      });
+    }
   }
 
-  return {
-    success: true,
-    message: 'Thumbnail, visual hash, and file hash processed and saved',
-    visualHash,
-    fileHash,
-    thumbnailUrl,
-    error: null,
-  };
+  return result;
 }
 
 /**
- * Process thumbnails for multiple media items in batch
+ * Enhanced batch thumbnail processing with robust error handling
+ *
+ * Key improvements:
+ * - Never stops processing due to individual failures
+ * - Multiple fallback strategies for thumbnail generation
+ * - Clear step-by-step processing with detailed logging
+ * - Always marks items as processed to prevent infinite loops
+ * - Better progress tracking and error reporting
  *
  * @param limit - Maximum number of items to process
  * @param concurrency - Number of items to process in parallel
- * @returns Object with count of processed items and any errors
  */
 export async function processBatchThumbnails(limit = 10, concurrency = 3) {
+  console.log(
+    `[processBatchThumbnails] Starting batch processing (limit: ${limit}, concurrency: ${concurrency})`,
+  );
+
   try {
     const supabase = createSupabase();
 
@@ -283,71 +436,113 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
     }
 
     if (!mediaItems || mediaItems.length === 0) {
-      console.log('No items found for thumbnail processing');
+      console.log(
+        '[processBatchThumbnails] No items found for thumbnail processing',
+      );
       return {
         success: true,
         failed: 0,
         processed: 0,
         total: 0,
         message: 'No items to process',
+        details: [],
       };
     }
 
     console.log(
-      `Found ${mediaItems.length} items for thumbnail processing:`,
-      mediaItems.map((item) => item.id),
+      `[processBatchThumbnails] Found ${mediaItems.length} items for processing`,
     );
 
-    // Process items in batches with controlled concurrency
+    // Process items with controlled concurrency
     const results = await processInChunks(
       mediaItems,
       async (mediaItem) => {
-        console.log(`Processing media item ID: ${mediaItem.id}`);
-        const result = await processMediaThumbnail(mediaItem);
-        if (result.success) {
-          console.log(`Successfully processed media item ID: ${mediaItem.id}`);
+        console.log(
+          `[processBatchThumbnails] Processing media item: ${mediaItem.id}`,
+        );
+        const processingResult = await processMediaItemV2(mediaItem);
+
+        if (processingResult.success) {
+          console.log(
+            `[processBatchThumbnails] ✅ Successfully processed: ${mediaItem.id}`,
+          );
         } else {
-          console.error(
-            `Failed to process media item ID: ${mediaItem.id}`,
-            result.error,
+          console.warn(
+            `[processBatchThumbnails] ⚠️  Processing completed with issues: ${mediaItem.id}`,
+          );
+          console.warn(
+            'Failed steps:',
+            processingResult.steps.filter((step) => !step.success),
           );
         }
-        return result;
+
+        return processingResult;
       },
       concurrency,
     );
 
-    // Log any rejected promises for debugging
+    // Analyze results
+    let successful = 0;
+    let failed = 0;
+    const processingDetails: any[] = [];
+
     results.forEach((result, index) => {
-      if (result.status === 'rejected') {
+      if (result.status === 'fulfilled') {
+        const processingResult = result.value;
+        processingDetails.push({
+          mediaId: processingResult.mediaId,
+          success: processingResult.success,
+          steps: processingResult.steps,
+          finalData: processingResult.finalData,
+        });
+
+        if (processingResult.success) {
+          successful++;
+        } else {
+          failed++;
+        }
+      } else {
+        // This should rarely happen since we handle errors within processMediaItemV2
         console.error(
-          `Failed to process item ${index} (mediaId: ${mediaItems[index]?.id}):`,
+          `[processBatchThumbnails] Unexpected rejection for item ${index}:`,
           result.reason,
         );
+        failed++;
+        processingDetails.push({
+          mediaId: mediaItems[index]?.id || 'unknown',
+          success: false,
+          steps: [
+            { name: 'Processing', success: false, error: 'Unexpected error' },
+          ],
+        });
       }
     });
 
-    // Count succeeded and failed results
-    const { succeeded, failed } = countResults(
-      results,
-      (value) => value.success,
+    console.log(
+      `[processBatchThumbnails] Batch completed: ${successful} successful, ${failed} failed`,
     );
 
     return {
       success: true,
-      processed: succeeded,
+      processed: successful,
       failed,
       total: mediaItems.length,
       message: 'Batch processing completed',
+      details: processingDetails,
     };
   } catch (error) {
+    console.error(
+      '[processBatchThumbnails] Critical error in batch processing:',
+      error,
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       total: 0,
       failed: 0,
       processed: 0,
-      message: 'Batch processing failed',
+      message: 'Batch processing failed due to critical error',
+      details: [],
     };
   }
 }

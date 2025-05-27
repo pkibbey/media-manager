@@ -137,7 +137,7 @@ export async function processContentWarnings(limit = 10, concurrency = 3) {
  * Process a batch of media items for Content Warnings detection using TensorFlow
  * This is a helper function that performs the actual content warnings detection
  */
-export async function processBatchForContentWarnings(
+async function processBatchForContentWarnings(
   mediaItems: MediaWithRelations[],
   concurrency = DEFAULT_CONCURRENCY,
 ) {

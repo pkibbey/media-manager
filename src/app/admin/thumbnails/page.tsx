@@ -211,14 +211,22 @@ export default function ThumbnailAdminPage() {
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="flex flex-wrap gap-2">
+              <CardFooter className="flex flex-wrap gap-2">              
                 <ActionButton
-                  action={processBatch}
+                  action={async () => {
+                    const result = await processBatch(batchSize);
+                    return {
+                      success: result.success,
+                      error: result.error,
+                      message: result.message,
+                    };
+                  }}
                   disabled={
                     thumbnailStats?.remaining === 0 || isContinuousProcessing
                   }
-                  loadingMessage="Processing thumbnails..."
-                  successMessage="Thumbnails processed successfully"
+                  loadingMessage="Processing..."
+                  successMessage="processing completed"
+                  variant="outline"
                 >
                   Process Batch
                 </ActionButton>

@@ -23,33 +23,3 @@ export async function processInChunks<T, R>(
 
   return results;
 }
-
-/**
- * Count succeeded and failed results from Promise.allSettled
- *
- * @param results - Results from Promise.allSettled
- * @param successPredicate - Optional function to determine if a fulfilled result is successful
- * @returns Object with counts of succeeded and failed results
- */
-export function countResults<T>(
-  results: Array<PromiseSettledResult<T>>,
-  successPredicate?: (value: T) => boolean,
-): { succeeded: number; failed: number; total: number } {
-  let succeeded = 0;
-
-  if (successPredicate) {
-    succeeded = results.filter(
-      (r) => r.status === 'fulfilled' && successPredicate(r.value),
-    ).length;
-  } else {
-    succeeded = results.filter((r) => r.status === 'fulfilled').length;
-  }
-
-  const failed = results.length - succeeded;
-
-  return {
-    succeeded,
-    failed,
-    total: results.length,
-  };
-}

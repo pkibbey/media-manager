@@ -102,12 +102,9 @@ export async function processRawThumbnail(
   fileBuffer: Buffer,
 ): Promise<ThumbnailGenerationResult | null> {
   try {
-    console.log('try generating with dcraw: ');
     return await generateRawThumbnailPrimary(fileBuffer);
   } catch (_rawProcessError) {
-    console.log('_rawProcessError: ', _rawProcessError);
     try {
-      console.log('Falling back to generateSharpThumbnail');
       return await generateSharpThumbnail(mediaItem, fileBuffer);
     } catch (_alternativeRawError) {
       return null;

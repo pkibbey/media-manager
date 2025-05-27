@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import useContinuousProcessing from './useContinuousProcessing';
 
 // Standard interfaces for admin processing
-export interface ProcessingStats {
+interface ProcessingStats {
   total: number;
   processed: number;
   remaining: number;
@@ -26,28 +26,30 @@ export interface DeleteResult {
   message?: string;
 }
 
-export interface AdminDataResponse<T> {
-  stats: T;
+interface AdminDataResponse {
+  stats: ProcessingStats;
   error?: string;
 }
 
 // Enhanced useAdminData props for full admin page functionality
-interface UseAdminDataProps<T extends ProcessingStats> {
-  fetchFunction: () => Promise<AdminDataResponse<T>>;
+interface UseAdminDataProps {
+  fetchFunction: () => Promise<AdminDataResponse>;
   processFunction: (batchSize: number) => Promise<BatchResult>;
   deleteFunction?: () => Promise<DeleteResult>;
-  defaultValue?: T;
+  defaultValue?: ProcessingStats;
   initialBatchSize?: number;
 }
 
-export function useAdminData<T extends ProcessingStats>({
+export function useAdminData({
   fetchFunction,
   processFunction,
   deleteFunction,
   defaultValue,
   initialBatchSize = 8,
-}: UseAdminDataProps<T>) {
-  const [data, setData] = useState<T | null>(defaultValue || null);
+}: UseAdminDataProps) {
+  const [data, setData] = useState<ProcessingStats | null>(
+    defaultValue || null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -151,7 +153,7 @@ export function useAdminData<T extends ProcessingStats>({
             total: prev.total - result.count!,
             processed: prev.processed - result.count!,
             remaining: prev.remaining + result.count!,
-          } as T;
+          } as ProcessingStats;
         });
       }
 

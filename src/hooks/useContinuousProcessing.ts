@@ -1,15 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
+import type { BatchResult } from './useAdminData'; // Import BatchResult
 
-type BatchResult = {
-  success: boolean;
-  processed: number;
-  failed: number;
-  total: number;
-  error?: string;
-  batchProcessingTime?: number;
-};
-
-type ProcessingResult = {
+type ContinuousProcessingReport = {
   success: boolean;
   error?: string;
   data?: BatchResult[]; // Array of batch results for continuous
@@ -39,7 +31,7 @@ export default function useContinuousProcessing({
   const [itemsProcessedThisSession, setItemsProcessedThisSession] = useState(0);
 
   const processSingleBatch =
-    useCallback(async (): Promise<ProcessingResult> => {
+    useCallback(async (): Promise<ContinuousProcessingReport> => {
       try {
         const startTime = Date.now();
         const result = await processBatchFn(batchSize);
@@ -73,7 +65,7 @@ export default function useContinuousProcessing({
     }, [processBatchFn, batchSize, onBatchComplete, getTotalRemainingItemsFn]);
 
   const processAllRemaining =
-    useCallback(async (): Promise<ProcessingResult> => {
+    useCallback(async (): Promise<ContinuousProcessingReport> => {
       setIsContinuousProcessing(true);
       processingRef.current = true;
       setItemsProcessedThisSession(0);
@@ -124,11 +116,12 @@ export default function useContinuousProcessing({
       };
     }, [processBatchFn, batchSize, getTotalRemainingItemsFn, onBatchComplete]);
 
-  const stopProcessing = useCallback(async (): Promise<ProcessingResult> => {
-    processingRef.current = false;
-    setIsContinuousProcessing(false);
-    return { success: true, message: 'Processing stopped' };
-  }, []);
+  const stopProcessing =
+    useCallback(async (): Promise<ContinuousProcessingReport> => {
+      processingRef.current = false;
+      setIsContinuousProcessing(false);
+      return { success: true, message: 'Processing stopped' };
+    }, []);
 
   return {
     isContinuousProcessing,
