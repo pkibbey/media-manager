@@ -26,7 +26,6 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
   };
 
   const fileName = media.media_path.split('/').pop() || media.media_path;
-  const thumbnail = media.thumbnail_data?.thumbnail_url;
 
   return (
     <Card
@@ -42,10 +41,10 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
     >
       {/* Thumbnail image */}
       <div className="aspect-square overflow-hidden bg-muted relative">
-        {thumbnail && media.exif_data ? (
+        {media.thumbnail_url && media.exif_data ? (
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <Image
-              src={thumbnail}
+              src={media.thumbnail_url}
               alt={fileName}
               className="w-full h-full object-cover"
               loading="lazy"

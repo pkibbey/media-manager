@@ -86,7 +86,6 @@ export async function getDuplicates(
       .select(`
         *,
         media_types!inner(*),
-        thumbnail_data(*),
         exif_data(*),
         analysis_data(*)
       `)

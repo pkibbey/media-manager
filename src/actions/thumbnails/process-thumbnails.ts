@@ -11,6 +11,7 @@ import {
 } from '@/lib/thumbnail-generators';
 import { storeThumbnail } from '@/lib/thumbnail-storage';
 import type { MediaWithRelations } from '@/types/media-types';
+import type { TablesUpdate } from '@/types/supabase';
 
 /**
  * Generates a perceptual hash (dHash) from a raw 16x16 grayscale image fingerprint buffer.
@@ -207,12 +208,12 @@ async function processMediaThumbnail(mediaItem: MediaWithRelations) {
   // Save visual_hash, file_hash, and thumbnail URL in a single DB update
   try {
     const supabase = createSupabase();
-    const updateFields: Record<string, any> = {
+    const updateFields: TablesUpdate<'media'> = {
       is_thumbnail_processed: true,
+      visual_hash: visualHash || undefined,
+      file_hash: fileHash || undefined,
+      thumbnail_url: thumbnailUrl || undefined,
     };
-    if (visualHash) updateFields.visual_hash = visualHash;
-    if (fileHash) updateFields.file_hash = fileHash;
-    if (thumbnailUrl) updateFields.thumbnail_url = thumbnailUrl;
 
     const { error: updateError } = await supabase
       .from('media')
@@ -270,9 +271,7 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
     // Find media items that need thumbnail processing
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select(
-        '*, media_types!inner(*), exif_data(*), thumbnail_data(*), analysis_data(*)',
-      )
+      .select('*, media_types!inner(*), exif_data(*), analysis_data(*)')
       .is('is_exif_processed', true)
       .is('is_thumbnail_processed', false)
       .ilike('media_types.mime_type', '%image%')

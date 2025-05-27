@@ -24,10 +24,10 @@ export async function processContentWarnings(limit = 10, concurrency = 3) {
     // Find unprocessed media items that have thumbnails but don't have content warnings yet
     const { data: mediaItems, error: findError } = await supabase
       .from('media')
-      .select('*, thumbnail_data(*)')
+      .select('*')
       .eq('is_thumbnail_processed', true)
       .eq('is_content_warnings_processed', false) // Only get items that haven't been processed for content warnings
-      .not('thumbnail_data.thumbnail_url', 'is', null)
+      .not('thumbnail_url', 'is', null)
       .limit(limit);
 
     if (findError) {
@@ -147,9 +147,7 @@ export async function processBatchForContentWarnings(
   const processContentWarnings = async (mediaItem: MediaWithRelations) => {
     try {
       // Fetch the image buffer (use thumbnail for speed)
-      const imageResponse = await fetch(
-        mediaItem.thumbnail_data?.thumbnail_url || '',
-      );
+      const imageResponse = await fetch(mediaItem.thumbnail_url || '');
       const imageBuffer = new Uint8Array(await imageResponse.arrayBuffer());
 
       // Decode JPEG

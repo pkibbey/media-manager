@@ -77,9 +77,7 @@ export async function processBatchForObjects(
           }
 
           // Fetch and process the image
-          const imageResponse = await fetch(
-            mediaItem.thumbnail_data?.thumbnail_url || '',
-          );
+          const imageResponse = await fetch(mediaItem.thumbnail_url || '');
           const imageBuffer = new Uint8Array(await imageResponse.arrayBuffer());
 
           // Use tf.node.decodeJpeg since we know thumbnails are always in JPEG format
