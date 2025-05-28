@@ -2,8 +2,14 @@
 
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
-import XXH from 'xxhashjs';
+import { XXH3_128 } from 'xxh3-ts';
+
 import { processInChunks } from '@/lib/batch-processing';
+import {
+  BACKGROUND_COLOR,
+  THUMBNAIL_QUALITY,
+  THUMBNAIL_SIZE,
+} from '@/lib/consts';
 import { createSupabase } from '@/lib/supabase';
 import {
   processNativeThumbnail,
@@ -11,11 +17,6 @@ import {
   type ThumbnailGenerationResult,
 } from '@/lib/thumbnail-generators';
 import { storeThumbnail } from '@/lib/thumbnail-storage';
-import {
-  BACKGROUND_COLOR,
-  THUMBNAIL_QUALITY,
-  THUMBNAIL_SIZE,
-} from '@/lib/consts';
 import type { MediaWithRelations } from '@/types/media-types';
 import type { TablesUpdate } from '@/types/supabase';
 
@@ -54,17 +55,8 @@ async function generateVisualHashFromFingerprint(
     // Convert the binary hash to a hexadecimal string
     const hashString = convertBinaryToHex(hash);
 
-    console.log(
-      '[generateVisualHashFromFingerprint] dHash generated:',
-      hashString,
-    );
-
     return hashString;
-  } catch (error) {
-    console.error(
-      '[generateVisualHashFromFingerprint] Error generating visual hash:',
-      error,
-    );
+  } catch (_error) {
     return null;
   }
 }
@@ -99,6 +91,7 @@ interface ProcessingStep {
   success: boolean;
   error?: string;
   data?: any;
+  durationMs?: number; // Add duration in milliseconds
 }
 
 interface ProcessingResult {
@@ -184,8 +177,7 @@ async function generateThumbnailWithFallbacks(
       }
 
       return { thumbnailBuffer, imageFingerprint };
-    } catch (error) {
-      console.warn('Sharp fallback method failed:', error);
+    } catch (_error) {
       return null;
     }
   });
@@ -203,8 +195,7 @@ async function generateThumbnailWithFallbacks(
         .toBuffer();
 
       return { thumbnailBuffer, imageFingerprint: null };
-    } catch (error) {
-      console.warn('Basic Sharp fallback failed:', error);
+    } catch (_error) {
       return null;
     }
   });
@@ -217,9 +208,7 @@ async function generateThumbnailWithFallbacks(
         console.log(`Thumbnail generated successfully using strategy ${i + 1}`);
         return result;
       }
-    } catch (error) {
-      console.warn(`Thumbnail strategy ${i + 1} failed:`, error);
-    }
+    } catch (_error) {}
   }
 
   // Ultimate fallback: generate a solid color thumbnail
@@ -243,37 +232,50 @@ async function processMediaItemV2(
   };
 
   // Step 1: Read file
+  const readStart = Date.now();
   let fileBuffer: Buffer;
   try {
     if (!mediaItem.media_path) {
       throw new Error('No media_path available');
     }
     fileBuffer = await fs.readFile(mediaItem.media_path);
-    result.steps.push({ name: 'File Read', success: true });
+    result.steps.push({
+      name: 'File Read',
+      success: true,
+      durationMs: Date.now() - readStart,
+    });
   } catch (error) {
     result.steps.push({
       name: 'File Read',
       success: false,
       error: error instanceof Error ? error.message : 'Unknown file read error',
+      durationMs: Date.now() - readStart,
     });
     return result;
   }
 
   // Step 2: Generate file hash
+  const hashStart = Date.now();
   let fileHash: string | null = null;
   try {
-    fileHash = XXH.h64(fileBuffer, 0xabcd).toString(16);
-    result.steps.push({ name: 'File Hash', success: true, data: fileHash });
+    fileHash = XXH3_128(fileBuffer, BigInt(0xabcd)).toString(16);
+    result.steps.push({
+      name: 'File Hash',
+      success: true,
+      data: fileHash,
+      durationMs: Date.now() - hashStart,
+    });
   } catch (error) {
     result.steps.push({
       name: 'File Hash',
       success: false,
       error: error instanceof Error ? error.message : 'Hash generation failed',
+      durationMs: Date.now() - hashStart,
     });
-    // Continue processing even if hash fails
   }
 
   // Step 3: Generate thumbnail with fallbacks
+  const thumbStart = Date.now();
   let thumbnailBuffer: Buffer;
   let imageFingerprint: Buffer | null = null;
   try {
@@ -283,18 +285,24 @@ async function processMediaItemV2(
     );
     thumbnailBuffer = thumbnailResult.thumbnailBuffer;
     imageFingerprint = thumbnailResult.imageFingerprint;
-    result.steps.push({ name: 'Thumbnail Generation', success: true });
+    result.steps.push({
+      name: 'Thumbnail Generation',
+      success: true,
+      durationMs: Date.now() - thumbStart,
+    });
   } catch (error) {
     result.steps.push({
       name: 'Thumbnail Generation',
       success: false,
       error:
         error instanceof Error ? error.message : 'Thumbnail generation failed',
+      durationMs: Date.now() - thumbStart,
     });
     return result;
   }
 
   // Step 4: Generate visual hash
+  const visualStart = Date.now();
   let visualHash: string | null = null;
   try {
     if (imageFingerprint) {
@@ -303,12 +311,14 @@ async function processMediaItemV2(
         name: 'Visual Hash',
         success: !!visualHash,
         data: visualHash,
+        durationMs: Date.now() - visualStart,
       });
     } else {
       result.steps.push({
         name: 'Visual Hash',
         success: false,
         error: 'No fingerprint available',
+        durationMs: Date.now() - visualStart,
       });
     }
   } catch (error) {
@@ -319,11 +329,14 @@ async function processMediaItemV2(
         error instanceof Error
           ? error.message
           : 'Visual hash generation failed',
+      durationMs: Date.now() - visualStart,
     });
-    // Continue processing even if visual hash fails
   }
 
+  console.log('visualHash: ', visualHash);
+
   // Step 5: Store thumbnail
+  const storeStart = Date.now();
   let thumbnailUrl: string | null = null;
   try {
     const storageResult = await storeThumbnail(mediaItem.id, thumbnailBuffer);
@@ -333,12 +346,14 @@ async function processMediaItemV2(
         name: 'Thumbnail Storage',
         success: true,
         data: thumbnailUrl,
+        durationMs: Date.now() - storeStart,
       });
     } else {
       result.steps.push({
         name: 'Thumbnail Storage',
         success: false,
         error: 'Storage failed but no error thrown',
+        durationMs: Date.now() - storeStart,
       });
       // Continue to mark as processed even if storage fails
     }
@@ -347,11 +362,13 @@ async function processMediaItemV2(
       name: 'Thumbnail Storage',
       success: false,
       error: error instanceof Error ? error.message : 'Storage error',
+      durationMs: Date.now() - storeStart,
     });
     // Continue to mark as processed even if storage fails
   }
 
   // Step 6: Update database
+  const dbStart = Date.now();
   try {
     const supabase = createSupabase();
     const updateFields: TablesUpdate<'media'> = {
@@ -370,7 +387,11 @@ async function processMediaItemV2(
       throw new Error(updateError.message);
     }
 
-    result.steps.push({ name: 'Database Update', success: true });
+    result.steps.push({
+      name: 'Database Update',
+      success: true,
+      durationMs: Date.now() - dbStart,
+    });
     result.success = true;
     result.finalData = { fileHash, visualHash, thumbnailUrl };
   } catch (error) {
@@ -378,6 +399,7 @@ async function processMediaItemV2(
       name: 'Database Update',
       success: false,
       error: error instanceof Error ? error.message : 'DB update failed',
+      durationMs: Date.now() - dbStart,
     });
 
     // Even if the main update fails, try to at least mark as processed
@@ -387,15 +409,24 @@ async function processMediaItemV2(
         .from('media')
         .update({ is_thumbnail_processed: true })
         .eq('id', mediaItem.id);
-      result.steps.push({ name: 'Fallback DB Update', success: true });
+      result.steps.push({
+        name: 'Fallback DB Update',
+        success: true,
+        durationMs: Date.now() - dbStart,
+      });
     } catch (_fallbackError) {
       result.steps.push({
         name: 'Fallback DB Update',
         success: false,
         error: 'Could not mark as processed',
+        durationMs: Date.now() - dbStart,
       });
     }
   }
+
+  result.steps.forEach((step) => {
+    console.log(`[processMediaItemV2] ${step.name}: ${step.durationMs}ms`);
+  });
 
   return result;
 }
@@ -414,10 +445,6 @@ async function processMediaItemV2(
  * @param concurrency - Number of items to process in parallel
  */
 export async function processBatchThumbnails(limit = 10, concurrency = 3) {
-  console.log(
-    `[processBatchThumbnails] Starting batch processing (limit: ${limit}, concurrency: ${concurrency})`,
-  );
-
   try {
     const supabase = createSupabase();
 
@@ -436,9 +463,6 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
     }
 
     if (!mediaItems || mediaItems.length === 0) {
-      console.log(
-        '[processBatchThumbnails] No items found for thumbnail processing',
-      );
       return {
         success: true,
         failed: 0,
@@ -449,35 +473,10 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
       };
     }
 
-    console.log(
-      `[processBatchThumbnails] Found ${mediaItems.length} items for processing`,
-    );
-
     // Process items with controlled concurrency
     const results = await processInChunks(
       mediaItems,
-      async (mediaItem) => {
-        console.log(
-          `[processBatchThumbnails] Processing media item: ${mediaItem.id}`,
-        );
-        const processingResult = await processMediaItemV2(mediaItem);
-
-        if (processingResult.success) {
-          console.log(
-            `[processBatchThumbnails] ✅ Successfully processed: ${mediaItem.id}`,
-          );
-        } else {
-          console.warn(
-            `[processBatchThumbnails] ⚠️  Processing completed with issues: ${mediaItem.id}`,
-          );
-          console.warn(
-            'Failed steps:',
-            processingResult.steps.filter((step) => !step.success),
-          );
-        }
-
-        return processingResult;
-      },
+      processMediaItemV2,
       concurrency,
     );
 
@@ -517,10 +516,6 @@ export async function processBatchThumbnails(limit = 10, concurrency = 3) {
         });
       }
     });
-
-    console.log(
-      `[processBatchThumbnails] Batch completed: ${successful} successful, ${failed} failed`,
-    );
 
     return {
       success: true,

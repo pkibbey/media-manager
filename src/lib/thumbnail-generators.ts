@@ -85,11 +85,7 @@ async function generateSharpThumbnail(
       .toBuffer();
 
     return { thumbnailBuffer, imageFingerprint };
-  } catch (error) {
-    console.error(
-      'Error generating thumbnail or fingerprint with Sharp:',
-      error,
-    );
+  } catch (_error) {
     throw new Error('Failed to generate thumbnail or fingerprint with Sharp');
   }
 }
