@@ -9,14 +9,12 @@ interface ActionButtonProps extends ComponentProps<'button'> {
   children: React.ReactNode;
   variant?: 'default' | 'destructive' | 'outline' | 'secondary';
   action: () => Promise<boolean> | Promise<void>;
-  successMessage?: string;
   loadingMessage?: string;
 }
 
 export default function ActionButton({
   children,
   action,
-  successMessage = 'Completed',
   loadingMessage = 'Processing...',
   ...props
 }: ActionButtonProps) {

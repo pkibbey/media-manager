@@ -7,7 +7,6 @@ import * as tf from '@tensorflow/tfjs-node';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
-import fetch from 'node-fetch';
 import { createSupabase } from '@/lib/supabase';
 import type { Json } from '@/types/supabase';
 

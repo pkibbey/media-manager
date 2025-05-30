@@ -53,12 +53,7 @@ export default function PauseQueueButton({ queueName }: PauseQueueButtonProps) {
   };
 
   return (
-    <ActionButton
-      action={handleTogglePause}
-      variant={isPaused ? 'default' : 'outline'}
-      loadingMessage={isPaused ? 'Resuming queue...' : 'Pausing queue...'}
-      successMessage={isPaused ? 'Queue resumed' : 'Queue paused'}
-    >
+    <ActionButton action={handleTogglePause}>
       {isPaused ? 'Resume Queue' : 'Pause Queue'}
     </ActionButton>
   );
