@@ -35,7 +35,7 @@ interface AdminDataResponse {
 interface UseAdminDataProps {
   fetchFunction: () => Promise<AdminDataResponse>;
   processFunction: (batchSize: number) => Promise<BatchResult>;
-  deleteFunction?: () => Promise<DeleteResult>;
+  deleteFunction?: () => Promise<boolean>;
   defaultValue?: ProcessingStats;
   initialBatchSize?: number;
 }
@@ -128,48 +128,22 @@ export function useAdminData({
   );
 
   // Reset/delete data function with optimistic updates
-  const resetData = useCallback(async (): Promise<{
-    success: boolean;
-    error?: string;
-    message?: string;
-  }> => {
+  const resetData = useCallback(async (): Promise<boolean> => {
     if (!deleteFunction) {
-      return { success: false, error: 'Delete function not provided' };
+      return false;
     }
 
     try {
-      const result = await deleteFunction();
-
-      if (result.error) {
-        return { success: false, error: result.error };
-      }
-
-      // Optimistic update: adjust stats based on deleted count
-      if (result.count && data) {
-        setData((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            total: prev.total - result.count!,
-            processed: prev.processed - result.count!,
-            remaining: prev.remaining + result.count!,
-          } as ProcessingStats;
-        });
-      }
+      await deleteFunction();
 
       // Refresh stats after resetting
       await refresh();
 
-      return {
-        success: true,
-        message: result.message || `Reset ${result.count || 0} items`,
-      };
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-
-      return { success: false, error: errorMessage };
+      return true;
+    } catch (_e) {
+      return false;
     }
-  }, [deleteFunction, data, refresh]);
+  }, [deleteFunction, refresh]);
 
   // Handle batch completion for continuous processing
   const handleBatchComplete = useCallback(async () => {

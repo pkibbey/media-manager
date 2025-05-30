@@ -3,9 +3,15 @@
 import { Image } from 'lucide-react';
 import deleteAnalysisData from '@/actions/analysis/delete-analysis-data';
 import { getAnalysisStats } from '@/actions/analysis/get-analysis-stats';
-import { processBasicAnalysis } from '@/actions/analysis/process-basic-analysis';
+import {
+  addRemainingToProcessingQueue,
+  clearBasicAnalysisQueue,
+  processBasicAnalysis,
+} from '@/actions/analysis/process-basic-analysis';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
+import PauseQueueButton from '@/components/admin/pause-queue-button';
+import ResetQueueButton from '@/components/admin/reset-queue-button';
 import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -20,31 +26,20 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { type DeleteResult, useAdminData } from '@/hooks/useAdminData';
+import { useAdminData } from '@/hooks/useAdminData';
 import { MAX_BATCH_SIZE } from '@/lib/consts';
 import { formatTime } from '@/lib/format-time';
 
 export default function AnalysisAdminPage() {
-  // Wrapper to match DeleteResult interface
-  const deleteAnalysisDataWrapper = async (): Promise<DeleteResult> => {
+  const deleteAnalysisDataWrapper = async (): Promise<boolean> => {
     try {
       const result = await deleteAnalysisData();
       if (result.error) {
-        return {
-          success: false,
-          error: result.error.message || 'Unknown error',
-        };
+        return false;
       }
-      return {
-        success: true,
-        count: result.count || 0,
-        message: `Reset ${result.count || 0} analysis data items`,
-      };
-    } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : 'Unknown error',
-      };
+      return true;
+    } catch (_e) {
+      return false;
     }
   };
 
@@ -52,11 +47,8 @@ export default function AnalysisAdminPage() {
     data: analysisStats,
     isLoading,
     error,
-    processBatch,
     resetData,
     isContinuousProcessing,
-    processAllRemaining,
-    stopProcessing,
     batchSize,
     setBatchSize,
     totalProcessingTime,
@@ -205,46 +197,18 @@ export default function AnalysisAdminPage() {
               </CardContent>
               <CardFooter className="flex flex-wrap gap-2">
                 <ActionButton
-                  action={processBatch}
-                  disabled={
-                    analysisStats?.remaining === 0 || isContinuousProcessing
-                  }
+                  action={addRemainingToProcessingQueue}
+                  disabled={analysisStats?.remaining === 0}
                   loadingMessage="Processing analysis data..."
                   successMessage="Analysis data processed successfully"
                 >
-                  Process Batch
+                  Add to processing queue
                 </ActionButton>
-
-                {isContinuousProcessing ? (
-                  <ActionButton
-                    action={async () => {
-                      const result = await stopProcessing();
-                      return { success: result.success, error: result.error };
-                    }}
-                    variant="destructive"
-                    loadingMessage="Processing..."
-                    successMessage="Processing stopped"
-                  >
-                    Stop Processing
-                  </ActionButton>
-                ) : (
-                  <ActionButton
-                    action={async () => {
-                      const result = await processAllRemaining();
-                      return {
-                        success: result.success,
-                        error: result.error,
-                        message: result.message,
-                      };
-                    }}
-                    disabled={analysisStats?.remaining === 0}
-                    loadingMessage="Processing all items..."
-                    successMessage="All items processed successfully"
-                    variant="secondary"
-                  >
-                    Process All
-                  </ActionButton>
-                )}
+                <ResetQueueButton
+                  action={clearBasicAnalysisQueue}
+                  queueName="objectAnalysisQueue"
+                />
+                <PauseQueueButton queueName="objectAnalysisQueue" />
                 {resetData && (
                   <ActionButton
                     action={resetData}
