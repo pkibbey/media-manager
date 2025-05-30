@@ -5,6 +5,7 @@ import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data'
 import { getThumbnailStats } from '@/actions/thumbnails/get-thumbnail-stats';
 import { processBatchThumbnails } from '@/actions/thumbnails/process-thumbnails';
 import ActionButton from '@/components/admin/action-button';
+import AdminLayout from '@/components/admin/layout';
 import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -65,211 +66,217 @@ export default function ThumbnailAdminPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Thumbnail Processing</h2>
-        <p className="text-muted-foreground">
-          Generate and manage thumbnails for your media library
-        </p>
-      </div>
+    <AdminLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">Thumbnail Processing</h2>
+          <p className="text-muted-foreground">
+            Generate and manage thumbnails for your media library
+          </p>
+        </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      <StatsCard
-        title="Thumbnail Processing Status"
-        total={thumbnailStats?.total || 0}
-        processed={thumbnailStats?.processed || 0}
-        isLoading={isLoading}
-        icon={<Image className="h-4 w-4" />}
-        className="w-full"
-      />
+        <StatsCard
+          title="Thumbnail Processing Status"
+          total={thumbnailStats?.total || 0}
+          processed={thumbnailStats?.processed || 0}
+          isLoading={isLoading}
+          icon={<Image className="h-4 w-4" />}
+          className="w-full"
+        />
 
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="processing">Processing</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="overview">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="processing">Processing</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="overview" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Thumbnail Overview</CardTitle>
-              <CardDescription>
-                Details about thumbnail generation process
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {thumbnailStats ? (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-medium mb-2">Processing Status</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div className="space-y-2">
-                        <div>Total Media Items: {thumbnailStats.total}</div>
-                        <div>Processed Items: {thumbnailStats.processed}</div>
-                        <div>Remaining Items: {thumbnailStats.remaining}</div>
-                        <div>Completion: {thumbnailStats.percentComplete}%</div>
+          <TabsContent value="overview" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Thumbnail Overview</CardTitle>
+                <CardDescription>
+                  Details about thumbnail generation process
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {thumbnailStats ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-medium mb-2">Processing Status</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-2">
+                          <div>Total Media Items: {thumbnailStats.total}</div>
+                          <div>Processed Items: {thumbnailStats.processed}</div>
+                          <div>Remaining Items: {thumbnailStats.remaining}</div>
+                          <div>
+                            Completion: {thumbnailStats.percentComplete}%
+                          </div>
+                        </div>
                       </div>
                     </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="font-medium mb-2">
+                        About Thumbnail Processing
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Thumbnails are smaller, optimized versions of your media
+                        files that enable faster browsing and previews. The
+                        system generates optimized JPEG thumbnails at different
+                        sizes to support various UI requirements.
+                      </p>
+                    </div>
                   </div>
-
-                  <Separator />
-
-                  <div>
-                    <h3 className="font-medium mb-2">
-                      About Thumbnail Processing
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Thumbnails are smaller, optimized versions of your media
-                      files that enable faster browsing and previews. The system
-                      generates optimized JPEG thumbnails at different sizes to
-                      support various UI requirements.
-                    </p>
+                ) : (
+                  <div className="text-muted-foreground">
+                    {isLoading
+                      ? 'Loading thumbnail data...'
+                      : 'No thumbnail data available'}
                   </div>
-                </div>
-              ) : (
-                <div className="text-muted-foreground">
-                  {isLoading
-                    ? 'Loading thumbnail data...'
-                    : 'No thumbnail data available'}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="processing" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Process Thumbnails</CardTitle>
-              <CardDescription>
-                Generate thumbnails for unprocessed media files
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="batch-size">Batch Size ({batchSize})</Label>
+          <TabsContent value="processing" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Process Thumbnails</CardTitle>
+                <CardDescription>
+                  Generate thumbnails for unprocessed media files
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Slider
-                    id="batch-size"
-                    min={1}
-                    max={MAX_BATCH_SIZE}
-                    step={1}
-                    value={[batchSize]}
-                    onValueChange={(value) => setBatchSize(value[0])}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Smaller</span>
-                    <span>Larger</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Number of items to process in a single batch
-                  </p>
-                </div>
-              </div>
-
-              {thumbnailStats?.remaining === 0 ? (
-                <Alert>
-                  <AlertTitle>No items to process</AlertTitle>
-                  <AlertDescription>
-                    All media items have been processed for thumbnails.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  {thumbnailStats?.remaining} items remaining to be processed
-                </div>
-              )}
-
-              {isContinuousProcessing && (
-                <div>
-                  <h4 className="text-sm font-medium mb-2">
-                    Processing Status:
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <p>
-                      Items processed this session: {itemsProcessedThisSession}
-                    </p>
-                    <p>
-                      Total processing time: {formatTime(totalProcessingTime)}
-                    </p>
-                    <p>
-                      Estimated time remaining: {formatTime(estimatedTimeLeft)}
+                  <Label htmlFor="batch-size">Batch Size ({batchSize})</Label>
+                  <div className="space-y-2">
+                    <Slider
+                      id="batch-size"
+                      min={1}
+                      max={MAX_BATCH_SIZE}
+                      step={1}
+                      value={[batchSize]}
+                      onValueChange={(value) => setBatchSize(value[0])}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Smaller</span>
+                      <span>Larger</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Number of items to process in a single batch
                     </p>
                   </div>
                 </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex flex-wrap gap-2">
-              <ActionButton
-                action={async () => {
-                  const result = await processBatch(batchSize);
-                  return {
-                    success: result.success,
-                    error: result.error,
-                    message: result.message,
-                  };
-                }}
-                disabled={
-                  thumbnailStats?.remaining === 0 || isContinuousProcessing
-                }
-                loadingMessage="Processing..."
-                successMessage="processing completed"
-                variant="outline"
-              >
-                Process Batch
-              </ActionButton>
 
-              {isContinuousProcessing ? (
+                {thumbnailStats?.remaining === 0 ? (
+                  <Alert>
+                    <AlertTitle>No items to process</AlertTitle>
+                    <AlertDescription>
+                      All media items have been processed for thumbnails.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    {thumbnailStats?.remaining} items remaining to be processed
+                  </div>
+                )}
+
+                {isContinuousProcessing && (
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">
+                      Processing Status:
+                    </h4>
+                    <div className="text-sm space-y-1">
+                      <p>
+                        Items processed this session:{' '}
+                        {itemsProcessedThisSession}
+                      </p>
+                      <p>
+                        Total processing time: {formatTime(totalProcessingTime)}
+                      </p>
+                      <p>
+                        Estimated time remaining:{' '}
+                        {formatTime(estimatedTimeLeft)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="flex flex-wrap gap-2">              
                 <ActionButton
                   action={async () => {
-                    const result = await stopProcessing();
-                    return { success: result.success, error: result.error };
-                  }}
-                  variant="destructive"
-                  loadingMessage="Processing..."
-                  successMessage="Processing stopped"
-                >
-                  Stop Processing
-                </ActionButton>
-              ) : (
-                <ActionButton
-                  action={async () => {
-                    const result = await processAllRemaining();
+                    const result = await processBatch(batchSize);
                     return {
                       success: result.success,
                       error: result.error,
                       message: result.message,
                     };
                   }}
-                  disabled={thumbnailStats?.remaining === 0}
-                  loadingMessage="Processing all items..."
-                  successMessage="All items processed successfully"
-                  variant="secondary"
+                  disabled={
+                    thumbnailStats?.remaining === 0 || isContinuousProcessing
+                  }
+                  loadingMessage="Processing..."
+                  successMessage="processing completed"
+                  variant="outline"
                 >
-                  Process All Remaining
+                  Process Batch
                 </ActionButton>
-              )}
-              {resetData && (
-                <ActionButton
-                  action={resetData}
-                  variant="destructive"
-                  disabled={isContinuousProcessing}
-                  loadingMessage="Resetting thumbnail data..."
-                  successMessage="Thumbnail data reset successfully"
-                >
-                  Reset Thumbnail Data
-                </ActionButton>
-              )}
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+
+                {isContinuousProcessing ? (
+                  <ActionButton
+                    action={async () => {
+                      const result = await stopProcessing();
+                      return { success: result.success, error: result.error };
+                    }}
+                    variant="destructive"
+                    loadingMessage="Processing..."
+                    successMessage="Processing stopped"
+                  >
+                    Stop Processing
+                  </ActionButton>
+                ) : (
+                  <ActionButton
+                    action={async () => {
+                      const result = await processAllRemaining();
+                      return {
+                        success: result.success,
+                        error: result.error,
+                        message: result.message,
+                      };
+                    }}
+                    disabled={thumbnailStats?.remaining === 0}
+                    loadingMessage="Processing all items..."
+                    successMessage="All items processed successfully"
+                    variant="secondary"
+                  >
+                    Process All Remaining
+                  </ActionButton>
+                )}
+                {resetData && (
+                  <ActionButton
+                    action={resetData}
+                    variant="destructive"
+                    disabled={isContinuousProcessing}
+                    loadingMessage="Resetting thumbnail data..."
+                    successMessage="Thumbnail data reset successfully"
+                  >
+                    Reset Thumbnail Data
+                  </ActionButton>
+                )}
+              </CardFooter>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AdminLayout>
   );
 }

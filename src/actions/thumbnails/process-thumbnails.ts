@@ -205,6 +205,7 @@ async function generateThumbnailWithFallbacks(
     try {
       const result = await attempts[i]();
       if (result?.thumbnailBuffer) {
+        console.log(`Thumbnail generated successfully using strategy ${i + 1}`);
         return result;
       }
     } catch (_error) {}
@@ -331,6 +332,8 @@ async function processMediaItemV2(
       durationMs: Date.now() - visualStart,
     });
   }
+
+  console.log('visualHash: ', visualHash);
 
   // Step 5: Store thumbnail
   const storeStart = Date.now();

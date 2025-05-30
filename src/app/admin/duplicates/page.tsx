@@ -17,6 +17,7 @@ import {
   type DuplicatesResult,
   getDuplicates,
 } from '@/actions/analysis/get-duplicates';
+import AdminLayout from '@/components/admin/layout';
 import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -344,220 +345,222 @@ export default function DuplicatesAdminPage() {
     duplicatesData?.groups.filter((g) => g.similarity !== 'exact') || [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Duplicate Detection</h2>
-        <p className="text-muted-foreground">
-          Find and manage potentially duplicate images using visual hash
-          comparison
-        </p>
-      </div>
+    <AdminLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">Duplicate Detection</h2>
+          <p className="text-muted-foreground">
+            Find and manage potentially duplicate images using visual hash
+            comparison
+          </p>
+        </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total Groups"
-          total={duplicatesData?.stats.totalGroups || 0}
-          processed={duplicatesData?.stats.totalGroups || 0}
-          isLoading={isLoading}
-          icon={<Users className="h-4 w-4" />}
-        />
-        <StatsCard
-          title="Duplicate Items"
-          total={duplicatesData?.stats.totalDuplicateItems || 0}
-          processed={duplicatesData?.stats.totalDuplicateItems || 0}
-          isLoading={isLoading}
-          icon={<Copy className="h-4 w-4" />}
-        />
-        <StatsCard
-          title="Exact Matches"
-          total={duplicatesData?.stats.exactMatches || 0}
-          processed={duplicatesData?.stats.exactMatches || 0}
-          isLoading={isLoading}
-          icon={<Hash className="h-4 w-4" />}
-        />
-        <StatsCard
-          title="Similar Items"
-          total={duplicatesData?.stats.similarMatches || 0}
-          processed={duplicatesData?.stats.similarMatches || 0}
-          isLoading={isLoading}
-          icon={<ImageIcon className="h-4 w-4" />}
-        />
-      </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCard
+            title="Total Groups"
+            total={duplicatesData?.stats.totalGroups || 0}
+            processed={duplicatesData?.stats.totalGroups || 0}
+            isLoading={isLoading}
+            icon={<Users className="h-4 w-4" />}
+          />
+          <StatsCard
+            title="Duplicate Items"
+            total={duplicatesData?.stats.totalDuplicateItems || 0}
+            processed={duplicatesData?.stats.totalDuplicateItems || 0}
+            isLoading={isLoading}
+            icon={<Copy className="h-4 w-4" />}
+          />
+          <StatsCard
+            title="Exact Matches"
+            total={duplicatesData?.stats.exactMatches || 0}
+            processed={duplicatesData?.stats.exactMatches || 0}
+            isLoading={isLoading}
+            icon={<Hash className="h-4 w-4" />}
+          />
+          <StatsCard
+            title="Similar Items"
+            total={duplicatesData?.stats.similarMatches || 0}
+            processed={duplicatesData?.stats.similarMatches || 0}
+            isLoading={isLoading}
+            icon={<ImageIcon className="h-4 w-4" />}
+          />
+        </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      {/* Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detection Settings</CardTitle>
-          <CardDescription>
-            Adjust the sensitivity for finding similar images
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Maximum Hamming Distance: {maxDistance[0]}</Label>
-            <Slider
-              value={maxDistance}
-              onValueChange={setMaxDistance}
-              max={20}
-              min={1}
-              step={1}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Lower values find more similar images. Higher values may include
-              false positives.
-            </p>
-          </div>
-
-          <div className="flex space-x-2">
-            <Button onClick={loadDuplicates} disabled={isLoading}>
-              {isLoading ? 'Scanning...' : 'Scan for Duplicates'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleSelectAll}
-              disabled={!duplicatesData?.groups.length}
-            >
-              Select All
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleDeselectAll}
-              disabled={selectedItems.size === 0}
-            >
-              Deselect All
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handleKeepBest}
-              disabled={!duplicatesData?.groups.length || isLoading}
-            >
-              Keep Best Quality
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={selectedItems.size === 0 || isLoading}
-              onClick={handleDeleteSelected}
-              className="ml-auto"
-            >
-              Delete Selected ({selectedItems.size})
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Results */}
-      {isLoading && (
+        {/* Controls */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Progress value={33} className="flex-1" />
-              <span className="text-sm text-muted-foreground">
-                Scanning for duplicates...
-              </span>
+          <CardHeader>
+            <CardTitle>Detection Settings</CardTitle>
+            <CardDescription>
+              Adjust the sensitivity for finding similar images
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Maximum Hamming Distance: {maxDistance[0]}</Label>
+              <Slider
+                value={maxDistance}
+                onValueChange={setMaxDistance}
+                max={20}
+                min={1}
+                step={1}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Lower values find more similar images. Higher values may include
+                false positives.
+              </p>
+            </div>
+
+            <div className="flex space-x-2">
+              <Button onClick={loadDuplicates} disabled={isLoading}>
+                {isLoading ? 'Scanning...' : 'Scan for Duplicates'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleSelectAll}
+                disabled={!duplicatesData?.groups.length}
+              >
+                Select All
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDeselectAll}
+                disabled={selectedItems.size === 0}
+              >
+                Deselect All
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleKeepBest}
+                disabled={!duplicatesData?.groups.length || isLoading}
+              >
+                Keep Best Quality
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={selectedItems.size === 0 || isLoading}
+                onClick={handleDeleteSelected}
+                className="ml-auto"
+              >
+                Delete Selected ({selectedItems.size})
+              </Button>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {duplicatesData && !isLoading && (
-        <Tabs defaultValue="exact" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="exact">
-              Exact Matches ({exactGroups.length})
-            </TabsTrigger>
-            <TabsTrigger value="similar">
-              Similar Images ({similarGroups.length})
-            </TabsTrigger>
-            <TabsTrigger value="all">
-              All Groups ({duplicatesData.groups.length})
-            </TabsTrigger>
-          </TabsList>
+        {/* Results */}
+        {isLoading && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <Progress value={33} className="flex-1" />
+                <span className="text-sm text-muted-foreground">
+                  Scanning for duplicates...
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-          <TabsContent value="exact" className="space-y-4">
-            {exactGroups.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <p className="text-muted-foreground">
-                    No exact duplicate matches found.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <ScrollArea className="h-[600px]">
-                <div className="space-y-4 pr-4">
-                  {exactGroups.map((group, index) => (
-                    <DuplicateGroupComponent
-                      key={`exact-${index}`}
-                      group={group}
-                      selectedItems={selectedItems}
-                      onItemSelect={handleItemSelect}
-                    />
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </TabsContent>
+        {duplicatesData && !isLoading && (
+          <Tabs defaultValue="exact" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="exact">
+                Exact Matches ({exactGroups.length})
+              </TabsTrigger>
+              <TabsTrigger value="similar">
+                Similar Images ({similarGroups.length})
+              </TabsTrigger>
+              <TabsTrigger value="all">
+                All Groups ({duplicatesData.groups.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="similar" className="space-y-4">
-            {similarGroups.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <p className="text-muted-foreground">
-                    No similar images found with current settings.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <ScrollArea className="h-[600px]">
-                <div className="space-y-4 pr-4">
-                  {similarGroups.map((group, index) => (
-                    <DuplicateGroupComponent
-                      key={`similar-${index}`}
-                      group={group}
-                      selectedItems={selectedItems}
-                      onItemSelect={handleItemSelect}
-                    />
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </TabsContent>
+            <TabsContent value="exact" className="space-y-4">
+              {exactGroups.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <p className="text-muted-foreground">
+                      No exact duplicate matches found.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <ScrollArea className="h-[600px]">
+                  <div className="space-y-4 pr-4">
+                    {exactGroups.map((group, index) => (
+                      <DuplicateGroupComponent
+                        key={`exact-${index}`}
+                        group={group}
+                        selectedItems={selectedItems}
+                        onItemSelect={handleItemSelect}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
 
-          <TabsContent value="all" className="space-y-4">
-            {duplicatesData.groups.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <p className="text-muted-foreground">
-                    No duplicate groups found.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <ScrollArea className="h-[600px]">
-                <div className="space-y-4 pr-4">
-                  {duplicatesData.groups.map((group, index) => (
-                    <DuplicateGroupComponent
-                      key={`all-${index}`}
-                      group={group}
-                      selectedItems={selectedItems}
-                      onItemSelect={handleItemSelect}
-                    />
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
-    </div>
+            <TabsContent value="similar" className="space-y-4">
+              {similarGroups.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <p className="text-muted-foreground">
+                      No similar images found with current settings.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <ScrollArea className="h-[600px]">
+                  <div className="space-y-4 pr-4">
+                    {similarGroups.map((group, index) => (
+                      <DuplicateGroupComponent
+                        key={`similar-${index}`}
+                        group={group}
+                        selectedItems={selectedItems}
+                        onItemSelect={handleItemSelect}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
+
+            <TabsContent value="all" className="space-y-4">
+              {duplicatesData.groups.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <p className="text-muted-foreground">
+                      No duplicate groups found.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <ScrollArea className="h-[600px]">
+                  <div className="space-y-4 pr-4">
+                    {duplicatesData.groups.map((group, index) => (
+                      <DuplicateGroupComponent
+                        key={`all-${index}`}
+                        group={group}
+                        selectedItems={selectedItems}
+                        onItemSelect={handleItemSelect}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
+    </AdminLayout>
   );
 }

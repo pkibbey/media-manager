@@ -6,6 +6,7 @@ import { deleteAllMediaItems } from '@/actions/admin/delete-all-media';
 import { getScanStats } from '@/actions/admin/get-scan-stats';
 import { processScanFolder } from '@/actions/admin/process-scan-folder';
 import ActionButton from '@/components/admin/action-button';
+import AdminLayout from '@/components/admin/layout';
 import { StatsCard } from '@/components/admin/stats-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -263,163 +264,166 @@ export default function MediaScanPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Media Scanner</h2>
-        <p className="text-muted-foreground">
-          Scan directories and import new media files
-        </p>
-      </div>
+    <AdminLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">Media Scanner</h2>
+          <p className="text-muted-foreground">
+            Scan directories and import new media files
+          </p>
+        </div>
 
-      <StatsCard
-        title="Media Library Status"
-        total={scanStats?.total || 0}
-        processed={scanStats?.processed || 0}
-        isLoading={isLoading}
-        icon={<FolderSearch className="h-4 w-4" />}
-        className="w-full"
-      />
+        <StatsCard
+          title="Media Library Status"
+          total={scanStats?.total || 0}
+          processed={scanStats?.processed || 0}
+          isLoading={isLoading}
+          icon={<FolderSearch className="h-4 w-4" />}
+          className="w-full"
+        />
 
-      <Tabs defaultValue="scanning">
-        <TabsList>
-          <TabsTrigger value="scanning">Folder Scanning</TabsTrigger>
-          <TabsTrigger value="history">Scan History</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="scanning">
+          <TabsList>
+            <TabsTrigger value="scanning">Folder Scanning</TabsTrigger>
+            <TabsTrigger value="history">Scan History</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="scanning" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Scan Media Directory</CardTitle>
-              <CardDescription>
-                Select a directory to scan and automatically import new media
-                files
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div>
-                  <Input
-                    id="folder-path"
-                    placeholder="/path/to/media/folder, /another/path"
-                    value={folderPaths}
-                    onChange={(e) => setFolderPaths(e.target.value)}
-                    className={
-                      folderPaths
-                        .split(',')
-                        .some(
-                          (p) => p.trim() !== '' && !p.trim().startsWith('/'),
-                        )
-                        ? 'border-red-500'
-                        : ''
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Enter one or more absolute folder paths, separated by commas
-                  </p>
-                  {folderPaths
-                    .split(',')
-                    .some(
-                      (p) => p.trim() !== '' && !p.trim().startsWith('/'),
-                    ) && (
-                    <p className="text-xs text-red-500 mt-1">
-                      All paths must be absolute (start with /)
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {scanProgress.status !== 'idle' && (
-                <div className="mt-4">
-                  <div className="space-y-2">
-                    <Progress
-                      value={
-                        discoveredFolders.size > 0
-                          ? (processedFolders.size / discoveredFolders.size) *
-                            100
-                          : 0
-                      }
-                    />
-                    <div className="text-sm text-muted-foreground">
-                      <div>
-                        Folders: {processedFolders.size} processed of{' '}
-                        {discoveredFolders.size} discovered
-                      </div>
-                      <div>{scanProgress.status}</div>
-                      {scanProgress.error && (
-                        <p className="text-red-500">{scanProgress.error}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {scanProgress.processingComplete && (
-                <Alert className="mt-4">
-                  <AlertTitle>Scan Complete</AlertTitle>
-                  <AlertDescription>
-                    All folders have been processed successfully.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-            <CardFooter className="flex flex-wrap gap-2">
-              <ActionButton
-                action={scanFolders}
-                disabled={isProcessing}
-                loadingMessage="Scanning and processing files..."
-                successMessage="Files processed successfully"
-              >
-                <Scan className="h-4 w-4 mr-2" />
-                Scan Folders
-              </ActionButton>
-              {/* New Button to Delete All Media Items */}
-              <ActionButton
-                action={deleteAllMediaItems}
-                disabled={isProcessing} // Disable if a scan is in progress
-                variant="destructive" // Use destructive variant for delete actions
-                loadingMessage="Deleting all media items..."
-                successMessage="All media items deleted successfully"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete All Media
-              </ActionButton>
-            </CardFooter>
-          </Card>
-          {/* New: Discovered folders count */}
-          {discoveredFolders.size > 0 && (
+          <TabsContent value="scanning" className="space-y-4 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Discovered Folders</CardTitle>
+                <CardTitle className="text-lg">Scan Media Directory</CardTitle>
                 <CardDescription>
-                  Number of folders found during the scan process
+                  Select a directory to scan and automatically import new media
+                  files
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div>
+                    <Input
+                      id="folder-path"
+                      placeholder="/path/to/media/folder, /another/path"
+                      value={folderPaths}
+                      onChange={(e) => setFolderPaths(e.target.value)}
+                      className={
+                        folderPaths
+                          .split(',')
+                          .some(
+                            (p) => p.trim() !== '' && !p.trim().startsWith('/'),
+                          )
+                          ? 'border-red-500'
+                          : ''
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter one or more absolute folder paths, separated by
+                      commas
+                    </p>
+                    {folderPaths
+                      .split(',')
+                      .some(
+                        (p) => p.trim() !== '' && !p.trim().startsWith('/'),
+                      ) && (
+                      <p className="text-xs text-red-500 mt-1">
+                        All paths must be absolute (start with /)
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {scanProgress.status !== 'idle' && (
+                  <div className="mt-4">
+                    <div className="space-y-2">
+                      <Progress
+                        value={
+                          discoveredFolders.size > 0
+                            ? (processedFolders.size / discoveredFolders.size) *
+                              100
+                            : 0
+                        }
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        <div>
+                          Folders: {processedFolders.size} processed of{' '}
+                          {discoveredFolders.size} discovered
+                        </div>
+                        <div>{scanProgress.status}</div>
+                        {scanProgress.error && (
+                          <p className="text-red-500">{scanProgress.error}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {scanProgress.processingComplete && (
+                  <Alert className="mt-4">
+                    <AlertTitle>Scan Complete</AlertTitle>
+                    <AlertDescription>
+                      All folders have been processed successfully.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+              <CardFooter className="flex flex-wrap gap-2">
+                <ActionButton
+                  action={scanFolders}
+                  disabled={isProcessing}
+                  loadingMessage="Scanning and processing files..."
+                  successMessage="Files processed successfully"
+                >
+                  <Scan className="h-4 w-4 mr-2" />
+                  Scan Folders
+                </ActionButton>
+                {/* New Button to Delete All Media Items */}
+                <ActionButton
+                  action={deleteAllMediaItems}
+                  disabled={isProcessing} // Disable if a scan is in progress
+                  variant="destructive" // Use destructive variant for delete actions
+                  loadingMessage="Deleting all media items..."
+                  successMessage="All media items deleted successfully"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete All Media
+                </ActionButton>
+              </CardFooter>
+            </Card>
+            {/* New: Discovered folders count */}
+            {discoveredFolders.size > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Discovered Folders</CardTitle>
+                  <CardDescription>
+                    Number of folders found during the scan process
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {discoveredFolders.size}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Scan History</CardTitle>
+                <CardDescription>
+                  Recent folder scans and imported files
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {discoveredFolders.size}
+                <div className="text-sm text-muted-foreground">
+                  Total media items in database: {scanStats?.total || 0}
                 </div>
+                {/* History table could be added here in the future */}
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Scan History</CardTitle>
-              <CardDescription>
-                Recent folder scans and imported files
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">
-                Total media items in database: {scanStats?.total || 0}
-              </div>
-              {/* History table could be added here in the future */}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AdminLayout>
   );
 }
