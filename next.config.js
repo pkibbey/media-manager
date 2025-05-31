@@ -21,7 +21,7 @@ const nextConfig = {
     if (isServer) {
       config.externals = [
         ...config.externals,
-        '@tensorflow/tfjs-node',
+        '@tensorflow/tfjs-node-gpu',
         'canvas',
         'sharp',
       ];

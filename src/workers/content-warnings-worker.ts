@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });
 
-import * as tf from '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs-node-gpu';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { load } from 'nsfwjs';
