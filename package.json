@@ -47,6 +47,7 @@
     "exiftool-vendored": "^30.2.0",
     "file-type": "^21.0.0",
     "geist": "1.4.2",
+    "https-proxy-agent": "^7.0.6",
     "ioredis": "^5.6.1",
     "lucide-react": "0.511.0",
     "next": "^15.3.3",
@@ -70,11 +71,11 @@
     "@types/react": "^19.1.6",
     "@types/react-dom": "19.1.5",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^7.0.3",
     "knip": "^5.59.1",
     "postcss": "^8.5.4",
     "supabase": "^2.23.4",
     "tailwindcss": "^4.1.8",
-    "tsx": "^4.19.4",
-    "cross-env": "^7.0.3"
+    "tsx": "^4.19.4"
   }
 }
