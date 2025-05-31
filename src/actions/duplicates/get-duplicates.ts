@@ -106,8 +106,7 @@ export async function getDuplicates(
 			.not('visual_hash', 'is', null)
 			.ilike('media_types.mime_type', '%image%')
 			.is('media_types.is_ignored', false)
-			.is('is_deleted', false)
-			.order('visual_hash');
+			.is('is_deleted', false);
 
 		if (error) {
 			throw new Error(`Failed to fetch media items: ${error.message}`);
@@ -129,115 +128,19 @@ export async function getDuplicates(
 			`[getDuplicates] Analyzing ${mediaItems.length} items for duplicates`,
 		);
 
-		// Find duplicates using hash comparison
-		const duplicateGroups: Map<string, MediaWithRelations[]> = new Map();
-		const similarGroups: Map<
-			string,
-			{ items: MediaWithRelations[]; distance: number }[]
-		> = new Map();
-		const processedHashes = new Set<string>();
+		// Send to Ollama server for processing
+		const response = await fetch(`http://${process.env.DUPLICATES_HOST}:${process.env.DUPLICATES_PORT}/process-duplicates`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ mediaItems, maxHammingDistance }),
+		});
 
-		// First pass: find exact matches
-		for (const item of mediaItems) {
-			const hash = item.visual_hash!;
-
-			if (!duplicateGroups.has(hash)) {
-				duplicateGroups.set(hash, []);
-			}
-			duplicateGroups.get(hash)!.push(item);
+		if (!response.ok) {
+			throw new Error(`API error: ${response.status}`);
 		}
 
-		// Second pass: find similar matches for items that don't have exact duplicates
-		for (let i = 0; i < mediaItems.length; i++) {
-			const item1 = mediaItems[i];
-			const hash1 = item1.visual_hash!;
-
-			// Skip if this hash already has exact duplicates
-			if (duplicateGroups.get(hash1)!.length > 1) {
-				continue;
-			}
-
-			if (processedHashes.has(hash1)) {
-				continue;
-			}
-
-			const similarItems: { item: MediaWithRelations; distance: number }[] = [];
-
-			for (let j = i + 1; j < mediaItems.length; j++) {
-				const item2 = mediaItems[j];
-				const hash2 = item2.visual_hash!;
-
-				// Skip if this hash already has exact duplicates
-				if (duplicateGroups.get(hash2)!.length > 1) {
-					continue;
-				}
-
-				if (hash1 === hash2) continue;
-
-				const distance = calculateHammingDistance(hash1, hash2);
-
-				if (distance >= 0 && distance <= maxHammingDistance) {
-					similarItems.push({ item: item2, distance });
-				}
-			}
-
-			if (similarItems.length > 0) {
-				// Add the original item
-				similarItems.unshift({ item: item1, distance: 0 });
-
-				// Group by similar distance ranges
-				const groupKey = `similar_${hash1}`;
-				if (!similarGroups.has(groupKey)) {
-					similarGroups.set(groupKey, []);
-				}
-
-				similarGroups.get(groupKey)!.push({
-					items: similarItems.map((si) => si.item),
-					distance: Math.min(...similarItems.map((si) => si.distance)),
-				});
-
-				// Mark all these hashes as processed
-				similarItems.forEach((si) => processedHashes.add(si.item.visual_hash!));
-			}
-
-			processedHashes.add(hash1);
-		}
-
-		// Convert to result format
-		const groups: DuplicateGroup[] = [];
-		let exactMatches = 0;
-		let similarMatches = 0;
-
-		// Add exact duplicate groups
-		for (const [hash, items] of duplicateGroups) {
-			if (items.length > 1) {
-				groups.push({
-					hash,
-					items,
-					similarity: 'exact',
-					hammingDistance: 0,
-				});
-				exactMatches += items.length;
-			}
-		}
-
-		// Add similar groups
-		for (const [_, groupList] of similarGroups) {
-			for (const group of groupList) {
-				if (group.items.length > 1) {
-					const totalBits = group.items[0].visual_hash!.length * 4; // 4 bits per hex character
-					const similarity = categorizeSimilarity(group.distance, totalBits);
-
-					groups.push({
-						hash: `similar_${group.items[0].visual_hash}`,
-						items: group.items,
-						similarity,
-						hammingDistance: group.distance,
-					});
-					similarMatches += group.items.length;
-				}
-			}
-		}
+		const { exactGroups, similarGroups } = await response.json();
+		const groups = [...exactGroups, ...similarGroups];
 
 		// Sort groups by similarity and number of items
 		groups.sort((a, b) => {
@@ -253,6 +156,9 @@ export async function getDuplicates(
 			// Then by hamming distance (closer matches first)
 			return (a.hammingDistance || 0) - (b.hammingDistance || 0);
 		});
+
+		const exactMatches = exactGroups.reduce((total: number, group: { items: string | any[]; }) => total + group.items.length, 0);
+		const similarMatches = similarGroups.reduce((total: number, group: { items: string | any[]; }) => total + group.items.length, 0);
 
 		const stats = {
 			totalGroups: groups.length,
@@ -290,9 +196,9 @@ export async function addRemainingToDuplicatesQueue() {
 		while (true) {
 			const { data: mediaItems, error } = await supabase
 				.from('media')
-				.select('id, thumbnail_url')
-				.eq('is_duplicate_processed', false)
-				.eq('is_thumbnail_processed', true) // Must have thumbnail processed first
+				.select('id, visual_hash')
+				.eq('is_duplicates_processed', false)
+				.not('visual_hash', 'is', null) // Must have a visual hash
 				.range(offset, offset + batchSize - 1);
 
 			if (error) {

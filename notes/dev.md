@@ -11,3 +11,7 @@ Handle online and offline files
 
 Now that we moved the batch processing to bullmq, we need to check the database updates when if we want to overwrite the data or not
 
+Add estimated time remaining and count of items per second
+
+Remember to split the advanced analysis into standard and advanced processing
+

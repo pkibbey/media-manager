@@ -99,6 +99,45 @@ export type Database = {
           },
         ]
       }
+      duplicates: {
+        Row: {
+          created_at: string | null
+          duplicate_id: string
+          hamming_distance: number
+          media_id: string
+          similarity_score: number
+        }
+        Insert: {
+          created_at?: string | null
+          duplicate_id: string
+          hamming_distance: number
+          media_id: string
+          similarity_score: number
+        }
+        Update: {
+          created_at?: string | null
+          duplicate_id?: string
+          hamming_distance?: number
+          media_id?: string
+          similarity_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_duplicate"
+            columns: ["duplicate_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_media"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exif_data: {
         Row: {
           aperture: number | null

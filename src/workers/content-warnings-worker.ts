@@ -4,13 +4,13 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 import * as tf from '@tensorflow/tfjs-node';
-import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { load } from 'nsfwjs';
 import { createSupabase } from '@/lib/supabase';
 import type { Json } from '@/types/supabase';
 
-interface ObjectDetectionJobData {
+interface ContentWarningsJobData {
 	id: string;
 	thumbnail_url: string;
 }
@@ -23,44 +23,25 @@ const redisConnection = new IORedis(
 	},
 );
 
-const QUEUE_NAME = 'objectAnalysisQueue';
+const QUEUE_NAME = 'contentWarningsQueue';
 
 // Initialize Supabase client once
 const supabase = createSupabase();
 
-// Save COCO-SSD model variable in the global scope
+// Save NSFWJS model variable in the global scope
 // to avoid reloading it for every job, which can be expensive.
-let model: cocoSsd.ObjectDetection | null = null;
+let model: any = null;
 
 /**
- * Loads the COCO-SSD model if it hasn't been loaded yet.
+ * Loads the NSFWJS model if it hasn't been loaded yet.
  */
 async function initializeModel() {
 	if (!model) {
-		console.log('Loading COCO-SSD model...');
+		console.log('Loading NSFWJS model...');
 		await tf.ready();
-		model = await cocoSsd.load();
-		console.log('COCO-SSD model loaded successfully.');
+		model = await load('InceptionV3');
+		console.log('NSFWJS model loaded successfully.');
 	}
-}
-
-/**
- * Fetches an image from a URL and converts it to a TensorFlow tensor.
- * @param url The URL of the image.
- * @returns A Promise resolving to a tf.Tensor3D.
- */
-async function loadImage(url: string): Promise<tf.Tensor3D> {
-	const response = await fetch(url);
-	if (!response.ok) {
-		throw new Error(
-			`Failed to fetch image from ${url}: ${response.statusText}`,
-		);
-	}
-	const buffer = await response.arrayBuffer();
-
-	// Decode the image buffer into a tensor
-	const imageTensor = tf.node.decodeJpeg(new Uint8Array(buffer), 3);
-	return imageTensor;
 }
 
 /**
@@ -68,53 +49,68 @@ async function loadImage(url: string): Promise<tf.Tensor3D> {
  * This function is called for each job in the queue.
  */
 const workerProcessor = async (
-	job: Job<ObjectDetectionJobData>,
+	job: Job<ContentWarningsJobData>,
 ): Promise<boolean> => {
 	await initializeModel();
 	if (!model) {
-		throw new Error('COCO-SSD model is not loaded.');
+		throw new Error('NSFWJS model is not loaded.');
 	}
+
+	console.log('Processing content warnings job:', job.data);
 
 	const { id: mediaId, thumbnail_url: thumbnailUrl } = job.data;
 
-	let imageTensor: tf.Tensor3D | undefined;
+	let tensor: tf.Tensor3D | undefined;
 	try {
-		// Load the image from the thumbnail URL
-		imageTensor = await loadImage(thumbnailUrl);
+		// Fetch the image buffer (use thumbnail for speed)
+		const imageResponse = await fetch(thumbnailUrl);
+		if (!imageResponse.ok) {
+			throw new Error(
+				`Failed to fetch image from ${thumbnailUrl}: ${imageResponse.statusText}`,
+			);
+		}
+		const imageBuffer = new Uint8Array(await imageResponse.arrayBuffer());
 
-		// Perform object detection
-		const predictions = await model.detect(imageTensor);
+		// Decode JPEG
+		tensor = tf.node.decodeJpeg(imageBuffer, 3);
+
+		// Run Content Warnings detection
+		const predictions = await model.classify(tensor);
 
 		// Save detection results
 		const { error: upsertError } = await supabase.from('analysis_data').upsert(
 			{
 				media_id: mediaId,
-				objects: predictions as unknown as Json[],
+				content_warnings: predictions as unknown as Json[],
 			},
 			{ onConflict: 'media_id' },
 		);
 
 		if (upsertError) {
 			throw new Error(
-				`Failed to save analysis data for media ID ${mediaId}: ${upsertError.message}`,
+				`Failed to save content warnings data for media ID ${mediaId}: ${upsertError.message}`,
 			);
 		}
 
 		// Update the 'media' table to mark as processed
 		const { error: mediaUpdateError } = await supabase
 			.from('media')
-			.update({ is_basic_processed: true }) // Ensure 'is_basic_processed' is the correct column
+			.update({ is_content_warnings_processed: true })
 			.eq('id', mediaId);
 
 		if (mediaUpdateError) {
-			// Log error but don't necessarily fail the job if primary data (analysis_data) was saved.
 			console.error(
-				`[Worker] Failed to update 'is_basic_processed' for media ID ${mediaId}:`,
+				`[Worker] Failed to update 'is_content_warnings_processed' for media ID ${mediaId}:`,
 				mediaUpdateError,
 			);
+		} else {
+			console.log(
+				`[Worker] Successfully marked media ID ${mediaId} as content warnings processed.`,
+			);
 		}
+
 		console.log(
-			`[Worker] Detected ${predictions.length} objects for media ID ${mediaId}`,
+			`[Worker] Detected ${predictions.length} content warnings for media ID ${mediaId}`,
 		);
 		return true;
 	} catch (error) {
@@ -126,29 +122,29 @@ const workerProcessor = async (
 		);
 		throw error; // Rethrow to allow BullMQ to handle retries/failures
 	} finally {
-		if (imageTensor) {
-			imageTensor.dispose(); // IMPORTANT: Clean up tensor memory
+		if (tensor) {
+			tensor.dispose(); // IMPORTANT: Clean up tensor memory
 		}
 	}
 };
 
 // Create and start the worker
-const worker = new Worker<ObjectDetectionJobData>(QUEUE_NAME, workerProcessor, {
+const worker = new Worker<ContentWarningsJobData>(QUEUE_NAME, workerProcessor, {
 	connection: redisConnection,
 	concurrency: Number.parseInt(
-		process.env.OBJECT_DETECTION_WORKER_CONCURRENCY || '1',
+		process.env.CONTENT_WARNINGS_WORKER_CONCURRENCY || '1',
 	),
 });
 
-worker.on('completed', (job: Job<ObjectDetectionJobData>) => {
+worker.on('completed', (job: Job<ContentWarningsJobData>) => {
 	console.log(
-		`[Worker] Job ${job.id} (Media ID: ${job.data.id}) completed object detection processing.`,
+		`[Worker] Job ${job.id} (Media ID: ${job.data.id}) completed content warnings processing.`,
 	);
 });
 
 worker.on(
 	'failed',
-	(job: Job<ObjectDetectionJobData> | undefined, err: Error) => {
+	(job: Job<ContentWarningsJobData> | undefined, err: Error) => {
 		console.error(
 			`[Worker] Job ${job?.id} (Media ID: ${job?.data.id}) failed with error: ${err.message}`,
 		);
@@ -160,5 +156,5 @@ worker.on('error', (err) => {
 });
 
 console.log(
-	`Object detection worker started. Listening to queue: ${QUEUE_NAME}`,
+	`Content warnings worker started. Listening to queue: ${QUEUE_NAME}`,
 );

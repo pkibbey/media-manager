@@ -32,7 +32,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "tailwind.config.mjs",
-    "next.config.js"
+    "next.config.js",
+    "src/servers/duplicates-server.js"
   ],
   "exclude": ["node_modules"]
 }

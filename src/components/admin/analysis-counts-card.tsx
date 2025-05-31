@@ -54,7 +54,7 @@ export default function AnalysisCountsCard({
     }
     fetchAnalysiscounts();
 
-    const intervalId = setInterval(fetchAnalysiscounts, 2000);
+    const intervalId = setInterval(fetchAnalysiscounts, 5000);
 
     return () => clearInterval(intervalId); // Cleanup interval on component unmount or when queueName changes
   }, [queueName]);

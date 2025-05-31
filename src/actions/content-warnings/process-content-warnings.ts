@@ -203,7 +203,7 @@ export async function addRemainingToContentWarningQueue() {
 			const { data: mediaItems, error } = await supabase
 				.from('media')
 				.select('id, thumbnail_url')
-				.eq('is_content_warning_processed', false)
+				.eq('is_content_warnings_processed', false)
 				.eq('is_thumbnail_processed', true)
 				.range(offset, offset + batchSize - 1);
 

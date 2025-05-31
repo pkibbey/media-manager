@@ -165,7 +165,7 @@ const _advancedUserPrompt = `
 `;
 
 // Create an Ollama client instance, explicitly setting the host.
-const ollamaClient = new Ollama({ host: process.env.OLLAMA_HOST });
+const ollamaClient = new Ollama({ host: `http://${process.env.OLLAMA_HOST}:${process.env.OLLAMA_PORT}` });
 
 /**
  * Process a single media item with Ollama for advanced analysis (batch-optimized version)

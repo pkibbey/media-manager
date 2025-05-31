@@ -12,7 +12,13 @@
     "sync": "supabase migrations up --local --include-all && pnpm types && pnpm format",
     "knip": "knip",
     "knip:fix": "knip --fix --allow-remove-files",
-    "worker": "tsx src/workers/object-detection-worker.ts"
+    "worker:object": "tsx src/workers/object-detection-worker.ts",
+    "worker:advanced": "tsx src/workers/advanced-analysis-worker.ts",
+    "worker:content": "tsx src/workers/content-warnings-worker.ts",
+    "worker:duplicates": "tsx src/workers/duplicates-worker.ts",
+    "worker:exif": "tsx src/workers/exif-worker.ts",
+    "worker:thumbnail": "tsx src/workers/thumbnail-worker.ts",
+    "workers": "tsx src/workers/start-workers.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.2",
@@ -36,6 +42,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "exiftool-vendored": "^30.2.0",
+    "express": "^5.1.0",
     "file-type": "^21.0.0",
     "geist": "1.4.2",
     "ioredis": "^5.6.1",

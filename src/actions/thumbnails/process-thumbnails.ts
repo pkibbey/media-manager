@@ -434,6 +434,57 @@ async function processMediaItemV2(
 }
 
 /**
+ * Process a thumbnail for a media item.
+ * This is the main function that should be called from workers and other places.
+ *
+ * @param params - Object containing processing parameters
+ * @param params.mediaId - The ID of the media item to process
+ * @param params.mediaPath - The file system path to the media file
+ * @returns Result object with success status and thumbnail URL if available
+ */
+export async function processThumbnail({
+	mediaId,
+	mediaPath,
+}: {
+	mediaId: string;
+	mediaPath: string;
+}): Promise<boolean> {
+	try {
+		if (!mediaPath) {
+			return false;
+		}
+
+		// Check if we need to regenerate or if thumbnail already exists
+    const supabase = createSupabase();
+    const { data: mediaItem } = await supabase
+      .from('media')
+      .select('*, media_types(*), exif_data(*), analysis_data(*)')
+      .eq('id', mediaId)
+      .single();
+
+    if (!mediaItem) {
+      // Thumbnail already exists and regeneration wasn't requested
+      return false;
+    }
+
+		// Process the thumbnail
+		const result = await processMediaItemV2(mediaItem);
+
+		if (result.success && result.finalData?.thumbnailUrl) {
+			return true;
+		}
+		// Find the first error in the steps
+		const errorStep = result.steps.find((step) => !step.success);
+		return  false;
+	} catch (error) {
+		const errorMessage =
+    error instanceof Error ? error.message : 'Unknown error';
+    console.log('errorMessage: ', errorMessage)
+		return false;
+	}
+}
+
+/**
  * Enhanced batch thumbnail processing with robust error handling
  *
  * Key improvements:

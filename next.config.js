@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ['localhost', '192.168.1.170', 'image-server'],
+  allowedDevOrigins: ['localhost', process.env.OLLAMA_HOST],
   reactStrictMode: true,
   devIndicators: false,
   images: {
@@ -11,7 +11,7 @@ const nextConfig = {
   // Enable experimental features for server actions
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost', '192.168.1.170', 'image-server'],
+      allowedOrigins: ['localhost', process.env.OLLAMA_HOST],
     },
     serverComponentsHmrCache: false,
   },
