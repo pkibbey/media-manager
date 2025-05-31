@@ -1,5 +1,9 @@
 const express = require('express');
+const morgan = require('morgan');
 const app = express();
+
+// Add request logging middleware
+app.use(morgan('dev')); // logs requests in format: :method :url :status :response-time ms
 app.use(express.json());
 
 // Calculate Hamming distance between two hex strings
@@ -40,6 +44,9 @@ function categorizeSimilarity(distance, totalBits) {
 // Process batches of hash comparisons
 app.post('/process-duplicates', (req, res) => {
   const { mediaItems, maxHammingDistance = 10 } = req.body;
+  
+  console.log(`Processing ${mediaItems.length} items for duplicates (max distance: ${maxHammingDistance})...`);
+  const startTime = Date.now();
   
   // Find duplicates using hash comparison
   const duplicateGroups = new Map();
@@ -145,10 +152,14 @@ app.post('/process-duplicates', (req, res) => {
     }
   }
 
+  const duration = Date.now() - startTime;
+  console.log(`Found ${results.exactGroups.length} exact duplicate groups and ${results.similarGroups.length} similar groups in ${duration}ms`);
+  
   res.json(results);
 });
 
 const PORT = process.env.DUPLICATES_PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Duplicate detection API running on port ${PORT}`);
+  console.log(`Access the API at http://localhost:${PORT}`);
 });
