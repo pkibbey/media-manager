@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "cross-env TF_METAL_DEVICE=1 NODE_OPTIONS='--max-old-space-size=8192' next dev",
     "build": "next build",
-    "start": "cross-env TF_METAL_DEVICE=1 NODE_OPTIONS='--max-old-space-size=8192' next start",
-    "server": "node duplicate-detection-api.js",
+    "start": "TF_METAL_DEVICE=1 NODE_OPTIONS='--max-old-space-size=8192' next start",
+    "server": "node src/servers/duplicates-server.js",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",
     "types": "supabase gen types typescript --local > src/types/supabase.ts",
