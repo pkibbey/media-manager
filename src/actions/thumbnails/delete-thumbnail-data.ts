@@ -3,57 +3,52 @@
 import { createSupabase } from '@/lib/supabase';
 
 /**
- * Delete thumbnail data and reset processing flags in batches
+ * Delete thumbnail data and reset processing flags
  *
- * @param batchSize Number of items to process in each batch
- * @returns Object with count of reset items and any error
+ * @returns Boolean indicating success
  */
-export async function deleteThumbnailData(batchSize = 100) {
-  try {
-    const supabase = createSupabase();
-    let totalReset = 0;
-    let batchCount = 0;
-    let hasMore = true;
+export default async function deleteThumbnailData(): Promise<boolean> {
+	try {
+		const supabase = createSupabase();
 
-    // Empty the storage bucket for thumbnails (optional: comment out if not needed every run)
-    await supabase.storage.from('thumbnails').remove(['*']);
+		// Empty the storage bucket for thumbnails
+		try {
+			await supabase.storage.from('thumbnails').remove(['*']);
+		} catch (e) {
+			console.error('Exception while emptying thumbnails bucket:', e);
+		}
 
-    while (hasMore) {
-      // 1. Get a batch of media IDs where is_thumbnail_processed is true
-      const { data: mediaBatch, error: selectError } = await supabase
-        .from('media')
-        .select('id')
-        .eq('is_thumbnail_processed', true)
-        .limit(batchSize);
-      if (selectError)
-        throw new Error(`Failed to select media: ${selectError.message}`);
-      if (!mediaBatch || mediaBatch.length === 0) break;
-      const ids = mediaBatch.map((m) => m.id);
+		// Reset is_thumbnail_processed for all processed items in batches
+		let totalReset = 0;
 
-      // 3. Reset is_thumbnail_processed flag for these media items
-      const { error: updateError } = await supabase
-        .from('media')
-        .update({ is_thumbnail_processed: false })
-        .in('id', ids);
-      if (updateError)
-        throw new Error(`Failed to reset media flags: ${updateError.message}`);
+		while (true) {
+			const { error: updateError, count } = await supabase
+				.from('media')
+				.update({ is_thumbnail_processed: false })
+				.eq('is_thumbnail_processed', true);
 
-      totalReset += ids.length;
-      batchCount++;
-      hasMore = ids.length === batchSize;
-    }
+			if (updateError) {
+				console.error('Failed to reset thumbnail data:', updateError);
+				return false;
+			}
 
-    return {
-      success: true,
-      message: `Thumbnail data deleted and reset in ${batchCount} batches (${totalReset} items).`,
-      count: totalReset,
-    };
-  } catch (error) {
-    console.error('Error deleting thumbnail data:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      count: 0,
-    };
-  }
+			const affectedRows = count || 0;
+			totalReset += affectedRows;
+
+			console.log(
+				`Successfully reset ${affectedRows} media items. Total reset: ${totalReset}`,
+			);
+
+			if (affectedRows === 0) {
+				// No more items to update
+				break;
+			}
+		}
+
+		console.log('Finished resetting thumbnail data for media items.');
+		return true;
+	} catch (error) {
+		console.error('Exception during update of media items:', error);
+		return false;
+	}
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress'; // Added import for Progress
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface AnalysisCounts {

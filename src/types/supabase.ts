@@ -196,6 +196,7 @@ export type Database = {
           is_basic_processed: boolean
           is_content_warnings_processed: boolean
           is_deleted: boolean
+          is_duplicates_processed: boolean
           is_exif_processed: boolean
           is_hidden: boolean
           is_thumbnail_processed: boolean
@@ -212,6 +213,7 @@ export type Database = {
           is_basic_processed?: boolean
           is_content_warnings_processed?: boolean
           is_deleted?: boolean
+          is_duplicates_processed?: boolean
           is_exif_processed?: boolean
           is_hidden?: boolean
           is_thumbnail_processed?: boolean
@@ -228,6 +230,7 @@ export type Database = {
           is_basic_processed?: boolean
           is_content_warnings_processed?: boolean
           is_deleted?: boolean
+          is_duplicates_processed?: boolean
           is_exif_processed?: boolean
           is_hidden?: boolean
           is_thumbnail_processed?: boolean

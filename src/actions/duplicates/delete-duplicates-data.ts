@@ -3,24 +3,24 @@
 import { createSupabase } from '@/lib/supabase';
 
 /**
- * Delete EXIF data and reset processing flags
+ * Delete duplicates data and reset processing flags
  *
  * @returns Boolean indicating success
  */
-export default async function deleteExifData(): Promise<boolean> {
+export default async function deleteDuplicatesData(): Promise<boolean> {
 	try {
 		const supabase = createSupabase();
 		let totalReset = 0;
 
-		// Reset is_exif_processed for all processed items in batches
+		// Reset is_duplicates_processed and clear visual_hash in batches
 		while (true) {
 			const { error: updateError, count } = await supabase
 				.from('media')
-				.update({ is_exif_processed: false })
-				.eq('is_exif_processed', true);
+				.update({ is_duplicates_processed: false })
+				.eq('is_duplicates_processed', true);
 
 			if (updateError) {
-				console.error('Failed to reset EXIF data:', updateError);
+				console.error('Failed to reset duplicates data:', updateError);
 				return false;
 			}
 
@@ -37,7 +37,7 @@ export default async function deleteExifData(): Promise<boolean> {
 			}
 		}
 
-		console.log('Finished resetting EXIF data for media items.');
+		console.log('Finished resetting duplicates data for media items.');
 		return true;
 	} catch (error) {
 		console.error('Exception during update of media items:', error);

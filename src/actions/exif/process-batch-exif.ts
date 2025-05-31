@@ -1,9 +1,21 @@
 'use server';
 
+import { Queue } from 'bullmq';
+import IORedis from 'ioredis';
 import { processInChunks } from '@/lib/batch-processing';
 import { createSupabase } from '@/lib/supabase';
 import type { TablesInsert } from '@/types/supabase';
 import { extractExifData } from './process-exif';
+
+const connection = new IORedis(
+	process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
+	process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
+	{
+		maxRetriesPerRequest: null,
+	},
+);
+
+const exifQueue = new Queue('exifQueue', { connection });
 
 /**
  * Process EXIF data for multiple media items in batch with optimized database operations
@@ -22,119 +34,184 @@ import { extractExifData } from './process-exif';
  * @returns Object with count of processed items and any errors
  */
 export async function processBatchExif(limit = 10, concurrency = 3) {
-  try {
-    const supabase = createSupabase();
+	try {
+		const supabase = createSupabase();
 
-    // Find media items that need EXIF processing
-    const { data: mediaItems, error: findError } = await supabase
-      .from('media')
-      .select('*, exif_data(*), media_types!inner(*)')
-      .is('is_exif_processed', false)
-      .is('media_types.is_ignored', false)
-      .limit(limit);
+		// Find media items that need EXIF processing
+		const { data: mediaItems, error: findError } = await supabase
+			.from('media')
+			.select('*, exif_data(*), media_types!inner(*)')
+			.is('is_exif_processed', false)
+			.is('media_types.is_ignored', false)
+			.limit(limit);
 
-    if (findError) {
-      throw new Error(`Failed to find unprocessed items: ${findError.message}`);
-    }
+		if (findError) {
+			throw new Error(`Failed to find unprocessed items: ${findError.message}`);
+		}
 
-    if (!mediaItems || mediaItems.length === 0) {
-      return {
-        success: true,
-        processed: 0,
-        failed: 0,
-        total: 0,
-        message: 'No items to process',
-      };
-    }
+		if (!mediaItems || mediaItems.length === 0) {
+			return {
+				success: true,
+				processed: 0,
+				failed: 0,
+				total: 0,
+				message: 'No items to process',
+			};
+		}
 
-    // Extract EXIF data for all media items in parallel chunks
-    const extractionResults = await processInChunks(
-      mediaItems,
-      extractExifData,
-      concurrency,
-    );
+		// Extract EXIF data for all media items in parallel chunks
+		const extractionResults = await processInChunks(
+			mediaItems,
+			extractExifData,
+			concurrency,
+		);
 
-    // Prepare database operations
-    const exifDataToInsert: TablesInsert<'exif_data'>[] = [];
-    const mediaIdsToUpdate: string[] = [];
-    let failed = 0;
+		// Prepare database operations
+		const exifDataToInsert: TablesInsert<'exif_data'>[] = [];
+		const mediaIdsToUpdate: string[] = [];
+		let failed = 0;
 
-    // Process results and prepare batch operations
-    extractionResults.forEach((result) => {
-      if (result.status === 'fulfilled') {
-        const extractionResult = result.value;
+		// Process results and prepare batch operations
+		extractionResults.forEach((result) => {
+			if (result.status === 'fulfilled') {
+				const extractionResult = result.value;
 
-        // Always mark the media as processed
-        mediaIdsToUpdate.push(extractionResult.mediaId);
+				// Always mark the media as processed
+				mediaIdsToUpdate.push(extractionResult.mediaId);
 
-        if (!extractionResult.success) {
-          failed++;
-          return;
-        }
+				if (!extractionResult.success) {
+					failed++;
+					return;
+				}
 
-        // Add EXIF data to batch if available
-        if (
-          !extractionResult.noData &&
-          'exifData' in extractionResult &&
-          extractionResult.exifData
-        ) {
-          exifDataToInsert.push(extractionResult.exifData);
-        }
-      } else {
-        // Promise was rejected
-        failed++;
-      }
-    });
+				// Add EXIF data to batch if available
+				if (
+					!extractionResult.noData &&
+					'exifData' in extractionResult &&
+					extractionResult.exifData
+				) {
+					exifDataToInsert.push(extractionResult.exifData);
+				}
+			} else {
+				// Promise was rejected
+				failed++;
+			}
+		});
 
-    // Perform batch database operations
+		// Perform batch database operations
 
-    // 1. Insert EXIF data in batches if there are any to insert
-    if (exifDataToInsert.length > 0) {
-      const { error: insertError } = await supabase
-        .from('exif_data')
-        .upsert(exifDataToInsert, {
-          onConflict: 'media_id',
-        });
+		// 1. Insert EXIF data in batches if there are any to insert
+		if (exifDataToInsert.length > 0) {
+			const { error: insertError } = await supabase
+				.from('exif_data')
+				.upsert(exifDataToInsert, {
+					onConflict: 'media_id',
+				});
 
-      if (insertError) {
-        throw new Error(
-          `Failed to batch insert EXIF data: ${insertError.message}`,
-        );
-      }
-    }
+			if (insertError) {
+				throw new Error(
+					`Failed to batch insert EXIF data: ${insertError.message}`,
+				);
+			}
+		}
 
-    // 2. Update all processed media items in a single operation
-    if (mediaIdsToUpdate.length > 0) {
-      const { error: updateError } = await supabase
-        .from('media')
-        .update({ is_exif_processed: true })
-        .in('id', mediaIdsToUpdate);
+		// 2. Update all processed media items in a single operation
+		if (mediaIdsToUpdate.length > 0) {
+			const { error: updateError } = await supabase
+				.from('media')
+				.update({ is_exif_processed: true })
+				.in('id', mediaIdsToUpdate);
 
-      if (updateError) {
-        throw new Error(
-          `Failed to batch update media items: ${updateError.message}`,
-        );
-      }
-    }
+			if (updateError) {
+				throw new Error(
+					`Failed to batch update media items: ${updateError.message}`,
+				);
+			}
+		}
 
-    const succeeded = mediaIdsToUpdate.length;
+		const succeeded = mediaIdsToUpdate.length;
 
-    return {
-      success: true,
-      processed: succeeded,
-      failed,
-      total: mediaItems.length,
-      message: `Processed ${succeeded} items (${failed} failed) for EXIF data`,
-    };
-  } catch (error) {
-    console.error('Error in batch EXIF processing:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      failed: 0,
-      total: 0,
-      processed: 0,
-      message: 'EXIF batch processing failed',
-    };
-  }
+		return {
+			success: true,
+			processed: succeeded,
+			failed,
+			total: mediaItems.length,
+			message: `Processed ${succeeded} items (${failed} failed) for EXIF data`,
+		};
+	} catch (error) {
+		console.error('Error in batch EXIF processing:', error);
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'Unknown error',
+			failed: 0,
+			total: 0,
+			processed: 0,
+			message: 'EXIF batch processing failed',
+		};
+	}
+}
+
+export async function addRemainingToExifQueue() {
+	const supabase = createSupabase();
+	let offset = 0;
+	const batchSize = 1000;
+
+	try {
+		while (true) {
+			const { data: mediaItems, error } = await supabase
+				.from('media')
+				.select('id, media_path, media_types(is_ignored)')
+				// .eq('is_exif_processed', false)
+				.is('media_types.is_ignored', false)
+				.range(offset, offset + batchSize - 1);
+
+			if (error) {
+				console.error('Error fetching unprocessed media items:', error);
+				return false;
+			}
+
+			if (!mediaItems || mediaItems.length === 0) {
+				return false;
+			}
+
+			const jobs = await exifQueue.addBulk(
+				mediaItems.map((data) => ({
+					name: 'exif-extraction',
+					data,
+				})),
+			);
+
+			console.log('Added', jobs.length, 'to the exif queue for processing');
+
+			offset += mediaItems.length;
+			if (mediaItems.length < batchSize) {
+				return false;
+			}
+		}
+	} catch (e) {
+		const errorMessage =
+			e instanceof Error ? e.message : 'Unknown error occurred';
+		console.error('Error in addRemainingToExifQueue:', errorMessage);
+		return false;
+	}
+}
+
+export async function clearExifQueue() {
+	try {
+		const count = await exifQueue.getJobCountByTypes(
+			'waiting',
+			'active',
+			'completed',
+			'failed',
+			'delayed',
+			'paused',
+		);
+		if (count > 0) {
+			await exifQueue.drain(true);
+		}
+		return true;
+	} catch (error) {
+		console.error('Error clearing exif queue:', error);
+		return false;
+	}
 }
