@@ -76,6 +76,8 @@ export async function clearBasicAnalysisQueue() {
 		);
 		if (count > 0) {
 			await objectAnalysisQueue.drain(true);
+      await objectAnalysisQueue.clean(0, 1000000, 'completed');
+      
 		}
 		return true;
 	} catch (error) {

@@ -27,6 +27,7 @@ export async function clearThumbnailsQueue() {
 		);
 		if (count > 0) {
 			await thumbnailQueue.drain(true);
+      await thumbnailQueue.clean(0, 1000000, 'completed');
 		}
 		return true;
 	} catch (error) {

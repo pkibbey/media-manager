@@ -71,6 +71,7 @@ export async function clearExifQueue() {
 		);
 		if (count > 0) {
 			await exifQueue.drain(true);
+      await exifQueue.clean(0, 1000000, 'completed');
 		}
 		return true;
 	} catch (error) {

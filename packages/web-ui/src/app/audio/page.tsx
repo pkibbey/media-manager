@@ -1,7 +1,6 @@
 'use client';
 
-// Import TensorFlow.js directly
-import * as tf from '@tensorflow/tfjs';
+import tf from '@tensorflow/tfjs-node';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

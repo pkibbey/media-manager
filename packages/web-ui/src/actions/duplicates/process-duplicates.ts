@@ -144,6 +144,7 @@ export async function clearDuplicatesQueue() {
 		);
 		if (count > 0) {
 			await duplicatesQueue.drain(true);
+      await duplicatesQueue.clean(0, 1000000, 'completed');
 		}
 		return true;
 	} catch (error) {

@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '../../../.env.local' });
 
-import * as tf from '@tensorflow/tfjs-node';
+import tf from '@tensorflow/tfjs-node';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';

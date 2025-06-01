@@ -82,6 +82,7 @@ export async function clearAdvancedAnalysisQueue() {
 		);
 		if (count > 0) {
 			await advancedAnalysisQueue.drain(true);
+      await advancedAnalysisQueue.clean(0, 1000000, 'completed');
 		}
 		return true;
 	} catch (error) {
