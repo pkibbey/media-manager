@@ -1,0 +1,11 @@
+{
+  "name": "shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "types": "index.ts",
+  "dependencies": {
+    "@supabase/supabase-js": "2.49.8",
+    "dotenv": "^16.5.0"
+  }
+}

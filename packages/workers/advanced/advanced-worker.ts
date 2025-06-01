@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '../../../.env.local' });
 
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { createSupabase } from '@/lib/supabase';
-import { processWithOllama } from './process-wtih-ollama';
+import { processWithOllama } from './process-with-ollama';
 
 interface AdvancedAnalysisJobData {
 	id: string;

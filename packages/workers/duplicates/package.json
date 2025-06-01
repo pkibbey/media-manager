@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx duplicates-worker.ts"
+    "worker": "tsx duplicates-worker.ts"
   },
   "keywords": [],
   "author": "",

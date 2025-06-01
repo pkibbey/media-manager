@@ -6,15 +6,10 @@ dotenv.config({ path: '.env.local' });
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
-
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
 // Create a Supabase client for use in server components and API routes
 export function createSupabase() {
-  const supabaseUrl = SUPABASE_URL;
-  const supabaseKey = SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Missing Supabase environment variables');

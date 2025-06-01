@@ -1,7 +1,7 @@
 'use client';
 
 import deleteAdvancedAnalysisData from '@/actions/advanced/delete-advanced-data';
-import { addRemainingToAdvancedAnalysisQueue, clearAdvancedAnalysisQueue } from '@/actions/advanced/process-advanced-analysis';
+import { addRemainingToAdvancedAnalysisQueue, clearAdvancedAnalysisQueue } from '@/actions/advanced/process-advanced';
 
 import ActionButton from '@/components/admin/action-button';
 import AnalysisCountsCard from '@/components/admin/analysis-counts-card';
