@@ -2,7 +2,7 @@ import * as tf from '@tensorflow/tfjs-node';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
-import { createSupabase } from 'shared';
+import { createSupabase } from 'shared/supabase';
 import type { Json } from 'shared';
 
 interface ObjectDetectionJobData {

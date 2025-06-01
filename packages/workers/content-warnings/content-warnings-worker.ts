@@ -2,7 +2,7 @@ import * as tf from '@tensorflow/tfjs-node';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { load } from 'nsfwjs';
-import { createSupabase } from 'shared';
+import { createSupabase } from 'shared/supabase';
 import type { Json } from 'shared';
 
 interface ContentWarningsJobData {

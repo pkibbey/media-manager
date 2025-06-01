@@ -1,6 +1,6 @@
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
-import { createSupabase } from 'shared';
+import { createSupabase } from 'shared/supabase';
 import { processWithOllama } from './process-with-ollama';
 
 interface AdvancedAnalysisJobData {

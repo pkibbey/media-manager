@@ -18,22 +18,10 @@
         "name": "next"
       }
     ],
-    "paths": {
-      "@/actions/*": ["./src/actions/*"],
-      "@/components/*": ["./src/components/*"],
-      "@/hooks/*": ["./src/hooks/*"],
-      "@/lib/*": ["./src/lib/*"],
-      "@/types/*": ["./src/types/*"]
-    }
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    "tailwind.config.mjs",
-    "next.config.js",
-    "src/servers/duplicates-server.js"
   ],
   "exclude": ["node_modules"]
 }

@@ -1,10 +1,10 @@
 import 'dotenv/config.js';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '../../../.env.local' });
 
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
+import { Database } from '../web-ui/src/types/supabase';
 
 // Create a Supabase client for use in server components and API routes
 export function createSupabase() {

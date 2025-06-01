@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabase } from 'shared';
+import { createSupabase } from 'shared/supabase';
 
 /**
  * Mark a media item as having its thumbnail processed

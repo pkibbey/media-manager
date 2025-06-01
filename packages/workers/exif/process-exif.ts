@@ -2,7 +2,7 @@
 
 import { isValid } from 'date-fns';
 import { exiftool } from 'exiftool-vendored';
-import { createSupabase } from 'shared';
+import { createSupabase } from 'shared/supabase';
 import type { MediaWithExif } from 'shared';
 import type { TablesInsert } from 'shared';
 
