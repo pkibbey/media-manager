@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from "@/lib/supabase";
 
 /**
  * Delete thumbnail data and reset processing flags

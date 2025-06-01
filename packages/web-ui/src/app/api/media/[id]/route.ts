@@ -9,7 +9,7 @@ import {
   THUMBNAIL_QUALITY,
 } from 'shared/consts';
 import { convertRawThumbnail, processRawWithDcraw } from 'shared/raw-processor';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from "@/lib/supabase";
 
 export async function GET(
   _request: Request,

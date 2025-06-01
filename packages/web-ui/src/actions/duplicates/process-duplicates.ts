@@ -2,7 +2,7 @@
 
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from "@/lib/supabase";
 import type { MediaWithRelations } from '@/types/media-types';
 
 const connection = new IORedis(

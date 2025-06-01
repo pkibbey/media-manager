@@ -1,5 +1,5 @@
 'use server';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from "@/lib/supabase";
 
 /**
  * Delete all content warnings data and reset processing flags

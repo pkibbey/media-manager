@@ -10,7 +10,6 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-  { name: 'Overview', href: '/admin' },
   { name: 'Media Scan', href: '/admin/scan' },
   { name: 'File Types', href: '/admin/file-types' },
   { name: 'EXIF Processing', href: '/admin/exif' },

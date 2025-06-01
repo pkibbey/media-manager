@@ -52,7 +52,7 @@ export function Header() {
             icon={<AudioLinesIcon className="h-4 w-4" />}
           />
           <NavItem
-            href="/admin"
+            href="/admin/scan"
             label="Admin"
             icon={<GearIcon className="h-4 w-4" />}
           />

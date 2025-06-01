@@ -1,5 +1,5 @@
 'use server';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from "@/lib/supabase";
 
 /**
  * Delete advanced analysis data and reset processing flags

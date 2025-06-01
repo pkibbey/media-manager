@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileTypeFromFile } from 'file-type';
 import { processScanResults } from '@/actions/admin/process-directory';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from "@/lib/supabase";
 import type { FileDetails } from '@/types/scan-types';
 import { getOrCreateMediaType } from './manage-media-types';
 

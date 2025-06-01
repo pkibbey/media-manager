@@ -1,4 +1,7 @@
-'use server';
+import 'dotenv/config.js';
+import * as dotenv from 'dotenv';
+
+dotenv.config({ path: '../../../.env.local' });
 
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
