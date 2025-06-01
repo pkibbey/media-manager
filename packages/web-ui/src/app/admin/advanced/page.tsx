@@ -28,6 +28,7 @@ export default function AdvancedAnalysisAdminPage() {
 					>
 						Process All Remaining
 					</ActionButton>
+          <PauseQueueButton queueName="advancedAnalysisQueue" />
 					<ActionButton
 						action={clearAdvancedAnalysisQueue}
 						variant="destructive"
@@ -35,13 +36,12 @@ export default function AdvancedAnalysisAdminPage() {
 					>
 						Clear Queue
 					</ActionButton>
-					<PauseQueueButton queueName="advancedAnalysisQueue" />
 					<ActionButton
 						action={deleteAdvancedAnalysisData}
 						variant="destructive"
 						loadingMessage="Resetting analysis data..."
 					>
-						Reset Analysis Data
+						Delete Data
 					</ActionButton>
 				</div>
 			</div>

@@ -30,6 +30,7 @@ export default function DuplicatesAdminPage() {
 					>
 						Process All Remaining
 					</ActionButton>
+          <PauseQueueButton queueName="duplicatesQueue" />
 					<ActionButton
 						action={clearDuplicatesQueue}
 						variant="destructive"
@@ -37,13 +38,12 @@ export default function DuplicatesAdminPage() {
 					>
 						Clear Queue
 					</ActionButton>
-					<PauseQueueButton queueName="duplicatesQueue" />
 					<ActionButton
 						action={deleteDuplicatesData}
 						variant="destructive"
 						loadingMessage="Resetting duplicates data..."
 					>
-						Reset Duplicates Data
+						Delete Data
 					</ActionButton>
 				</div>
 			</div>

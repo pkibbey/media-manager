@@ -30,6 +30,7 @@ export default function ExifAdminPage() {
 					>
 						Process All Remaining
 					</ActionButton>
+          <PauseQueueButton queueName="exifQueue" />
 					<ActionButton
 						action={clearExifQueue}
 						variant="destructive"
@@ -37,13 +38,12 @@ export default function ExifAdminPage() {
 					>
 						Clear Queue
 					</ActionButton>
-					<PauseQueueButton queueName="exifQueue" />
 					<ActionButton
 						action={deleteExifData}
 						variant="destructive"
 						loadingMessage="Deleting EXIF data..."
 					>
-						Delete EXIF Data
+						Delete Data
 					</ActionButton>
 				</div>
 			</div>

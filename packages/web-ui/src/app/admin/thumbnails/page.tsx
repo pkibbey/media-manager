@@ -30,6 +30,7 @@ export default function ThumbnailAdminPage() {
 					>
 						Process All Remaining
 					</ActionButton>
+          <PauseQueueButton queueName="thumbnailQueue" />
 					<ActionButton
 						action={clearThumbnailsQueue}
 						variant="destructive"
@@ -37,13 +38,12 @@ export default function ThumbnailAdminPage() {
 					>
 						Clear Queue
 					</ActionButton>
-					<PauseQueueButton queueName="thumbnailQueue" />
 					<ActionButton
 						action={deleteThumbnailData}
 						variant="destructive"
 						loadingMessage="Resetting thumbnail data..."
 					>
-						Reset Thumbnail Data
+						Delete Data
 					</ActionButton>
 				</div>
 			</div>

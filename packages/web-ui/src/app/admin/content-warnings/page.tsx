@@ -28,8 +28,9 @@ export default function ContentWarningsAdminPage() {
 						action={addRemainingToContentWarningQueue}
 						loadingMessage="Processing content warnings..."
 					>
-						Process All Remaining
+						Add all to Queue
 					</ActionButton>
+          <PauseQueueButton queueName="contentWarningsQueue" />
 					<ActionButton
 						action={clearContentWarningsQueue}
 						variant="destructive"
@@ -37,13 +38,12 @@ export default function ContentWarningsAdminPage() {
 					>
 						Clear Queue
 					</ActionButton>
-					<PauseQueueButton queueName="contentWarningsQueue" />
 					<ActionButton
 						action={deleteContentWarningsData}
 						variant="destructive"
 						loadingMessage="Resetting content warnings data..."
 					>
-						Reset Content Warnings Data
+						Delete Data
 					</ActionButton>
 				</div>
 			</div>
