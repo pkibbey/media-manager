@@ -12,7 +12,6 @@ export const THUMBNAIL_SIZE = 224;
 // Percentage quality for JPEG thumbnails
 export const THUMBNAIL_QUALITY = 90;
 
-export const VISION_MODEL = 'gemma3:4b';
 
 /**
  * Format bytes to human readable string
@@ -32,7 +31,5 @@ export function formatBytes(bytes: number, decimals = 2): string {
 export const IMAGE_DETAIL_SIZE = 600; // Size for image detail view
 
 export const BACKGROUND_COLOR = { r: 23, g: 23, b: 23, alpha: 1 }; // Transparent background for thumbnails
-
-export const MAX_BATCH_SIZE = 8; // Maximum batch size for processing
 
 export const DEFAULT_CONCURRENCY = 4;

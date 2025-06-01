@@ -8,15 +8,17 @@ const connection = new IORedis(
 	process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
 	process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
 	{
-		maxRetriesPerRequest: null, // Disable automatic retries
+		maxRetriesPerRequest: null,
 	},
 );
 
-const contentWarningsQueue = new Queue('contentWarningsQueue', { connection });
+const advancedAnalysisQueue = new Queue('advancedAnalysisQueue', {
+	connection,
+});
 
-const JOB_NAME = 'content-warning-detection';
+const JOB_NAME = 'object-detection-advanced';
 
-export async function addRemainingToContentWarningQueue() {
+export async function addRemainingToAdvancedAnalysisQueue() {
 	const supabase = createSupabase();
 	let offset = 0;
 	const batchSize = 1000;
@@ -26,8 +28,8 @@ export async function addRemainingToContentWarningQueue() {
 			const { data: mediaItems, error } = await supabase
 				.from('media')
 				.select('id, thumbnail_url')
-				.eq('is_content_warnings_processed', false)
-				.eq('is_thumbnail_processed', true)
+				.eq('is_advanced_processed', false)
+				.eq('is_thumbnail_processed', true) // Ensure thumbnail is processed
 				.range(offset, offset + batchSize - 1);
 
 			if (error) {
@@ -39,7 +41,7 @@ export async function addRemainingToContentWarningQueue() {
 				return false;
 			}
 
-			const jobs = await contentWarningsQueue.addBulk(
+			const jobs = await advancedAnalysisQueue.addBulk(
 				mediaItems.map((data) => ({
 					name: JOB_NAME,
 					data,
@@ -49,37 +51,41 @@ export async function addRemainingToContentWarningQueue() {
 			console.log(
 				'Added',
 				jobs.length,
-				'to the content warnings queue for processing',
+				'to the advanced analysis queue for processing',
 			);
 
 			offset += mediaItems.length;
 			if (mediaItems.length < batchSize) {
-				// Last batch processed fewer items than batchSize, so we are done
-				break;
+				return false;
 			}
 		}
-
-		return true;
-	} catch (error) {
+	} catch (e) {
+		const errorMessage =
+			e instanceof Error ? e.message : 'Unknown error occurred';
 		console.error(
-			'Error adding remaining items to content warning queue:',
-			error,
+			'Error in addRemainingToAdvancedAnalysisQueue:',
+			errorMessage,
 		);
 		return false;
 	}
 }
 
-/**
- * Clear all jobs from the content warnings queue
- * @returns Boolean indicating success
- */
-export async function clearContentWarningsQueue(): Promise<boolean> {
+export async function clearAdvancedAnalysisQueue() {
 	try {
-		await contentWarningsQueue.obliterate({ force: true });
-		console.log('Successfully cleared all jobs from content warnings queue');
+		const count = await advancedAnalysisQueue.getJobCountByTypes(
+			'waiting',
+			'active',
+			'completed',
+			'failed',
+			'delayed',
+			'paused',
+		);
+		if (count > 0) {
+			await advancedAnalysisQueue.drain(true);
+		}
 		return true;
 	} catch (error) {
-		console.error('Error clearing content warnings queue:', error);
+		console.error('Error clearing advanced analysis queue:', error);
 		return false;
 	}
 }

@@ -1,49 +1,47 @@
 'use client';
 
-import deleteThumbnailData from '@/actions/thumbnails/delete-thumbnail-data';
-import {
-	addRemainingToThumbnailsQueue,
-	clearThumbnailsQueue,
-} from '../../../../packages/workers/thumbnails/process-thumbnail';
+import deleteAdvancedAnalysisData from '@/actions/advanced/delete-advanced-data';
+import { addRemainingToAdvancedAnalysisQueue, clearAdvancedAnalysisQueue } from '@/actions/advanced/process-advanced-analysis';
+
 import ActionButton from '@/components/admin/action-button';
 import AnalysisCountsCard from '@/components/admin/analysis-counts-card';
 import AdminLayout from '@/components/admin/layout';
 import PauseQueueButton from '@/components/admin/pause-queue-button';
 
-export default function ThumbnailAdminPage() {
+export default function AdvancedAnalysisAdminPage() {
 	return (
 		<AdminLayout>
 			<div className="space-y-6">
 				<div>
-					<h2 className="text-2xl font-bold">Thumbnail Management</h2>
+					<h2 className="text-2xl font-bold">Advanced AI Analysis</h2>
 					<p className="text-muted-foreground">
-						Manage generation and updates of media thumbnails
+						Manage deep understanding of media content
 					</p>
 				</div>
 
-				<AnalysisCountsCard queueName="thumbnailQueue" />
+				<AnalysisCountsCard queueName="advancedAnalysisQueue" />
 
 				<div className="flex gap-4">
 					<ActionButton
-						action={addRemainingToThumbnailsQueue}
-						loadingMessage="Processing thumbnails..."
+						action={addRemainingToAdvancedAnalysisQueue}
+						loadingMessage="Processing analysis data..."
 					>
 						Process All Remaining
 					</ActionButton>
 					<ActionButton
-						action={clearThumbnailsQueue}
+						action={clearAdvancedAnalysisQueue}
 						variant="destructive"
 						loadingMessage="Clearing queue..."
 					>
 						Clear Queue
 					</ActionButton>
-					<PauseQueueButton queueName="thumbnailQueue" />
+					<PauseQueueButton queueName="advancedAnalysisQueue" />
 					<ActionButton
-						action={deleteThumbnailData}
+						action={deleteAdvancedAnalysisData}
 						variant="destructive"
-						loadingMessage="Resetting thumbnail data..."
+						loadingMessage="Resetting analysis data..."
 					>
-						Reset Thumbnail Data
+						Reset Analysis Data
 					</ActionButton>
 				</div>
 			</div>

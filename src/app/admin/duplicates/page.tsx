@@ -4,7 +4,7 @@ import deleteDuplicatesData from '@/actions/duplicates/delete-duplicates-data';
 import {
 	addRemainingToDuplicatesQueue,
 	clearDuplicatesQueue,
-} from '@/actions/duplicates/get-duplicates';
+} from '@/actions/duplicates/process-duplicates';
 import ActionButton from '@/components/admin/action-button';
 import AnalysisCountsCard from '@/components/admin/analysis-counts-card';
 import AdminLayout from '@/components/admin/layout';
