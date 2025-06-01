@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabase } from '@/lib/supabase';
+import { createSupabase } from 'shared';
 
 export default async function deleteAllMediaItems(): Promise<boolean> {
 	const supabase = createSupabase();

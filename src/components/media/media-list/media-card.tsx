@@ -5,7 +5,7 @@ import type React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { formatBytes } from '@/lib/consts';
+import { formatBytes } from 'shared/consts';
 import { cn } from '@/lib/utils';
 import type { MediaWithRelations } from '@/types/media-types';
 import { useMediaSelection } from './media-selection-context';

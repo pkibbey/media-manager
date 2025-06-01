@@ -1,8 +1,3 @@
-import 'dotenv/config.js';
-import * as dotenv from 'dotenv';
-
-dotenv.config({ path: '../../../.env.local' });
-
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { processThumbnail } from './process-thumbnail';

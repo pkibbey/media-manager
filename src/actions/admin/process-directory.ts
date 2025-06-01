@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabase } from '@/lib/supabase';
+import { createSupabase } from 'shared';
 import type { FileDetails, ScanResults } from '@/types/scan-types';
 import type { TablesInsert } from '@/types/supabase';
 

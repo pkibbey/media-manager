@@ -7,13 +7,13 @@ import {
   BACKGROUND_COLOR,
   IMAGE_DETAIL_SIZE,
   THUMBNAIL_QUALITY,
-} from '@/lib/consts';
-import { convertRawThumbnail, processRawWithDcraw } from '@/lib/raw-processor';
-import { createSupabase } from '@/lib/supabase';
+} from 'shared/consts';
+import { convertRawThumbnail, processRawWithDcraw } from 'shared/raw-processor';
+import { createSupabase } from 'shared';
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const supabase = createSupabase();

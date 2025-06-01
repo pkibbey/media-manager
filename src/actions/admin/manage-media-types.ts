@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabase } from '@/lib/supabase';
+import { createSupabase } from 'shared';
 import type { MediaType } from '@/types/media-types';
 import type { TablesInsert, TablesUpdate } from '@/types/supabase';
 

@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatDate } from '@/lib/analysis-utils';
-import { formatBytes } from '@/lib/consts';
+import { formatBytes } from 'shared/consts';
 import { BoundingBoxImage } from './bounding-box-image';
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
+
 export function MediaDetail() {
   const { selectedMedia, toggleHideSelected, toggleDeleteSelected } =
     useMediaSelection();
@@ -472,3 +472,13 @@ export function MediaDetail() {
     </div>
   );
 }
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};

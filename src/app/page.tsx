@@ -22,7 +22,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import { PAGE_SIZE } from '@/lib/consts';
+import { PAGE_SIZE } from 'shared/consts';
 import type { MediaFiltersType, MediaWithRelations } from '@/types/media-types';
 
 export default function Home() {

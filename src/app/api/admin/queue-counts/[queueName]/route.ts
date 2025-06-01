@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
   _request: Request,
-  { params }: { params: { queueName: string } },
+  { params }: { params: Promise<{ queueName: string }> },
 ) {
   const { queueName } = await params;
   if (typeof queueName !== 'string') {

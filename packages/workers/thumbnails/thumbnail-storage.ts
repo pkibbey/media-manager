@@ -1,7 +1,7 @@
 import { v4 } from 'uuid';
-import { setMediaAsThumbnailProcessed } from '@/actions/thumbnails/set-media-as-thumbnail-processed';
+import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed';
 import type { TablesUpdate } from '@/types/supabase';
-import { createSupabase } from './supabase';
+import { createSupabase } from 'shared';
 
 interface StorageResult {
   success: boolean;

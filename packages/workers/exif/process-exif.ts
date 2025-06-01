@@ -2,9 +2,9 @@
 
 import { isValid } from 'date-fns';
 import { exiftool } from 'exiftool-vendored';
-import { createSupabase } from '@/lib/supabase';
-import type { MediaWithExif } from '@/types/media-types';
-import type { TablesInsert } from '@/types/supabase';
+import { createSupabase } from 'shared';
+import type { MediaWithExif } from 'shared';
+import type { TablesInsert } from 'shared';
 
 /**
  * Extract EXIF data from a media item and save it to the database

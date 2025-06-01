@@ -1,11 +1,6 @@
-import 'dotenv/config';
-import * as dotenv from 'dotenv';
-
-dotenv.config({ path: '../../../.env.local' });
-
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
-import { createSupabase } from '@/lib/supabase';
+import { createSupabase } from 'shared';
 import { processWithOllama } from './process-with-ollama';
 
 interface AdvancedAnalysisJobData {

@@ -1,14 +1,9 @@
-import 'dotenv/config.js';
-import * as dotenv from 'dotenv';
-
-dotenv.config({ path: '../../../.env.local' });
-
 import * as tf from '@tensorflow/tfjs-node';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { load } from 'nsfwjs';
-import { createSupabase } from '@/lib/supabase';
-import type { Json } from '@/types/supabase';
+import { createSupabase } from 'shared';
+import type { Json } from 'shared';
 
 interface ContentWarningsJobData {
 	id: string;

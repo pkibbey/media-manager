@@ -4,22 +4,23 @@ import fs from 'node:fs/promises';
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import sharp from 'sharp';
-import { XXH3_128 } from 'xxh3-ts';
+import crypto from 'node:crypto';
 
 import {
 	BACKGROUND_COLOR,
 	THUMBNAIL_QUALITY,
 	THUMBNAIL_SIZE,
-} from '@/lib/consts';
-import { createSupabase } from '@/lib/supabase';
+} from 'shared/consts';
+
+import { createSupabase } from 'shared';
 import {
 	processNativeThumbnail,
 	processRawThumbnail,
 	type ThumbnailGenerationResult,
 } from './thumbnail-generators';
-import { storeThumbnail } from '@/lib/thumbnail-storage';
-import type { MediaWithRelations } from '@/types/media-types';
-import type { TablesUpdate } from '@/types/supabase';
+import type { MediaWithRelations } from 'shared';
+import type { TablesUpdate } from 'shared';
+import { storeThumbnail } from './thumbnail-storage';
 
 /**
  * Generate a perceptual hash (dHash) from a 16x16 grayscale image fingerprint.
@@ -259,7 +260,8 @@ async function processMediaItem(
 	const hashStart = Date.now();
 	let fileHash: string | null = null;
 	try {
-		fileHash = XXH3_128(fileBuffer, BigInt(0xabcd)).toString(16);
+		// Use Node.js crypto for a fast, non-cryptographic hash (e.g. 'md5' or 'sha1')
+		fileHash = crypto.createHash('md5').update(fileBuffer).digest('hex');
 		result.steps.push({
 			name: 'File Hash',
 			success: true,
