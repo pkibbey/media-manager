@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { RotateCcw } from 'lucide-react';
+import { resetQueueState } from '@/actions/admin/reset-queue-state';
 
 interface AnalysisCounts {
   active: number;
@@ -37,6 +40,7 @@ export default function AnalysisCountsCard({
   const [analysisCounts, setAnalysisCounts] = useState<AnalysisCounts | null>(
     null,
   );
+  const [resettingStates, setResettingStates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchAnalysiscounts() {
@@ -59,6 +63,32 @@ export default function AnalysisCountsCard({
     return () => clearInterval(intervalId); // Cleanup interval on component unmount or when queueName changes
   }, [queueName]);
 
+  const handleResetState = async (state: keyof AnalysisCounts) => {
+    if (resettingStates.has(state)) return; // Prevent double-clicks
+    
+    setResettingStates(prev => new Set(prev).add(state));
+    
+    try {
+      const success = await resetQueueState(queueName, state);
+      if (success) {
+        // Refresh the counts after successful reset
+        const response = await fetch(`/api/admin/queue-counts/${queueName}`);
+        if (response.ok) {
+          const data = await response.json();
+          setAnalysisCounts(data.counts);
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting queue state:', error);
+    } finally {
+      setResettingStates(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(state);
+        return newSet;
+      });
+    }
+  };
+
   const grandTotal = analysisCounts
     ? Object.values(analysisCounts).reduce((sum, count) => sum + count, 0)
     : 0;
@@ -76,15 +106,29 @@ export default function AnalysisCountsCard({
       <CardContent className="space-y-4">
         {analysisCounts ? (
           <>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-y-2">
               {countOrder.map((key) => (
-                <div key={key} className="flex justify-between">
-                  <span className="text-sm capitalize text-muted-foreground">
-                    {key.replace('-', ' ')}:
-                  </span>
-                  <span className="text-sm font-medium">
-                    {analysisCounts[key]}
-                  </span>
+                <div key={key} className="flex items-center justify-between">
+                  <div className="flex justify-between flex-1 mr-2">
+                    <span className="text-sm capitalize text-muted-foreground">
+                      {key.replace('-', ' ')}:
+                    </span>
+                    <span className="text-sm font-medium">
+                      {analysisCounts[key]}
+                    </span>
+                  </div>
+                  {analysisCounts[key] > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 hover:bg-destructive/10"
+                      onClick={() => handleResetState(key)}
+                      disabled={resettingStates.has(key)}
+                      title={`Reset ${key.replace('-', ' ')} jobs`}
+                    >
+                      <RotateCcw className={`h-3 w-3 ${resettingStates.has(key) ? 'animate-spin' : ''}`} />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
