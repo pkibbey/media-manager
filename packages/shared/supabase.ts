@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { serverEnv } from './env';
-import type { Database } from './types';
+import { Database } from './types';
 
 // Create a Supabase client for use in server components, API routes, and workers
 export function createSupabase() {

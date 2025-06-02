@@ -4,4 +4,3 @@ export * from './env';
 export * from './redis';
 export * from './supabase';
 export * from './types';
-export type { Database } from './types';
