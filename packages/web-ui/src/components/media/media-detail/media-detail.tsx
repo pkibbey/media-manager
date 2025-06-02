@@ -1,6 +1,5 @@
 'use client';
 
-import type { DetectedObject } from '@tensorflow-models/coco-ssd';
 import { Eye, EyeOff, FileType, HardDrive, MapPin, Trash } from 'lucide-react';
 import type { PredictionType } from 'nsfwjs';
 import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
@@ -10,7 +9,7 @@ import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatBytes } from 'shared/consts';
-import { BoundingBoxImage } from './bounding-box-image';
+import { BoundingBoxImage, DetectedObject } from './bounding-box-image';
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
 

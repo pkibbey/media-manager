@@ -4,6 +4,7 @@ import { FolderSearch, Scan, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import deleteAllMediaItems from '@/actions/admin/delete-all-media';
 import { getScanStats } from '@/actions/admin/get-scan-stats';
+import { getMediaScanPaths } from '@/actions/admin/get-media-scan-paths';
 import { processScanFolder } from '@/actions/admin/process-scan-folder';
 import ActionButton from '@/components/admin/action-button';
 import AdminLayout from '@/components/admin/layout';
@@ -25,9 +26,7 @@ export default function MediaScanPage() {
 	const [scanStats, setScanStats] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isProcessing, setIsProcessing] = useState(false);
-	const [folderPaths, setFolderPaths] = useState<string>(
-		process.env.NEXT_PUBLIC_MEDIA_SCAN_PATHS || '',
-	);
+	const [folderPaths, setFolderPaths] = useState<string>('');
 	const [scanProgress, setScanProgress] = useState<{
 		status: string;
 		processed: number;
@@ -46,25 +45,29 @@ export default function MediaScanPage() {
 		new Set(),
 	);
 
-	// Fetch scan stats on page load
+	// Fetch scan stats and media paths on page load
 	useEffect(() => {
-		const fetchStats = async () => {
+		const fetchInitialData = async () => {
 			setIsLoading(true);
 
 			try {
-				const response = await getScanStats();
+				const [response, mediaPaths] = await Promise.all([
+					getScanStats(),
+					getMediaScanPaths()
+				]);
 
 				if (response.stats) {
 					setScanStats(response.stats);
 				}
+				setFolderPaths(mediaPaths);
 			} catch (e) {
-				console.error('Failed to load scan statistics:', e);
+				console.error('Failed to load initial data:', e);
 			} finally {
 				setIsLoading(false);
 			}
 		};
 
-		fetchStats();
+		fetchInitialData();
 	}, []);
 
 	// Action for refreshing stats

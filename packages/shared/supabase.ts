@@ -1,18 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '../web-ui/src/types/supabase';
+import { serverEnv } from './env';
+import type { Database } from './types';
 
-// Create a Supabase client for use in server components and API routes
+// Create a Supabase client for use in server components, API routes, and workers
 export function createSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase environment variables');
-  }
-
-  return createClient<Database>(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-    },
-  });
+  return createClient<Database>(
+    serverEnv.SUPABASE_URL, 
+    serverEnv.SUPABASE_SERVICE_ROLE_KEY, 
+    {
+      auth: {
+        persistSession: false,
+      },
+    }
+  );
 }

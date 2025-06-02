@@ -1,6 +1,11 @@
-import type { DetectedObject } from '@tensorflow-models/coco-ssd';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
+
+export interface DetectedObject {
+    bbox: [number, number, number, number];
+    class: string;
+    score: number;
+}
 
 interface BoundingBoxImageProps {
   src: string;

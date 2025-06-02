@@ -1,24 +1,12 @@
-import 'dotenv/config.js';
-import * as dotenv from 'dotenv';
-
-dotenv.config({ path: '../../../.env.local' });
-
 import { type Job, Worker } from 'bullmq';
-import IORedis from 'ioredis';
-import { createSupabase } from 'shared/supabase';
+import { createRedisConnection, createSupabase } from 'shared';
 
 interface DuplicatesJobData {
 	id: string;
 	visual_hash?: string;
 }
 
-const redisConnection = new IORedis(
-	process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
-	process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
-	{
-		maxRetriesPerRequest: null, // Disable retries to avoid hanging jobs
-	},
-);
+const redisConnection = createRedisConnection();
 
 const QUEUE_NAME = 'duplicatesQueue';
 

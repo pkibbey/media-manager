@@ -1,16 +1,9 @@
 'use server';
 
 import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
-import { createSupabase } from "@/lib/supabase";
+import { createRedisConnection, createSupabase } from 'shared';
 
-const connection = new IORedis(
-	process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
-	process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
-	{
-		maxRetriesPerRequest: null,
-	},
-);
+const connection = createRedisConnection();
 
 const advancedAnalysisQueue = new Queue('advancedAnalysisQueue', {
 	connection,

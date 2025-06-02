@@ -3,7 +3,7 @@
 import { Ollama } from 'ollama'; // Changed import
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import type { TablesInsert } from '@/types/supabase';
+import type { TablesInsert } from 'shared';
 
 const VISION_MODEL = 'gemma3:4b';
 
