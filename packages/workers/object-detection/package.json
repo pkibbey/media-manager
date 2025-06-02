@@ -1,0 +1,25 @@
+{
+  "name": "object-detection",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "worker": "tsx object-detection-worker.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "bullmq": "^5.53.1",
+    "ioredis": "^5.6.1",
+    "shared": "*",
+    "zod": "^3.25.45"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "@types/node": "^22.15.29"
+  }
+}

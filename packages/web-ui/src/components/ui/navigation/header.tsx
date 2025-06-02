@@ -1,0 +1,63 @@
+'use client';
+
+import { GearIcon, GridIcon, ImageIcon } from '@radix-ui/react-icons';
+import { AudioLinesIcon } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+
+interface NavItemProps {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+}
+
+const NavItem = ({ href, label, icon, ...props }: NavItemProps) => {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'flex items-center gap-2 px-3 py-2 rounded-md transition-colors',
+        isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary',
+      )}
+      {...props}
+    >
+      {icon}
+      <span>{label}</span>
+    </Link>
+  );
+};
+
+export function Header() {
+  return (
+    <header className="px-4 border-b">
+      <div className="container mx-auto flex h-16 items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ImageIcon className="h-5 w-5" />
+          <span className="font-bold">Media Manager</span>
+        </div>
+
+        <nav className="flex items-center gap-2">
+          <NavItem
+            href="/"
+            label="Browse"
+            icon={<GridIcon className="h-4 w-4" />}
+          />
+          <NavItem
+            href="/audio"
+            label="Audio"
+            icon={<AudioLinesIcon className="h-4 w-4" />}
+          />
+          <NavItem
+            href="/admin/scan"
+            label="Admin"
+            icon={<GearIcon className="h-4 w-4" />}
+          />
+        </nav>
+      </div>
+    </header>
+  );
+}

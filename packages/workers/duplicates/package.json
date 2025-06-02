@@ -1,0 +1,21 @@
+{
+  "name": "duplicates",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "worker": "tsx duplicates-worker.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bullmq": "^5.53.1",
+    "shared": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "@types/node": "^22.15.29"
+  }
+}

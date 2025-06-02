@@ -1,0 +1,26 @@
+{
+  "name": "exif",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "worker": "tsx exif-worker.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bullmq": "^5.53.1",
+    "date-fns": "^4.1.0",
+    "exif-parser": "^0.1.12",
+    "exiftool-vendored": "^30.2.0",
+    "ioredis": "^5.6.1",
+    "shared": "*",
+    "zod": "^3.25.45"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
