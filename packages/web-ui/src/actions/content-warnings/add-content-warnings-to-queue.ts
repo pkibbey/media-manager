@@ -1,15 +1,20 @@
 'use server';
 
 import { Queue } from 'bullmq';
-import { createRedisConnection, createSupabase } from 'shared';
+import IORedis from 'ioredis';
+import { createSupabase } from 'shared/supabase';
 
-const connection = createRedisConnection();
+const connection = new IORedis(
+  process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
+  process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
+  {
+    maxRetriesPerRequest: null, // Disable automatic retries
+  },
+);
 
-const advancedAnalysisQueue = new Queue('advancedAnalysisQueue', {
-  connection,
-});
+const contentWarningsQueue = new Queue('contentWarningsQueue', { connection });
 
-export async function addRemainingToAdvancedAnalysisQueue() {
+export async function addContentWarningsToQueue() {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -19,8 +24,8 @@ export async function addRemainingToAdvancedAnalysisQueue() {
       const { data: mediaItems, error } = await supabase
         .from('media')
         .select('id, thumbnail_url')
-        .eq('is_advanced_processed', false)
-        .eq('is_thumbnail_processed', true) // Ensure thumbnail is processed
+        .eq('is_content_warnings_processed', false)
+        .eq('is_thumbnail_processed', true)
         .range(offset, offset + batchSize - 1);
 
       if (error) {
@@ -32,9 +37,9 @@ export async function addRemainingToAdvancedAnalysisQueue() {
         return false;
       }
 
-      const jobs = await advancedAnalysisQueue.addBulk(
+      const jobs = await contentWarningsQueue.addBulk(
         mediaItems.map((data) => ({
-          name: 'advanced-analysis',
+          name: 'content-warning-detection',
           data,
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness
@@ -45,20 +50,21 @@ export async function addRemainingToAdvancedAnalysisQueue() {
       console.log(
         'Added',
         jobs.length,
-        'to the advanced analysis queue for processing',
+        'to the content warnings queue for processing',
       );
 
       offset += mediaItems.length;
       if (mediaItems.length < batchSize) {
-        return false;
+        // Last batch processed fewer items than batchSize, so we are done
+        break;
       }
     }
-  } catch (e) {
-    const errorMessage =
-      e instanceof Error ? e.message : 'Unknown error occurred';
+
+    return true;
+  } catch (error) {
     console.error(
-      'Error in addRemainingToAdvancedAnalysisQueue:',
-      errorMessage,
+      'Error adding remaining items to content warning queue:',
+      error,
     );
     return false;
   }

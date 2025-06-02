@@ -1,9 +1,9 @@
 'use server';
 
 import { Ollama } from 'ollama'; // Changed import
+import type { TablesInsert } from 'shared/types';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import type { TablesInsert } from 'shared';
 
 const VISION_MODEL = 'gemma3:4b';
 

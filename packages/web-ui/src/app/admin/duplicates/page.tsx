@@ -1,11 +1,11 @@
 'use client';
 
-import deleteDuplicatesData from '@/actions/duplicates/delete-duplicates-data';
-import { addRemainingToDuplicatesQueue } from '@/actions/duplicates/process-duplicates';
-import ActionButton from '@/components/admin/action-button';
-import AnalysisCountsCard from '@/components/admin/analysis-counts-card';
-import AdminLayout from '@/components/admin/layout';
-import PauseQueueButton from '@/components/admin/pause-queue-button';
+import { addRemainingToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
+import { resetDuplicatesData } from '@/actions/duplicates/reset-duplicates-data';
+import { ActionButton } from '@/components/admin/action-button';
+import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
+import { AdminLayout } from '@/components/admin/layout';
+import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
 export default function DuplicatesAdminPage() {
   return (
@@ -29,11 +29,11 @@ export default function DuplicatesAdminPage() {
           </ActionButton>
           <PauseQueueButton queueName="duplicatesQueue" />
           <ActionButton
-            action={deleteDuplicatesData}
+            action={resetDuplicatesData}
             variant="destructive"
             loadingMessage="Resetting duplicates data..."
           >
-            Delete Data
+            Reset Data
           </ActionButton>
         </div>
       </div>

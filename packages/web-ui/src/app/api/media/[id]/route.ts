@@ -1,7 +1,6 @@
 'use server';
 
 import fs from 'node:fs/promises';
-import { createSupabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 import {
   BACKGROUND_COLOR,
@@ -9,6 +8,7 @@ import {
   THUMBNAIL_QUALITY,
 } from 'shared/consts';
 import { convertRawThumbnail, processRawWithDcraw } from 'shared/raw-processor';
+import { createSupabase } from 'shared/supabase';
 import sharp from 'sharp';
 
 export async function GET(

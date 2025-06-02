@@ -1,11 +1,11 @@
 'use client';
 
-import deleteContentWarningsData from '@/actions/content-warnings/delete-content-warnings-data';
-import { addRemainingToContentWarningQueue } from '@/actions/content-warnings/process-content-warnings';
-import ActionButton from '@/components/admin/action-button';
-import AnalysisCountsCard from '@/components/admin/analysis-counts-card';
-import AdminLayout from '@/components/admin/layout';
-import PauseQueueButton from '@/components/admin/pause-queue-button';
+import { addContentWarningsToQueue } from '@/actions/content-warnings/add-content-warnings-to-queue';
+import { resetContentWarningsData } from '@/actions/content-warnings/reset-content-warnings-data';
+import { ActionButton } from '@/components/admin/action-button';
+import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
+import { AdminLayout } from '@/components/admin/layout';
+import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
 export default function ContentWarningsAdminPage() {
   return (
@@ -22,18 +22,18 @@ export default function ContentWarningsAdminPage() {
 
         <div className="flex gap-4">
           <ActionButton
-            action={addRemainingToContentWarningQueue}
+            action={addContentWarningsToQueue}
             loadingMessage="Processing content warnings..."
           >
             Add all to Queue
           </ActionButton>
           <PauseQueueButton queueName="contentWarningsQueue" />
           <ActionButton
-            action={deleteContentWarningsData}
+            action={resetContentWarningsData}
             variant="destructive"
             loadingMessage="Resetting content warnings data..."
           >
-            Delete Data
+            Reset Data
           </ActionButton>
         </div>
       </div>

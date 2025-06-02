@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -14,7 +14,7 @@ const navItems = [
   { name: 'File Types', href: '/admin/file-types' },
   { name: 'EXIF Processing', href: '/admin/exif' },
   { name: 'Thumbnails', href: '/admin/thumbnails' },
-  { name: 'Object Analysis', href: '/admin/analysis' },
+  { name: 'Basic Analysis', href: '/admin/basic' },
   { name: 'Advanced Analysis', href: '/admin/advanced' },
   { name: 'Duplicates', href: '/admin/duplicates' },
   { name: 'Content Warnings', href: '/admin/content-warnings' },

@@ -1,6 +1,6 @@
 'use server';
 
-import { serverEnv } from 'shared';
+import { serverEnv } from 'shared/env';
 
 /**
  * Get media scan paths from environment variables

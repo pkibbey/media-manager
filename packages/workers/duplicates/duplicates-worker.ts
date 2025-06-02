@@ -1,5 +1,6 @@
 import { type Job, Worker } from 'bullmq';
-import { createRedisConnection, createSupabase } from 'shared';
+import { createRedisConnection } from 'shared/redis';
+import { createSupabase } from 'shared/supabase';
 
 interface DuplicatesJobData {
   id: string;

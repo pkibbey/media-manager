@@ -1,25 +1,26 @@
 'use server';
-import { createSupabase } from '@/lib/supabase';
+
+import { createSupabase } from 'shared/supabase';
 
 /**
- * Delete all content warnings data and reset processing flags
+ * Delete EXIF data and reset processing flags
  *
  * @returns Boolean indicating success
  */
-export async function deleteContentWarningsData(): Promise<boolean> {
+export async function resetExifData(): Promise<boolean> {
   try {
     const supabase = createSupabase();
     let totalReset = 0;
 
-    // Reset is_content_warnings_processed for all processed items in batches
+    // Reset is_exif_processed for all processed items in batches
     while (true) {
       const { error: updateError, count } = await supabase
         .from('media')
-        .update({ is_content_warnings_processed: false })
-        .eq('is_content_warnings_processed', true);
+        .update({ is_exif_processed: false })
+        .eq('is_exif_processed', true);
 
       if (updateError) {
-        console.error('Failed to reset content warnings data:', updateError);
+        console.error('Failed to reset EXIF data:', updateError);
         return false;
       }
 
@@ -36,7 +37,7 @@ export async function deleteContentWarningsData(): Promise<boolean> {
       }
     }
 
-    console.log('Finished resetting content warnings data for media items.');
+    console.log('Finished resetting EXIF data for media items.');
     return true;
   } catch (error) {
     console.error('Exception during update of media items:', error);

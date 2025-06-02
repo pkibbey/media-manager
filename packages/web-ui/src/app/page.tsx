@@ -1,6 +1,6 @@
 'use client';
 
-import { getMedia } from '@/actions/browse/get-media';
+import { getMedia } from '@/actions/admin/get-media';
 import { MediaFilters } from '@/components/media/media-list/media-filters';
 import { MediaListContainer } from '@/components/media/media-list/media-list-container';
 import { Button } from '@/components/ui/button';

@@ -1,11 +1,11 @@
-import sharp from 'sharp';
-import type { MediaWithRelations } from 'shared';
-import { processRawWithDcraw } from 'shared/raw-processor';
 import {
   BACKGROUND_COLOR,
   THUMBNAIL_QUALITY,
   THUMBNAIL_SIZE,
 } from 'shared/consts';
+import { processRawWithDcraw } from 'shared/raw-processor';
+import type { MediaWithRelations } from 'shared/types';
+import sharp from 'sharp';
 
 /**
  * Represents the result of thumbnail generation.

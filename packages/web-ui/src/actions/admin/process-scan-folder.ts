@@ -2,10 +2,10 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { fileTypeFromFile } from 'file-type';
 import { processScanResults } from '@/actions/admin/process-directory';
-import { createSupabase } from '@/lib/supabase';
 import type { FileDetails } from '@/types/scan-types';
+import { fileTypeFromFile } from 'file-type';
+import { createSupabase } from 'shared/supabase';
 import { getOrCreateMediaType } from './manage-media-types';
 
 // Helper function to check if files already exist in database

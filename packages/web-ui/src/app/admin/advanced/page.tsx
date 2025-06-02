@@ -1,12 +1,12 @@
 'use client';
 
-import deleteAdvancedAnalysisData from '@/actions/advanced/delete-advanced-data';
-import { addRemainingToAdvancedAnalysisQueue } from '@/actions/advanced/process-advanced';
+import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
+import { resetAdvancedData } from '@/actions/advanced/reset-advanced-data';
 
-import ActionButton from '@/components/admin/action-button';
-import AnalysisCountsCard from '@/components/admin/analysis-counts-card';
-import AdminLayout from '@/components/admin/layout';
-import PauseQueueButton from '@/components/admin/pause-queue-button';
+import { ActionButton } from '@/components/admin/action-button';
+import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
+import { AdminLayout } from '@/components/admin/layout';
+import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
 export default function AdvancedAnalysisAdminPage() {
   return (
@@ -23,18 +23,18 @@ export default function AdvancedAnalysisAdminPage() {
 
         <div className="flex gap-4">
           <ActionButton
-            action={addRemainingToAdvancedAnalysisQueue}
+            action={addAdvancedToQueue}
             loadingMessage="Processing analysis data..."
           >
             Process All Remaining
           </ActionButton>
           <PauseQueueButton queueName="advancedAnalysisQueue" />
           <ActionButton
-            action={deleteAdvancedAnalysisData}
+            action={resetAdvancedData}
             variant="destructive"
             loadingMessage="Resetting analysis data..."
           >
-            Delete Data
+            Reset Data
           </ActionButton>
         </div>
       </div>

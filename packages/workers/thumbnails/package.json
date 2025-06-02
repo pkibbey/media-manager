@@ -11,12 +11,12 @@
   "description": "",
   "dependencies": {
     "buffer": "^6.0.3",
-    "bullmq": "^5.53.1",
+    "bullmq": "^5.53.2",
     "ioredis": "^5.6.1",
     "shared": "*",
     "xxh3-ts": "^2.0.1",
     "xxhash-addon": "^2.0.3",
-    "zod": "^3.25.46"
+    "zod": "^3.25.49"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",

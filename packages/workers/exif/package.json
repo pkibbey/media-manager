@@ -10,13 +10,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "bullmq": "^5.53.1",
+    "bullmq": "^5.53.2",
     "date-fns": "^4.1.0",
     "exif-parser": "^0.1.12",
     "exiftool-vendored": "^30.2.0",
     "ioredis": "^5.6.1",
     "shared": "*",
-    "zod": "^3.25.45"
+    "zod": "^3.25.49"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",

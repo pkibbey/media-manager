@@ -1,9 +1,9 @@
-import deleteExifData from '@/actions/exif/delete-exif-data';
 import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
-import ActionButton from '@/components/admin/action-button';
-import AnalysisCountsCard from '@/components/admin/analysis-counts-card';
-import AdminLayout from '@/components/admin/layout';
-import PauseQueueButton from '@/components/admin/pause-queue-button';
+import { resetExifData } from '@/actions/exif/reset-exif-data';
+import { ActionButton } from '@/components/admin/action-button';
+import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
+import { AdminLayout } from '@/components/admin/layout';
+import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
 export default function ExifAdminPage() {
   return (
@@ -27,11 +27,11 @@ export default function ExifAdminPage() {
           </ActionButton>
           <PauseQueueButton queueName="exifQueue" />
           <ActionButton
-            action={deleteExifData}
+            action={resetExifData}
             variant="destructive"
             loadingMessage="Deleting EXIF data..."
           >
-            Delete Data
+            Reset Data
           </ActionButton>
         </div>
       </div>

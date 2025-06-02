@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { resetQueueState } from '@/actions/admin/reset-queue-state';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
-import { resetQueueState } from '@/actions/admin/reset-queue-state';
+import { useEffect, useState } from 'react';
 
 interface AnalysisCounts {
   active: number;
@@ -105,7 +105,7 @@ export function AnalysisCountsCard({ queueName }: AnalysisCountsCardProps) {
             <div className="grid grid-cols-1 gap-y-2">
               {countOrder.map((key) => (
                 <div key={key} className="flex items-center justify-between">
-                  <div className="flex justify-between flex-1 mr-2">
+                  <div className="flex justify-between flex-1">
                     <span className="text-sm capitalize text-muted-foreground">
                       {key.replace('-', ' ')}:
                     </span>

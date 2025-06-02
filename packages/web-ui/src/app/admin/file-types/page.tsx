@@ -1,15 +1,16 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import deleteAllMediaTypes, {
+import {
+  deleteAllMediaTypes,
   getMediaTypes,
 } from '@/actions/admin/manage-media-types';
-import AdminLayout from '@/components/admin/layout';
-import MediaTypeList from '@/components/admin/media-type-list';
+import { AdminLayout } from '@/components/admin/layout';
+import { MediaTypeList } from '@/components/admin/media-type-list';
 import { Button } from '@/components/ui/button';
-import type { MediaType } from '@/types/media-types';
+import { Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import type { MediaType } from 'shared/types';
+import { toast } from 'sonner';
 
 export default function AdminFileTypesPage() {
   const [mediaTypes, setMediaTypes] = useState<MediaType[] | null>(null);

@@ -1,26 +1,25 @@
 'use server';
-
-import { createSupabase } from '@/lib/supabase';
+import { createSupabase } from 'shared/supabase';
 
 /**
- * Delete analysis data and reset processing flags
+ * Reset advanced analysis data
  *
  * @returns Boolean indicating success
  */
-export async function resetBasicAnalysisData(): Promise<boolean> {
+export async function resetAdvancedData(): Promise<boolean> {
   try {
     const supabase = createSupabase();
     let totalReset = 0;
 
-    // Reset is_basic_processed for all processed items in batches
+    // Reset is_advanced_processed for all processed items in batches
     while (true) {
       const { error: updateError, count } = await supabase
         .from('media')
-        .update({ is_basic_processed: false })
-        .eq('is_basic_processed', true);
+        .update({ is_advanced_processed: false })
+        .eq('is_advanced_processed', true);
 
       if (updateError) {
-        console.error('Failed to reset analysis data:', updateError);
+        console.error('Failed to reset advanced analysis data:', updateError);
         return false;
       }
 
@@ -37,7 +36,7 @@ export async function resetBasicAnalysisData(): Promise<boolean> {
       }
     }
 
-    console.log('Finished resetting analysis data for media items.');
+    console.log('Finished resetting advanced analysis data for media items.');
     return true;
   } catch (error) {
     console.error('Exception during update of media items:', error);

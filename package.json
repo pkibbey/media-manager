@@ -2,8 +2,12 @@
   "name": "media-manager",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "npm@10.9.2",
-  "workspaces": ["packages/workers/*", "packages/web-ui", "packages/shared"],
+  "packageManager": "npm@11.4.1",
+  "workspaces": [
+    "packages/workers/*",
+    "packages/web-ui",
+    "packages/shared"
+  ],
   "scripts": {
     "dev": "turbo run dev --filter=web-ui...",
     "build": "turbo run build --filter=web-ui...",

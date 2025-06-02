@@ -2,7 +2,7 @@
 
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
-import { createSupabase } from '@/lib/supabase';
+import { createSupabase } from 'shared/supabase';
 
 const connection = new IORedis(
   process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
@@ -12,19 +12,19 @@ const connection = new IORedis(
   },
 );
 
-const contentWarningsQueue = new Queue('contentWarningsQueue', { connection });
+const objectAnalysisQueue = new Queue('objectAnalysisQueue', { connection });
 
-export async function addRemainingToContentWarningQueue() {
+export async function addBasicToQueue() {
   const supabase = createSupabase();
   let offset = 0;
-  const batchSize = 1000;
+  const batchSize = 1000; // Supabase default limit, can be adjusted if needed
 
   try {
     while (true) {
       const { data: mediaItems, error } = await supabase
         .from('media')
         .select('id, thumbnail_url')
-        .eq('is_content_warnings_processed', false)
+        .eq('is_basic_processed', false)
         .eq('is_thumbnail_processed', true)
         .range(offset, offset + batchSize - 1);
 
@@ -34,12 +34,13 @@ export async function addRemainingToContentWarningQueue() {
       }
 
       if (!mediaItems || mediaItems.length === 0) {
+        // No more items to fetch
         return false;
       }
 
-      const jobs = await contentWarningsQueue.addBulk(
+      const jobs = await objectAnalysisQueue.addBulk(
         mediaItems.map((data) => ({
-          name: 'content-warning-detection',
+          name: 'object-detection',
           data,
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness
@@ -47,25 +48,19 @@ export async function addRemainingToContentWarningQueue() {
         })),
       );
 
-      console.log(
-        'Added',
-        jobs.length,
-        'to the content warnings queue for processing',
-      );
+      console.log('Added', jobs.length, 'to the queue for processing');
 
       offset += mediaItems.length;
+
+      // If fewer items than batchSize were returned, it means we've fetched all available items
       if (mediaItems.length < batchSize) {
-        // Last batch processed fewer items than batchSize, so we are done
-        break;
+        return false;
       }
     }
-
-    return true;
-  } catch (error) {
-    console.error(
-      'Error adding remaining items to content warning queue:',
-      error,
-    );
+  } catch (e) {
+    const errorMessage =
+      e instanceof Error ? e.message : 'Unknown error occurred';
+    console.error('Error in addRemainingToProcessingQueue:', errorMessage);
     return false;
   }
 }

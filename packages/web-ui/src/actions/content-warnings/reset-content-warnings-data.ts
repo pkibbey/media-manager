@@ -1,26 +1,25 @@
 'use server';
-
-import { createSupabase } from '@/lib/supabase';
+import { createSupabase } from 'shared/supabase';
 
 /**
- * Delete duplicates data and reset processing flags
+ * Reset all content warnings data
  *
  * @returns Boolean indicating success
  */
-export async function deleteDuplicatesData(): Promise<boolean> {
+export async function resetContentWarningsData(): Promise<boolean> {
   try {
     const supabase = createSupabase();
     let totalReset = 0;
 
-    // Reset is_duplicates_processed and clear visual_hash in batches
+    // Reset is_content_warnings_processed for all processed items in batches
     while (true) {
       const { error: updateError, count } = await supabase
         .from('media')
-        .update({ is_duplicates_processed: false })
-        .eq('is_duplicates_processed', true);
+        .update({ is_content_warnings_processed: false })
+        .eq('is_content_warnings_processed', true);
 
       if (updateError) {
-        console.error('Failed to reset duplicates data:', updateError);
+        console.error('Failed to reset content warnings data:', updateError);
         return false;
       }
 
@@ -37,7 +36,7 @@ export async function deleteDuplicatesData(): Promise<boolean> {
       }
     }
 
-    console.log('Finished resetting duplicates data for media items.');
+    console.log('Finished resetting content warnings data for media items.');
     return true;
   } catch (error) {
     console.error('Exception during update of media items:', error);
