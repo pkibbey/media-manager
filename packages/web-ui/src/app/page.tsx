@@ -1,9 +1,7 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
 import { getMedia } from '@/actions/browse/get-media';
-import MediaFilters from '@/components/media/media-list/media-filters';
+import { MediaFilters } from '@/components/media/media-list/media-filters';
 import { MediaListContainer } from '@/components/media/media-list/media-list-container';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,8 +20,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { PAGE_SIZE } from 'shared/consts';
-import type { MediaFiltersType, MediaWithRelations } from '@/types/media-types';
+import type { MediaFiltersType, MediaWithRelations } from 'shared/types';
 
 export default function Home() {
   const [loading, setLoading] = useState(true);

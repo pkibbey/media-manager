@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import ActionButton from './action-button';
+import { ActionButton } from './action-button';
 import { Pause, Play } from 'lucide-react';
 
 interface PauseQueueButtonProps {
   queueName: string;
 }
 
-export default function PauseQueueButton({ queueName }: PauseQueueButtonProps) {
+export function PauseQueueButton({ queueName }: PauseQueueButtonProps) {
   const [isPaused, setIsPaused] = useState<boolean | null>(null);
 
   // Fetch pause state from API
@@ -54,7 +54,14 @@ export default function PauseQueueButton({ queueName }: PauseQueueButtonProps) {
   };
 
   return (
-    <ActionButton action={handleTogglePause} className={isPaused ? 'bg-green-100 hover:bg-green-200' : 'bg-yellow-100 hover:bg-yellow-200'}>
+    <ActionButton
+      action={handleTogglePause}
+      className={
+        isPaused
+          ? 'bg-green-100 hover:bg-green-200'
+          : 'bg-yellow-100 hover:bg-yellow-200'
+      }
+    >
       {isPaused ? (
         <>
           <Play className="mr-1 h-4 w-4" /> Resume Queue

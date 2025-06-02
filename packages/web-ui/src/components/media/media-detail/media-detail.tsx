@@ -1,15 +1,15 @@
 'use client';
 
-import { Eye, EyeOff, FileType, HardDrive, MapPin, Trash } from 'lucide-react';
-import type { PredictionType } from 'nsfwjs';
 import { useMediaSelection } from '@/components/media/media-list/media-selection-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Eye, EyeOff, FileType, HardDrive, MapPin, Trash } from 'lucide-react';
+import type { PredictionType } from 'nsfwjs';
 import { formatBytes } from 'shared/consts';
-import { BoundingBoxImage, DetectedObject } from './bounding-box-image';
+import { BoundingBoxImage, type DetectedObject } from './bounding-box-image';
 import { DetailField } from './detail-field';
 import { ExifDataDisplay } from './exif-data-display';
 
@@ -125,27 +125,6 @@ export function MediaDetail() {
               selectedMedia.reduce((sum, file) => sum + file.size_bytes, 0),
             )}
           </p>
-
-          {/* File type breakdown */}
-          <div className="mt-4">
-            <h3 className="text-sm font-medium">File Type Breakdown:</h3>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {Object.entries(
-                selectedMedia.reduce(
-                  (acc, file) => {
-                    const type = file.media_types?.description || 'unknown';
-                    acc[type] = (acc[type] || 0) + 1;
-                    return acc;
-                  },
-                  {} as Record<string, number>,
-                ),
-              ).map(([type, count]) => (
-                <Badge key={type} variant="secondary">
-                  {type}: {count}
-                </Badge>
-              ))}
-            </div>
-          </div>
 
           {/* Processing status */}
           <div className="mt-4">
@@ -338,7 +317,7 @@ export function MediaDetail() {
                         label="Tags"
                         value={
                           <div className="flex flex-wrap gap-1">
-                            {media.analysis_data.keywords.map((tag) => (
+                            {media.analysis_data.keywords.map((tag: string) => (
                               <Badge
                                 key={tag}
                                 variant="secondary"
@@ -387,7 +366,7 @@ export function MediaDetail() {
                           value={
                             <div className="flex flex-wrap gap-2">
                               {media.analysis_data.colors.map(
-                                (color, index) => (
+                                (color: string, index: number) => (
                                   <div
                                     key={index}
                                     className="flex items-center gap-1"

@@ -12,7 +12,7 @@ interface ActionButtonProps extends ComponentProps<'button'> {
   loadingMessage?: string;
 }
 
-export default function ActionButton({
+export function ActionButton({
   children,
   action,
   loadingMessage = 'Processing...',

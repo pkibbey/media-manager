@@ -34,13 +34,13 @@ const countOrder: (keyof AnalysisCounts)[] = [
   'paused',
 ];
 
-export default function AnalysisCountsCard({
-  queueName,
-}: AnalysisCountsCardProps) {
+export function AnalysisCountsCard({ queueName }: AnalysisCountsCardProps) {
   const [analysisCounts, setAnalysisCounts] = useState<AnalysisCounts | null>(
     null,
   );
-  const [resettingStates, setResettingStates] = useState<Set<string>>(new Set());
+  const [resettingStates, setResettingStates] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     async function fetchAnalysiscounts() {
@@ -57,17 +57,13 @@ export default function AnalysisCountsCard({
       }
     }
     fetchAnalysiscounts();
-
-    const intervalId = setInterval(fetchAnalysiscounts, 5000);
-
-    return () => clearInterval(intervalId); // Cleanup interval on component unmount or when queueName changes
   }, [queueName]);
 
   const handleResetState = async (state: keyof AnalysisCounts) => {
     if (resettingStates.has(state)) return; // Prevent double-clicks
-    
-    setResettingStates(prev => new Set(prev).add(state));
-    
+
+    setResettingStates((prev) => new Set(prev).add(state));
+
     try {
       const success = await resetQueueState(queueName, state);
       if (success) {
@@ -81,7 +77,7 @@ export default function AnalysisCountsCard({
     } catch (error) {
       console.error('Error resetting queue state:', error);
     } finally {
-      setResettingStates(prev => {
+      setResettingStates((prev) => {
         const newSet = new Set(prev);
         newSet.delete(state);
         return newSet;
@@ -126,7 +122,9 @@ export default function AnalysisCountsCard({
                       disabled={resettingStates.has(key)}
                       title={`Reset ${key.replace('-', ' ')} jobs`}
                     >
-                      <RotateCcw className={`h-3 w-3 ${resettingStates.has(key) ? 'animate-spin' : ''}`} />
+                      <RotateCcw
+                        className={`h-3 w-3 ${resettingStates.has(key) ? 'animate-spin' : ''}`}
+                      />
                     </Button>
                   )}
                 </div>

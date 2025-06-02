@@ -1,15 +1,5 @@
 'use client';
 
-import {
-  EyeOff,
-  File,
-  FileText,
-  Image as ImageIcon,
-  Monitor,
-  Music,
-  Video,
-} from 'lucide-react';
-import { useState } from 'react';
 import { updateMediaType } from '@/actions/admin/manage-media-types';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,7 +13,17 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import type { MediaType } from '@/types/media-types';
+import {
+  EyeOff,
+  File,
+  FileText,
+  Image as ImageIcon,
+  Monitor,
+  Music,
+  Video,
+} from 'lucide-react';
+import { useState } from 'react';
+import type { MediaType } from 'shared/types';
 
 interface MediaTypeListProps {
   mediaTypes: MediaType[];
@@ -48,10 +48,7 @@ function getCategoryIcon(category: string) {
   }
 }
 
-export default function MediaTypeList({
-  mediaTypes,
-  onUpdate,
-}: MediaTypeListProps) {
+export function MediaTypeList({ mediaTypes, onUpdate }: MediaTypeListProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
 
   // Group media types by mime_type

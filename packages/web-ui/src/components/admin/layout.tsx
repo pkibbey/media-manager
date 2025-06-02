@@ -20,7 +20,7 @@ const navItems = [
   { name: 'Content Warnings', href: '/admin/content-warnings' },
 ];
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
+export function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
 
   return (

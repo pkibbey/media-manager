@@ -3,16 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "npm@10.9.2",
-  "workspaces": [
-    "packages/workers/*",
-    "packages/web-ui",
-    "packages/shared"
-  ],
+  "workspaces": ["packages/workers/*", "packages/web-ui", "packages/shared"],
   "scripts": {
     "dev": "turbo run dev --filter=web-ui...",
     "build": "turbo run build --filter=web-ui...",
     "workers": "turbo run worker",
     "lint": "biome lint .",
+    "format": "biome format . --write",
     "knip": "knip"
   },
   "dependencies": {},

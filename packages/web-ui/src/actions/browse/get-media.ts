@@ -1,10 +1,11 @@
 'use server';
 
-import { createSupabase } from "@/lib/supabase";
+import { createSupabase } from '@/lib/supabase';
 import type {
   MediaFiltersType,
   MediaWithRelationsResponse,
-} from '@/types/media-types';
+} from 'shared/types';
+
 /**
  * Fetch files with pagination and filtering
  */

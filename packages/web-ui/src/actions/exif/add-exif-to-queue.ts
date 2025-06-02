@@ -12,9 +12,9 @@ const connection = new IORedis(
   },
 );
 
-const duplicatesQueue = new Queue('duplicatesQueue', { connection });
+const exifQueue = new Queue('exifQueue', { connection });
 
-export async function addRemainingToDuplicatesQueue() {
+export async function addExifToQueue() {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -23,9 +23,13 @@ export async function addRemainingToDuplicatesQueue() {
     while (true) {
       const { data: mediaItems, error } = await supabase
         .from('media')
-        .select('id, visual_hash')
-        .eq('is_duplicates_processed', false)
-        .not('visual_hash', 'is', null) // Must have a visual hash
+        .select(
+          'id, media_path, media_type_id, is_deleted, is_hidden, media_types(id, is_ignored, mime_type)',
+        )
+        .is('media_types.is_ignored', false)
+        .is('is_deleted', false)
+        .is('is_hidden', false)
+        .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 
       if (error) {
@@ -37,21 +41,15 @@ export async function addRemainingToDuplicatesQueue() {
         return false;
       }
 
-      const jobs = await duplicatesQueue.addBulk(
-        mediaItems.map((data) => ({
-          name: 'duplicate-detection',
-          data,
-          opts: {
-            jobId: data.id, // Use media ID as job ID for uniqueness
-          },
-        })),
-      );
+      const jobs = mediaItems.map((data) => ({
+        name: 'exif-extraction',
+        data,
+        opts: {
+          jobId: data.id, // Use media ID as job ID for uniqueness
+        },
+      }));
 
-      console.log(
-        'Added',
-        jobs.length,
-        'to the duplicates queue for processing',
-      );
+      await exifQueue.addBulk(jobs);
 
       offset += mediaItems.length;
       if (mediaItems.length < batchSize) {
@@ -61,7 +59,7 @@ export async function addRemainingToDuplicatesQueue() {
   } catch (e) {
     const errorMessage =
       e instanceof Error ? e.message : 'Unknown error occurred';
-    console.error('Error in addRemainingToDuplicatesQueue:', errorMessage);
+    console.error('Error in addExifToQueue:', errorMessage);
     return false;
   }
 }

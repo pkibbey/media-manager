@@ -1,9 +1,5 @@
 'use client';
 
-import { Checkbox } from '@radix-ui/react-checkbox';
-import { Label } from '@radix-ui/react-label';
-import { FilterX, Search } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,17 +9,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { MediaFiltersType } from '@/types/media-types';
+import { Checkbox } from '@radix-ui/react-checkbox';
+import { Label } from '@radix-ui/react-label';
+import { FilterX, Search } from 'lucide-react';
+import { useState } from 'react';
+import type { MediaFiltersType } from 'shared/types';
 
 interface FileFiltersProps {
   filters: MediaFiltersType;
   onFilterChange: (filters: MediaFiltersType) => void;
 }
 
-export default function FileFilters({
-  filters,
-  onFilterChange,
-}: FileFiltersProps) {
+export function MediaFilters({ filters, onFilterChange }: FileFiltersProps) {
   const [searchInput, setSearchInput] = useState(filters.search);
 
   const updateFilter = <K extends keyof MediaFiltersType>(

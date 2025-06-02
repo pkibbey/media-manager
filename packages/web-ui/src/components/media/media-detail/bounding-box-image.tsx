@@ -2,9 +2,9 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 
 export interface DetectedObject {
-    bbox: [number, number, number, number];
-    class: string;
-    score: number;
+  bbox: [number, number, number, number];
+  class: string;
+  score: number;
 }
 
 interface BoundingBoxImageProps {
@@ -66,7 +66,6 @@ export const BoundingBoxImage: React.FC<BoundingBoxImageProps> = ({
         maxHeight,
       }}
     >
-      {/** biome-ignore lint/performance/noImgElement: <used to load the image> */}
       <img
         ref={imageRef}
         src={src}
