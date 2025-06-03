@@ -6,6 +6,7 @@ import { ActionButton } from '@/components/admin/action-button';
 import { ContentWarningsQueueStatus } from '@/components/admin/content-warnings-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
+import { QueueResetButton } from '@/components/admin/queue-reset-button';
 
 export default function ContentWarningsAdminPage() {
   return (
@@ -18,7 +19,7 @@ export default function ContentWarningsAdminPage() {
           </p>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           <ActionButton
             action={addContentWarningsToQueue}
             loadingMessage="Processing content warnings..."
@@ -33,6 +34,15 @@ export default function ContentWarningsAdminPage() {
           >
             Reset Data
           </ActionButton>
+        </div>
+
+        <div className="border-t pt-4">
+          <h3 className="text-lg font-semibold mb-3">Queue State Management</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Reset specific queue states individually (waiting, completed,
+            failed, etc.)
+          </p>
+          <QueueResetButton queueName="contentWarningsQueue" />
         </div>
 
         <ContentWarningsQueueStatus />

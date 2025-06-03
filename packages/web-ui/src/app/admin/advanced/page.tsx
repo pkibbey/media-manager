@@ -7,6 +7,7 @@ import { ActionButton } from '@/components/admin/action-button';
 import { AdvancedAnalysisQueueStatus } from '@/components/admin/advanced-analysis-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
+import { QueueResetButton } from '@/components/admin/queue-reset-button';
 
 export default function AdvancedAnalysisAdminPage() {
   return (
@@ -19,7 +20,7 @@ export default function AdvancedAnalysisAdminPage() {
           </p>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           <ActionButton
             action={addAdvancedToQueue}
             loadingMessage="Processing analysis data..."
@@ -34,6 +35,15 @@ export default function AdvancedAnalysisAdminPage() {
           >
             Reset Data
           </ActionButton>
+        </div>
+
+        <div className="border-t pt-4">
+          <h3 className="text-lg font-semibold mb-3">Queue State Management</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Reset specific queue states individually (waiting, completed,
+            failed, etc.)
+          </p>
+          <QueueResetButton queueName="advancedAnalysisQueue" />
         </div>
 
         <AdvancedAnalysisQueueStatus />
