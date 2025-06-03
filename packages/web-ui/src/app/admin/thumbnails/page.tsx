@@ -3,7 +3,6 @@
 import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
 import { addRemainingToThumbnailsQueue } from '@/actions/thumbnails/process-thumbnail';
 import { ActionButton } from '@/components/admin/action-button';
-import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -17,8 +16,6 @@ export default function ThumbnailAdminPage() {
             Manage generation and updates of media thumbnails
           </p>
         </div>
-
-        <AnalysisCountsCard queueName="thumbnailQueue" />
 
         <div className="flex gap-4">
           <ActionButton

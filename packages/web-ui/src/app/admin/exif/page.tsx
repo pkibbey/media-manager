@@ -1,7 +1,6 @@
 import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
 import { resetExifData } from '@/actions/exif/reset-exif-data';
 import { ActionButton } from '@/components/admin/action-button';
-import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -15,8 +14,6 @@ export default function ExifAdminPage() {
             Manage extraction and updates of EXIF metadata
           </p>
         </div>
-
-        <AnalysisCountsCard queueName="exifQueue" />
 
         <div className="flex gap-4">
           <ActionButton

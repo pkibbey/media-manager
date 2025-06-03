@@ -4,7 +4,6 @@ import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
 import { resetAdvancedData } from '@/actions/advanced/reset-advanced-data';
 
 import { ActionButton } from '@/components/admin/action-button';
-import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -18,8 +17,6 @@ export default function AdvancedAnalysisAdminPage() {
             Manage deep understanding of media content
           </p>
         </div>
-
-        <AnalysisCountsCard queueName="advancedAnalysisQueue" />
 
         <div className="flex gap-4">
           <ActionButton

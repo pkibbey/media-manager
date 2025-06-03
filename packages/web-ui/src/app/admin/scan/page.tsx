@@ -6,7 +6,6 @@ import { getScanStats } from '@/actions/admin/get-scan-stats';
 import { addFoldersToScanQueue } from '@/actions/folder-scan/add-folder-scan-to-queue';
 import { resetFolderScanData } from '@/actions/folder-scan/reset-folder-scan-data';
 import { ActionButton } from '@/components/admin/action-button';
-import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
 import { FolderScanQueueStatus } from '@/components/admin/folder-scan-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
@@ -41,8 +40,8 @@ export default function MediaScanPage() {
           setScanStats(response.stats);
         }
         setFolderPaths(mediaPaths);
-      } catch (e) {
-        console.error('Failed to load initial data:', e);
+      } catch (error) {
+        console.error('Error fetching initial data:', error);
       }
     };
 
@@ -55,8 +54,8 @@ export default function MediaScanPage() {
         if (response.stats) {
           setScanStats(response.stats);
         }
-      } catch (e) {
-        console.error('Failed to refresh stats:', e);
+      } catch (error) {
+        console.error('Error fetching scan stats:', error);
       }
     }, 5000); // Every 5 seconds for database stats
 
@@ -85,7 +84,6 @@ export default function MediaScanPage() {
         return true;
       }
 
-      console.error('Failed to add folders to queue:', result.error);
       return false;
     } catch (error) {
       console.error('Error adding folders to scan queue:', error);
@@ -113,9 +111,6 @@ export default function MediaScanPage() {
 
         {/* Real-time Queue Status - This shows the dynamic updates! */}
         <FolderScanQueueStatus />
-
-        {/* This shows basic queue counts */}
-        <AnalysisCountsCard queueName="folderScanQueue" />
 
         <Card>
           <CardHeader>

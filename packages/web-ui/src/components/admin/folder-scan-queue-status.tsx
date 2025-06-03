@@ -12,6 +12,7 @@ import {
   Clock,
   FolderOpen,
   Loader2,
+  Pause,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -78,8 +79,16 @@ export function FolderScanQueueStatus() {
     );
   }
 
+  // Combine waiting and prioritized jobs for display (prioritized are just waiting jobs with higher priority)
+  const effectiveWaiting = stats.waiting + stats.prioritized;
   const totalJobs =
-    stats.active + stats.waiting + stats.completed + stats.failed;
+    stats.active +
+    effectiveWaiting +
+    stats.delayed +
+    stats.paused +
+    stats['waiting-children'] +
+    stats.completed +
+    stats.failed;
   const hasActivity = totalJobs > 0;
 
   return (
@@ -95,7 +104,7 @@ export function FolderScanQueueStatus() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Queue Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 text-blue-500" />
             <span className="text-muted-foreground">Active:</span>
@@ -104,7 +113,12 @@ export function FolderScanQueueStatus() {
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-yellow-500" />
             <span className="text-muted-foreground">Waiting:</span>
-            <span className="font-medium">{stats.waiting}</span>
+            <span className="font-medium">{effectiveWaiting}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Pause className="h-4 w-4 text-purple-500" />
+            <span className="text-muted-foreground">Paused:</span>
+            <span className="font-medium">{stats.paused}</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -165,7 +179,7 @@ export function FolderScanQueueStatus() {
         )}
 
         {/* Dynamic Growth Indicator */}
-        {stats.waiting > 0 && stats.active > 0 && (
+        {effectiveWaiting > 0 && stats.active > 0 && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md">
             <div className="flex space-x-1">
               <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse" />

@@ -3,7 +3,6 @@
 import { addRemainingToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
 import { resetDuplicatesData } from '@/actions/duplicates/reset-duplicates-data';
 import { ActionButton } from '@/components/admin/action-button';
-import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -17,8 +16,6 @@ export default function DuplicatesAdminPage() {
             Manage and process duplicate images using a queue system.
           </p>
         </div>
-
-        <AnalysisCountsCard queueName="duplicatesQueue" />
 
         <div className="flex gap-4">
           <ActionButton

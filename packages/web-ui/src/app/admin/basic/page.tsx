@@ -3,7 +3,6 @@
 import { addBasicToQueue } from '@/actions/basic/add-basic-to-queue';
 import { resetBasicData } from '@/actions/basic/reset-basic-data';
 import { ActionButton } from '@/components/admin/action-button';
-import { AnalysisCountsCard } from '@/components/admin/analysis-counts-card';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -17,8 +16,6 @@ export default function BasicAnalysisAdminPage() {
             Manage AI-powered image analysis and content understanding
           </p>
         </div>
-
-        <AnalysisCountsCard queueName="objectAnalysisQueue" />
 
         <div className="flex gap-4">
           <ActionButton
