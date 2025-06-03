@@ -2,8 +2,15 @@
 
 import { updateMediaType } from '@/actions/admin/manage-media-types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import {
@@ -110,23 +117,33 @@ export function MediaTypeList({ mediaTypes, onUpdate }: MediaTypeListProps) {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {allMediaTypes.map((type) => {
-              const category = type.mime_type.split('/')[0];
-              const subType = type.mime_type.split('/')[1];
-              return (
-                <Card
-                  key={type.id}
-                  className={cn(type.is_ignored && 'opacity-30')}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Type</TableHead>
+                <TableHead className="px-4">Processing</TableHead>
+                <TableHead className="px-4">Display</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allMediaTypes.map((type) => {
+                const category = type.mime_type.split('/')[0];
+                const subType = type.mime_type.split('/')[1];
+                return (
+                  <TableRow
+                    key={type.id}
+                    className={cn(
+                      type.is_ignored && 'opacity-20 hover:opacity-80',
+                    )}
+                  >
+                    <TableCell className="flex items-center">
                       {getCategoryIcon(category)}
-                      {subType}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 px-4">
-                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{subType}</span>
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        ({type.mime_type})
+                      </span>
+                    </TableCell>
+                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -147,17 +164,18 @@ export function MediaTypeList({ mediaTypes, onUpdate }: MediaTypeListProps) {
                           <Power size={16} strokeWidth={2} />
                         )}
                         <Label className="text-xs cursor-pointer">
-                          {type.is_ignored ? 'Off' : 'On'}
+                          {type.is_ignored ? 'Excluded' : 'Included'}
                         </Label>
                       </Button>
-
+                    </TableCell>
+                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
                         title={
                           type.is_native
-                            ? 'Requires conversion before display'
-                            : 'Can be displayed natively by browser'
+                            ? 'Can be displayed natively by browser'
+                            : 'Requires conversion before display'
                         }
                         className={cn(
                           'gap-2 cursor-pointer',
@@ -179,12 +197,12 @@ export function MediaTypeList({ mediaTypes, onUpdate }: MediaTypeListProps) {
                           {type.is_native ? 'Direct' : 'Convert'}
                         </Label>
                       </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </TabsContent>
       </Tabs>
     </div>
