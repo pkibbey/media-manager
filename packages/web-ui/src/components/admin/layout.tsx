@@ -14,7 +14,7 @@ const navItems = [
   { name: 'File Types', href: '/admin/file-types' },
   { name: 'EXIF Processing', href: '/admin/exif' },
   { name: 'Thumbnails', href: '/admin/thumbnails' },
-  { name: 'Basic Analysis', href: '/admin/basic' },
+  { name: 'Objects Analysis', href: '/admin/objects' },
   { name: 'Advanced Analysis', href: '/admin/advanced' },
   { name: 'Duplicates', href: '/admin/duplicates' },
   { name: 'Content Warnings', href: '/admin/content-warnings' },

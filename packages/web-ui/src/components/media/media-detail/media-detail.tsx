@@ -64,8 +64,8 @@ export function MediaDetail() {
       <DetailField
         label="Analysis"
         value={
-          <Badge variant={media.is_basic_processed ? 'success' : 'outline'}>
-            {media.is_basic_processed ? 'Complete' : 'Pending'}
+          <Badge variant={media.is_objects_processed ? 'success' : 'outline'}>
+            {media.is_objects_processed ? 'Complete' : 'Pending'}
           </Badge>
         }
       />
@@ -140,7 +140,7 @@ export function MediaDetail() {
               </div>
               <div>
                 Analysis:{' '}
-                {selectedMedia.filter((m) => m.is_basic_processed).length}
+                {selectedMedia.filter((m) => m.is_objects_processed).length}
               </div>
               <div>
                 Hidden: {selectedMedia.filter((m) => m.is_hidden).length}

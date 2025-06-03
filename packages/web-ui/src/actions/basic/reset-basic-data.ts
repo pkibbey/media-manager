@@ -12,12 +12,12 @@ export async function resetBasicData(): Promise<boolean> {
     const supabase = createSupabase();
     let totalReset = 0;
 
-    // Reset is_basic_processed for all processed items in batches
+    // Reset is_objects_processed for all processed items in batches
     while (true) {
       const { error: updateError, count } = await supabase
         .from('media')
-        .update({ is_basic_processed: false })
-        .eq('is_basic_processed', true);
+        .update({ is_objects_processed: false })
+        .eq('is_objects_processed', true);
 
       if (updateError) {
         console.error('Failed to reset analysis data:', updateError);

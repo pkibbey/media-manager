@@ -2,25 +2,20 @@
 
 import { updateMediaType } from '@/actions/admin/manage-media-types';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import {
-  EyeOff,
   File,
   FileText,
   Image as ImageIcon,
-  Monitor,
   Music,
+  Power,
+  PowerOff,
+  RefreshCw,
   Video,
+  Zap,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { MediaType } from 'shared/types';
@@ -115,7 +110,7 @@ export function MediaTypeList({ mediaTypes, onUpdate }: MediaTypeListProps) {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {allMediaTypes.map((type) => {
               const category = type.mime_type.split('/')[0];
               const subType = type.mime_type.split('/')[1];
@@ -129,42 +124,40 @@ export function MediaTypeList({ mediaTypes, onUpdate }: MediaTypeListProps) {
                       {getCategoryIcon(category)}
                       {subType}
                     </CardTitle>
-                    <CardDescription>{category}</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Separator />
-
-                    <div className="flex items-center justify-end space-x-2">
+                  <CardContent className="space-y-4 px-4">
+                    <div className="flex items-center justify-between">
                       <Button
                         variant="ghost"
                         size="sm"
                         title={
                           type.is_ignored
-                            ? 'Unignore files of this type'
-                            : 'Ignore files of this type'
+                            ? 'Turn on processing for files of this type'
+                            : 'Turn off processing for files of this type'
                         }
                         className="gap-2 cursor-pointer"
                         onClick={() =>
                           handleToggleIgnored(type, !type.is_ignored)
                         }
-                        aria-label="Toggle ignore"
+                        aria-label="Toggle processing"
                       >
-                        <EyeOff
-                          size={16}
-                          strokeWidth={2}
-                          fill={type.is_ignored ? 'currentColor' : 'none'}
-                        />
+                        {type.is_ignored ? (
+                          <PowerOff size={16} strokeWidth={2} />
+                        ) : (
+                          <Power size={16} strokeWidth={2} />
+                        )}
                         <Label className="text-xs cursor-pointer">
-                          {type.is_ignored ? 'Unignore' : 'Ignore'}
+                          {type.is_ignored ? 'Off' : 'On'}
                         </Label>
                       </Button>
+
                       <Button
                         variant="ghost"
                         size="sm"
                         title={
                           type.is_native
-                            ? 'Mark as not natively displayable'
-                            : 'Mark as natively displayable'
+                            ? 'Requires conversion before display'
+                            : 'Can be displayed natively by browser'
                         }
                         className={cn(
                           'gap-2 cursor-pointer',
@@ -175,14 +168,16 @@ export function MediaTypeList({ mediaTypes, onUpdate }: MediaTypeListProps) {
                         onClick={() =>
                           handleToggleNative(type, !type.is_native)
                         }
-                        aria-label="Toggle native"
+                        aria-label="Toggle native display"
                       >
-                        <Monitor
-                          size={16}
-                          strokeWidth={2}
-                          fill={type.is_native ? 'currentColor' : 'none'}
-                        />
-                        <Label className="text-xs cursor-pointer">Native</Label>
+                        {type.is_native ? (
+                          <Zap size={16} strokeWidth={2} />
+                        ) : (
+                          <RefreshCw size={16} strokeWidth={2} />
+                        )}
+                        <Label className="text-xs cursor-pointer">
+                          {type.is_native ? 'Direct' : 'Convert'}
+                        </Label>
                       </Button>
                     </div>
                   </CardContent>

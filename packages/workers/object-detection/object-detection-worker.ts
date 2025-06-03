@@ -103,13 +103,13 @@ const workerProcessor = async (
     // Update the 'media' table to mark as processed
     const { error: mediaUpdateError } = await supabase
       .from('media')
-      .update({ is_basic_processed: true }) // Ensure 'is_basic_processed' is the correct column
+      .update({ is_objects_processed: true }) // Ensure 'is_objects_processed' is the correct column
       .eq('id', mediaId);
 
     if (mediaUpdateError) {
       // Log error but don't necessarily fail the job if primary data (analysis_data) was saved.
       console.error(
-        `[Worker] Failed to update 'is_basic_processed' for media ID ${mediaId}:`,
+        `[Worker] Failed to update 'is_objects_processed' for media ID ${mediaId}:`,
         mediaUpdateError,
       );
     }

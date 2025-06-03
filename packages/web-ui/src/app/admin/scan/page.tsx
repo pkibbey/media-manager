@@ -109,9 +109,6 @@ export default function MediaScanPage() {
           className="w-full"
         />
 
-        {/* Real-time Queue Status - This shows the dynamic updates! */}
-        <FolderScanQueueStatus />
-
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Scan Media Directory</CardTitle>
@@ -177,6 +174,9 @@ export default function MediaScanPage() {
             </ActionButton>
           </CardFooter>
         </Card>
+
+        {/* Real-time Queue Status - This shows the dynamic updates! */}
+        <FolderScanQueueStatus />
       </div>
     </AdminLayout>
   );

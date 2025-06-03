@@ -14,13 +14,15 @@
     "workers": "turbo run worker",
     "lint": "biome lint .",
     "format": "biome format . --write",
-    "knip": "knip"
+    "knip": "knip",
+    "types": "npx supabase gen types typescript --local > packages/shared/types/supabase.ts"
   },
   "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@types/node": "^22.15.29",
     "knip": "^5.59.1",
+    "supabase": "^2.23.4",
     "turbo": "^2.5.4"
   }
 }
