@@ -3,11 +3,11 @@ import type { QueueConfig, QueueName } from 'shared/types';
 
 // Import all queue functions
 import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
-import { addContentWarningsToQueue } from '@/actions/content-warnings/add-content-warnings-to-queue';
-import { addRemainingToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
+import { addWarningsToQueue } from '@/actions/content-warnings/add-content-warnings-to-queue';
+import { addToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
 import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
 import { addObjectsToQueue } from '@/actions/objects/add-objects-to-queue';
-import { addRemainingToThumbnailsQueue } from '@/actions/thumbnails/process-thumbnail';
+import { addToThumbnailsQueue } from '@/actions/thumbnails/add-thumbnails-to-queue';
 
 // Queue configuration mapping
 const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
@@ -20,11 +20,11 @@ const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
     name: 'Object Analysis',
   },
   contentWarningsQueue: {
-    action: addContentWarningsToQueue,
+    action: addWarningsToQueue,
     name: 'Content Warnings',
   },
   duplicatesQueue: {
-    action: addRemainingToDuplicatesQueue,
+    action: addToDuplicatesQueue,
     name: 'Duplicates',
   },
   exifQueue: {
@@ -32,7 +32,7 @@ const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
     name: 'EXIF Processing',
   },
   thumbnailQueue: {
-    action: addRemainingToThumbnailsQueue,
+    action: addToThumbnailsQueue,
     name: 'Thumbnail Generation',
   },
 } as const;

@@ -4,8 +4,6 @@ Eventually, add all the jobs automatically once the images are scanned, and prev
 
 Handle online and offline files
 
-Add estimated time remaining and count of items per second
-
 Remember to split the advanced analysis into standard and advanced processing
 
 add abilty to retry failed jobs

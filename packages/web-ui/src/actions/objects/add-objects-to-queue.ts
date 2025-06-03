@@ -62,7 +62,7 @@ export async function addObjectsToQueue() {
   } catch (e) {
     const errorMessage =
       e instanceof Error ? e.message : 'Unknown error occurred';
-    console.error('Error in addRemainingToProcessingQueue:', errorMessage);
+    console.error('Error in addToProcessingQueue:', errorMessage);
     return false;
   }
 }

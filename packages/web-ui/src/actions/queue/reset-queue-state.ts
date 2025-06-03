@@ -33,16 +33,15 @@ export async function resetQueueState(
         await queue.clean(0, 1000000, 'failed');
         break;
       case 'waiting':
+        // Clean both waiting and prioritized jobs, since they are used interchangeably in the UI
         await queue.clean(0, 1000000, 'wait');
+        await queue.clean(0, 1000000, 'prioritized');
         break;
       case 'delayed':
         await queue.clean(0, 1000000, 'delayed');
         break;
       case 'paused':
         await queue.clean(0, 1000000, 'paused');
-        break;
-      case 'prioritized':
-        await queue.clean(0, 1000000, 'prioritized');
         break;
       default:
         console.error(`State ${state} is not supported for reset operations`);

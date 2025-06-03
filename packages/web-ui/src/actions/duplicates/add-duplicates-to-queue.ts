@@ -11,7 +11,7 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const duplicatesQueue = new Queue('duplicatesQueue', { connection });
 
-export async function addRemainingToDuplicatesQueue() {
+export async function addToDuplicatesQueue() {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -61,7 +61,7 @@ export async function addRemainingToDuplicatesQueue() {
   } catch (e) {
     const errorMessage =
       e instanceof Error ? e.message : 'Unknown error occurred';
-    console.error('Error in addRemainingToDuplicatesQueue:', errorMessage);
+    console.error('Error in addToDuplicatesQueue:', errorMessage);
     return false;
   }
 }

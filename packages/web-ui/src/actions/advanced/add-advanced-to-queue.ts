@@ -59,10 +59,7 @@ export async function addAdvancedToQueue() {
   } catch (e) {
     const errorMessage =
       e instanceof Error ? e.message : 'Unknown error occurred';
-    console.error(
-      'Error in addRemainingToAdvancedAnalysisQueue:',
-      errorMessage,
-    );
+    console.error('Error in addToAdvancedAnalysisQueue:', errorMessage);
     return false;
   }
 }

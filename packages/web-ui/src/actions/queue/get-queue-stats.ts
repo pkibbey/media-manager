@@ -204,22 +204,6 @@ async function calculateQueueMetrics(
       }
     }
 
-    // Debug logging for estimation issues
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('Queue metrics debug:', {
-        queueName: queue.name,
-        completedLast5Min: completedLast5Min.length,
-        completedLastHour: completedLastHour.length,
-        processingRate,
-        fallbackProcessingRate,
-        effectiveProcessingRate,
-        totalPendingJobs,
-        activeJobs: counts.active,
-        averageProcessingTime,
-        estimatedTimeRemaining,
-      });
-    }
-
     // Calculate throughput metrics
     const throughputLast5Min = completedLast5Min.length;
     const throughputLast1Hour = completedLastHour.length;

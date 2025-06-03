@@ -14,7 +14,7 @@ const connection = new IORedis(
 
 const contentWarningsQueue = new Queue('contentWarningsQueue', { connection });
 
-export async function addContentWarningsToQueue() {
+export async function addWarningsToQueue() {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
