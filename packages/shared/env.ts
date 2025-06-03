@@ -38,6 +38,8 @@ export const serverEnv = {
   EXIF_WORKER_CONCURRENCY: Number(process.env.EXIF_WORKER_CONCURRENCY) || 30,
   THUMBNAIL_WORKER_CONCURRENCY:
     Number(process.env.THUMBNAIL_WORKER_CONCURRENCY) || 20,
+  FOLDER_SCAN_WORKER_CONCURRENCY:
+    Number(process.env.FOLDER_SCAN_WORKER_CONCURRENCY) || 5,
 } as const;
 
 // Validate required environment variables

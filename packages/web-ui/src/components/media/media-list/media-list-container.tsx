@@ -1,11 +1,12 @@
 'use client';
 
-import type React from 'react';
-import { useCallback, useEffect } from 'react';
 import { MediaDetail } from '@/components/media/media-detail/media-detail';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { MediaWithRelations } from '@/types/media-types';
+import type React from 'react';
+import { useCallback, useEffect } from 'react';
+
+import type { MediaWithRelations } from 'shared/types';
 import { MediaGrid } from './media-grid';
 import {
   MediaSelectionProvider,

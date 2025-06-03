@@ -1,8 +1,8 @@
 'use client';
 
 import {
-  createContext,
   type ReactNode,
+  createContext,
   useContext,
   useMemo,
   useState,
@@ -11,7 +11,7 @@ import type {
   Media,
   MediaSelectionState,
   MediaWithRelations,
-} from '@/types/media-types';
+} from 'shared/types';
 
 interface MediaSelectionContextProps {
   selection: MediaSelectionState;

@@ -1,8 +1,7 @@
 'use server';
 
-import type { FileDetails, ScanResults } from '@/types/scan-types';
-import type { TablesInsert } from '@/types/supabase';
 import { createSupabase } from 'shared/supabase';
+import type { FileDetails, ScanResults, TablesInsert } from 'shared/types';
 
 /**
  * Process a batch of files and add them to the database using optimized batch operations

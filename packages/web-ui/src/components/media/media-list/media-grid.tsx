@@ -1,8 +1,8 @@
 'use client';
 
+import { useWindowWidth } from '@/hooks/useWindowWidth';
 import { useMemo } from 'react';
-import useWindowWidth from '@/hooks/useWindowWidth';
-import type { MediaWithRelations } from '@/types/media-types';
+import type { MediaWithRelations } from 'shared/types';
 import { MediaCard } from './media-card';
 
 interface MediaGridProps {

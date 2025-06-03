@@ -1,13 +1,13 @@
 'use client';
 
-import Image from 'next/image';
-import type React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { formatBytes } from 'shared/consts';
 import { cn } from '@/lib/utils';
-import type { MediaWithRelations } from '@/types/media-types';
+import Image from 'next/image';
+import type React from 'react';
+import { formatBytes } from 'shared/consts';
+import type { MediaWithRelations } from 'shared/types';
 import { useMediaSelection } from './media-selection-context';
 
 interface MediaCardProps {
