@@ -3,6 +3,7 @@
 import { addRemainingToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
 import { resetDuplicatesData } from '@/actions/duplicates/reset-duplicates-data';
 import { ActionButton } from '@/components/admin/action-button';
+import { DuplicatesQueueStatus } from '@/components/admin/duplicates-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -22,7 +23,7 @@ export default function DuplicatesAdminPage() {
             action={addRemainingToDuplicatesQueue}
             loadingMessage="Adding items to queue..."
           >
-            Process All Remaining
+            Add Duplicates to Queue
           </ActionButton>
           <PauseQueueButton queueName="duplicatesQueue" />
           <ActionButton
@@ -33,6 +34,8 @@ export default function DuplicatesAdminPage() {
             Reset Data
           </ActionButton>
         </div>
+
+        <DuplicatesQueueStatus />
       </div>
     </AdminLayout>
   );

@@ -4,6 +4,7 @@ import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
 import { resetAdvancedData } from '@/actions/advanced/reset-advanced-data';
 
 import { ActionButton } from '@/components/admin/action-button';
+import { AdvancedAnalysisQueueStatus } from '@/components/admin/advanced-analysis-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -23,7 +24,7 @@ export default function AdvancedAnalysisAdminPage() {
             action={addAdvancedToQueue}
             loadingMessage="Processing analysis data..."
           >
-            Process All Remaining
+            Add Advanced Processing to Queue
           </ActionButton>
           <PauseQueueButton queueName="advancedAnalysisQueue" />
           <ActionButton
@@ -34,6 +35,8 @@ export default function AdvancedAnalysisAdminPage() {
             Reset Data
           </ActionButton>
         </div>
+
+        <AdvancedAnalysisQueueStatus />
       </div>
     </AdminLayout>
   );

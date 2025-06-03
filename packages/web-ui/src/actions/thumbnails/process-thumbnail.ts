@@ -4,7 +4,6 @@ import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 
 import { createSupabase } from 'shared/supabase';
-import type { MediaWithRelations } from 'shared/types';
 
 const connection = new IORedis(
   process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
@@ -48,7 +47,7 @@ export async function addRemainingToThumbnailsQueue() {
       }
 
       await thumbnailQueue.addBulk(
-        mediaItems.map((data: MediaWithRelations) => ({
+        mediaItems.map((data) => ({
           name: 'thumbnail-generation',
           data,
           opts: {

@@ -3,8 +3,8 @@ import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '../../../.env.local' });
 
-import tf from '@tensorflow/tfjs-node';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import tf from '@tensorflow/tfjs-node';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { createSupabase } from 'shared/supabase';

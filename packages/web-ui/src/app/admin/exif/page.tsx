@@ -1,6 +1,7 @@
 import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
 import { resetExifData } from '@/actions/exif/reset-exif-data';
 import { ActionButton } from '@/components/admin/action-button';
+import { ExifQueueStatus } from '@/components/admin/exif-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -20,7 +21,7 @@ export default function ExifAdminPage() {
             action={addExifToQueue}
             loadingMessage="Adding items to queue..."
           >
-            Queue Exif
+            Add Exif to Queue
           </ActionButton>
           <PauseQueueButton queueName="exifQueue" />
           <ActionButton
@@ -31,6 +32,8 @@ export default function ExifAdminPage() {
             Reset Data
           </ActionButton>
         </div>
+
+        <ExifQueueStatus />
       </div>
     </AdminLayout>
   );

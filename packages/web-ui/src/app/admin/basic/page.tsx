@@ -4,6 +4,7 @@ import { addBasicToQueue } from '@/actions/basic/add-basic-to-queue';
 import { resetBasicData } from '@/actions/basic/reset-basic-data';
 import { ActionButton } from '@/components/admin/action-button';
 import { AdminLayout } from '@/components/admin/layout';
+import { ObjectAnalysisQueueStatus } from '@/components/admin/object-analysis-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
 export default function BasicAnalysisAdminPage() {
@@ -22,7 +23,7 @@ export default function BasicAnalysisAdminPage() {
             action={addBasicToQueue}
             loadingMessage="Processing analysis data..."
           >
-            Process All Remaining
+            Add Object Analysis to Queue
           </ActionButton>
           <PauseQueueButton queueName="objectAnalysisQueue" />
           <ActionButton
@@ -33,6 +34,8 @@ export default function BasicAnalysisAdminPage() {
             Reset Data
           </ActionButton>
         </div>
+
+        <ObjectAnalysisQueueStatus />
       </div>
     </AdminLayout>
   );

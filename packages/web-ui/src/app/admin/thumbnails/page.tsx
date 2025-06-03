@@ -5,6 +5,7 @@ import { addRemainingToThumbnailsQueue } from '@/actions/thumbnails/process-thum
 import { ActionButton } from '@/components/admin/action-button';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
+import { ThumbnailQueueStatus } from '@/components/admin/thumbnail-queue-status';
 
 export default function ThumbnailAdminPage() {
   return (
@@ -22,7 +23,7 @@ export default function ThumbnailAdminPage() {
             action={addRemainingToThumbnailsQueue}
             loadingMessage="Processing thumbnails..."
           >
-            Process All Remaining
+            Add Thumbnails to Queue
           </ActionButton>
           <PauseQueueButton queueName="thumbnailQueue" />
           <ActionButton
@@ -33,6 +34,8 @@ export default function ThumbnailAdminPage() {
             Delete Data
           </ActionButton>
         </div>
+
+        <ThumbnailQueueStatus />
       </div>
     </AdminLayout>
   );

@@ -3,6 +3,7 @@
 import { addContentWarningsToQueue } from '@/actions/content-warnings/add-content-warnings-to-queue';
 import { resetContentWarningsData } from '@/actions/content-warnings/reset-content-warnings-data';
 import { ActionButton } from '@/components/admin/action-button';
+import { ContentWarningsQueueStatus } from '@/components/admin/content-warnings-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
@@ -33,6 +34,8 @@ export default function ContentWarningsAdminPage() {
             Reset Data
           </ActionButton>
         </div>
+
+        <ContentWarningsQueueStatus />
       </div>
     </AdminLayout>
   );
