@@ -10,9 +10,10 @@ import {
 } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import type { QueueName } from 'shared/types';
 
 interface QueueResetButtonProps {
-  queueName: string;
+  queueName: QueueName;
 }
 
 export function QueueResetButton({ queueName }: QueueResetButtonProps) {
@@ -77,8 +78,8 @@ export function QueueResetButton({ queueName }: QueueResetButtonProps) {
         variant="destructive"
         size="sm"
       >
-        <Trash2 className="h-4 w-4 mr-2" />
-        {isLoading ? 'Resetting...' : 'Reset'}
+        <Trash2 className="h-4 w-4 mr-1" />
+        {isLoading ? 'Resetting...' : 'Reset Queue'}
       </Button>
     </div>
   );

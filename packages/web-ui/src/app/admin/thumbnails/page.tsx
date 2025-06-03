@@ -1,11 +1,11 @@
 'use client';
 
 import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
-import { ActionButton } from '@/components/admin/action-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
+import { ResetDataButton } from '@/components/admin/reset-data-button';
 import { ThumbnailQueueStatus } from '@/components/admin/thumbnail-queue-status';
 
 export default function ThumbnailAdminPage() {
@@ -20,18 +20,9 @@ export default function ThumbnailAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <AddToQueueButton
-            queueName="thumbnails"
-            displayName="Add Thumbnails to Queue"
-          />
+          <AddToQueueButton queueName="thumbnailQueue" />
           <PauseQueueButton queueName="thumbnailQueue" />
-          <ActionButton
-            action={deleteThumbnailData}
-            variant="destructive"
-            loadingMessage="Resetting thumbnail data..."
-          >
-            Delete Data
-          </ActionButton>
+          <ResetDataButton action={deleteThumbnailData} />
         </div>
 
         <div className="border-t pt-4">

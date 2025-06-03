@@ -1,12 +1,12 @@
 'use client';
 
 import { resetContentWarningsData } from '@/actions/content-warnings/reset-content-warnings-data';
-import { ActionButton } from '@/components/admin/action-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { ContentWarningsQueueStatus } from '@/components/admin/content-warnings-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
+import { ResetDataButton } from '@/components/admin/reset-data-button';
 
 export default function ContentWarningsAdminPage() {
   return (
@@ -20,18 +20,9 @@ export default function ContentWarningsAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <AddToQueueButton
-            queueName="contentWarningsQueue"
-            displayName="Add all to Queue"
-          />
+          <AddToQueueButton queueName="contentWarningsQueue" />
           <PauseQueueButton queueName="contentWarningsQueue" />
-          <ActionButton
-            action={resetContentWarningsData}
-            variant="destructive"
-            loadingMessage="Resetting content warnings data..."
-          >
-            Reset Data
-          </ActionButton>
+          <ResetDataButton action={resetContentWarningsData} />
         </div>
 
         <div className="border-t pt-4">

@@ -77,15 +77,21 @@ export default function AdminFileTypesPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div>
           <h2 className="text-2xl font-bold">Media Types Management</h2>
+          <p className="text-muted-foreground">
+            Manage the different media types used in your application.
+          </p>
+        </div>
+
+        <div className="flex gap-4 flex-wrap">
           <Button
             variant="destructive"
             size="sm"
             onClick={handleDeleteAllMediaTypes}
             disabled={isDeleting || isLoading || !mediaTypes?.length}
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <Trash2 className="h-4 w-4 mr-1" />
             {isDeleting ? 'Deleting...' : 'Delete All Media Types'}
           </Button>
         </div>

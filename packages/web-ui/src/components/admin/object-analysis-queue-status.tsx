@@ -8,10 +8,10 @@ export function ObjectAnalysisQueueStatus() {
   return (
     <QueueStatus
       queueName="objectAnalysisQueue"
-      title="Object Analysis Queue"
+      title="Objects Queue"
       icon={Brain}
       fetchStats={getObjectAnalysisQueueStats}
-      emptyStateDescription="No objects analysis jobs in queue"
+      emptyStateDescription="No objects jobs in queue"
       renderActiveJob={(job) => (
         <div className="text-xs text-muted-foreground space-y-1">
           <div>Media ID: {job.data.id}</div>

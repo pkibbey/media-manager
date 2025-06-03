@@ -2,6 +2,7 @@
 
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
+import type { QueueName, QueueState } from 'shared/types';
 
 const connection = new IORedis(
   process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
@@ -18,75 +19,30 @@ const connection = new IORedis(
  * @returns Boolean indicating success
  */
 export async function resetQueueState(
-  queueName: string,
-  state: string,
+  queueName: QueueName,
+  state: QueueState,
 ): Promise<boolean> {
   try {
-    // Validate state parameter - these are the valid BullMQ job states
-    const validStates = [
-      'waiting',
-      'active',
-      'completed',
-      'failed',
-      'delayed',
-      'paused',
-      'waiting-children',
-      'prioritized',
-    ];
-    if (!validStates.includes(state)) {
-      console.error(
-        `Invalid state. Valid states are: ${validStates.join(', ')}`,
-      );
-      return false;
-    }
-
     const queue = new Queue(queueName, { connection });
-
-    // Clean jobs by state
-    let removedCount = 0;
 
     switch (state) {
       case 'completed':
-        removedCount = (await queue.clean(
-          0,
-          1000000,
-          'completed',
-        )) as unknown as number;
+        await queue.clean(0, 1000000, 'completed');
         break;
       case 'failed':
-        removedCount = (await queue.clean(
-          0,
-          1000000,
-          'failed',
-        )) as unknown as number;
+        await queue.clean(0, 1000000, 'failed');
         break;
       case 'waiting':
-        removedCount = (await queue.clean(
-          0,
-          1000000,
-          'wait',
-        )) as unknown as number;
+        await queue.clean(0, 1000000, 'wait');
         break;
       case 'delayed':
-        removedCount = (await queue.clean(
-          0,
-          1000000,
-          'delayed',
-        )) as unknown as number;
+        await queue.clean(0, 1000000, 'delayed');
         break;
       case 'paused':
-        removedCount = (await queue.clean(
-          0,
-          1000000,
-          'paused',
-        )) as unknown as number;
+        await queue.clean(0, 1000000, 'paused');
         break;
       case 'prioritized':
-        removedCount = (await queue.clean(
-          0,
-          1000000,
-          'prioritized',
-        )) as unknown as number;
+        await queue.clean(0, 1000000, 'prioritized');
         break;
       default:
         console.error(`State ${state} is not supported for reset operations`);
@@ -94,7 +50,7 @@ export async function resetQueueState(
     }
 
     console.log(
-      `Successfully reset ${removedCount} jobs in state "${state}" from queue "${queueName}"`,
+      `Successfully reset state "${state}" from queue "${queueName}"`,
     );
     return true;
   } catch (error) {

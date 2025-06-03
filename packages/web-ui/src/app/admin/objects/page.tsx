@@ -1,12 +1,12 @@
 'use client';
 
 import { resetBasicData } from '@/actions/basic/reset-basic-data';
-import { ActionButton } from '@/components/admin/action-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { AdminLayout } from '@/components/admin/layout';
 import { ObjectAnalysisQueueStatus } from '@/components/admin/object-analysis-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
+import { ResetDataButton } from '@/components/admin/reset-data-button';
 
 export default function BasicAnalysisAdminPage() {
   return (
@@ -20,18 +20,9 @@ export default function BasicAnalysisAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <AddToQueueButton
-            queueName="objectAnalysisQueue"
-            displayName="Add Object Analysis to Queue"
-          />
+          <AddToQueueButton queueName="objectAnalysisQueue" />
           <PauseQueueButton queueName="objectAnalysisQueue" />
-          <ActionButton
-            action={resetBasicData}
-            variant="destructive"
-            loadingMessage="Resetting analysis data..."
-          >
-            Reset Data
-          </ActionButton>
+          <ResetDataButton action={resetBasicData} />
         </div>
 
         <div className="border-t pt-4">

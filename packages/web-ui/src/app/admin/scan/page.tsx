@@ -9,6 +9,7 @@ import { ActionButton } from '@/components/admin/action-button';
 import { FolderScanQueueStatus } from '@/components/admin/folder-scan-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
+import { ResetDataButton } from '@/components/admin/reset-data-button';
 import { StatsCard } from '@/components/admin/stats-card';
 import {
   Card,
@@ -152,24 +153,17 @@ export default function MediaScanPage() {
               action={scanFolders}
               loadingMessage="Adding folders to scan queue..."
             >
-              <Scan className="h-4 w-4 mr-2" />
+              <Scan className="h-4 w-4 mr-1" />
               Add to Scan Queue
             </ActionButton>
             <PauseQueueButton queueName="folderScanQueue" />
-            <ActionButton
-              action={resetFolderScanData}
-              variant="destructive"
-              loadingMessage="Resetting folder scan queue..."
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Reset Scan Queue
-            </ActionButton>
+            <ResetDataButton action={resetFolderScanData} />
             <ActionButton
               action={deleteAllMediaItems}
               variant="destructive"
               loadingMessage="Deleting all media items..."
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-4 w-4 mr-1" />
               Delete All Media
             </ActionButton>
           </CardFooter>

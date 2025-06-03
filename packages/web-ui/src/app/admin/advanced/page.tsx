@@ -1,13 +1,12 @@
 'use client';
 
 import { resetAdvancedData } from '@/actions/advanced/reset-advanced-data';
-
-import { ActionButton } from '@/components/admin/action-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { AdvancedAnalysisQueueStatus } from '@/components/admin/advanced-analysis-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
+import { ResetDataButton } from '@/components/admin/reset-data-button';
 
 export default function AdvancedAnalysisAdminPage() {
   return (
@@ -21,18 +20,9 @@ export default function AdvancedAnalysisAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <AddToQueueButton
-            queueName="advancedAnalysisQueue"
-            displayName="Add Advanced Processing to Queue"
-          />
+          <AddToQueueButton queueName="advancedAnalysisQueue" />
           <PauseQueueButton queueName="advancedAnalysisQueue" />
-          <ActionButton
-            action={resetAdvancedData}
-            variant="destructive"
-            loadingMessage="Resetting analysis data..."
-          >
-            Reset Data
-          </ActionButton>
+          <ResetDataButton action={resetAdvancedData} />
         </div>
 
         <div className="border-t pt-4">

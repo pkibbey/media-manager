@@ -1,10 +1,10 @@
 import { resetExifData } from '@/actions/exif/reset-exif-data';
-import { ActionButton } from '@/components/admin/action-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { ExifQueueStatus } from '@/components/admin/exif-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
+import { ResetDataButton } from '@/components/admin/reset-data-button';
 
 export default function ExifAdminPage() {
   return (
@@ -18,18 +18,9 @@ export default function ExifAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <AddToQueueButton
-            queueName="exifQueue"
-            displayName="Populate EXIF Queue"
-          />
+          <AddToQueueButton queueName="exifQueue" />
           <PauseQueueButton queueName="exifQueue" />
-          <ActionButton
-            action={resetExifData}
-            variant="destructive"
-            loadingMessage="Deleting EXIF data..."
-          >
-            Reset Data
-          </ActionButton>
+          <ResetDataButton action={resetExifData} />
         </div>
 
         <div className="border-t pt-4">

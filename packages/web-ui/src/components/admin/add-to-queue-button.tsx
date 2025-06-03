@@ -1,26 +1,22 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
 import { useState } from 'react';
+import type { QueueName } from 'shared/types';
 
 interface AddToQueueButtonProps {
-  queueName: string;
-  displayName?: string;
+  queueName: QueueName;
   icon?: React.ComponentType<{ className?: string }>;
   className?: string;
 }
 
 export function AddToQueueButton({
   queueName,
-  displayName,
-  icon: Icon = Plus,
+  icon: Icon = Upload,
   className,
 }: AddToQueueButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-
-  const buttonText =
-    displayName || `Add ${queueName.replace(/Queue$/, '')} to Queue`;
 
   const handleAddToQueue = async () => {
     setIsLoading(true);
@@ -60,7 +56,7 @@ export function AddToQueueButton({
       ) : (
         <>
           <Icon className="mr-2 h-4 w-4" />
-          {buttonText}
+          Populate Queue
         </>
       )}
     </Button>

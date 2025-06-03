@@ -1,12 +1,12 @@
 'use client';
 
 import { resetDuplicatesData } from '@/actions/duplicates/reset-duplicates-data';
-import { ActionButton } from '@/components/admin/action-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { DuplicatesQueueStatus } from '@/components/admin/duplicates-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
+import { ResetDataButton } from '@/components/admin/reset-data-button';
 
 export default function DuplicatesAdminPage() {
   return (
@@ -20,18 +20,9 @@ export default function DuplicatesAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <AddToQueueButton
-            queueName="duplicatesQueue"
-            displayName="Add Duplicates to Queue"
-          />
+          <AddToQueueButton queueName="duplicatesQueue" />
           <PauseQueueButton queueName="duplicatesQueue" />
-          <ActionButton
-            action={resetDuplicatesData}
-            variant="destructive"
-            loadingMessage="Resetting duplicates data..."
-          >
-            Reset Data
-          </ActionButton>
+          <ResetDataButton action={resetDuplicatesData} />
         </div>
 
         <div className="border-t pt-4">

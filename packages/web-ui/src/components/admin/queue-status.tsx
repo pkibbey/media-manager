@@ -1,6 +1,5 @@
 'use client';
 
-import type { QueueStats } from '@/actions/queue/get-queue-stats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,9 +12,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { QueueName, QueueStats } from 'shared/types';
 
 interface QueueStatusProps {
-  queueName: string;
+  queueName: QueueName;
   title: string;
   icon: LucideIcon;
   fetchStats: () => Promise<QueueStats>;

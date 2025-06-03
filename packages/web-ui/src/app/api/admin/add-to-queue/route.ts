@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import type { QueueConfig, QueueName } from 'shared/types';
 
 // Import all queue functions
 import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
@@ -9,7 +10,7 @@ import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
 import { addRemainingToThumbnailsQueue } from '@/actions/thumbnails/process-thumbnail';
 
 // Queue configuration mapping
-const QUEUE_ACTIONS = {
+const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
   advancedAnalysisQueue: {
     action: addAdvancedToQueue,
     name: 'Advanced Analysis',
@@ -38,7 +39,7 @@ const QUEUE_ACTIONS = {
 
 export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const queueName = searchParams.get('queueName') as keyof typeof QUEUE_ACTIONS;
+  const queueName = searchParams.get('queueName') as QueueName;
 
   if (!queueName) {
     return NextResponse.json(

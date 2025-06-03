@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ActionButton } from './action-button';
 import { Pause, Play } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import type { QueueName } from 'shared/types';
+import { ActionButton } from './action-button';
 
 interface PauseQueueButtonProps {
-  queueName: string;
+  queueName: QueueName;
 }
 
 export function PauseQueueButton({ queueName }: PauseQueueButtonProps) {
