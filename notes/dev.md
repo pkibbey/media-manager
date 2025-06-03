@@ -9,3 +9,5 @@ Remember to split the advanced analysis into standard and advanced processing
 add abilty to retry failed jobs
 
 Replace some of the more expensive tasks with cheaper tasks that run, and then based on something that they discover, add another task to the queue with something more expensive
+
+The queue metrics are not accurate - investigate

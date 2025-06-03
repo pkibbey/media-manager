@@ -34,49 +34,9 @@ function calculateThumbnailPriority(mediaItem: any): number {
     priority += Math.max(0, 100 - Math.log10(sizeMB + 1) * 30);
   }
 
-  // Media type category priority
-  const mimeType = mediaItem.media_types?.mime_type || '';
-  const category = mimeType.split('/')[0];
-
-  switch (category) {
-    case 'image':
-      priority += 50; // Images are fastest to process
-      break;
-    case 'audio':
-      priority += 30; // Audio files are moderately complex
-      break;
-    case 'application':
-      priority += 20; // Applications/documents vary in complexity
-      break;
-    case 'video':
-      priority += 10; // Videos are most complex and slowest
-      break;
-    default:
-      priority += 15; // Unknown types get middle priority
-  }
-
   // Native format bonus (faster processing, no conversion needed)
   if (mediaItem.media_types?.is_native) {
     priority += 15;
-  }
-
-  // Common format bonus (well-optimized processing paths)
-  const commonFormats = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/webp',
-    'image/gif',
-    'video/mp4',
-    'video/webm',
-    'video/quicktime',
-    'audio/mp3',
-    'audio/mpeg',
-    'audio/wav',
-    'audio/ogg',
-  ];
-  if (commonFormats.includes(mimeType.toLowerCase())) {
-    priority += 10;
   }
 
   // Add small random component to break ties and distribute load
@@ -98,6 +58,8 @@ export async function addToThumbnailsQueue() {
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
+        // Only select image mime types for thumbnail processing
+        .ilike('media_types.mime_type', 'image/%')
         .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 
@@ -109,6 +71,13 @@ export async function addToThumbnailsQueue() {
       if (!mediaItems || mediaItems.length === 0) {
         return false;
       }
+
+      console.log(
+        mediaItems.filter((item) =>
+          item.media_types.mime_type.startsWith('image/'),
+        ).length,
+        'image items found for thumbnail processing',
+      );
 
       // Calculate priorities and log distribution for monitoring
       const jobsWithPriorities = mediaItems.map((data) => {

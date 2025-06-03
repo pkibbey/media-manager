@@ -6,15 +6,24 @@ import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
 import { ThumbnailQueueStatus } from '@/components/admin/thumbnail-queue-status';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Trash2 } from 'lucide-react';
 
 export default function ThumbnailAdminPage() {
   return (
     <div className="space-y-6">
+      <Alert className="bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 p-3 rounded mb-4">
+        <AlertTitle>Note</AlertTitle>
+        <AlertDescription>
+          Only image files are processed for thumbnails. Other media types are
+          ignored.
+        </AlertDescription>
+      </Alert>
+
       <div>
         <h2 className="text-2xl font-bold">Thumbnail Management</h2>
         <p className="text-muted-foreground">
-          Manage generation and updates of media thumbnails
+          Manage generation and updates of image thumbnails
         </p>
       </div>
 

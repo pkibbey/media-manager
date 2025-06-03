@@ -1,5 +1,4 @@
 'use client';
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -106,14 +105,14 @@ export function QueueStatus({
 
   // Combine waiting and prioritized jobs for display (prioritized are just waiting jobs with higher priority)
   const effectiveWaiting = stats.waiting + stats.prioritized;
+  const effectiveCompleted = stats.completed + stats.failed;
   const totalJobs =
     stats.active +
     effectiveWaiting +
     stats.delayed +
     stats.paused +
     stats['waiting-children'] +
-    stats.completed +
-    stats.failed;
+    effectiveCompleted;
   const hasActivity = totalJobs > 0;
 
   return (
@@ -158,16 +157,16 @@ export function QueueStatus({
         </div>
 
         {/* Progress Bar */}
-        {hasActivity && stats.completed > 0 && (
+        {hasActivity && effectiveCompleted > 0 && (
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Overall Progress</span>
               <span className="font-medium">
-                {stats.completed} / {totalJobs} items processed
+                {effectiveCompleted} / {totalJobs} items processed
               </span>
             </div>
             <Progress
-              value={(stats.completed / totalJobs) * 100}
+              value={(effectiveCompleted / totalJobs) * 100}
               className="w-full"
             />
           </div>
@@ -401,6 +400,7 @@ export function QueueStatus({
 function formatDuration(ms: number): string {
   if (ms === 0 || !ms || !Number.isFinite(ms)) return 'N/A';
 
+  const fixedSeconds = (ms / 1000).toFixed(2);
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -409,7 +409,7 @@ function formatDuration(ms: number): string {
   if (days > 0) return `${days}d ${hours % 24}h`;
   if (hours > 0) return `${hours}h ${minutes % 60}m`;
   if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-  return `${seconds}s`;
+  return `${fixedSeconds}s`;
 }
 
 function formatRate(rate: number): string {

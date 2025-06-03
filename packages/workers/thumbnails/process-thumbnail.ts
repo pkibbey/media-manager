@@ -5,6 +5,7 @@ dotenv.config({ path: '../../../.env.local' });
 
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
+import exifr from 'exifr';
 import sharp from 'sharp';
 
 import {
@@ -336,8 +337,6 @@ async function processMediaItem(
     });
   }
 
-  console.log('visualHash: ', visualHash);
-
   // Step 5: Store thumbnail
   const storeStart = Date.now();
   let thumbnailUrl: string | null = null;
@@ -458,6 +457,99 @@ export async function processThumbnail({
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     console.log('errorMessage: ', errorMessage);
+    return false;
+  }
+}
+
+/**
+ * Fast thumbnail generation for speed-critical workflows.
+ * This function prioritizes speed over accuracy and does not generate hashes or use fallbacks.
+ * It uses sharp to quickly resize and save a JPEG thumbnail.
+ *
+ * @param params - Object containing processing parameters
+ * @param params.mediaId - The ID of the media item to process
+ * @param params.mediaPath - The file system path to the media file
+ * @returns Result object with success status and thumbnail URL if available
+ */
+export async function processThumbnailFast({
+  mediaId,
+  mediaPath,
+}: {
+  mediaId: string;
+  mediaPath: string;
+}): Promise<boolean> {
+  try {
+    if (!mediaPath) {
+      return false;
+    }
+
+    // Fastest thumbnail: just resize and save as JPEG
+    const thumbnailBuffer = await sharp(mediaPath)
+      .resize({
+        width: THUMBNAIL_SIZE,
+        height: THUMBNAIL_SIZE,
+        fit: 'cover',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: THUMBNAIL_QUALITY })
+      .toBuffer();
+
+    // Store thumbnail (reuse storeThumbnail logic)
+    const storageResult = await storeThumbnail(mediaId, thumbnailBuffer);
+    if (storageResult.success && storageResult.thumbnailUrl) {
+      // Optionally update DB with just the thumbnail URL
+      const supabase = createSupabase();
+      await supabase
+        .from('media')
+        .update({ thumbnail_url: storageResult.thumbnailUrl })
+        .eq('id', mediaId);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ultra-fast thumbnail generation: prioritizes speed by extracting embedded EXIF thumbnail if available,
+ * otherwise falls back to sharp resize. No hashes, no fallbacks, just speed.
+ *
+ * @param params - Object containing processing parameters
+ * @param params.mediaId - The ID of the media item to process
+ * @param params.mediaPath - The file system path to the media file
+ * @returns Result object with success status and thumbnail URL if available
+ */
+export async function processThumbnailUltra({
+  mediaId,
+  mediaPath,
+}: {
+  mediaId: string;
+  mediaPath: string;
+}): Promise<boolean> {
+  try {
+    if (!mediaPath) return false;
+
+    // Use exifr.thumbnail directly on the file path for fastest chunked reading
+    const exifThumb = await exifr.thumbnail(mediaPath);
+    if (!exifThumb || !Buffer.isBuffer(exifThumb) || exifThumb.length === 0) {
+      // Fail fast if no embedded thumbnail
+      return false;
+    }
+
+    // Store thumbnail (reuse storeThumbnail logic)
+    const storageResult = await storeThumbnail(mediaId, exifThumb);
+    if (storageResult.success && storageResult.thumbnailUrl) {
+      // Optionally update DB with just the thumbnail URL
+      const supabase = createSupabase();
+      await supabase
+        .from('media')
+        .update({ thumbnail_url: storageResult.thumbnailUrl })
+        .eq('id', mediaId);
+      return true;
+    }
+    return false;
+  } catch {
     return false;
   }
 }

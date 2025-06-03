@@ -76,7 +76,7 @@ export default function Home() {
   }, [fetchMedia]);
 
   return (
-    <AdminLayout title="Media Management">
+    <AdminLayout>
       <div className="h-full flex flex-col max-w-full p-0">
         <Card className="h-full flex flex-col border-0 rounded-none bg-transparent">
           <div className="px-6 py-4 border-b flex justify-end items-center">

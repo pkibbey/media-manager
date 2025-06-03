@@ -1,7 +1,10 @@
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
-import { processThumbnail } from './process-thumbnail';
+import {
+  processThumbnailFast,
+  processThumbnailUltra,
+} from './process-thumbnail';
 
 interface ThumbnailJobData {
   id: string;
@@ -32,16 +35,21 @@ const workerProcessor = async (
       throw new Error('No media path provided for thumbnail generation');
     }
 
-    // Process the thumbnail
-    // The processThumbnail function handles thumbnail generation,
-    // uploads to storage, and database updates
-    const result = await processThumbnail({
+    // Generate the thumbnail
+    const result = await processThumbnailUltra({
       mediaId,
       mediaPath,
     });
 
     if (!result) {
-      throw new Error('Failed to generate thumbnail');
+      const fallback = await processThumbnailFast({
+        mediaId,
+        mediaPath,
+      });
+
+      if (!fallback) {
+        throw new Error('Failed to generate thumbnail');
+      }
     }
 
     return true;

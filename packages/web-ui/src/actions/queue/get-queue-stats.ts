@@ -109,14 +109,16 @@ async function calculateQueueMetrics(
     const recentCompleted = await queue.getJobs(
       ['completed'],
       0,
-      200, // Increased sample size for better metrics
-      true, // asc: false (newest first)
+      1000, // Limit to 1000 recent jobs for accuracy
+      false, // asc: false (newest first)
     );
 
-    // Get failed jobs for retry analysis
-    const recentFailed = await queue.getJobs(['failed'], 0, 100, true);
+    recentCompleted;
 
-    // Filter jobs by time range
+    // Get failed jobs for retry analysis
+    const recentFailed = await queue.getJobs(['failed'], 0, 500, false);
+
+    // Filter jobs by time range - BullMQ stores timestamps in milliseconds
     const completedLast5Min = recentCompleted.filter(
       (job) => job.finishedOn && job.finishedOn > fiveMinutesAgo,
     );
@@ -127,15 +129,36 @@ async function calculateQueueMetrics(
       (job) => job.finishedOn && job.finishedOn > oneHourAgo,
     );
 
-    // Calculate processing rate (jobs per second) with fallback strategies
-    let processingRate = completedLast5Min.length / (5 * 60); // jobs per second from last 5 min
+    // Calculate processing rate (jobs per second) with improved logic
+    let processingRate = 0;
 
-    // Fallback 1: If no jobs completed in 5 min, use 1 hour data
-    if (processingRate === 0 && completedLastHour.length > 0) {
-      processingRate = completedLastHour.length / (60 * 60); // jobs per second from last hour
+    // Primary: Use 5-minute window for most accurate recent rate
+    if (completedLast5Min.length > 0) {
+      processingRate = completedLast5Min.length / (5 * 60); // jobs per second
+    }
+    // Fallback 1: Use 1-hour window if no recent activity
+    else if (completedLastHour.length > 0) {
+      processingRate = completedLastHour.length / (60 * 60); // jobs per second
+    }
+    // Fallback 2: Estimate from current throughput if we have completed jobs
+    else if (recentCompleted.length > 0) {
+      // Use the most recent completed jobs to estimate rate
+      const recentJobs = recentCompleted.slice(0, 50);
+      const validJobs = recentJobs.filter((job) => job.finishedOn);
+
+      if (validJobs.length >= 2) {
+        // Calculate time span of recent jobs
+        const oldestTime = Math.min(...validJobs.map((job) => job.finishedOn!));
+        const newestTime = Math.max(...validJobs.map((job) => job.finishedOn!));
+        const timeSpanMs = newestTime - oldestTime;
+
+        if (timeSpanMs > 0) {
+          processingRate = (validJobs.length - 1) / (timeSpanMs / 1000); // jobs per second
+        }
+      }
     }
 
-    // Fallback 2: If still no rate, estimate from active jobs and average processing time
+    // Fallback 3: Estimate from active jobs and average processing time
     let fallbackProcessingRate = 0;
     if (processingRate === 0 && counts.active > 0) {
       // Use all available completed jobs to estimate average processing time
@@ -256,7 +279,13 @@ async function calculateQueueMetrics(
 
     // Calculate concurrency metrics
     const currentConcurrency = counts.active || 0;
-    const maxConcurrency = Math.max(currentConcurrency, 10); // Could be enhanced with historical tracking
+    // FIXED: Better max concurrency calculation
+    const maxConcurrency = Math.max(
+      currentConcurrency,
+      completedLastHour.length > 0
+        ? Math.ceil(completedLastHour.length / (60 * 60)) * 10
+        : 10,
+    );
     const averageConcurrency = currentConcurrency; // Simplified - could track over time
 
     // Get stalled jobs count from queue counts (if available)
