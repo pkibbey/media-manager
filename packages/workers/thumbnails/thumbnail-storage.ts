@@ -1,7 +1,6 @@
 import { createSupabase } from 'shared/supabase';
 import type { TablesUpdate } from 'shared/types';
 import { v4 } from 'uuid';
-import { setMediaAsThumbnailProcessed } from './set-media-as-thumbnail-processed';
 
 interface StorageResult {
   success: boolean;
@@ -52,15 +51,6 @@ export async function storeThumbnail(
     if (upsertError) {
       throw new Error(
         `Failed to upsert thumbnail data: ${upsertError.message}`,
-      );
-    }
-
-    // Update the media item status
-    const { error: updateError } = await setMediaAsThumbnailProcessed(mediaId);
-
-    if (updateError) {
-      throw new Error(
-        `Failed to update media item with thumbnail URL: ${updateError.message}`,
       );
     }
 

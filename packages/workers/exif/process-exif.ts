@@ -20,13 +20,6 @@ export async function processExif(
     const exif = await exiftool.read(mediaItem.media_path);
 
     if (!exif) {
-      // Update media item as processed even if no EXIF data was found
-      const supabase = createSupabase();
-      await supabase
-        .from('media')
-        .update({ is_exif_processed: true })
-        .eq('id', mediaItem.id);
-
       return {
         success: true,
         mediaId: mediaItem.id,
@@ -73,10 +66,10 @@ export async function processExif(
       flash: exif.Flash || null,
     };
 
-    // Save EXIF data to database and update media flag
+    // Save EXIF data to database
     const supabase = createSupabase();
 
-    // 1. Insert/update the EXIF data
+    // Insert/update the EXIF data
     const { error: insertError } = await supabase
       .from('exif_data')
       .upsert(exifData, {
@@ -85,18 +78,6 @@ export async function processExif(
 
     if (insertError) {
       throw new Error(`Failed to save EXIF data: ${insertError.message}`);
-    }
-
-    // 2. Update the media item as processed
-    const { error: updateError } = await supabase
-      .from('media')
-      .update({ is_exif_processed: true })
-      .eq('id', mediaItem.id);
-
-    if (updateError) {
-      throw new Error(
-        `Failed to update media processing status: ${updateError.message}`,
-      );
     }
 
     return {

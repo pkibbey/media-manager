@@ -92,26 +92,6 @@ const workerProcessor = async (
       );
     }
 
-    // Update the 'media' table to mark as processed
-    const { error: mediaUpdateError } = await supabase
-      .from('media')
-      .update({ is_content_warnings_processed: true })
-      .eq('id', mediaId);
-
-    if (mediaUpdateError) {
-      console.error(
-        `[Worker] Failed to update 'is_content_warnings_processed' for media ID ${mediaId}:`,
-        mediaUpdateError,
-      );
-    } else {
-      console.log(
-        `[Worker] Successfully marked media ID ${mediaId} as content warnings processed.`,
-      );
-    }
-
-    console.log(
-      `[Worker] Detected ${predictions.length} content warnings for media ID ${mediaId}`,
-    );
     return true;
   } catch (error) {
     const errorMessage =

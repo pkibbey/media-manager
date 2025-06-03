@@ -20,21 +20,15 @@ export async function addRemainingToThumbnailsQueue() {
   let offset = 0;
   const batchSize = 1000;
 
-  const { count } = await supabase
-    .from('media')
-    .select('id, media_path', { count: 'exact', head: true })
-    .eq('is_thumbnail_processed', false)
-    .is('is_exif_processed', true);
-
-  console.log('total expected: ', count);
-
   try {
     while (true) {
       const { data: mediaItems, error } = await supabase
         .from('media')
-        .select('id, media_path')
-        .eq('is_thumbnail_processed', false)
-        .is('is_exif_processed', true)
+        .select('id, media_path, media_types!inner(*)')
+        .is('media_types.is_ignored', false)
+        .is('is_deleted', false)
+        .is('is_hidden', false)
+        .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 
       if (error) {

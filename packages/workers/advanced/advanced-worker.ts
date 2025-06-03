@@ -57,23 +57,6 @@ const workerProcessor = async (
       );
     }
 
-    // Update the 'media' table to mark as processed
-    const { error: mediaUpdateError } = await supabase
-      .from('media')
-      .update({ is_advanced_processed: true })
-      .eq('id', mediaId);
-
-    if (mediaUpdateError) {
-      console.error(
-        `[Worker] Failed to update 'is_advanced_processed' for media ID ${mediaId}:`,
-        mediaUpdateError,
-      );
-    } else {
-      console.log(
-        `[Worker] Successfully marked media ID ${mediaId} as advanced processed.`,
-      );
-    }
-
     return true;
   } catch (error) {
     const errorMessage =

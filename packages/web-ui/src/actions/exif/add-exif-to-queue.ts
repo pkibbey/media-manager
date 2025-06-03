@@ -23,9 +23,7 @@ export async function addExifToQueue() {
     while (true) {
       const { data: mediaItems, error } = await supabase
         .from('media')
-        .select(
-          'id, media_path, media_type_id, is_deleted, is_hidden, media_types(id, is_ignored, mime_type)',
-        )
+        .select('*, media_types!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)

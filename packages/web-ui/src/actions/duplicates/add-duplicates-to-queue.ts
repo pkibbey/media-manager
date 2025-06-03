@@ -23,9 +23,12 @@ export async function addRemainingToDuplicatesQueue() {
     while (true) {
       const { data: mediaItems, error } = await supabase
         .from('media')
-        .select('id, visual_hash')
-        .eq('is_duplicates_processed', false)
+        .select('id, visual_hash, media_types!inner(*)')
+        .is('media_types.is_ignored', false)
+        .is('is_deleted', false)
+        .is('is_hidden', false)
         .not('visual_hash', 'is', null) // Must have a visual hash
+        .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 
       if (error) {

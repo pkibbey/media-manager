@@ -3,10 +3,10 @@ import type { QueueConfig, QueueName } from 'shared/types';
 
 // Import all queue functions
 import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
-import { addBasicToQueue } from '@/actions/basic/add-basic-to-queue';
 import { addContentWarningsToQueue } from '@/actions/content-warnings/add-content-warnings-to-queue';
 import { addRemainingToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
 import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
+import { addObjectsToQueue } from '@/actions/objects/add-objects-to-queue';
 import { addRemainingToThumbnailsQueue } from '@/actions/thumbnails/process-thumbnail';
 
 // Queue configuration mapping
@@ -16,7 +16,7 @@ const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
     name: 'Advanced Analysis',
   },
   objectAnalysisQueue: {
-    action: addBasicToQueue,
+    action: addObjectsToQueue,
     name: 'Object Analysis',
   },
   contentWarningsQueue: {

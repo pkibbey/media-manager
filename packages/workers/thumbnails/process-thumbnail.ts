@@ -375,7 +375,6 @@ async function processMediaItem(
   try {
     const supabase = createSupabase();
     const updateFields: TablesUpdate<'media'> = {
-      is_thumbnail_processed: true,
       visual_hash: visualHash || undefined,
       file_hash: fileHash || undefined,
       thumbnail_url: thumbnailUrl || undefined,
@@ -404,27 +403,6 @@ async function processMediaItem(
       error: error instanceof Error ? error.message : 'DB update failed',
       durationMs: Date.now() - dbStart,
     });
-
-    // Even if the main update fails, try to at least mark as processed
-    try {
-      const supabase = createSupabase();
-      await supabase
-        .from('media')
-        .update({ is_thumbnail_processed: true })
-        .eq('id', mediaItem.id);
-      result.steps.push({
-        name: 'Fallback DB Update',
-        success: true,
-        durationMs: Date.now() - dbStart,
-      });
-    } catch (_fallbackError) {
-      result.steps.push({
-        name: 'Fallback DB Update',
-        success: false,
-        error: 'Could not mark as processed',
-        durationMs: Date.now() - dbStart,
-      });
-    }
   }
 
   result.steps.forEach((step) => {

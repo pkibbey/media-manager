@@ -4,12 +4,9 @@ import { deleteAllMediaItems } from '@/actions/admin/delete-all-media';
 import { getMediaScanPaths } from '@/actions/admin/get-media-scan-paths';
 import { getScanStats } from '@/actions/admin/get-scan-stats';
 import { addFoldersToScanQueue } from '@/actions/folder-scan/add-folder-scan-to-queue';
-import { resetFolderScanData } from '@/actions/folder-scan/reset-folder-scan-data';
 import { ActionButton } from '@/components/admin/action-button';
 import { FolderScanQueueStatus } from '@/components/admin/folder-scan-queue-status';
-import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
-import { ResetDataButton } from '@/components/admin/reset-data-button';
 import { StatsCard } from '@/components/admin/stats-card';
 import {
   Card,
@@ -93,85 +90,80 @@ export default function MediaScanPage() {
   };
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">Media Scanner</h2>
-          <p className="text-muted-foreground">
-            Scan directories and import new media files
-          </p>
-        </div>
-
-        <StatsCard
-          title="Media Library Status"
-          total={scanStats?.total || 0}
-          processed={scanStats?.processed || 0}
-          icon={<FolderSearch className="h-4 w-4" />}
-          className="w-full"
-        />
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Scan Media Directory</CardTitle>
-            <CardDescription>
-              Add directories to the scan queue for automatic media file import
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div>
-                <Input
-                  id="folder-path"
-                  placeholder="/path/to/media/folder, /another/path"
-                  value={folderPaths}
-                  onChange={(e) => setFolderPaths(e.target.value)}
-                  className={
-                    folderPaths
-                      .split(',')
-                      .some((p) => p.trim() !== '' && !p.trim().startsWith('/'))
-                      ? 'border-red-500'
-                      : ''
-                  }
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Enter one or more absolute folder paths, separated by commas
-                </p>
-                {folderPaths
-                  .split(',')
-                  .some(
-                    (p) => p.trim() !== '' && !p.trim().startsWith('/'),
-                  ) && (
-                  <p className="text-xs text-red-500 mt-1">
-                    All paths must be absolute (start with /)
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-wrap gap-2">
-            <ActionButton
-              action={scanFolders}
-              loadingMessage="Adding folders to scan queue..."
-            >
-              <Scan className="h-4 w-4 mr-1" />
-              Add to Scan Queue
-            </ActionButton>
-            <PauseQueueButton queueName="folderScanQueue" />
-            <ResetDataButton action={resetFolderScanData} />
-            <ActionButton
-              action={deleteAllMediaItems}
-              variant="destructive"
-              loadingMessage="Deleting all media items..."
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete All Media
-            </ActionButton>
-          </CardFooter>
-        </Card>
-
-        {/* Real-time Queue Status - This shows the dynamic updates! */}
-        <FolderScanQueueStatus />
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Media Scanner</h2>
+        <p className="text-muted-foreground">
+          Scan directories and import new media files
+        </p>
       </div>
-    </AdminLayout>
+
+      <StatsCard
+        title="Media Library Status"
+        total={scanStats?.total || 0}
+        processed={scanStats?.processed || 0}
+        icon={<FolderSearch className="h-4 w-4" />}
+        className="w-full"
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Scan Media Directory</CardTitle>
+          <CardDescription>
+            Add directories to the scan queue for automatic media file import
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div>
+              <Input
+                id="folder-path"
+                placeholder="/path/to/media/folder, /another/path"
+                value={folderPaths}
+                onChange={(e) => setFolderPaths(e.target.value)}
+                className={
+                  folderPaths
+                    .split(',')
+                    .some((p) => p.trim() !== '' && !p.trim().startsWith('/'))
+                    ? 'border-red-500'
+                    : ''
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter one or more absolute folder paths, separated by commas
+              </p>
+              {folderPaths
+                .split(',')
+                .some((p) => p.trim() !== '' && !p.trim().startsWith('/')) && (
+                <p className="text-xs text-red-500 mt-1">
+                  All paths must be absolute (start with /)
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-wrap gap-2">
+          <ActionButton
+            action={scanFolders}
+            loadingMessage="Adding folders to scan queue..."
+          >
+            <Scan className="h-4 w-4 mr-1" />
+            Add to Scan Queue
+          </ActionButton>
+          <PauseQueueButton queueName="folderScanQueue" />
+          <ActionButton
+            action={deleteAllMediaItems}
+            variant="destructive"
+            loadingMessage="Deleting all media items..."
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete All Media
+          </ActionButton>
+        </CardFooter>
+      </Card>
+
+      {/* Real-time Queue Status - This shows the dynamic updates! */}
+      <FolderScanQueueStatus />
+    </div>
   );
 }

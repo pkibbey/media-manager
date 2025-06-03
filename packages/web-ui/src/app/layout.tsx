@@ -1,7 +1,6 @@
 import { GeistSans } from 'geist/font/sans';
 import type { Metadata } from 'next';
 import './globals.css';
-import { Header } from '@/components/navigation/header';
 import { Toaster } from '@/components/ui/sonner';
 export const metadata: Metadata = {
   title: 'Media Manager',
@@ -18,7 +17,6 @@ export default function RootLayout({
       <body
         className={`${GeistSans.className} dark min-h-screen bg-background flex flex-col`}
       >
-        <Header />
         <main className="flex-1">{children}</main>
         <Toaster />
       </body>

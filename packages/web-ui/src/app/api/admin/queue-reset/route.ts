@@ -1,10 +1,11 @@
-import { resetQueueState } from '@/actions/admin/reset-queue-state';
+import { resetQueueState } from '@/actions/queue/reset-queue-state';
 import { type NextRequest, NextResponse } from 'next/server';
+import type { QueueName, QueueState } from 'shared/types';
 
 export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const queueName = searchParams.get('queueName');
-  const state = searchParams.get('state');
+  const queueName = searchParams.get('queueName') as QueueName;
+  const state = searchParams.get('state') as QueueState;
 
   if (!queueName) {
     return NextResponse.json(

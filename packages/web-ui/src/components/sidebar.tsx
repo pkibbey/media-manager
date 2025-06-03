@@ -1,0 +1,85 @@
+'use client';
+
+import { Button } from '@/components/ui/button';
+import {
+  AlertTriangle,
+  Bot,
+  Copy,
+  Eye,
+  FileText,
+  Image,
+  Search,
+  Zap,
+} from 'lucide-react';
+import { usePathname } from 'next/navigation';
+
+const navItemGroups = [
+  {
+    category: 'Media',
+    items: [{ href: '/', label: 'Browse', icon: Image }],
+  },
+  {
+    category: 'Scan',
+    items: [
+      { href: '/admin/scan', label: 'Scan', icon: Search },
+      { href: '/admin/file-types', label: 'File Types', icon: Image },
+      { href: '/admin/duplicates', label: 'Duplicates', icon: Copy },
+    ],
+  },
+  {
+    category: 'Processing',
+    items: [
+      {
+        href: '/admin/content-warnings',
+        label: 'Content Warnings',
+        icon: AlertTriangle,
+      },
+      { href: '/admin/objects', label: 'Object Detection', icon: Eye },
+      { href: '/admin/thumbnails', label: 'Thumbnails', icon: Zap },
+      { href: '/admin/advanced', label: 'Advanced Analysis', icon: Bot },
+      { href: '/admin/exif', label: 'EXIF Data', icon: FileText },
+    ],
+  },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <div className="space-y-4 w-64">
+      {navItemGroups.map((group) => (
+        <div key={group.category}>
+          <h3 className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            {group.category}
+          </h3>
+          <div className="space-y-1">
+            {group.items.map((item) => {
+              const isActive = pathname === item.href;
+              const IconComponent = item.icon;
+              return (
+                <Button
+                  key={item.href}
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                >
+                  <a
+                    href={item.href}
+                    className={
+                      isActive
+                        ? 'flex items-center gap-2 bg-slate-100 dark:bg-slate-800 font-medium'
+                        : 'flex items-center gap-2'
+                    }
+                  >
+                    <IconComponent className="h-4 w-4" />
+                    {item.label}
+                  </a>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

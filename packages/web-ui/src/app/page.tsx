@@ -4,13 +4,7 @@ import { getMedia } from '@/actions/admin/get-media';
 import { MediaFilters } from '@/components/media/media-list/media-filters';
 import { MediaListContainer } from '@/components/media/media-list/media-list-container';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
   Pagination,
   PaginationContent,
@@ -24,6 +18,7 @@ import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { PAGE_SIZE } from 'shared/consts';
 import type { MediaFiltersType, MediaWithRelations } from 'shared/types';
+import AdminLayout from './admin/layout';
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -81,11 +76,10 @@ export default function Home() {
   }, [fetchMedia]);
 
   return (
-    <div className="h-full flex flex-col max-w-full p-0">
-      <Card className="h-full flex flex-col border-0 rounded-none bg-transparent">
-        <CardHeader className="px-6 py-4 border-b flex-row justify-between items-center">
-          <CardTitle className="text-2xl">Media</CardTitle>
-          <div className="flex gap-2">
+    <AdminLayout title="Media Management">
+      <div className="h-full flex flex-col max-w-full p-0">
+        <Card className="h-full flex flex-col border-0 rounded-none bg-transparent">
+          <div className="px-6 py-4 border-b flex justify-end items-center">
             <Button
               variant="outline"
               onClick={() => setFiltersOpen((prev) => !prev)}
@@ -93,136 +87,140 @@ export default function Home() {
               {filtersOpen ? 'Hide Filters' : 'Show Filters'}
             </Button>
           </div>
-        </CardHeader>
 
-        {filtersOpen && (
-          <div className="border-b bg-muted/30 p-4">
-            <MediaFilters
-              filters={filters}
-              onFilterChange={handleFilterChange}
-            />
-          </div>
-        )}
-
-        <CardContent className="flex-1 min-h-0 p-0">
-          {loading ? (
-            <div className="h-full flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          {filtersOpen && (
+            <div className="border-b bg-muted/30 p-4">
+              <MediaFilters
+                filters={filters}
+                onFilterChange={handleFilterChange}
+              />
             </div>
-          ) : (
-            <MediaListContainer media={media} totalCount={totalCount} />
           )}
-        </CardContent>
 
-        <CardFooter className="px-6 py-4 border-t justify-between items-center">
-          <div className="text-sm text-muted-foreground">
-            {totalCount} total files
-          </div>
+          <CardContent className="flex-1 min-h-0 p-0">
+            {loading ? (
+              <div className="h-full flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <MediaListContainer media={media} totalCount={totalCount} />
+            )}
+          </CardContent>
 
-          {totalPages > 1 && (
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() =>
-                      handlePageChange(Math.max(1, currentPage - 1))
-                    }
-                    href="#"
-                    aria-disabled={currentPage === 1}
-                    className={
-                      currentPage === 1 ? 'pointer-events-none opacity-50' : ''
-                    }
-                  />
-                </PaginationItem>
+          <CardFooter className="px-6 py-4 border-t justify-between items-center">
+            <div className="text-sm text-muted-foreground">
+              {totalCount} total files
+            </div>
 
-                {/* First page */}
-                {currentPage > 3 && (
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
                   <PaginationItem>
-                    <PaginationLink
-                      onClick={() => handlePageChange(1)}
+                    <PaginationPrevious
+                      onClick={() =>
+                        handlePageChange(Math.max(1, currentPage - 1))
+                      }
                       href="#"
-                    >
-                      1
-                    </PaginationLink>
+                      aria-disabled={currentPage === 1}
+                      className={
+                        currentPage === 1
+                          ? 'pointer-events-none opacity-50'
+                          : ''
+                      }
+                    />
                   </PaginationItem>
-                )}
 
-                {/* Ellipsis if needed */}
-                {currentPage > 4 && (
-                  <PaginationItem>
-                    <PaginationEllipsis />
-                  </PaginationItem>
-                )}
-
-                {/* Pages around current page */}
-                {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                  // Show 2 pages before and after current page, or adjust for edges
-                  let pageNum: number;
-
-                  if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-
-                  // Skip if page number is out of range
-                  if (pageNum < 1 || pageNum > totalPages) {
-                    return null;
-                  }
-
-                  return (
-                    <PaginationItem key={pageNum}>
+                  {/* First page */}
+                  {currentPage > 3 && (
+                    <PaginationItem>
                       <PaginationLink
-                        isActive={pageNum === currentPage}
-                        onClick={() => handlePageChange(pageNum)}
+                        onClick={() => handlePageChange(1)}
                         href="#"
                       >
-                        {pageNum}
+                        1
                       </PaginationLink>
                     </PaginationItem>
-                  );
-                })}
+                  )}
 
-                {/* Ellipsis if needed */}
-                {currentPage < totalPages - 3 && (
-                  <PaginationItem>
-                    <PaginationEllipsis />
-                  </PaginationItem>
-                )}
+                  {/* Ellipsis if needed */}
+                  {currentPage > 4 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
 
-                {/* Last page */}
-                {currentPage < totalPages - 2 && (
+                  {/* Pages around current page */}
+                  {Array.from({ length: Math.min(5, totalPages) }).map(
+                    (_, i) => {
+                      // Show 2 pages before and after current page, or adjust for edges
+                      let pageNum: number;
+
+                      if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      // Skip if page number is out of range
+                      if (pageNum < 1 || pageNum > totalPages) {
+                        return null;
+                      }
+
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            isActive={pageNum === currentPage}
+                            onClick={() => handlePageChange(pageNum)}
+                            href="#"
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    },
+                  )}
+
+                  {/* Ellipsis if needed */}
+                  {currentPage < totalPages - 3 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+
+                  {/* Last page */}
+                  {currentPage < totalPages - 2 && (
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => handlePageChange(totalPages)}
+                        href="#"
+                      >
+                        {totalPages}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+
                   <PaginationItem>
-                    <PaginationLink
-                      onClick={() => handlePageChange(totalPages)}
+                    <PaginationNext
+                      onClick={() =>
+                        handlePageChange(Math.min(totalPages, currentPage + 1))
+                      }
                       href="#"
-                    >
-                      {totalPages}
-                    </PaginationLink>
+                      aria-disabled={currentPage === totalPages}
+                      className={
+                        currentPage === totalPages
+                          ? 'pointer-events-none opacity-50'
+                          : ''
+                      }
+                    />
                   </PaginationItem>
-                )}
-
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() =>
-                      handlePageChange(Math.min(totalPages, currentPage + 1))
-                    }
-                    href="#"
-                    aria-disabled={currentPage === totalPages}
-                    className={
-                      currentPage === totalPages
-                        ? 'pointer-events-none opacity-50'
-                        : ''
-                    }
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          )}
-        </CardFooter>
-      </Card>
-    </div>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </CardFooter>
+        </Card>
+      </div>
+    </AdminLayout>
   );
 }

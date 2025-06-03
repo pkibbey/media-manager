@@ -46,30 +46,6 @@ export function MediaDetail() {
   const processingStatus = (
     <div className="grid grid-cols-2 gap-4 mt-4">
       <DetailField
-        label="EXIF Data"
-        value={
-          <Badge variant={media.is_exif_processed ? 'success' : 'outline'}>
-            {media.is_exif_processed ? 'Processed' : 'Pending'}
-          </Badge>
-        }
-      />
-      <DetailField
-        label="Thumbnail"
-        value={
-          <Badge variant={media.is_thumbnail_processed ? 'success' : 'outline'}>
-            {media.is_thumbnail_processed ? 'Generated' : 'Pending'}
-          </Badge>
-        }
-      />
-      <DetailField
-        label="Analysis"
-        value={
-          <Badge variant={media.is_objects_processed ? 'success' : 'outline'}>
-            {media.is_objects_processed ? 'Complete' : 'Pending'}
-          </Badge>
-        }
-      />
-      <DetailField
         label="Status"
         value={
           media.is_deleted ? (
@@ -125,28 +101,6 @@ export function MediaDetail() {
               selectedMedia.reduce((sum, file) => sum + file.size_bytes, 0),
             )}
           </p>
-
-          {/* Processing status */}
-          <div className="mt-4">
-            <h3 className="text-sm font-medium">Processing Status:</h3>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2">
-              <div>
-                EXIF Processed:{' '}
-                {selectedMedia.filter((m) => m.is_exif_processed).length}
-              </div>
-              <div>
-                Thumbnails:{' '}
-                {selectedMedia.filter((m) => m.is_thumbnail_processed).length}
-              </div>
-              <div>
-                Analysis:{' '}
-                {selectedMedia.filter((m) => m.is_objects_processed).length}
-              </div>
-              <div>
-                Hidden: {selectedMedia.filter((m) => m.is_hidden).length}
-              </div>
-            </div>
-          </div>
 
           {/* Batch operations */}
           <div className="flex gap-2 mt-4">

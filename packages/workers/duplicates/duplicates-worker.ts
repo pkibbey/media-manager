@@ -107,26 +107,6 @@ const workerProcessor = async (
       }
     }
 
-    // Mark as processed regardless of whether duplicates were found
-    const { error: updateError } = await supabase
-      .from('media')
-      .update({ is_duplicates_processed: true })
-      .eq('id', mediaId);
-
-    if (updateError) {
-      console.error(
-        `[Worker] Failed to update is_duplicates_processed for media ID ${mediaId}:`,
-        updateError,
-      );
-    } else {
-      console.log(
-        `[Worker] Successfully marked media ID ${mediaId} as duplicates processed.`,
-      );
-    }
-
-    console.log(
-      `[Worker] Found ${potentialDuplicates?.length || 0} potential duplicates for media ID ${mediaId}`,
-    );
     return true;
   } catch (error) {
     const errorMessage =

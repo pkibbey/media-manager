@@ -1,6 +1,6 @@
 'use client';
 
-import { getObjectAnalysisQueueStats } from '@/actions/object-analysis/get-object-analysis-queue-stats';
+import { getObjectAnalysisQueueStats } from '@/actions/objects/get-objects-queue-stats';
 import { Brain } from 'lucide-react';
 import { QueueStatus } from './queue-status';
 

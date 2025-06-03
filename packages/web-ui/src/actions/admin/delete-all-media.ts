@@ -32,7 +32,13 @@ export async function deleteAllMediaItems(): Promise<boolean> {
       );
 
       if (affectedRows === 0) {
-        // No more items to delete
+        // Empty the storage bucket for thumbnails
+        try {
+          await supabase.storage.from('thumbnails').remove(['*']);
+        } catch (e) {
+          console.error('Exception while emptying thumbnails bucket:', e);
+        }
+
         break;
       }
     }
