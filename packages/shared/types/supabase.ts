@@ -101,21 +101,18 @@ export type Database = {
       }
       duplicates: {
         Row: {
-          created_at: string | null
           duplicate_id: string
           hamming_distance: number
           media_id: string
           similarity_score: number
         }
         Insert: {
-          created_at?: string | null
           duplicate_id: string
           hamming_distance: number
           media_id: string
           similarity_score: number
         }
         Update: {
-          created_at?: string | null
           duplicate_id?: string
           hamming_distance?: number
           media_id?: string

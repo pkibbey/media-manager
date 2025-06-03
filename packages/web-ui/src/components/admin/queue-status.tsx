@@ -4,11 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Activity,
+  AlertCircle,
   CheckCircle2,
   Clock,
   Loader2,
   type LucideIcon,
   Pause,
+  Timer,
+  TrendingUp,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -169,6 +173,174 @@ export function QueueStatus({
           </div>
         )}
 
+        {/* Enhanced Metrics */}
+        {stats.metrics && hasActivity && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Performance Metrics
+            </h4>
+
+            {/* Processing Rate and Time Estimates */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+                <div>
+                  <div className="text-muted-foreground">Processing Rate</div>
+                  <div className="font-medium">
+                    {formatRate(stats.metrics.processingRate)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
+                <Timer className="h-4 w-4 text-blue-500" />
+                <div>
+                  <div className="text-muted-foreground">
+                    Est. Time Remaining
+                  </div>
+                  <div className="font-medium">
+                    {formatDuration(stats.metrics.estimatedTimeRemaining)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
+                <Clock className="h-4 w-4 text-purple-500" />
+                <div>
+                  <div className="text-muted-foreground">
+                    Avg. Processing Time
+                  </div>
+                  <div className="font-medium">
+                    {formatDuration(stats.metrics.averageProcessingTime)}
+                  </div>
+                </div>
+              </div>
+
+              {stats.metrics.errorRate > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                  <div>
+                    <div className="text-muted-foreground">Error Rate</div>
+                    <div className="font-medium text-red-600">
+                      {formatPercentage(stats.metrics.errorRate)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Advanced Performance Metrics */}
+            {(stats.metrics.medianProcessingTime > 0 ||
+              stats.metrics.p95ProcessingTime > 0) && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Processing Time Distribution
+                </h5>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="text-center p-2 bg-muted/10 rounded">
+                    <div className="text-muted-foreground">Median</div>
+                    <div className="font-medium">
+                      {formatDuration(stats.metrics.medianProcessingTime)}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-muted/10 rounded">
+                    <div className="text-muted-foreground">95th %ile</div>
+                    <div className="font-medium">
+                      {formatDuration(stats.metrics.p95ProcessingTime)}
+                    </div>
+                  </div>
+                  <div className="text-center p-2 bg-muted/10 rounded">
+                    <div className="text-muted-foreground">99th %ile</div>
+                    <div className="font-medium">
+                      {formatDuration(stats.metrics.p99ProcessingTime)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Concurrency and Efficiency Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              {stats.metrics.currentConcurrency > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
+                  <Activity className="h-4 w-4 text-orange-500" />
+                  <div>
+                    <div className="text-muted-foreground">Concurrency</div>
+                    <div className="font-medium">
+                      {stats.metrics.currentConcurrency} /{' '}
+                      {stats.metrics.maxConcurrency}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {stats.metrics.queueEfficiency > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  <div>
+                    <div className="text-muted-foreground">
+                      Queue Efficiency
+                    </div>
+                    <div className="font-medium">
+                      {formatPercentage(stats.metrics.queueEfficiency)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {stats.metrics.retryRate > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  <div>
+                    <div className="text-muted-foreground">Retry Rate</div>
+                    <div className="font-medium">
+                      {formatPercentage(stats.metrics.retryRate)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {stats.metrics.stalledJobs > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
+                  <Pause className="h-4 w-4 text-red-500" />
+                  <div>
+                    <div className="text-muted-foreground">Stalled Jobs</div>
+                    <div className="font-medium text-red-600">
+                      {stats.metrics.stalledJobs}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Detailed Statistics */}
+            {(stats.metrics.throughputLast5Min > 0 ||
+              stats.metrics.throughputLast1Hour > 0) && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>
+                  Throughput: {stats.metrics.throughputLast5Min} jobs (last 5m),{' '}
+                  {stats.metrics.throughputLast1Hour} jobs (last 1h)
+                </div>
+                {stats.metrics.queueLatency > 0 && (
+                  <div>
+                    Queue latency: {formatDuration(stats.metrics.queueLatency)}
+                  </div>
+                )}
+                {stats.metrics.idleTime > 0 && (
+                  <div>Idle time: {formatDuration(stats.metrics.idleTime)}</div>
+                )}
+                {stats.metrics.averageRetryCount > 1 && (
+                  <div>
+                    Avg. retries per failed job:{' '}
+                    {stats.metrics.averageRetryCount.toFixed(1)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Currently Processing */}
         {stats.activeJobs && stats.activeJobs.length > 0 && (
           <div className="space-y-2">
@@ -223,4 +395,29 @@ export function QueueStatus({
       </CardContent>
     </Card>
   );
+}
+
+// Helper functions for formatting metrics
+function formatDuration(ms: number): string {
+  if (ms === 0 || !ms || !Number.isFinite(ms)) return 'N/A';
+
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
+}
+
+function formatRate(rate: number): string {
+  if (rate === 0) return '0';
+  if (rate < 0.1) return `${(rate * 60).toFixed(1)}/min`;
+  return `${rate.toFixed(2)}/sec`;
+}
+
+function formatPercentage(value: number): string {
+  return `${value.toFixed(1)}%`;
 }

@@ -1,4 +1,5 @@
 import { type Job, Worker } from 'bullmq';
+import { appConfig } from 'shared/env';
 import { createRedisConnection } from 'shared/redis';
 import { createSupabase } from 'shared/supabase';
 
@@ -122,15 +123,11 @@ const workerProcessor = async (
 // Create and start the worker
 const worker = new Worker<DuplicatesJobData>(QUEUE_NAME, workerProcessor, {
   connection: redisConnection,
-  concurrency: Number.parseInt(
-    process.env.DUPLICATES_WORKER_CONCURRENCY || '1',
-  ),
+  concurrency: appConfig.DUPLICATES_WORKER_CONCURRENCY,
 });
 
 worker.on('completed', (job: Job<DuplicatesJobData>) => {
-  console.log(
-    `[Worker] Job ${job.id} (Media ID: ${job.data.id}) completed duplicates processing.`,
-  );
+  console.log(`[Worker] Job ${job.id} completed duplicates processing.`);
 });
 
 worker.on('failed', (job: Job<DuplicatesJobData> | undefined, err: Error) => {

@@ -9,6 +9,7 @@ import { type Job, Queue, Worker } from 'bullmq';
 
 import { fileTypeFromFile } from 'file-type';
 import IORedis from 'ioredis';
+import { appConfig, serverEnv } from 'shared/env';
 import { createSupabase } from 'shared/supabase';
 import type { FileDetails } from 'shared/types';
 
@@ -17,8 +18,8 @@ interface FolderScanJobData {
 }
 
 const redisConnection = new IORedis(
-  process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
-  process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
+  appConfig.REDIS_PORT,
+  serverEnv.REDIS_HOST,
   {
     maxRetriesPerRequest: null, // Disable retries to avoid hanging jobs
   },
@@ -273,9 +274,7 @@ const workerProcessor = async (
 // Create and start the worker
 const worker = new Worker<FolderScanJobData>(QUEUE_NAME, workerProcessor, {
   connection: redisConnection,
-  concurrency: Number.parseInt(
-    process.env.FOLDER_SCAN_WORKER_CONCURRENCY || '5',
-  ),
+  concurrency: appConfig.FOLDER_SCAN_WORKER_CONCURRENCY,
 });
 
 worker.on('completed', (job: Job<FolderScanJobData>) => {

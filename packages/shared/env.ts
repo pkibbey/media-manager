@@ -13,33 +13,37 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const envPath = join(__dirname, '../../.env.local');
 dotenv.config({ path: envPath });
 
-// Server-only environment variables (never expose to client)
+// Environment-specific configuration
 export const serverEnv = {
-  // Supabase
+  // Supabase (URL varies by environment, service key is secret)
   SUPABASE_URL: process.env.SUPABASE_URL || 'http://127.0.0.1:54321',
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
 
-  // Redis
+  // Redis (host varies by environment, port is standard)
   REDIS_HOST: process.env.REDIS_HOST || 'localhost',
-  REDIS_PORT: process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
 
-  // Media scanning
+  // Media scanning (paths are environment-specific)
   MEDIA_SCAN_PATHS: process.env.MEDIA_SCAN_PATHS || '',
+} as const;
 
-  // Worker concurrency settings
-  OBJECT_DETECTION_WORKER_CONCURRENCY:
-    Number(process.env.OBJECT_DETECTION_WORKER_CONCURRENCY) || 3,
-  CONTENT_WARNINGS_WORKER_CONCURRENCY:
-    Number(process.env.CONTENT_WARNINGS_WORKER_CONCURRENCY) || 3,
-  ADVANCED_ANALYSIS_WORKER_CONCURRENCY:
-    Number(process.env.ADVANCED_ANALYSIS_WORKER_CONCURRENCY) || 4,
-  DUPLICATES_WORKER_CONCURRENCY:
-    Number(process.env.DUPLICATES_WORKER_CONCURRENCY) || 10,
-  EXIF_WORKER_CONCURRENCY: Number(process.env.EXIF_WORKER_CONCURRENCY) || 30,
-  THUMBNAIL_WORKER_CONCURRENCY:
-    Number(process.env.THUMBNAIL_WORKER_CONCURRENCY) || 20,
-  FOLDER_SCAN_WORKER_CONCURRENCY:
-    Number(process.env.FOLDER_SCAN_WORKER_CONCURRENCY) || 5,
+// Application configuration (safe to hardcode)
+export const appConfig = {
+  // Redis standard port
+  REDIS_PORT: 6379,
+
+  // Worker concurrency settings - tuned for optimal performance
+  // CPU/GPU intensive workers (lower concurrency to prevent resource contention)
+  OBJECT_DETECTION_WORKER_CONCURRENCY: 3,
+  CONTENT_WARNINGS_WORKER_CONCURRENCY: 3,
+  ADVANCED_ANALYSIS_WORKER_CONCURRENCY: 4,
+  THUMBNAIL_WORKER_CONCURRENCY: 4,
+
+  // Mixed workload workers (moderate concurrency)
+  DUPLICATES_WORKER_CONCURRENCY: 5,
+  FOLDER_SCAN_WORKER_CONCURRENCY: 5,
+
+  // IO intensive workers (higher concurrency for better throughput)
+  EXIF_WORKER_CONCURRENCY: 20,
 } as const;
 
 // Validate required environment variables
@@ -52,3 +56,4 @@ for (const envVar of requiredEnvVars) {
 }
 
 export type ServerEnv = typeof serverEnv;
+export type AppConfig = typeof appConfig;

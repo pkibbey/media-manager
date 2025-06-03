@@ -16,21 +16,26 @@ import { usePathname } from 'next/navigation';
 const navItemGroups = [
   {
     category: 'Media',
-    items: [{ href: '/', label: 'Browse', icon: Image }],
-  },
-  {
-    category: 'Scan',
     items: [
       { href: '/admin/scan', label: 'Scan', icon: Search },
-      { href: '/admin/file-types', label: 'File Types', icon: Image },
-      { href: '/admin/duplicates', label: 'Duplicates', icon: Copy },
+      { href: '/', label: 'Browse', icon: Image },
     ],
   },
   {
     category: 'Processing',
     items: [
+      { href: '/admin/file-types', label: 'File Types', icon: Image },
       { href: '/admin/exif', label: 'EXIF Data', icon: FileText },
       { href: '/admin/thumbnails', label: 'Thumbnails', icon: Zap },
+    ],
+  },
+  {
+    category: 'Clean',
+    items: [{ href: '/admin/duplicates', label: 'Duplicates', icon: Copy }],
+  },
+  {
+    category: 'Advanced',
+    items: [
       { href: '/admin/objects', label: 'Object Detection', icon: Eye },
       { href: '/admin/advanced', label: 'Advanced Analysis', icon: Bot },
       { href: '/admin/warnings', label: 'Warnings', icon: AlertTriangle },

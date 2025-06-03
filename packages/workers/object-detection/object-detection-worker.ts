@@ -7,6 +7,7 @@ import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import tf from '@tensorflow/tfjs-node';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { appConfig, serverEnv } from 'shared/env';
 import { createSupabase } from 'shared/supabase';
 import type { Json } from 'shared/types';
 
@@ -16,8 +17,8 @@ interface ObjectDetectionJobData {
 }
 
 const redisConnection = new IORedis(
-  process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
-  process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
+  appConfig.REDIS_PORT,
+  serverEnv.REDIS_HOST,
   {
     maxRetriesPerRequest: null, // Disable retries to avoid hanging jobs
   },
@@ -119,15 +120,11 @@ const workerProcessor = async (
 // Create and start the worker
 const worker = new Worker<ObjectDetectionJobData>(QUEUE_NAME, workerProcessor, {
   connection: redisConnection,
-  concurrency: Number.parseInt(
-    process.env.OBJECT_DETECTION_WORKER_CONCURRENCY || '1',
-  ),
+  concurrency: appConfig.OBJECT_DETECTION_WORKER_CONCURRENCY,
 });
 
 worker.on('completed', (job: Job<ObjectDetectionJobData>) => {
-  console.log(
-    `[Worker] Job ${job.id} (Media ID: ${job.data.id}) completed object detection processing.`,
-  );
+  console.log(`[Worker] Job ${job.id} completed object detection processing.`);
 });
 
 worker.on(

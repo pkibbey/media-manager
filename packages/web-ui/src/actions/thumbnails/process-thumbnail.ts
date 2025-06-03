@@ -3,15 +3,12 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 
+import { appConfig, serverEnv } from 'shared/env';
 import { createSupabase } from 'shared/supabase';
 
-const connection = new IORedis(
-  process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
-  process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
-  {
-    maxRetriesPerRequest: null,
-  },
-);
+const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
+  maxRetriesPerRequest: null,
+});
 
 const thumbnailQueue = new Queue('thumbnailQueue', { connection });
 

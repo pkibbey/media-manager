@@ -1,5 +1,6 @@
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { appConfig, serverEnv } from 'shared/env';
 import { processThumbnail } from './process-thumbnail';
 
 interface ThumbnailJobData {
@@ -8,8 +9,8 @@ interface ThumbnailJobData {
 }
 
 const redisConnection = new IORedis(
-  process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
-  process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
+  appConfig.REDIS_PORT,
+  serverEnv.REDIS_HOST,
   {
     maxRetriesPerRequest: null, // Disable retries to avoid hanging jobs
   },
@@ -58,13 +59,11 @@ const workerProcessor = async (
 // Create and start the worker
 const worker = new Worker<ThumbnailJobData>(QUEUE_NAME, workerProcessor, {
   connection: redisConnection,
-  concurrency: Number.parseInt(process.env.THUMBNAIL_WORKER_CONCURRENCY || '1'),
+  concurrency: appConfig.THUMBNAIL_WORKER_CONCURRENCY,
 });
 
 worker.on('completed', (job: Job<ThumbnailJobData>) => {
-  console.log(
-    `[Worker] Job ${job.id} (Media ID: ${job.data.id}) completed thumbnail generation.`,
-  );
+  console.log(`[Worker] Job ${job.id} completed thumbnail generation.`);
 });
 
 worker.on('failed', (job: Job<ThumbnailJobData> | undefined, err: Error) => {

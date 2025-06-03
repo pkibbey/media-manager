@@ -5,6 +5,7 @@ dotenv.config({ path: '../../../.env.local' });
 
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { appConfig, serverEnv } from 'shared/env';
 import { processExif } from './process-exif';
 
 interface ExifJobData {
@@ -16,8 +17,8 @@ interface ExifJobData {
 }
 
 const redisConnection = new IORedis(
-  process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
-  process.env.REDIS_HOST ? process.env.REDIS_HOST : 'localhost',
+  appConfig.REDIS_PORT,
+  serverEnv.REDIS_HOST,
   {
     maxRetriesPerRequest: null, // Disable retries to avoid hanging jobs
   },
@@ -61,13 +62,11 @@ const workerProcessor = async (job: Job<ExifJobData>): Promise<boolean> => {
 // Create and start the worker
 const worker = new Worker<ExifJobData>(QUEUE_NAME, workerProcessor, {
   connection: redisConnection,
-  concurrency: Number.parseInt(process.env.EXIF_WORKER_CONCURRENCY || '1'),
+  concurrency: appConfig.EXIF_WORKER_CONCURRENCY,
 });
 
 worker.on('completed', (job: Job<ExifJobData>) => {
-  console.log(
-    `[Worker] Job ${job.id} (Media ID: ${job.data.id}) completed EXIF processing.`,
-  );
+  console.log(`[Worker] Job ${job.id} completed EXIF processing.`);
 });
 
 worker.on('failed', (job: Job<ExifJobData> | undefined, err: Error) => {
