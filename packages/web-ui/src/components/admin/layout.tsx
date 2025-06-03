@@ -1,7 +1,6 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -30,9 +29,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Sidebar Navigation */}
         <Card className="p-4">
-          <h2 className="font-semibold text-lg mb-4">Navigation</h2>
-          <Separator className="mb-4" />
-
+          <h2 className="font-semibold text-lg mb-2">Navigation</h2>
           <nav className="space-y-2">
             {navItems.map((item) => {
               const isActive = pathname === item.href;

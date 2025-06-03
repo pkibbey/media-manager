@@ -1,8 +1,8 @@
 'use client';
 
-import { addBasicToQueue } from '@/actions/basic/add-basic-to-queue';
 import { resetBasicData } from '@/actions/basic/reset-basic-data';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { AdminLayout } from '@/components/admin/layout';
 import { ObjectAnalysisQueueStatus } from '@/components/admin/object-analysis-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
@@ -20,12 +20,10 @@ export default function BasicAnalysisAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <ActionButton
-            action={addBasicToQueue}
-            loadingMessage="Processing analysis data..."
-          >
-            Add Object Analysis to Queue
-          </ActionButton>
+          <AddToQueueButton
+            queueName="objectAnalysisQueue"
+            displayName="Add Object Analysis to Queue"
+          />
           <PauseQueueButton queueName="objectAnalysisQueue" />
           <ActionButton
             action={resetBasicData}

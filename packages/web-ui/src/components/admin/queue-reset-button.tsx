@@ -20,14 +20,11 @@ export function QueueResetButton({ queueName }: QueueResetButtonProps) {
   const [selectedState, setSelectedState] = useState<string>('');
 
   const queueStates = [
-    { key: 'waiting', label: 'Reset Waiting Jobs' },
-    { key: 'active', label: 'Reset Active Jobs' },
-    { key: 'completed', label: 'Reset Completed Jobs' },
-    { key: 'failed', label: 'Reset Failed Jobs' },
-    { key: 'delayed', label: 'Reset Delayed Jobs' },
-    { key: 'paused', label: 'Reset Paused Jobs' },
-    { key: 'waiting-children', label: 'Reset Waiting Children Jobs' },
-    { key: 'prioritized', label: 'Reset Prioritized Jobs' },
+    { key: 'waiting', label: 'Waiting' },
+    { key: 'active', label: 'Active' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'failed', label: 'Failed' },
+    { key: 'paused', label: 'Paused' },
   ];
 
   const handleResetState = async () => {
@@ -64,7 +61,7 @@ export function QueueResetButton({ queueName }: QueueResetButtonProps) {
     <div className="flex gap-2 items-center">
       <Select value={selectedState} onValueChange={setSelectedState}>
         <SelectTrigger className="w-48">
-          <SelectValue placeholder="Select queue state to reset" />
+          <SelectValue placeholder="Select queue state" />
         </SelectTrigger>
         <SelectContent>
           {queueStates.map((state) => (

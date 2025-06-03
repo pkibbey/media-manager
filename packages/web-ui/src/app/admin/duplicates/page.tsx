@@ -1,8 +1,8 @@
 'use client';
 
-import { addRemainingToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
 import { resetDuplicatesData } from '@/actions/duplicates/reset-duplicates-data';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { DuplicatesQueueStatus } from '@/components/admin/duplicates-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
@@ -20,12 +20,10 @@ export default function DuplicatesAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <ActionButton
-            action={addRemainingToDuplicatesQueue}
-            loadingMessage="Adding items to queue..."
-          >
-            Add Duplicates to Queue
-          </ActionButton>
+          <AddToQueueButton
+            queueName="duplicatesQueue"
+            displayName="Add Duplicates to Queue"
+          />
           <PauseQueueButton queueName="duplicatesQueue" />
           <ActionButton
             action={resetDuplicatesData}

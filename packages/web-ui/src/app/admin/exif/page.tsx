@@ -1,6 +1,6 @@
-import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
 import { resetExifData } from '@/actions/exif/reset-exif-data';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { ExifQueueStatus } from '@/components/admin/exif-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
@@ -18,12 +18,10 @@ export default function ExifAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <ActionButton
-            action={addExifToQueue}
-            loadingMessage="Adding items to queue..."
-          >
-            Add Exif to Queue
-          </ActionButton>
+          <AddToQueueButton
+            queueName="exifQueue"
+            displayName="Populate EXIF Queue"
+          />
           <PauseQueueButton queueName="exifQueue" />
           <ActionButton
             action={resetExifData}

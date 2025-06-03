@@ -1,8 +1,8 @@
 'use client';
 
 import { deleteThumbnailData } from '@/actions/thumbnails/delete-thumbnail-data';
-import { addRemainingToThumbnailsQueue } from '@/actions/thumbnails/process-thumbnail';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
@@ -20,12 +20,10 @@ export default function ThumbnailAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <ActionButton
-            action={addRemainingToThumbnailsQueue}
-            loadingMessage="Processing thumbnails..."
-          >
-            Add Thumbnails to Queue
-          </ActionButton>
+          <AddToQueueButton
+            queueName="thumbnails"
+            displayName="Add Thumbnails to Queue"
+          />
           <PauseQueueButton queueName="thumbnailQueue" />
           <ActionButton
             action={deleteThumbnailData}

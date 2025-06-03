@@ -1,8 +1,8 @@
 'use client';
 
-import { addContentWarningsToQueue } from '@/actions/content-warnings/add-content-warnings-to-queue';
 import { resetContentWarningsData } from '@/actions/content-warnings/reset-content-warnings-data';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { ContentWarningsQueueStatus } from '@/components/admin/content-warnings-queue-status';
 import { AdminLayout } from '@/components/admin/layout';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
@@ -20,12 +20,10 @@ export default function ContentWarningsAdminPage() {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          <ActionButton
-            action={addContentWarningsToQueue}
-            loadingMessage="Processing content warnings..."
-          >
-            Add all to Queue
-          </ActionButton>
+          <AddToQueueButton
+            queueName="contentWarningsQueue"
+            displayName="Add all to Queue"
+          />
           <PauseQueueButton queueName="contentWarningsQueue" />
           <ActionButton
             action={resetContentWarningsData}
