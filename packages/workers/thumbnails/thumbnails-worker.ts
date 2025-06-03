@@ -43,10 +43,6 @@ const workerProcessor = async (
       throw new Error('Failed to generate thumbnail');
     }
 
-    console.log(
-      `[Worker] Successfully generated thumbnail for media ID ${mediaId}}`,
-    );
-
     return true;
   } catch (error) {
     const errorMessage =

@@ -227,8 +227,6 @@ const workerProcessor = async (
 ): Promise<boolean> => {
   const { folderPath } = job.data;
 
-  console.log(`[Worker] Processing folder scan for: ${folderPath}`);
-
   try {
     // Check if folder exists and is readable
     try {
@@ -240,17 +238,8 @@ const workerProcessor = async (
     // Get files and subdirectories
     const { files, directories } = await getFilesAndDirectories(folderPath);
 
-    // Process files if any found
-    if (files.length > 0) {
-      const results = await processScanResults(files);
-      console.log(
-        `[Worker] Processed ${results.filesAdded} files, skipped ${results.filesSkipped} files in ${folderPath}`,
-      );
-
-      if (results.errors.length > 0) {
-        console.warn(`[Worker] Errors in ${folderPath}:`, results.errors);
-      }
-    }
+    // Process files
+    await processScanResults(files);
 
     // Add subdirectories to queue for processing with randomized priority for cross-drive distribution
     if (directories.length > 0) {
@@ -267,12 +256,8 @@ const workerProcessor = async (
       }));
 
       await folderScanQueue.addBulk(subdirectoryJobs);
-      console.log(
-        `[Worker] Added ${directories.length} subdirectories to queue from ${folderPath}`,
-      );
     }
 
-    console.log(`[Worker] Successfully processed folder: ${folderPath}`);
     return true;
   } catch (error) {
     const errorMessage =

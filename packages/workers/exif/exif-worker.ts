@@ -46,12 +46,6 @@ const workerProcessor = async (job: Job<ExifJobData>): Promise<boolean> => {
       throw new Error(result.error || 'Failed to process EXIF data');
     }
 
-    // The processExif function already handles database updates,
-    // but we'll log the success here
-    console.log(
-      `[Worker] Successfully processed EXIF data for media ID ${id}.`,
-    );
-
     return true;
   } catch (error) {
     const errorMessage =

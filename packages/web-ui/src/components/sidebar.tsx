@@ -29,15 +29,11 @@ const navItemGroups = [
   {
     category: 'Processing',
     items: [
-      {
-        href: '/admin/content-warnings',
-        label: 'Content Warnings',
-        icon: AlertTriangle,
-      },
-      { href: '/admin/objects', label: 'Object Detection', icon: Eye },
-      { href: '/admin/thumbnails', label: 'Thumbnails', icon: Zap },
-      { href: '/admin/advanced', label: 'Advanced Analysis', icon: Bot },
       { href: '/admin/exif', label: 'EXIF Data', icon: FileText },
+      { href: '/admin/thumbnails', label: 'Thumbnails', icon: Zap },
+      { href: '/admin/objects', label: 'Object Detection', icon: Eye },
+      { href: '/admin/advanced', label: 'Advanced Analysis', icon: Bot },
+      { href: '/admin/warnings', label: 'Warnings', icon: AlertTriangle },
     ],
   },
 ];
@@ -46,7 +42,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="space-y-4 w-64">
+    <div className="space-y-4">
       {navItemGroups.map((group) => (
         <div key={group.category}>
           <h3 className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
