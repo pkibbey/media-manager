@@ -1,8 +1,8 @@
 'use server';
 
 import { Queue } from 'bullmq';
+import { createSupabase } from 'shared';
 import { createRedisConnection } from 'shared/redis';
-import { createSupabase } from 'shared/supabase';
 
 const connection = createRedisConnection();
 

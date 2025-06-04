@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 
 /**
  * Calculate Hamming distance between two hex strings

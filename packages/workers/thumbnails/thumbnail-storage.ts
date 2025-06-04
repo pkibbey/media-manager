@@ -1,4 +1,4 @@
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 import type { TablesUpdate } from 'shared/types';
 import { v4 } from 'uuid';
 
@@ -11,10 +11,15 @@ interface StorageResult {
 /**
  * Upload thumbnail to storage and update database records
  */
-export async function storeThumbnail(
-  mediaId: string,
-  thumbnailBuffer: Buffer,
-): Promise<StorageResult> {
+export async function storeThumbnail({
+  mediaId,
+  thumbnailBuffer,
+  processType,
+}: {
+  mediaId: string;
+  thumbnailBuffer: Buffer;
+  processType: 'ultra' | 'fast' | 'slow';
+}): Promise<StorageResult> {
   const supabase = createSupabase();
   const thumbnailFilename = `${v4()}.jpg`;
 
@@ -40,6 +45,7 @@ export async function storeThumbnail(
 
     const updateObject: TablesUpdate<'media'> = {
       thumbnail_url: thumbnailUrl,
+      thumbnail_process: processType,
     };
 
     // Add the thumbnail to the media table (use update to overwrite existing data)

@@ -5,12 +5,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { NextResponse } from 'next/server';
+import { createSupabase } from 'shared';
 import {
   BACKGROUND_COLOR,
   IMAGE_DETAIL_SIZE,
   THUMBNAIL_QUALITY,
 } from 'shared/consts';
-import { createSupabase } from 'shared/supabase';
 import sharp from 'sharp';
 import { v4 } from 'uuid';
 

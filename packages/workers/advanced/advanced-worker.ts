@@ -4,8 +4,8 @@ dotenv.config({ path: '../../../.env.local' });
 
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
-import { createSupabase } from 'shared/supabase';
 import { processWithOllama } from './process-with-ollama';
 
 interface AdvancedAnalysisJobData {

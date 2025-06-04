@@ -5,7 +5,7 @@ dotenv.config({ path: '../../../.env.local' });
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
 
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 
 /**
  * Generate a perceptual hash (dHash) from a 16x16 grayscale image fingerprint.

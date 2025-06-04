@@ -2,7 +2,7 @@
 
 import tf from '@tensorflow/tfjs-node';
 import { load } from 'nsfwjs';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 import type { Json } from 'shared/types';
 
 // Save NSFWJS model variable in the global scope

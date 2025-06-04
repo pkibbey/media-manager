@@ -5,8 +5,8 @@ import path from 'node:path';
 import { Queue } from 'bullmq';
 
 import { fileTypeFromFile } from 'file-type';
+import { createSupabase } from 'shared';
 import { createRedisConnection } from 'shared/redis';
-import { createSupabase } from 'shared/supabase';
 import type { FileDetails } from 'shared/types';
 
 // Helper function to get or create media type

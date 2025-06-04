@@ -2,7 +2,7 @@
 
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 
 const connection = new IORedis(
   process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,

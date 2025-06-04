@@ -2,7 +2,7 @@
 
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import tf from '@tensorflow/tfjs-node';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 import type { Json } from 'shared/types';
 
 // Save COCO-SSD model variable in the global scope

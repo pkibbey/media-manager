@@ -2,8 +2,8 @@
 
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
+import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
-import { createSupabase } from 'shared/supabase';
 
 const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,

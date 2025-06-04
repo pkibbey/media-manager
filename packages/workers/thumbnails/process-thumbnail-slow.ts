@@ -3,8 +3,8 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '../../../.env.local' });
 
 import fs from 'node:fs/promises';
+import { createSupabase } from 'shared';
 import { THUMBNAIL_QUALITY, THUMBNAIL_SIZE } from 'shared/consts';
-import { createSupabase } from 'shared/supabase';
 import sharp from 'sharp';
 import { storeThumbnail } from './thumbnail-storage';
 
@@ -60,8 +60,12 @@ export async function processThumbnailSlow({
       return false;
     }
 
-    // Store thumbnail using the shared storage function
-    const storageResult = await storeThumbnail(mediaId, thumbnailBuffer);
+    // Store thumbnail
+    const storageResult = await storeThumbnail({
+      mediaId,
+      thumbnailBuffer,
+      processType: 'slow',
+    });
 
     if (storageResult.success && storageResult.thumbnailUrl) {
       // Update database with thumbnail URL

@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 
 /**
  * Get statistics about media scanning status

@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 
 /**
  * Delete all media data
@@ -34,7 +34,7 @@ export async function deleteAllMediaItems(): Promise<boolean> {
       if (affectedRows === 0) {
         // Empty the storage bucket for thumbnails
         try {
-          await supabase.storage.from('thumbnails').remove(['*']);
+          await supabase.storage.emptyBucket('thumbnails');
         } catch (e) {
           console.error('Exception while emptying thumbnails bucket:', e);
         }

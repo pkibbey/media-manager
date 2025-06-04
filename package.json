@@ -16,7 +16,7 @@
     "lint": "biome lint .",
     "format": "biome format . --write",
     "knip": "knip",
-    "types": "npx supabase gen types typescript --local > packages/shared/types/supabase.ts"
+    "types": "npx supabase gen types typescript --local > packages/shared/types/supabase-types.ts"
   },
   "dependencies": {},
   "devDependencies": {

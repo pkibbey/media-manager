@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '../../../.env.local' });
 
 import exifr from 'exifr';
-import { createSupabase } from 'shared/supabase';
+import { createSupabase } from 'shared';
 import { storeThumbnail } from './thumbnail-storage';
 
 /**
@@ -26,14 +26,23 @@ export async function processThumbnailUltra({
     if (!mediaPath) return false;
 
     // Use exifr.thumbnail directly on the file path for fastest chunked reading
-    const exifThumb = await exifr.thumbnail(mediaPath);
-    if (!exifThumb || !Buffer.isBuffer(exifThumb) || exifThumb.length === 0) {
+    const thumbnailBuffer = await exifr.thumbnail(mediaPath);
+    if (
+      !thumbnailBuffer ||
+      !Buffer.isBuffer(thumbnailBuffer) ||
+      thumbnailBuffer.length === 0
+    ) {
       // Fail fast if no embedded thumbnail
       return false;
     }
 
-    // Store thumbnail (reuse storeThumbnail logic)
-    const storageResult = await storeThumbnail(mediaId, exifThumb);
+    // Store thumbnail
+    const storageResult = await storeThumbnail({
+      mediaId,
+      thumbnailBuffer,
+      processType: 'slow',
+    });
+
     if (storageResult.success && storageResult.thumbnailUrl) {
       // Optionally update DB with just the thumbnail URL
       const supabase = createSupabase();

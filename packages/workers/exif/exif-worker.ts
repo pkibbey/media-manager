@@ -5,7 +5,7 @@ dotenv.config({ path: '../../../.env.local' });
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
-import { processExif } from './process-exif';
+import { processExifFast } from './process-exif-fast';
 
 interface ExifJobData {
   id: string;
@@ -33,20 +33,23 @@ const workerProcessor = async (job: Job<ExifJobData>): Promise<boolean> => {
   const { id, media_path } = job.data;
 
   try {
-    // Skip processing if the media type is ignored
-    if (job.data.media_types?.is_ignored) {
-      console.log(`Skipping EXIF processing for ignored media type: ${id}`);
-      return false;
+    // Process the EXIF metadata using the selected processor
+    const fastResult = await processExifFast({ id, media_path });
+
+    if (fastResult) {
+      return true;
     }
 
-    // Process the EXIF metadata
-    const result = await processExif({ id, media_path });
+    // const slowResult = await processExifSlow({ id, media_path });
 
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to process EXIF data');
-    }
+    // if (slowResult) {
+    //   return true;
+    // }
 
-    return true;
+    console.warn(
+      `No EXIF data found for media ID ${id}. Skipping EXIF processing.`,
+    );
+    return false;
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
