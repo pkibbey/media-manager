@@ -218,9 +218,6 @@ export function QueueStatus({
             {(stats.metrics.medianProcessingTime > 0 ||
               stats.metrics.p95ProcessingTime > 0) && (
               <div className="space-y-2">
-                <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Processing Time Distribution
-                </h5>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                   <div className="text-center p-2 bg-muted/10 rounded">
                     <div className="text-muted-foreground">Median</div>

@@ -13,7 +13,7 @@ interface UseQueueOptions {
 export function useQueue({
   queueName,
   fetchStats,
-  pollInterval = 2000,
+  pollInterval = 3000,
 }: UseQueueOptions) {
   const [stats, setStats] = useState<QueueStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
