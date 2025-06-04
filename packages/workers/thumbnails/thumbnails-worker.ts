@@ -2,6 +2,7 @@ import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
 import { processThumbnailFast } from './process-thumbnail-fast';
+import { processThumbnailSlow } from './process-thumbnail-slow';
 import { processThumbnailUltra } from './process-thumbnail-ultra';
 
 interface ThumbnailJobData {
@@ -54,6 +55,17 @@ const workerProcessor = async (
     if (fastResult) {
       console.log(
         `[Worker] Successfully generated fast thumbnail for media ID: ${mediaId}`,
+      );
+      return true;
+    }
+
+    const slowResult = await processThumbnailSlow({
+      mediaId,
+      mediaPath,
+    });
+    if (slowResult) {
+      console.log(
+        `[Worker] Successfully generated slow thumbnail for media ID: ${mediaId}`,
       );
       return true;
     }
