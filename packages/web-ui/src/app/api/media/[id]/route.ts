@@ -46,12 +46,20 @@ export async function GET(
 
     // Process image based on type
     if (isRawFormat) {
-      // Handle RAW image format
+      // Handle RAW image format with fallback chain
       try {
         const rawFileBuffer = await fs.readFile(filePath);
-        imageBuffer = await processRawWithDcraw(rawFileBuffer).catch(() =>
-          convertRawThumbnail(rawFileBuffer),
-        );
+
+        // Try dcraw first, then fallback to thumbnail extraction
+        imageBuffer = await processRawWithDcraw(rawFileBuffer);
+        if (!imageBuffer || !isValidImageBuffer(imageBuffer)) {
+          imageBuffer = await convertRawThumbnail(rawFileBuffer);
+        }
+
+        // Final validation
+        if (!imageBuffer || !isValidImageBuffer(imageBuffer)) {
+          throw new Error('All RAW processing methods failed');
+        }
       } catch (_error) {
         console.error(`Failed to process RAW image: ${filePath}`);
         return NextResponse.json(
@@ -63,6 +71,11 @@ export async function GET(
       // Handle standard image format
       try {
         imageBuffer = await fs.readFile(filePath);
+
+        // Validate the image buffer
+        if (!isValidImageBuffer(imageBuffer)) {
+          throw new Error('Invalid image file');
+        }
       } catch (_error) {
         console.error(`Failed to read file: ${filePath}`);
         return NextResponse.json(
@@ -80,27 +93,35 @@ export async function GET(
       );
     }
 
-    // Create thumbnail from image buffer
-    const thumbnailBuffer = await sharp(imageBuffer)
-      .rotate() // Apply EXIF rotation
-      .resize({
-        width: IMAGE_DETAIL_SIZE,
-        height: IMAGE_DETAIL_SIZE,
-        withoutEnlargement: true,
-        fit: 'contain',
-        background: BACKGROUND_COLOR,
-      })
-      .jpeg({ quality: THUMBNAIL_QUALITY })
-      .toBuffer();
+    // Create thumbnail from image buffer with error handling
+    try {
+      const thumbnailBuffer = await sharp(imageBuffer)
+        .rotate() // Apply EXIF rotation
+        .resize({
+          width: IMAGE_DETAIL_SIZE,
+          height: IMAGE_DETAIL_SIZE,
+          withoutEnlargement: true,
+          fit: 'contain',
+          background: BACKGROUND_COLOR,
+        })
+        .jpeg({ quality: THUMBNAIL_QUALITY })
+        .toBuffer();
 
-    // Return the image
-    return new NextResponse(thumbnailBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'image/jpeg',
-        'Content-Length': thumbnailBuffer.length.toString(),
-      },
-    });
+      // Return the image
+      return new NextResponse(thumbnailBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Content-Length': thumbnailBuffer.length.toString(),
+        },
+      });
+    } catch (sharpError) {
+      console.error(`Sharp processing failed for ID: ${id}`, sharpError);
+      return NextResponse.json(
+        { error: 'Failed to process image with Sharp' },
+        { status: 500 },
+      );
+    }
   } catch (error) {
     console.error('Error processing image:', error);
     return NextResponse.json(
@@ -180,4 +201,56 @@ async function convertRawThumbnail(rawBuffer: Buffer): Promise<Buffer | null> {
     } catch {}
     return null;
   }
+}
+
+/**
+ * Validates if a buffer contains a valid image by checking basic structure
+ * @param buffer - Buffer to validate
+ * @returns boolean indicating if buffer appears to be a valid image
+ */
+function isValidImageBuffer(buffer: Buffer): boolean {
+  if (!buffer || buffer.length < 10) {
+    return false;
+  }
+
+  // Check for common image file signatures
+  const header = buffer.subarray(0, 10);
+
+  // JPEG signatures
+  if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
+    // Check for proper JPEG end marker in last few bytes
+    const tail = buffer.subarray(-10);
+    for (let i = 0; i < tail.length - 1; i++) {
+      if (tail[i] === 0xff && tail[i + 1] === 0xd9) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // PNG signature
+  if (
+    header[0] === 0x89 &&
+    header[1] === 0x50 &&
+    header[2] === 0x4e &&
+    header[3] === 0x47
+  ) {
+    return true;
+  }
+
+  // TIFF signatures (used by some RAW processors)
+  if (
+    (header[0] === 0x49 &&
+      header[1] === 0x49 &&
+      header[2] === 0x2a &&
+      header[3] === 0x00) ||
+    (header[0] === 0x4d &&
+      header[1] === 0x4d &&
+      header[2] === 0x00 &&
+      header[3] === 0x2a)
+  ) {
+    return true;
+  }
+
+  return false;
 }

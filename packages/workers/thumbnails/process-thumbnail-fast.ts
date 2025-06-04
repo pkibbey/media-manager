@@ -31,6 +31,7 @@ export async function processThumbnailFast({
 
     // Fastest thumbnail: just resize and save as JPEG
     const thumbnailBuffer = await sharp(mediaPath)
+      .rotate() // Auto-rotate based on EXIF orientation
       .resize({
         width: THUMBNAIL_SIZE,
         height: THUMBNAIL_SIZE,

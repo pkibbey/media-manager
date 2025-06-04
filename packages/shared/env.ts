@@ -35,13 +35,13 @@ export const appConfig = {
   OBJECT_DETECTION_WORKER_CONCURRENCY: 3,
   CONTENT_WARNINGS_WORKER_CONCURRENCY: 3,
   ADVANCED_ANALYSIS_WORKER_CONCURRENCY: 4,
-  THUMBNAIL_WORKER_CONCURRENCY: 6,
 
   // Mixed workload workers (moderate concurrency)
   DUPLICATES_WORKER_CONCURRENCY: 5,
   FOLDER_SCAN_WORKER_CONCURRENCY: 5,
 
   // IO intensive workers (higher concurrency for better throughput)
+  THUMBNAIL_WORKER_CONCURRENCY: 20,
   EXIF_WORKER_CONCURRENCY: 50,
 } as const;
 

@@ -46,6 +46,7 @@ export function MediaFilters({ filters, onFilterChange }: FileFiltersProps) {
       hasLocation: 'all',
       hasThumbnail: 'all',
       hasAnalysis: 'all',
+      thumbnailProcess: 'all',
       includeHidden: false,
       includeDeleted: false,
     });
@@ -188,6 +189,32 @@ export function MediaFilters({ filters, onFilterChange }: FileFiltersProps) {
                 <SelectItem value="all">All Files</SelectItem>
                 <SelectItem value="yes">With Analysis</SelectItem>
                 <SelectItem value="no">Without Analysis</SelectItem>
+              </SelectContent>
+            </Select>
+          </Label>
+        </div>
+
+        {/* Thumbnail Process */}
+        <div>
+          <Label className="text-sm font-medium mb-1 block">
+            Thumbnail Process
+            <Select
+              value={filters.thumbnailProcess}
+              onValueChange={(value) =>
+                updateFilter(
+                  'thumbnailProcess',
+                  value as MediaFiltersType['thumbnailProcess'],
+                )
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Processes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Processes</SelectItem>
+                <SelectItem value="ultra">Ultra</SelectItem>
+                <SelectItem value="fast">Fast</SelectItem>
+                <SelectItem value="slow">Slow</SelectItem>
               </SelectContent>
             </Select>
           </Label>

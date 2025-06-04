@@ -95,6 +95,10 @@ export async function getMedia(
     }
   }
 
+  if (filters.thumbnailProcess !== 'all') {
+    query = query.eq('thumbnail_process', filters.thumbnailProcess);
+  }
+
   // Execute the query
   return await query;
 }

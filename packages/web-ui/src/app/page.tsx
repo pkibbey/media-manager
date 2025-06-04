@@ -32,6 +32,7 @@ export default function Home() {
     hasLocation: 'all',
     hasThumbnail: 'yes',
     hasAnalysis: 'all',
+    thumbnailProcess: 'all',
     includeHidden: false,
     includeDeleted: false,
   });

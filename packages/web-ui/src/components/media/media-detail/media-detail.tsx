@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, FileType, HardDrive, MapPin, Trash } from 'lucide-react';
 import type { PredictionType } from 'nsfwjs';
 import { formatBytes } from 'shared/consts';
@@ -42,23 +41,6 @@ export function MediaDetail() {
 
   const contentWarnings = (media.analysis_data?.content_warnings ||
     []) as PredictionType[];
-
-  const processingStatus = (
-    <div className="grid grid-cols-2 gap-4 mt-4">
-      <DetailField
-        label="Status"
-        value={
-          media.is_deleted ? (
-            <Badge variant="destructive">Deleted</Badge>
-          ) : media.is_hidden ? (
-            <Badge variant="secondary">Hidden</Badge>
-          ) : (
-            <Badge variant="default">Visible</Badge>
-          )
-        }
-      />
-    </div>
-  );
 
   return (
     <div className="h-full flex flex-col">
@@ -138,135 +120,164 @@ export function MediaDetail() {
             />
           </div>
 
-          {/* Tabs for different information categories */}
-          <Tabs defaultValue="info" className="w-full">
-            <TabsList className="w-full">
-              <TabsTrigger value="info" className="flex-1">
-                Info
-              </TabsTrigger>
-              {media.exif_data && (
-                <TabsTrigger value="exif" className="flex-1">
-                  EXIF
-                </TabsTrigger>
-              )}
-              {media.analysis_data && (
-                <TabsTrigger value="analysis" className="flex-1">
-                  Analysis
-                </TabsTrigger>
-              )}
-              <TabsTrigger value="processing" className="flex-1">
-                Status
-              </TabsTrigger>
-            </TabsList>
-
+          {/* Combined content */}
+          <div className="p-4 space-y-4">
             {/* Basic Information */}
-            <TabsContent value="info" className="p-4">
-              <div className="space-y-4">
-                <DetailField
-                  label="Filename"
-                  value={<p className="break-all">{fileName}</p>}
-                />
+            <DetailField
+              label="Filename"
+              value={<p className="break-all">{fileName}</p>}
+            />
 
+            <Separator />
+
+            <DetailField
+              label="File Path"
+              value={<p className="break-all">{media.media_path}</p>}
+            />
+
+            {media.media_types?.mime_type && (
+              <>
                 <Separator />
 
+                <div className="grid grid-cols-2 gap-4">
+                  <DetailField
+                    label="File Type"
+                    value={
+                      <div className="flex items-center gap-2">
+                        <FileType size={16} />
+                        {media.media_types.mime_type}
+                      </div>
+                    }
+                  />
+                  <DetailField
+                    label="Size"
+                    value={
+                      <div className="flex items-center gap-2">
+                        <HardDrive size={16} />
+                        {formatBytes(media.size_bytes)}
+                      </div>
+                    }
+                  />
+                </div>
+              </>
+            )}
+
+            <Separator />
+
+            {media.exif_data?.gps_latitude &&
+              media.exif_data?.gps_longitude && (
+                <>
+                  <DetailField
+                    label="Location"
+                    value={
+                      <div className="flex items-center gap-2">
+                        <MapPin size={16} />
+                        {media.exif_data.gps_latitude.toFixed(6)},{' '}
+                        {media.exif_data.gps_longitude.toFixed(6)}
+                      </div>
+                    }
+                  />
+                  <Separator />
+                </>
+              )}
+
+            {media.media_types?.mime_type && (
+              <>
                 <DetailField
-                  label="File Path"
-                  value={<p className="break-all">{media.media_path}</p>}
+                  label="MIME Type"
+                  value={media.media_types.mime_type}
                 />
-
-                {media.media_types?.mime_type && (
-                  <>
-                    <Separator />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <DetailField
-                        label="File Type"
-                        value={
-                          <div className="flex items-center gap-2">
-                            <FileType size={16} />
-                            {media.media_types.mime_type}
-                          </div>
-                        }
-                      />
-                      <DetailField
-                        label="Size"
-                        value={
-                          <div className="flex items-center gap-2">
-                            <HardDrive size={16} />
-                            {formatBytes(media.size_bytes)}
-                          </div>
-                        }
-                      />
-                    </div>
-                  </>
-                )}
-
                 <Separator />
+              </>
+            )}
 
-                {media.exif_data?.gps_latitude &&
-                  media.exif_data?.gps_longitude && (
-                    <>
-                      <Separator />
-                      <DetailField
-                        label="Location"
-                        value={
-                          <div className="flex items-center gap-2">
-                            <MapPin size={16} />
-                            {media.exif_data.gps_latitude.toFixed(6)},{' '}
-                            {media.exif_data.gps_longitude.toFixed(6)}
-                          </div>
-                        }
-                      />
-                    </>
-                  )}
+            {/* Display dimensions if available */}
+            {media.exif_data?.width && media.exif_data?.height && (
+              <>
+                <DetailField
+                  label="Dimensions"
+                  value={`${media.exif_data.width} × ${media.exif_data.height} pixels`}
+                />
+                <Separator />
+              </>
+            )}
 
-                {media.media_types?.mime_type && (
-                  <>
-                    <Separator />
-                    <DetailField
-                      label="MIME Type"
-                      value={media.media_types.mime_type}
-                    />
-                  </>
-                )}
+            {/* File ID and Status */}
+            <DetailField
+              label="File ID"
+              value={
+                <code className="bg-muted p-1 rounded text-xs">{media.id}</code>
+              }
+            />
 
-                {/* Display dimensions if available */}
-                {media.exif_data?.width && media.exif_data?.height && (
-                  <>
-                    <Separator />
-                    <DetailField
-                      label="Dimensions"
-                      value={`${media.exif_data.width} × ${media.exif_data.height} pixels`}
-                    />
-                  </>
-                )}
-              </div>
-            </TabsContent>
+            <Separator />
+
+            {/* Thumbnail Process */}
+            {media.thumbnail_process && (
+              <>
+                <DetailField
+                  label="Thumbnail Process"
+                  value={
+                    <Badge variant="outline" className="text-xs">
+                      {media.thumbnail_process}
+                    </Badge>
+                  }
+                />
+                <Separator />
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <DetailField
+                label="Status"
+                value={
+                  media.is_deleted ? (
+                    <Badge variant="destructive">Deleted</Badge>
+                  ) : media.is_hidden ? (
+                    <Badge variant="secondary">Hidden</Badge>
+                  ) : (
+                    <Badge variant="default">Visible</Badge>
+                  )
+                }
+              />
+            </div>
+
+            {media.exif_data?.exif_timestamp && (
+              <>
+                <Separator />
+                <DetailField
+                  label="Last Modified"
+                  value={formatDate(String(media.exif_data.exif_timestamp))}
+                />
+              </>
+            )}
 
             {/* EXIF Information */}
             {media.exif_data && (
-              <TabsContent value="exif" className="p-4">
+              <>
+                <Separator />
                 <ExifDataDisplay exif={media.exif_data} />
-              </TabsContent>
+              </>
             )}
 
             {/* Analysis Information */}
             {media.analysis_data && (
-              <TabsContent value="analysis" className="p-4">
-                <div className="space-y-4">
-                  {media.analysis_data.image_description && (
+              <>
+                <Separator />
+
+                {media.analysis_data.image_description && (
+                  <>
                     <DetailField
                       label="Description"
                       value={media.analysis_data.image_description}
                     />
-                  )}
+                    <Separator />
+                  </>
+                )}
 
-                  {media.analysis_data.image_description &&
-                    media.analysis_data.keywords &&
-                    media.analysis_data.keywords.length > 0 && <Separator />}
-
-                  {media.analysis_data.keywords &&
-                    media.analysis_data.keywords.length > 0 && (
+                {media.analysis_data.keywords &&
+                  media.analysis_data.keywords.length > 0 && (
+                    <>
                       <DetailField
                         label="Tags"
                         value={
@@ -283,122 +294,88 @@ export function MediaDetail() {
                           </div>
                         }
                       />
-                    )}
-
-                  <div className="flex gap-4">
-                    <div>
-                      {objectsWithType && objectsWithType.length > 0 && (
-                        <>
-                          <Separator />
-                          <DetailField
-                            label="Objects Detected"
-                            value={
-                              <div className="flex flex-wrap gap-1">
-                                {objectsWithType.map((object, index) => (
-                                  <Badge
-                                    key={index}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {object.class} ({object.score.toFixed(2)})
-                                  </Badge>
-                                ))}
-                              </div>
-                            }
-                          />
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {media.analysis_data.colors &&
-                    media.analysis_data.colors.length > 0 && (
-                      <>
-                        <Separator />
-                        <DetailField
-                          label="Dominant Colors"
-                          value={
-                            <div className="flex flex-wrap gap-2">
-                              {media.analysis_data.colors.map(
-                                (color: string, index: number) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center gap-1"
-                                  >
-                                    <div
-                                      className="w-4 h-4 rounded-full border"
-                                      style={{ backgroundColor: color }}
-                                    />
-                                    <span className="text-xs">{color}</span>
-                                  </div>
-                                ),
-                              )}
-                            </div>
-                          }
-                        />
-                      </>
-                    )}
-
-                  {contentWarnings && (
-                    <>
                       <Separator />
+                    </>
+                  )}
+
+                {objectsWithType && objectsWithType.length > 0 && (
+                  <>
+                    <DetailField
+                      label="Objects Detected"
+                      value={
+                        <div className="flex flex-wrap gap-1">
+                          {objectsWithType.map((object, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {object.class} ({object.score.toFixed(2)})
+                            </Badge>
+                          ))}
+                        </div>
+                      }
+                    />
+                    <Separator />
+                  </>
+                )}
+
+                {media.analysis_data.colors &&
+                  media.analysis_data.colors.length > 0 && (
+                    <>
                       <DetailField
-                        label="Content Warnings"
+                        label="Dominant Colors"
                         value={
-                          <div className="flex flex-wrap gap-1">
-                            {contentWarnings.map((safetyLevel, index) => (
-                              <Badge
-                                key={index}
-                                variant={
-                                  safetyLevel.className === 'Neutral'
-                                    ? 'success'
-                                    : safetyLevel.className === 'Sexy'
-                                      ? 'warning'
-                                      : 'destructive'
-                                }
-                                className="text-xs"
-                              >
-                                {safetyLevel.className} (
-                                {safetyLevel.probability.toFixed(2)})
-                              </Badge>
-                            ))}
+                          <div className="flex flex-wrap gap-2">
+                            {media.analysis_data.colors.map(
+                              (color: string, index: number) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-1"
+                                >
+                                  <div
+                                    className="w-4 h-4 rounded-full border"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                  <span className="text-xs">{color}</span>
+                                </div>
+                              ),
+                            )}
                           </div>
                         }
                       />
+                      <Separator />
                     </>
                   )}
-                </div>
-              </TabsContent>
-            )}
 
-            {/* Processing Status Tab */}
-            <TabsContent value="processing" className="p-4">
-              <div className="space-y-4">
-                <DetailField
-                  label="File ID"
-                  value={
-                    <code className="bg-muted p-1 rounded text-xs">
-                      {media.id}
-                    </code>
-                  }
-                />
-
-                <Separator />
-
-                {processingStatus}
-
-                {media.exif_data && (
-                  <>
-                    <Separator />
-                    <DetailField
-                      label="Last Modified"
-                      value={formatDate(String(media.exif_data.exif_timestamp))}
-                    />
-                  </>
+                {contentWarnings && (
+                  <DetailField
+                    label="Content Warnings"
+                    value={
+                      <div className="flex flex-wrap gap-1">
+                        {contentWarnings.map((safetyLevel, index) => (
+                          <Badge
+                            key={index}
+                            variant={
+                              safetyLevel.className === 'Neutral'
+                                ? 'success'
+                                : safetyLevel.className === 'Sexy'
+                                  ? 'warning'
+                                  : 'destructive'
+                            }
+                            className="text-xs"
+                          >
+                            {safetyLevel.className} (
+                            {safetyLevel.probability.toFixed(2)})
+                          </Badge>
+                        ))}
+                      </div>
+                    }
+                  />
                 )}
-              </div>
-            </TabsContent>
-          </Tabs>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -40,6 +40,7 @@ export async function processThumbnailSlow({
 
     // Generate thumbnail using Sharp with comprehensive settings
     const thumbnailBuffer = await sharp(mediaPath)
+      .rotate() // Auto-rotate based on EXIF orientation
       .resize({
         width: THUMBNAIL_SIZE,
         height: THUMBNAIL_SIZE,

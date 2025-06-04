@@ -13,6 +13,7 @@ export interface MediaFiltersType {
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';
   hasAnalysis: 'all' | 'yes' | 'no';
+  thumbnailProcess: 'all' | 'ultra' | 'fast' | 'slow';
   includeHidden: boolean;
   includeDeleted: boolean;
 }
