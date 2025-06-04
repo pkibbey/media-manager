@@ -1,5 +1,5 @@
 import type { PostgrestResponse } from '@supabase/supabase-js';
-import type { Tables } from './supabase';
+import type { Tables } from './supabase-types';
 
 /**
  * Media filtering options for browsing and searching media

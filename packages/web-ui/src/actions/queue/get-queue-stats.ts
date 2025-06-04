@@ -60,6 +60,17 @@ export interface QueueStats {
   metrics?: QueueMetrics;
 }
 
+// Queue name to concurrency mapping based on actual worker configurations
+const QUEUE_CONCURRENCY_MAP: Record<string, number> = {
+  objectAnalysisQueue: appConfig.OBJECT_DETECTION_WORKER_CONCURRENCY, // 3
+  contentWarningsQueue: appConfig.CONTENT_WARNINGS_WORKER_CONCURRENCY, // 3
+  advancedAnalysisQueue: appConfig.ADVANCED_ANALYSIS_WORKER_CONCURRENCY, // 4
+  thumbnailQueue: appConfig.THUMBNAIL_WORKER_CONCURRENCY, // 6
+  duplicatesQueue: appConfig.DUPLICATES_WORKER_CONCURRENCY, // 5
+  folderScanQueue: appConfig.FOLDER_SCAN_WORKER_CONCURRENCY, // 5
+  exifQueue: appConfig.EXIF_WORKER_CONCURRENCY, // 50
+};
+
 export async function getQueueStats(queueName: string): Promise<QueueStats> {
   try {
     const queue = new Queue(queueName, { connection });
@@ -71,7 +82,7 @@ export async function getQueueStats(queueName: string): Promise<QueueStats> {
     const activeJobs = await queue.getActive();
 
     // Calculate enhanced metrics
-    const metrics = await calculateQueueMetrics(queue, counts);
+    const metrics = await calculateQueueMetrics(queue, counts, queueName);
 
     return {
       active: counts.active || 0,
@@ -98,162 +109,95 @@ export async function getQueueStats(queueName: string): Promise<QueueStats> {
 async function calculateQueueMetrics(
   queue: Queue,
   counts: any,
+  queueName: string,
 ): Promise<QueueMetrics> {
   try {
-    // Get completed jobs from the last hour for metrics calculation
+    // CONFIDENCE-FIRST APPROACH: Only use data from the last minute
     const now = Date.now();
-    const oneHourAgo = now - 60 * 60 * 1000;
-    const fiveMinutesAgo = now - 5 * 60 * 1000;
+    const oneMinuteAgo = now - 60 * 1000;
 
-    // Get recent completed jobs to calculate processing metrics
+    // Get recent completed jobs - limit to reasonable number for performance
     const recentCompleted = await queue.getJobs(
       ['completed'],
       0,
-      1000, // Limit to 1000 recent jobs for accuracy
+      200, // Smaller limit since we only care about last minute
       false, // asc: false (newest first)
     );
 
-    recentCompleted;
-
-    // Get failed jobs for retry analysis
-    const recentFailed = await queue.getJobs(['failed'], 0, 500, false);
-
-    // Filter jobs by time range - BullMQ stores timestamps in milliseconds
-    const completedLast5Min = recentCompleted.filter(
-      (job) => job.finishedOn && job.finishedOn > fiveMinutesAgo,
-    );
-    const completedLastHour = recentCompleted.filter(
-      (job) => job.finishedOn && job.finishedOn > oneHourAgo,
-    );
-    const failedLastHour = recentFailed.filter(
-      (job) => job.finishedOn && job.finishedOn > oneHourAgo,
+    // Only use jobs completed in the last minute - our confidence window
+    const completedLastMinute = recentCompleted.filter(
+      (job) => job.finishedOn && job.finishedOn > oneMinuteAgo,
     );
 
-    // Calculate processing rate (jobs per second) with improved logic
-    let processingRate = 0;
+    // Processing rate: Only from last minute data, no fallbacks
+    const processingRate = completedLastMinute.length / 60; // jobs per second
 
-    // Primary: Use 5-minute window for most accurate recent rate
-    if (completedLast5Min.length > 0) {
-      processingRate = completedLast5Min.length / (5 * 60); // jobs per second
-    }
-    // Fallback 1: Use 1-hour window if no recent activity
-    else if (completedLastHour.length > 0) {
-      processingRate = completedLastHour.length / (60 * 60); // jobs per second
-    }
-    // Fallback 2: Estimate from current throughput if we have completed jobs
-    else if (recentCompleted.length > 0) {
-      // Use the most recent completed jobs to estimate rate
-      const recentJobs = recentCompleted.slice(0, 50);
-      const validJobs = recentJobs.filter((job) => job.finishedOn);
+    // Get actual concurrency limit for this queue
+    const actualMaxConcurrency = QUEUE_CONCURRENCY_MAP[queueName] || 1;
 
-      if (validJobs.length >= 2) {
-        // Calculate time span of recent jobs
-        const oldestTime = Math.min(...validJobs.map((job) => job.finishedOn!));
-        const newestTime = Math.max(...validJobs.map((job) => job.finishedOn!));
-        const timeSpanMs = newestTime - oldestTime;
-
-        if (timeSpanMs > 0) {
-          processingRate = (validJobs.length - 1) / (timeSpanMs / 1000); // jobs per second
-        }
-      }
-    }
-
-    // Fallback 3: Estimate from active jobs and average processing time
-    let fallbackProcessingRate = 0;
-    if (processingRate === 0 && counts.active > 0) {
-      // Use all available completed jobs to estimate average processing time
-      const allProcessingTimes = recentCompleted
-        .filter((job) => job.processedOn && job.finishedOn)
-        .map((job) => job.finishedOn! - job.processedOn!);
-
-      if (allProcessingTimes.length > 0) {
-        const avgProcessingTimeMs =
-          allProcessingTimes.reduce((sum, time) => sum + time, 0) /
-          allProcessingTimes.length;
-        // Estimate rate: if we have N active jobs and average processing time,
-        // we can process roughly N jobs per avgProcessingTime
-        fallbackProcessingRate = (counts.active / avgProcessingTimeMs) * 1000; // convert to jobs per second
-      }
-    }
-
-    // Use the best available processing rate
-    const effectiveProcessingRate =
-      processingRate > 0 ? processingRate : fallbackProcessingRate;
-
-    // Calculate processing time statistics
-    const processingTimes = completedLastHour
+    // Calculate processing time statistics only from recent 1-minute data
+    const processingTimesLastMinute = completedLastMinute
       .filter((job) => job.processedOn && job.finishedOn)
       .map((job) => job.finishedOn! - job.processedOn!)
       .sort((a, b) => a - b);
 
+    // Average processing time - only if we have recent data
     const averageProcessingTime =
-      processingTimes.length > 0
-        ? processingTimes.reduce((sum, time) => sum + time, 0) /
-          processingTimes.length
+      processingTimesLastMinute.length > 0
+        ? processingTimesLastMinute.reduce((sum, time) => sum + time, 0) /
+          processingTimesLastMinute.length
         : 0;
 
-    // Calculate percentile processing times
+    // Percentile processing times - only if we have sufficient recent data
     const medianProcessingTime =
-      processingTimes.length > 0
-        ? processingTimes[Math.floor(processingTimes.length * 0.5)]
+      processingTimesLastMinute.length >= 3
+        ? processingTimesLastMinute[
+            Math.floor(processingTimesLastMinute.length * 0.5)
+          ]
         : 0;
     const p95ProcessingTime =
-      processingTimes.length > 0
-        ? processingTimes[Math.floor(processingTimes.length * 0.95)]
+      processingTimesLastMinute.length >= 10
+        ? processingTimesLastMinute[
+            Math.floor(processingTimesLastMinute.length * 0.95)
+          ]
         : 0;
     const p99ProcessingTime =
-      processingTimes.length > 0
-        ? processingTimes[Math.floor(processingTimes.length * 0.99)]
+      processingTimesLastMinute.length >= 10
+        ? processingTimesLastMinute[
+            Math.floor(processingTimesLastMinute.length * 0.99)
+          ]
         : 0;
 
-    // Calculate estimated time remaining with improved logic
+    // Calculate estimated time remaining - only if we have reliable recent data
     const totalPendingJobs =
       (counts.waiting || 0) + (counts.prioritized || 0) + (counts.delayed || 0);
 
     let estimatedTimeRemaining = 0;
-    if (totalPendingJobs > 0) {
-      if (effectiveProcessingRate > 0) {
-        // Use processing rate to estimate
-        estimatedTimeRemaining =
-          (totalPendingJobs / effectiveProcessingRate) * 1000; // convert to milliseconds
-      } else if (averageProcessingTime > 0 && counts.active === 0) {
-        // If no active jobs but we know average processing time, estimate sequentially
-        estimatedTimeRemaining = totalPendingJobs * averageProcessingTime;
-      } else if (averageProcessingTime > 0 && counts.active > 0) {
-        // If jobs are active, estimate based on concurrency
-        const estimatedConcurrency = Math.max(counts.active, 1);
-        estimatedTimeRemaining =
-          (totalPendingJobs / estimatedConcurrency) * averageProcessingTime;
-      }
+    if (
+      totalPendingJobs > 0 &&
+      processingRate > 0 &&
+      completedLastMinute.length >= 3
+    ) {
+      // Only calculate if we have meaningful recent processing data
+      const concurrencyAdjustedRate = Math.min(
+        processingRate * actualMaxConcurrency,
+        processingRate,
+      );
+      estimatedTimeRemaining =
+        (totalPendingJobs / concurrencyAdjustedRate) * 1000;
     }
 
-    // Calculate throughput metrics
-    const throughputLast5Min = completedLast5Min.length;
-    const throughputLast1Hour = completedLastHour.length;
+    // Simple throughput - just count from the last minute
+    const throughputLast5Min = completedLastMinute.length; // Using same data as 1-minute
+    const throughputLast1Hour = completedLastMinute.length; // Conservative: only recent data
 
-    // Calculate error rate
-    const totalRecentJobs = (counts.completed || 0) + (counts.failed || 0);
+    // Basic error rate from current counts (not time-based since we only trust recent data)
+    const totalJobs = (counts.completed || 0) + (counts.failed || 0);
     const errorRate =
-      totalRecentJobs > 0 ? ((counts.failed || 0) / totalRecentJobs) * 100 : 0;
+      totalJobs > 0 ? ((counts.failed || 0) / totalJobs) * 100 : 0;
 
-    // Calculate retry metrics
-    const jobsWithRetries = failedLastHour.filter(
-      (job) => (job.attemptsMade || 0) > 1,
-    );
-    const retryRate =
-      failedLastHour.length > 0
-        ? (jobsWithRetries.length / failedLastHour.length) * 100
-        : 0;
-    const averageRetryCount =
-      jobsWithRetries.length > 0
-        ? jobsWithRetries.reduce(
-            (sum, job) => sum + (job.attemptsMade || 0),
-            0,
-          ) / jobsWithRetries.length
-        : 0;
-
-    // Calculate queue latency (average wait time)
-    const waitTimes = completedLastHour
+    // Queue latency - only from recent completions
+    const waitTimes = completedLastMinute
       .filter((job) => job.timestamp && job.processedOn)
       .map((job) => job.processedOn! - job.timestamp!);
 
@@ -262,59 +206,22 @@ async function calculateQueueMetrics(
         ? waitTimes.reduce((sum, time) => sum + time, 0) / waitTimes.length
         : 0;
 
-    // Calculate queue efficiency (processing time vs total time)
-    const totalTimes = completedLastHour
-      .filter((job) => job.timestamp && job.finishedOn && job.processedOn)
-      .map((job) => ({
-        processing: job.finishedOn! - job.processedOn!,
-        total: job.finishedOn! - job.timestamp!,
-      }));
-
-    const queueEfficiency =
-      totalTimes.length > 0
-        ? (totalTimes.reduce((sum, times) => sum + times.processing, 0) /
-            totalTimes.reduce((sum, times) => sum + times.total, 0)) *
-          100
-        : 0;
-
-    // Calculate concurrency metrics
+    // Basic concurrency metrics - only what we can observe now
     const currentConcurrency = counts.active || 0;
-    // FIXED: Better max concurrency calculation
-    const maxConcurrency = Math.max(
-      currentConcurrency,
-      completedLastHour.length > 0
-        ? Math.ceil(completedLastHour.length / (60 * 60)) * 10
-        : 10,
-    );
-    const averageConcurrency = currentConcurrency; // Simplified - could track over time
+    const maxConcurrency = actualMaxConcurrency;
 
-    // Get stalled jobs count from queue counts (if available)
-    let stalledJobs = 0;
-    let avgStallDuration = 0;
-    try {
-      // Note: Stall detection would need to be implemented through active job monitoring
-      // For now, we'll use a simplified approach
-      stalledJobs = 0; // Could be enhanced with custom stall detection logic
-      avgStallDuration = 0;
-    } catch (error) {
-      console.debug('Stall detection not implemented:', error);
-    }
+    // Only simple metrics we can be confident about
+    const peakProcessingRate = processingRate; // Current rate is our "peak"
+    const peakWaitingJobs = counts.waiting || 0;
 
-    // Get peak metrics from recent history
-    const peakProcessingRate = Math.max(effectiveProcessingRate, 0);
-    const peakWaitingJobs = Math.max(
-      counts.waiting || 0,
-      counts.prioritized || 0,
-    );
-
-    // Calculate idle time (simplified - time since last job completion)
-    const lastCompletedJob = completedLast5Min[0];
+    // Calculate idle time since last completion
+    const lastCompletedJob = completedLastMinute[0];
     const idleTime = lastCompletedJob?.finishedOn
       ? now - lastCompletedJob.finishedOn
       : 0;
 
     return {
-      processingRate: effectiveProcessingRate,
+      processingRate,
       averageProcessingTime,
       estimatedTimeRemaining,
       throughputLast5Min,
@@ -323,19 +230,19 @@ async function calculateQueueMetrics(
       queueLatency,
       peakProcessingRate,
       peakWaitingJobs,
-      // Enhanced metrics
+      // Enhanced metrics - only what we can calculate confidently
       medianProcessingTime,
       p95ProcessingTime,
       p99ProcessingTime,
       maxConcurrency,
       currentConcurrency,
-      averageConcurrency,
-      retryRate,
-      averageRetryCount,
-      queueEfficiency,
+      averageConcurrency: 0, // Removed uncertain calculation
+      retryRate: 0, // Removed - needs longer time window
+      averageRetryCount: 0, // Removed - needs longer time window
+      queueEfficiency: 0, // Removed - too complex for 1-minute window
       idleTime,
-      stalledJobs,
-      avgStallDuration,
+      stalledJobs: 0, // Removed - not implemented
+      avgStallDuration: 0, // Removed - not implemented
     };
   } catch (error) {
     console.error('Error calculating queue metrics:', error);
@@ -365,3 +272,26 @@ async function calculateQueueMetrics(
     };
   }
 }
+
+/*
+ * QUEUE STATS CALCULATION - ULTRA-CONSERVATIVE CONFIDENCE-FIRST APPROACH
+ * ======================================================================
+ *
+ * This implementation prioritizes absolute data confidence over any estimation:
+ *
+ * 1. ONLY uses data from the last 1 minute - no fallbacks to longer windows
+ * 2. NO calculations if we don't have sufficient recent data (≥3 completions)
+ * 3. REMOVED all uncertain metrics: retry rates, queue efficiency, average concurrency
+ * 4. Processing rate = completedLastMinute.length / 60 (simple and accurate)
+ * 5. Uses actual worker concurrency from QUEUE_CONCURRENCY_MAP (no estimates)
+ *
+ * Key principles:
+ * - If we can't measure it confidently in 1 minute, we don't report it
+ * - No fallback calculations, estimates, or guesswork
+ * - Estimated time remaining only with ≥3 recent completions + active processing rate
+ * - Percentiles only calculated with sufficient data (≥3 for median, ≥10 for p95/p99)
+ * - All complex metrics removed in favor of simple, observable data
+ *
+ * This approach prevents misleading estimates like "7 hours remaining" when
+ * actual processing is much faster.
+ */

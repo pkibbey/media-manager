@@ -42,7 +42,7 @@ export const appConfig = {
   FOLDER_SCAN_WORKER_CONCURRENCY: 5,
 
   // IO intensive workers (higher concurrency for better throughput)
-  EXIF_WORKER_CONCURRENCY: 20,
+  EXIF_WORKER_CONCURRENCY: 50,
 } as const;
 
 // Validate required environment variables

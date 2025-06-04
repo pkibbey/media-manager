@@ -60,7 +60,7 @@ export function standardizeExif(
     subject_distance: safeNumber(exif.SubjectDistance),
     width,
     lens_id: lensInfo,
-    lens_spec: safeString(exif.LensSpec),
+    lens_model: safeString(exif.LensModel),
     depth_of_field: safeString(exif.DOF),
     field_of_view: safeString(exif.FOV),
     flash,
