@@ -1,9 +1,7 @@
 'use client';
 
-import {
-  deleteAllMediaTypes,
-  getMediaTypes,
-} from '@/actions/admin/manage-media-types';
+import { deleteAllMediaTypes } from '@/actions/admin/delete-all-media-types';
+import { getMediaTypes } from '@/actions/admin/get-media-types';
 import { MediaTypeList } from '@/components/admin/media-type-list';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';

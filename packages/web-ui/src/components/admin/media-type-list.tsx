@@ -1,6 +1,6 @@
 'use client';
 
-import { updateMediaType } from '@/actions/admin/manage-media-types';
+import { updateMediaType } from '@/actions/admin/update-media-type';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
