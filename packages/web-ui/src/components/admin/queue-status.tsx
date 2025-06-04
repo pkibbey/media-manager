@@ -2,6 +2,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useQueue } from '@/hooks/useQueue';
+import {
+  formatDuration,
+  formatPercentage,
+  formatRate,
+} from '@/lib/queue-utils';
 import {
   Activity,
   AlertCircle,
@@ -14,8 +20,9 @@ import {
   TrendingUp,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import type { QueueName, QueueStats } from 'shared/types';
+import { MetricCard } from './metric-card';
+import { StatCard } from './stat-card';
 
 interface QueueStatusProps {
   queueName: QueueName;
@@ -42,29 +49,10 @@ export function QueueStatus({
   dynamicGrowthMessage,
   showDynamicGrowth = false,
 }: QueueStatusProps) {
-  const [stats, setStats] = useState<QueueStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStatsData = async () => {
-      try {
-        const queueStats = await fetchStats();
-        setStats(queueStats);
-      } catch (error) {
-        console.error(`Error fetching ${queueName} stats:`, error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Initial fetch
-    fetchStatsData();
-
-    // Poll every 2 seconds for real-time updates
-    const interval = setInterval(fetchStatsData, 2000);
-
-    return () => clearInterval(interval);
-  }, [queueName, fetchStats]);
+  const { stats, isLoading, resetQueueState } = useQueue({
+    queueName,
+    fetchStats,
+  });
 
   if (isLoading) {
     return (
@@ -129,31 +117,46 @@ export function QueueStatus({
       <CardContent className="space-y-4">
         {/* Queue Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 text-blue-500" />
-            <span className="text-muted-foreground">Active:</span>
-            <span className="font-medium">{stats.active}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-yellow-500" />
-            <span className="text-muted-foreground">Waiting:</span>
-            <span className="font-medium">{effectiveWaiting}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Pause className="h-4 w-4 text-purple-500" />
-            <span className="text-muted-foreground">Paused:</span>
-            <span className="font-medium">{stats.paused}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <span className="text-muted-foreground">Completed:</span>
-            <span className="font-medium">{stats.completed}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-500" />
-            <span className="text-muted-foreground">Failed:</span>
-            <span className="font-medium">{stats.failed}</span>
-          </div>
+          <StatCard
+            icon={Loader2}
+            iconColor="text-blue-500"
+            label="Active"
+            value={stats.active}
+            onReset={() => resetQueueState('active')}
+            resetTitle="Reset active jobs"
+          />
+          <StatCard
+            icon={Clock}
+            iconColor="text-yellow-500"
+            label="Waiting"
+            value={effectiveWaiting}
+            onReset={() => resetQueueState('waiting')}
+            resetTitle="Reset waiting jobs"
+          />
+          <StatCard
+            icon={Pause}
+            iconColor="text-purple-500"
+            label="Paused"
+            value={stats.paused}
+            onReset={() => resetQueueState('paused')}
+            resetTitle="Reset paused jobs"
+          />
+          <StatCard
+            icon={CheckCircle2}
+            iconColor="text-green-500"
+            label="Completed"
+            value={stats.completed}
+            onReset={() => resetQueueState('completed')}
+            resetTitle="Reset completed jobs"
+          />
+          <StatCard
+            icon={XCircle}
+            iconColor="text-red-500"
+            label="Failed"
+            value={stats.failed}
+            onReset={() => resetQueueState('failed')}
+            resetTitle="Reset failed jobs"
+          />
         </div>
 
         {/* Progress Bar */}
@@ -182,50 +185,32 @@ export function QueueStatus({
 
             {/* Processing Rate and Time Estimates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                <TrendingUp className="h-4 w-4 text-green-500" />
-                <div>
-                  <div className="text-muted-foreground">Processing Rate</div>
-                  <div className="font-medium">
-                    {formatRate(stats.metrics.processingRate)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                <Timer className="h-4 w-4 text-blue-500" />
-                <div>
-                  <div className="text-muted-foreground">
-                    Est. Time Remaining
-                  </div>
-                  <div className="font-medium">
-                    {formatDuration(stats.metrics.estimatedTimeRemaining)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                <Clock className="h-4 w-4 text-purple-500" />
-                <div>
-                  <div className="text-muted-foreground">
-                    Avg. Processing Time
-                  </div>
-                  <div className="font-medium">
-                    {formatDuration(stats.metrics.averageProcessingTime)}
-                  </div>
-                </div>
-              </div>
-
+              <MetricCard
+                icon={TrendingUp}
+                iconColor="text-green-500"
+                label="Processing Rate"
+                value={formatRate(stats.metrics.processingRate)}
+              />
+              <MetricCard
+                icon={Timer}
+                iconColor="text-blue-500"
+                label="Est. Time Remaining"
+                value={formatDuration(stats.metrics.estimatedTimeRemaining)}
+              />
+              <MetricCard
+                icon={Clock}
+                iconColor="text-purple-500"
+                label="Avg. Processing Time"
+                value={formatDuration(stats.metrics.averageProcessingTime)}
+              />
               {stats.metrics.errorRate > 0 && (
-                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  <div>
-                    <div className="text-muted-foreground">Error Rate</div>
-                    <div className="font-medium text-red-600">
-                      {formatPercentage(stats.metrics.errorRate)}
-                    </div>
-                  </div>
-                </div>
+                <MetricCard
+                  icon={AlertCircle}
+                  iconColor="text-red-500"
+                  label="Error Rate"
+                  value={formatPercentage(stats.metrics.errorRate)}
+                  className="text-red-600"
+                />
               )}
             </div>
 
@@ -262,54 +247,37 @@ export function QueueStatus({
             {/* Concurrency and Efficiency Metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               {stats.metrics.currentConcurrency > 0 && (
-                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                  <Activity className="h-4 w-4 text-orange-500" />
-                  <div>
-                    <div className="text-muted-foreground">Concurrency</div>
-                    <div className="font-medium">
-                      {stats.metrics.currentConcurrency} /{' '}
-                      {stats.metrics.maxConcurrency}
-                    </div>
-                  </div>
-                </div>
+                <MetricCard
+                  icon={Activity}
+                  iconColor="text-orange-500"
+                  label="Concurrency"
+                  value={`${stats.metrics.currentConcurrency} / ${stats.metrics.maxConcurrency}`}
+                />
               )}
-
               {stats.metrics.queueEfficiency > 0 && (
-                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
-                  <div>
-                    <div className="text-muted-foreground">
-                      Queue Efficiency
-                    </div>
-                    <div className="font-medium">
-                      {formatPercentage(stats.metrics.queueEfficiency)}
-                    </div>
-                  </div>
-                </div>
+                <MetricCard
+                  icon={TrendingUp}
+                  iconColor="text-emerald-500"
+                  label="Queue Efficiency"
+                  value={formatPercentage(stats.metrics.queueEfficiency)}
+                />
               )}
-
               {stats.metrics.retryRate > 0 && (
-                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                  <div>
-                    <div className="text-muted-foreground">Retry Rate</div>
-                    <div className="font-medium">
-                      {formatPercentage(stats.metrics.retryRate)}
-                    </div>
-                  </div>
-                </div>
+                <MetricCard
+                  icon={AlertCircle}
+                  iconColor="text-amber-500"
+                  label="Retry Rate"
+                  value={formatPercentage(stats.metrics.retryRate)}
+                />
               )}
-
               {stats.metrics.stalledJobs > 0 && (
-                <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-md">
-                  <Pause className="h-4 w-4 text-red-500" />
-                  <div>
-                    <div className="text-muted-foreground">Stalled Jobs</div>
-                    <div className="font-medium text-red-600">
-                      {stats.metrics.stalledJobs}
-                    </div>
-                  </div>
-                </div>
+                <MetricCard
+                  icon={Pause}
+                  iconColor="text-red-500"
+                  label="Stalled Jobs"
+                  value={stats.metrics.stalledJobs.toString()}
+                  className="text-red-600"
+                />
               )}
             </div>
 
@@ -394,30 +362,4 @@ export function QueueStatus({
       </CardContent>
     </Card>
   );
-}
-
-// Helper functions for formatting metrics
-function formatDuration(ms: number): string {
-  if (ms === 0 || !ms || !Number.isFinite(ms)) return 'N/A';
-
-  const fixedSeconds = (ms / 1000).toFixed(2);
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) return `${days}d ${hours % 24}h`;
-  if (hours > 0) return `${hours}h ${minutes % 60}m`;
-  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-  return `${fixedSeconds}s`;
-}
-
-function formatRate(rate: number): string {
-  if (rate === 0) return '0';
-  if (rate < 0.1) return `${(rate * 60).toFixed(1)}/min`;
-  return `${rate.toFixed(2)}/sec`;
-}
-
-function formatPercentage(value: number): string {
-  return `${value.toFixed(1)}%`;
 }
