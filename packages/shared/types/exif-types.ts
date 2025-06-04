@@ -17,6 +17,9 @@ interface ExtractedExifData {
   // GPS coordinates (can be numbers or coordinate arrays)
   GPSLatitude?: number | string | number[] | null;
   GPSLongitude?: number | string | number[] | null;
+  GPSLatitudeRef?: string | null; // N/S reference
+  GPSLongitudeRef?: string | null; // E/W reference
+  GPSPosition?: number[] | null; // Combined GPS position array
 
   // Camera settings
   FNumber?: number | string | null; // Aperture
@@ -31,22 +34,35 @@ interface ExtractedExifData {
   ImageWidth?: number | null;
   ExifImageWidth?: number | null;
   Orientation?: number | null;
+  Rotation?: number | null; // Alternative orientation field
+  CameraOrientation?: number | null; // Another orientation alternative
 
   // Lens information
   LensID?: string | null;
   LensModel?: string | null;
   LensSpec?: string | null;
+  LensSerialNumber?: string | null;
+  LensMake?: string | null;
+  Lens?: string | null; // Alternative lens field
 
   // Camera settings and conditions
   LightSource?: string | number | null;
   MeteringMode?: string | number | null;
   SceneCaptureType?: string | number | null;
   SubjectDistance?: number | string | null;
+  FocusDistance?: number | string | null; // Alternative for subject distance
+  SubjectDistanceRange?: number | string | null; // Another alternative
+  FocusRange?: number | string | null; // Another focus distance alternative
   Flash?: string | number | null;
+  FlashMode?: string | number | null; // Alternative flash field
 
   // Additional metadata (primarily from exifr)
   DOF?: string | null; // Depth of Field
+  DepthOfField?: string | null; // Alternative DOF field
+  HyperfocalDistance?: string | number | null; // Related to DOF
   FOV?: string | null; // Field of View
+  FieldOfView?: string | null; // Alternative FOV field
+  AngleOfView?: string | number | null; // Another FOV alternative
 }
 
 /**

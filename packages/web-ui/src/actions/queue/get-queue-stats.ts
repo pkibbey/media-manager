@@ -3,62 +3,11 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
+import type { QueueMetrics, QueueStats } from 'shared/types';
 
 const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,
 });
-
-interface QueueMetrics {
-  // Processing rate metrics
-  processingRate: number; // jobs per second
-  averageProcessingTime: number; // in milliseconds
-  estimatedTimeRemaining: number; // in milliseconds
-
-  // Throughput metrics
-  throughputLast5Min: number;
-  throughputLast1Hour: number;
-
-  // Queue health metrics
-  errorRate: number; // percentage of failed jobs
-  queueLatency: number; // average wait time before processing
-
-  // Peak metrics
-  peakProcessingRate: number;
-  peakWaitingJobs: number;
-
-  // Enhanced metrics
-  medianProcessingTime: number;
-  p95ProcessingTime: number;
-  p99ProcessingTime: number;
-  maxConcurrency: number;
-  currentConcurrency: number;
-  averageConcurrency: number;
-  retryRate: number;
-  averageRetryCount: number;
-  queueEfficiency: number;
-  idleTime: number;
-  stalledJobs: number;
-  avgStallDuration: number;
-}
-
-export interface QueueStats {
-  active: number;
-  waiting: number;
-  completed: number;
-  failed: number;
-  delayed: number;
-  paused: number;
-  'waiting-children': number;
-  prioritized: number;
-  // Generic active jobs info
-  activeJobs?: Array<{
-    id: string;
-    data: Record<string, any>;
-    progress?: number;
-  }>;
-  // Enhanced metrics
-  metrics?: QueueMetrics;
-}
 
 // Queue name to concurrency mapping based on actual worker configurations
 const QUEUE_CONCURRENCY_MAP: Record<string, number> = {
@@ -129,9 +78,6 @@ async function calculateQueueMetrics(
       (job) => job.finishedOn && job.finishedOn > oneMinuteAgo,
     );
 
-    // Processing rate: Only from last minute data, no fallbacks
-    const processingRate = completedLastMinute.length / 60; // jobs per second
-
     // Get actual concurrency limit for this queue
     const actualMaxConcurrency = QUEUE_CONCURRENCY_MAP[queueName] || 1;
 
@@ -148,7 +94,7 @@ async function calculateQueueMetrics(
           processingTimesLastMinute.length
         : 0;
 
-    // Percentile processing times - only if we have sufficient recent data
+    // Median processing time (ms)
     const medianProcessingTime =
       processingTimesLastMinute.length >= 3
         ? processingTimesLastMinute[
@@ -167,6 +113,25 @@ async function calculateQueueMetrics(
             Math.floor(processingTimesLastMinute.length * 0.99)
           ]
         : 0;
+
+    // Basic concurrency metrics - only what we can observe now
+    const currentConcurrency = counts.active || 0;
+    const maxConcurrency = actualMaxConcurrency;
+
+    // --- FIX: Processing Rate Calculation ---
+    // Use a new variable for the fixed logic to avoid redeclaration
+    let processingRate: number;
+    if (medianProcessingTime > 0 && currentConcurrency > 0) {
+      processingRate = (currentConcurrency * 1000) / medianProcessingTime;
+    } else {
+      processingRate = completedLastMinute.length / 60;
+    }
+
+    // Calculate idle time since last completion
+    const lastCompletedJob = completedLastMinute[0];
+    const idleTime = lastCompletedJob?.finishedOn
+      ? now - lastCompletedJob.finishedOn
+      : 0;
 
     // Calculate estimated time remaining - only if we have reliable recent data
     const totalPendingJobs =
@@ -206,20 +171,6 @@ async function calculateQueueMetrics(
         ? waitTimes.reduce((sum, time) => sum + time, 0) / waitTimes.length
         : 0;
 
-    // Basic concurrency metrics - only what we can observe now
-    const currentConcurrency = counts.active || 0;
-    const maxConcurrency = actualMaxConcurrency;
-
-    // Only simple metrics we can be confident about
-    const peakProcessingRate = processingRate; // Current rate is our "peak"
-    const peakWaitingJobs = counts.waiting || 0;
-
-    // Calculate idle time since last completion
-    const lastCompletedJob = completedLastMinute[0];
-    const idleTime = lastCompletedJob?.finishedOn
-      ? now - lastCompletedJob.finishedOn
-      : 0;
-
     return {
       processingRate,
       averageProcessingTime,
@@ -228,21 +179,13 @@ async function calculateQueueMetrics(
       throughputLast1Hour,
       errorRate,
       queueLatency,
-      peakProcessingRate,
-      peakWaitingJobs,
       // Enhanced metrics - only what we can calculate confidently
       medianProcessingTime,
       p95ProcessingTime,
       p99ProcessingTime,
       maxConcurrency,
       currentConcurrency,
-      averageConcurrency: 0, // Removed uncertain calculation
-      retryRate: 0, // Removed - needs longer time window
-      averageRetryCount: 0, // Removed - needs longer time window
-      queueEfficiency: 0, // Removed - too complex for 1-minute window
       idleTime,
-      stalledJobs: 0, // Removed - not implemented
-      avgStallDuration: 0, // Removed - not implemented
     };
   } catch (error) {
     console.error('Error calculating queue metrics:', error);
@@ -255,43 +198,12 @@ async function calculateQueueMetrics(
       throughputLast1Hour: 0,
       errorRate: 0,
       queueLatency: 0,
-      peakProcessingRate: 0,
-      peakWaitingJobs: 0,
       medianProcessingTime: 0,
       p95ProcessingTime: 0,
       p99ProcessingTime: 0,
       maxConcurrency: 0,
       currentConcurrency: 0,
-      averageConcurrency: 0,
-      retryRate: 0,
-      averageRetryCount: 0,
-      queueEfficiency: 0,
       idleTime: 0,
-      stalledJobs: 0,
-      avgStallDuration: 0,
     };
   }
 }
-
-/*
- * QUEUE STATS CALCULATION - ULTRA-CONSERVATIVE CONFIDENCE-FIRST APPROACH
- * ======================================================================
- *
- * This implementation prioritizes absolute data confidence over any estimation:
- *
- * 1. ONLY uses data from the last 1 minute - no fallbacks to longer windows
- * 2. NO calculations if we don't have sufficient recent data (≥3 completions)
- * 3. REMOVED all uncertain metrics: retry rates, queue efficiency, average concurrency
- * 4. Processing rate = completedLastMinute.length / 60 (simple and accurate)
- * 5. Uses actual worker concurrency from QUEUE_CONCURRENCY_MAP (no estimates)
- *
- * Key principles:
- * - If we can't measure it confidently in 1 minute, we don't report it
- * - No fallback calculations, estimates, or guesswork
- * - Estimated time remaining only with ≥3 recent completions + active processing rate
- * - Percentiles only calculated with sufficient data (≥3 for median, ≥10 for p95/p99)
- * - All complex metrics removed in favor of simple, observable data
- *
- * This approach prevents misleading estimates like "7 hours remaining" when
- * actual processing is much faster.
- */

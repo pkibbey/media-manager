@@ -3,11 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "npm@11.4.1",
-  "workspaces": [
-    "packages/workers/*",
-    "packages/web-ui",
-    "packages/shared"
-  ],
+  "workspaces": ["packages/workers/*", "packages/web-ui", "packages/shared"],
   "scripts": {
     "dev": "turbo run dev",
     "web": "turbo run web",

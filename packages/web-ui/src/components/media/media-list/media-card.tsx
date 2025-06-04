@@ -1,6 +1,4 @@
 'use client';
-
-import { Badge } from '@/components/ui/badge';
 import { Card, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
@@ -54,7 +52,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
           </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            {media.media_types?.description?.toUpperCase() || 'No Preview'}
+            No Preview
           </div>
         )}
 
@@ -69,9 +67,6 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
         <CardFooter className="p-2 flex flex-col items-start">
           <div className="text-sm font-medium truncate w-full">{fileName}</div>
           <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className="text-xs">
-              {media.media_types?.description || 'Unknown'}
-            </Badge>
             <span className="text-xs text-muted-foreground">
               {formatBytes(media.size_bytes)}
             </span>

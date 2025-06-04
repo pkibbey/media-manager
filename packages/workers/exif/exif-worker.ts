@@ -6,6 +6,7 @@ import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
 import { processExifFast } from './process-exif-fast';
+// import { processExifSlow } from './process-exif-slow';
 
 interface ExifJobData {
   id: string;
@@ -40,6 +41,8 @@ const workerProcessor = async (job: Job<ExifJobData>): Promise<boolean> => {
       return true;
     }
 
+    // No need to process with slow method if fast method succeeded
+    // Uncomment the following lines if you want to fall back to the slow method
     // const slowResult = await processExifSlow({ id, media_path });
 
     // if (slowResult) {

@@ -1,5 +1,7 @@
 import type { PostgrestResponse } from '@supabase/supabase-js';
-import type { Tables } from './supabase-types';
+import type { Database, Tables } from './supabase-types';
+
+export type TableName = Extract<keyof Database['public']['Tables'], string>;
 
 /**
  * Media filtering options for browsing and searching media

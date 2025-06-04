@@ -49,43 +49,15 @@ export interface QueueMetrics {
   errorRate: number; // percentage of failed jobs
   queueLatency: number; // average wait time before processing
 
-  // Peak metrics
-  peakProcessingRate: number;
-  peakWaitingJobs: number;
-
-  // New enhanced metrics
-  // Memory and performance
-  memoryUsage?: number; // bytes
-  cpuUsage?: number; // percentage
-
   // Advanced timing metrics
   medianProcessingTime: number; // milliseconds
   p95ProcessingTime: number; // 95th percentile processing time
   p99ProcessingTime: number; // 99th percentile processing time
+  idleTime: number; // milliseconds queue was idle
 
   // Concurrency metrics
   maxConcurrency: number; // maximum concurrent jobs
-  currentConcurrency: number; // current active jobs
-  averageConcurrency: number; // average over last hour
-
-  // Retry and failure analysis
-  retryRate: number; // percentage of jobs that needed retries
-  averageRetryCount: number; // average retries per failed job
-
-  // Queue efficiency
-  queueEfficiency: number; // percentage (processing time / total time)
-  idleTime: number; // milliseconds queue was idle
-
-  // Stall detection
-  stalledJobs: number; // count of stalled jobs
-  avgStallDuration: number; // average stall duration in ms
-
-  // Historical trends (optional for trending graphs)
-  trends?: {
-    processingRateHistory: number[]; // last 10 data points
-    errorRateHistory: number[]; // last 10 data points
-    queueSizeHistory: number[]; // last 10 data points
-  };
+  currentConcurrency: number; // current active jobs;
 }
 
 /**

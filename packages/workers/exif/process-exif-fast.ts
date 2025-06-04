@@ -9,6 +9,7 @@ import { exifOptions, standardizeExif } from './exif-utils';
  * Extract EXIF data from a media item using the fast exifr library
  *
  * @param mediaItem - The media item to process
+ * @param enableDebug - Optional flag to enable detailed EXIF field debugging
  * @returns Object with extracted EXIF data and success status
  */
 export async function processExifFast(

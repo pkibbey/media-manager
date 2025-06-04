@@ -254,31 +254,6 @@ export function QueueStatus({
                   value={`${stats.metrics.currentConcurrency} / ${stats.metrics.maxConcurrency}`}
                 />
               )}
-              {stats.metrics.queueEfficiency > 0 && (
-                <MetricCard
-                  icon={TrendingUp}
-                  iconColor="text-emerald-500"
-                  label="Queue Efficiency"
-                  value={formatPercentage(stats.metrics.queueEfficiency)}
-                />
-              )}
-              {stats.metrics.retryRate > 0 && (
-                <MetricCard
-                  icon={AlertCircle}
-                  iconColor="text-amber-500"
-                  label="Retry Rate"
-                  value={formatPercentage(stats.metrics.retryRate)}
-                />
-              )}
-              {stats.metrics.stalledJobs > 0 && (
-                <MetricCard
-                  icon={Pause}
-                  iconColor="text-red-500"
-                  label="Stalled Jobs"
-                  value={stats.metrics.stalledJobs.toString()}
-                  className="text-red-600"
-                />
-              )}
             </div>
 
             {/* Detailed Statistics */}
@@ -296,12 +271,6 @@ export function QueueStatus({
                 )}
                 {stats.metrics.idleTime > 0 && (
                   <div>Idle time: {formatDuration(stats.metrics.idleTime)}</div>
-                )}
-                {stats.metrics.averageRetryCount > 1 && (
-                  <div>
-                    Avg. retries per failed job:{' '}
-                    {stats.metrics.averageRetryCount.toFixed(1)}
-                  </div>
                 )}
               </div>
             )}

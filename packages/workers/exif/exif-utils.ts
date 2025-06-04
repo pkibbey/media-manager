@@ -18,26 +18,84 @@ export function standardizeExif(
     exif.DateTimeOriginal || exif.CreateDate || exif.DateTime,
   );
 
-  // Handle GPS coordinates with specialized GPS extraction
-  const gps_latitude = extractGPSCoordinate(exif.GPSLatitude);
-  const gps_longitude = extractGPSCoordinate(exif.GPSLongitude);
+  // Handle GPS coordinates with enhanced extraction including reference directions
+  const gps_latitude =
+    extractGPSCoordinateEnhanced(exif.GPSLatitude, exif.GPSLatitudeRef) ||
+    extractGPSCoordinate(exif.GPSLatitude);
+  const gps_longitude =
+    extractGPSCoordinateEnhanced(exif.GPSLongitude, exif.GPSLongitudeRef) ||
+    extractGPSCoordinate(exif.GPSLongitude);
 
   // Extract dimensions with fallbacks and validation
   const height = safeInteger(exif.ImageHeight || exif.ExifImageHeight) || 0;
   const width = safeInteger(exif.ImageWidth || exif.ExifImageWidth) || 0;
 
-  // Handle library-specific field mappings
+  // Handle library-specific field mappings with expanded alternatives
   let lensInfo: string | null = null;
   let flash: string | null = null;
+  let orientation: number | null = null;
+  let subjectDistance: number | null = null;
+  let depthOfField: string | null = null;
+  let fieldOfView: string | null = null;
 
   if (isExiftoolData(exif)) {
     // ExifTool has more comprehensive lens and flash information
-    lensInfo = safeString(exif.LensID || exif.LensModel || exif.Lens);
-    flash = safeString(exif.Flash);
+    lensInfo = safeString(
+      (exif as any).LensID ||
+        (exif as any).LensModel ||
+        (exif as any).Lens ||
+        (exif as any).LensSpec ||
+        (exif as any).LensSerialNumber ||
+        (exif as any).LensMake,
+    );
+    flash = safeString((exif as any).Flash || (exif as any).FlashMode);
+
+    // Alternative orientation fields
+    orientation = safeInteger(
+      (exif as any).Orientation ||
+        (exif as any).Rotation ||
+        (exif as any).CameraOrientation,
+    );
+
+    // Alternative subject distance fields
+    subjectDistance = safeNumber(
+      (exif as any).SubjectDistance ||
+        (exif as any).FocusDistance ||
+        (exif as any).SubjectDistanceRange ||
+        (exif as any).FocusRange,
+    );
+
+    // Alternative depth of field fields
+    depthOfField = safeString(
+      (exif as any).DOF ||
+        (exif as any).DepthOfField ||
+        (exif as any).HyperfocalDistance,
+    );
+
+    // Alternative field of view fields
+    fieldOfView = safeString(
+      (exif as any).FOV ||
+        (exif as any).FieldOfView ||
+        (exif as any).AngleOfView,
+    );
   } else if (isExifrData(exif)) {
     // exifr has some specific fields
-    lensInfo = safeString(exif.LensID || exif.LensModel);
-    flash = safeString(exif.Flash);
+    lensInfo = safeString(
+      exif.LensID || exif.LensModel || exif.LensSpec || exif.Lens,
+    );
+    flash = safeString(exif.Flash || (exif as any).FlashMode);
+
+    // Alternative orientation fields for exifr
+    orientation = safeInteger(exif.Orientation || (exif as any).Rotation);
+
+    // Alternative subject distance fields for exifr
+    subjectDistance = safeNumber(
+      exif.SubjectDistance || (exif as any).FocusDistance,
+    );
+
+    // Alternative depth/field of view fields for exifr
+    depthOfField = safeString(exif.DOF || (exif as any).DepthOfField);
+    fieldOfView = safeString(exif.FOV || (exif as any).FieldOfView);
   }
 
   return {
@@ -55,14 +113,14 @@ export function standardizeExif(
     light_source: safeString(exif.LightSource),
     media_id: mediaId,
     metering_mode: safeString(exif.MeteringMode),
-    orientation: safeInteger(exif.Orientation),
+    orientation: orientation || safeInteger(exif.Orientation),
     scene_capture_type: safeString(exif.SceneCaptureType),
-    subject_distance: safeNumber(exif.SubjectDistance),
+    subject_distance: subjectDistance || safeNumber(exif.SubjectDistance),
     width,
     lens_id: lensInfo,
     lens_model: safeString(exif.LensModel),
-    depth_of_field: safeString(exif.DOF),
-    field_of_view: safeString(exif.FOV),
+    depth_of_field: depthOfField || safeString(exif.DOF),
+    field_of_view: fieldOfView || safeString(exif.FOV),
     flash,
   };
 }
@@ -71,7 +129,7 @@ export function standardizeExif(
  * Type guard to check if the EXIF data comes from exiftool-vendored
  * ExiftoolTags has more comprehensive typing and special date handling
  */
-export function isExiftoolData(data: ExifData): data is ExiftoolTags {
+function isExiftoolData(data: ExifData): data is ExiftoolTags {
   if (!data || typeof data !== 'object') return false;
 
   // ExiftoolTags typically has more comprehensive metadata and different date handling
@@ -94,7 +152,7 @@ export function isExiftoolData(data: ExifData): data is ExiftoolTags {
 /**
  * Type guard to check if the EXIF data comes from exifr
  */
-export function isExifrData(data: ExifData): data is ExifrOutput {
+function isExifrData(data: ExifData): data is ExifrOutput {
   return !isExiftoolData(data);
 }
 
@@ -102,7 +160,7 @@ export function isExifrData(data: ExifData): data is ExifrOutput {
  * Enhanced safe number conversion that handles various input types from both libraries
  * Supports exifr and exiftool-vendored specific formats
  */
-export function safeNumber(value: unknown): number | null {
+function safeNumber(value: unknown): number | null {
   if (value == null) return null;
 
   // Handle direct numbers
@@ -153,7 +211,7 @@ export function safeNumber(value: unknown): number | null {
 /**
  * Enhanced safe integer conversion with better handling of EXIF-specific formats
  */
-export function safeInteger(value: unknown): number | null {
+function safeInteger(value: unknown): number | null {
   const num = safeNumber(value);
   return num !== null ? Math.floor(num) : null;
 }
@@ -161,7 +219,7 @@ export function safeInteger(value: unknown): number | null {
 /**
  * Enhanced safe string conversion that handles EXIF-specific string formats
  */
-export function safeString(value: unknown): string | null {
+function safeString(value: unknown): string | null {
   if (value == null) return null;
 
   // Handle direct strings
@@ -215,7 +273,7 @@ export function safeString(value: unknown): string | null {
  * Enhanced date extraction and normalization for various EXIF date formats
  * Handles both exifr and exiftool-vendored date representations
  */
-export function extractDate(value: unknown): Date | null {
+function extractDate(value: unknown): Date | null {
   if (!value) return null;
 
   // Handle Date objects directly (from exifr)
@@ -292,10 +350,39 @@ export function extractDate(value: unknown): Date | null {
 }
 
 /**
+ * Enhanced GPS coordinate extraction that handles reference directions (N/S/E/W)
+ * This function specifically handles GPS coordinates with directional references
+ */
+function extractGPSCoordinateEnhanced(
+  coordinate: unknown,
+  reference?: unknown,
+): number | null {
+  if (!coordinate) return null;
+
+  // First try to extract the basic coordinate
+  let coord = extractGPSCoordinate(coordinate);
+  if (coord === null) return null;
+
+  // Apply reference direction if available
+  if (reference && typeof reference === 'string') {
+    const ref = reference.trim().toUpperCase();
+    // For latitude: S should be negative, N should be positive
+    // For longitude: W should be negative, E should be positive
+    if (ref === 'S' || ref === 'W') {
+      coord = Math.abs(coord) * -1;
+    } else if (ref === 'N' || ref === 'E') {
+      coord = Math.abs(coord);
+    }
+  }
+
+  return coord;
+}
+
+/**
  * Specialized GPS coordinate extraction that handles various formats
  * GPS coordinates can come in many different formats from both libraries
  */
-export function extractGPSCoordinate(value: unknown): number | null {
+function extractGPSCoordinate(value: unknown): number | null {
   if (!value) return null;
 
   // Handle direct numeric values
@@ -380,12 +467,17 @@ export const exifOptions = {
     'LensID',
     'LensModel',
     'LensSpec',
+    'LensSerialNumber',
+    'LensMake',
+    'Lens',
     // Image dimensions
     'ImageWidth',
     'ImageHeight',
     'ExifImageWidth',
     'ExifImageHeight',
     'Orientation',
+    'Rotation',
+    'CameraOrientation',
     // Capture settings
     'ISO',
     'FNumber',
@@ -396,7 +488,11 @@ export const exifOptions = {
     'MeteringMode',
     'SceneCaptureType',
     'SubjectDistance',
+    'FocusDistance',
+    'SubjectDistanceRange',
+    'FocusRange',
     'Flash',
+    'FlashMode',
     // Date/time
     'DateTimeOriginal',
     'CreateDate',
@@ -404,8 +500,15 @@ export const exifOptions = {
     // GPS
     'GPSLatitude',
     'GPSLongitude',
+    'GPSLatitudeRef',
+    'GPSLongitudeRef',
+    'GPSPosition',
     // Additional metadata
     'DOF',
+    'DepthOfField',
+    'HyperfocalDistance',
     'FOV',
+    'FieldOfView',
+    'AngleOfView',
   ],
 };

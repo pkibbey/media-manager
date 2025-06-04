@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Bot,
   Copy,
-  Database,
   Eye,
   FileText,
   Image,
@@ -26,12 +25,12 @@ const navItemGroups = [
     category: 'Processing',
     items: [
       { href: '/admin/exif', label: 'EXIF Data', icon: FileText },
-      { href: '/admin/database', label: 'Exif Table', icon: Database },
       { href: '/admin/thumbnails', label: 'Thumbnails', icon: Zap },
     ],
   },
   {
     category: 'Clean',
+
     items: [{ href: '/admin/duplicates', label: 'Duplicates', icon: Copy }],
   },
   {
