@@ -9,8 +9,9 @@
     "packages/shared"
   ],
   "scripts": {
-    "dev": "turbo run dev --filter=web-ui...",
-    "build": "turbo run build --filter=web-ui...",
+    "dev": "turbo run dev",
+    "web": "turbo run web",
+    "build": "turbo run build",
     "workers": "turbo run worker",
     "lint": "biome lint .",
     "format": "biome format . --write",
@@ -22,7 +23,7 @@
     "@biomejs/biome": "1.9.4",
     "@types/node": "^22.15.29",
     "knip": "^5.59.1",
-    "supabase": "^2.23.4",
+    "supabase": "^2.24.3",
     "turbo": "^2.5.4"
   }
 }

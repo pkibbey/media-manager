@@ -39,17 +39,31 @@ function calculateHammingDistance(hash1: string, hash2: string): number {
  */
 export async function processDuplicates({
   mediaId,
-  visualHash,
 }: {
   mediaId: string;
-  visualHash: string;
 }): Promise<boolean> {
   const supabase = createSupabase();
 
   try {
-    if (!visualHash) {
-      throw new Error('No visual hash provided for duplicate detection');
+    // Fetch the media item to get its visual hash
+    const { data: mediaItem, error: fetchError } = await supabase
+      .from('media')
+      .select('id, visual_hash')
+      .eq('id', mediaId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(
+        `Failed to fetch media item with ID ${mediaId}: ${fetchError.message}`,
+      );
     }
+    if (!mediaItem || !mediaItem.visual_hash) {
+      console.warn(
+        `Media item with ID ${mediaId} has no visual hash, skipping duplicate detection.`,
+      );
+      return false;
+    }
+    const visualHash = mediaItem.visual_hash;
 
     // Find potential duplicates
     const { data: similarItems, error: findError } = await supabase

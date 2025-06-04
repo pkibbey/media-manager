@@ -226,7 +226,6 @@ export type Database = {
       }
       media: {
         Row: {
-          file_hash: string | null
           id: string
           is_deleted: boolean
           is_hidden: boolean
@@ -237,7 +236,6 @@ export type Database = {
           visual_hash: string | null
         }
         Insert: {
-          file_hash?: string | null
           id?: string
           is_deleted?: boolean
           is_hidden?: boolean
@@ -248,7 +246,6 @@ export type Database = {
           visual_hash?: string | null
         }
         Update: {
-          file_hash?: string | null
           id?: string
           is_deleted?: boolean
           is_hidden?: boolean

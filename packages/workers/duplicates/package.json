@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "dev": "tsx duplicates-worker.ts",
     "worker": "tsx duplicates-worker.ts"
   },
   "keywords": [],
@@ -10,7 +11,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "bullmq": "^5.53.1",
+    "dotenv": "16.5.0",
+    "bullmq": "^5.53.2",
+    "sharp": "^0.34.2",
     "shared": "*"
   },
   "devDependencies": {

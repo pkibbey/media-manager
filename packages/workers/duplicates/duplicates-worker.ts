@@ -2,9 +2,11 @@ import { type Job, Worker } from 'bullmq';
 import { appConfig } from 'shared/env';
 import { createRedisConnection } from 'shared/redis';
 import { processDuplicates } from './process-duplicates';
+import { processVisualHash } from './process-visual-hash';
 
 interface DuplicatesJobData {
   id: string;
+  media_path: string;
   visual_hash?: string;
 }
 
@@ -19,15 +21,19 @@ const QUEUE_NAME = 'duplicatesQueue';
 const workerProcessor = async (
   job: Job<DuplicatesJobData>,
 ): Promise<boolean> => {
-  const { id: mediaId, visual_hash: visualHash } = job.data;
+  const {
+    id: mediaId,
+    media_path: mediaPath,
+    visual_hash: visualHash,
+  } = job.data;
 
   try {
     if (!visualHash) {
-      throw new Error('No visual hash provided for duplicate detection');
+      await processVisualHash({ mediaId, mediaPath });
     }
 
     // Process duplicates using the extracted function
-    return await processDuplicates({ mediaId, visualHash });
+    return await processDuplicates({ mediaId });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
