@@ -1,6 +1,7 @@
 'use server';
 
-import { type QueueStats, getQueueStats } from '../queue/get-queue-stats';
+import type { QueueStats } from 'shared/types';
+import { getQueueStats } from '../queue/get-queue-stats';
 
 interface DuplicatesQueueStats extends QueueStats {
   // Override activeJobs to be more specific for duplicates jobs

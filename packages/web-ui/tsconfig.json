@@ -15,6 +15,10 @@
     "src",
     "src/**/*.ts",
     "src/**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "../workers/fix-image-dates/find-images-without-dates.ts",
+    "../workers/fix-image-dates/find-similar-images-with-dates.ts",
+    "../workers/fix-image-dates/parse-date-from-filename.ts",
+    "../workers/fix-image-dates/update-exif-timestamp.ts"
   ]
 }

@@ -18,6 +18,7 @@ const QUEUE_CONCURRENCY_MAP: Record<string, number> = {
   duplicatesQueue: appConfig.DUPLICATES_WORKER_CONCURRENCY, // 5
   folderScanQueue: appConfig.FOLDER_SCAN_WORKER_CONCURRENCY, // 5
   exifQueue: appConfig.EXIF_WORKER_CONCURRENCY, // 50
+  fixImageDatesQueue: appConfig.FIX_IMAGE_DATES_WORKER_CONCURRENCY, // 5
 };
 
 export async function getQueueStats(queueName: string): Promise<QueueStats> {

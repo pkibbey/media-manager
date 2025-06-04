@@ -5,6 +5,7 @@ import type { QueueConfig, QueueName } from 'shared/types';
 import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
 import { addToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
 import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
+import { addFixImageDatesToQueue } from '@/actions/fix-image-dates/add-fix-image-dates-to-queue';
 import { addObjectsToQueue } from '@/actions/objects/add-objects-to-queue';
 import { addToThumbnailsQueue } from '@/actions/thumbnails/add-thumbnails-to-queue';
 import { addWarningsToQueue } from '@/actions/warnings/add-warnings-to-queue';
@@ -34,6 +35,10 @@ const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
   thumbnailQueue: {
     action: addToThumbnailsQueue,
     name: 'Thumbnail Generation',
+  },
+  fixImageDatesQueue: {
+    action: addFixImageDatesToQueue,
+    name: 'Fix Image Dates',
   },
 } as const;
 

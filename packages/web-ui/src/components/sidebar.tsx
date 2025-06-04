@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   AlertTriangle,
   Bot,
+  Calendar,
   Copy,
   Eye,
   FileText,
@@ -31,7 +32,10 @@ const navItemGroups = [
   {
     category: 'Clean',
 
-    items: [{ href: '/admin/duplicates', label: 'Duplicates', icon: Copy }],
+    items: [
+      { href: '/admin/duplicates', label: 'Duplicates', icon: Copy },
+      { href: '/admin/fix-dates', label: 'Fix Image Dates', icon: Calendar },
+    ],
   },
   {
     category: 'Analysis',
