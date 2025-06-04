@@ -8,7 +8,7 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,
 });
 
-export interface QueueMetrics {
+interface QueueMetrics {
   // Processing rate metrics
   processingRate: number; // jobs per second
   averageProcessingTime: number; // in milliseconds

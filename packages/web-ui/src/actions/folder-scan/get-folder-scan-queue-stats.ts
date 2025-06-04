@@ -2,7 +2,7 @@
 
 import { type QueueStats, getQueueStats } from '../queue/get-queue-stats';
 
-export interface FolderScanQueueStats extends QueueStats {
+interface FolderScanQueueStats extends QueueStats {
   // Override activeJobs to be more specific for folder scan jobs
   activeJobs?: Array<{
     id: string;

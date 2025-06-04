@@ -1,8 +1,8 @@
 'use client';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
-import { ContentWarningsQueueStatus } from '@/components/admin/content-warnings-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { QueueResetButton } from '@/components/admin/queue-reset-button';
+import { ContentWarningsQueueStatus } from '@/components/admin/warnings-queue-status';
 
 export default function ContentWarningsAdminPage() {
   return (

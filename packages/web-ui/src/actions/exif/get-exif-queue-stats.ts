@@ -2,7 +2,7 @@
 
 import { type QueueStats, getQueueStats } from '../queue/get-queue-stats';
 
-export interface ExifQueueStats extends QueueStats {
+interface ExifQueueStats extends QueueStats {
   // Override activeJobs to be more specific for EXIF jobs
   activeJobs?: Array<{
     id: string;

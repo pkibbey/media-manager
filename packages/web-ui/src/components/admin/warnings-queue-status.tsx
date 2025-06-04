@@ -1,6 +1,6 @@
 'use client';
 
-import { getContentWarningsQueueStats } from '@/actions/content-warnings/get-content-warnings-queue-stats';
+import { getContentWarningsQueueStats } from '@/actions/warnings/get-warnings-queue-stats';
 import { Shield } from 'lucide-react';
 import { QueueStatus } from './queue-status';
 

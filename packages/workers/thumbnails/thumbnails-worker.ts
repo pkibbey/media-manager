@@ -1,10 +1,8 @@
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
-import {
-  processThumbnailFast,
-  processThumbnailUltra,
-} from './process-thumbnail';
+import { processThumbnailFast } from './process-thumbnail-fast';
+import { processThumbnailUltra } from './process-thumbnail-ultra';
 
 interface ThumbnailJobData {
   id: string;
@@ -36,23 +34,31 @@ const workerProcessor = async (
     }
 
     // Generate the thumbnail
-    const result = await processThumbnailUltra({
+    const ultraResult = await processThumbnailUltra({
       mediaId,
       mediaPath,
     });
 
-    if (!result) {
-      const fallback = await processThumbnailFast({
-        mediaId,
-        mediaPath,
-      });
-
-      if (!fallback) {
-        throw new Error('Failed to generate thumbnail');
-      }
+    if (ultraResult) {
+      console.log(
+        `[Worker] Successfully generated ultra thumbnail for media ID: ${mediaId}`,
+      );
+      return true;
     }
 
-    return true;
+    const fastResult = await processThumbnailFast({
+      mediaId,
+      mediaPath,
+    });
+
+    if (fastResult) {
+      console.log(
+        `[Worker] Successfully generated fast thumbnail for media ID: ${mediaId}`,
+      );
+      return true;
+    }
+
+    throw new Error('Failed to generate thumbnail');
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

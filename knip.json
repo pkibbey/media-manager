@@ -5,7 +5,8 @@
       "ignoreDependencies": [
         "autoprefixer",
         "tailwindcss",
-        "@tailwindcss/postcss"
+        "@tailwindcss/postcss",
+        "tw-animate-css"
       ]
     }
   }

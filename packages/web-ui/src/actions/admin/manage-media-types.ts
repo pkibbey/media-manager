@@ -1,7 +1,7 @@
 'use server';
 
 import { createSupabase } from 'shared/supabase';
-import type { MediaType, TablesInsert, TablesUpdate } from 'shared/types';
+import type { MediaType, TablesUpdate } from 'shared/types';
 
 /**
  * Fetch all media types from the database
@@ -83,52 +83,5 @@ export async function deleteAllMediaTypes(): Promise<{
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
-  }
-}
-
-/**
- * Get or create a media type in the database
- * Uses upsert, but does not update on conflict (only inserts if not exists)
- */
-export async function getOrCreateMediaType(
-  mimeType: string,
-): Promise<string | null> {
-  try {
-    const supabase = createSupabase();
-
-    const upsertObject: TablesInsert<'media_types'> = {
-      mime_type: mimeType,
-      description: `${mimeType.split('/')[0]} files`,
-    };
-
-    const { error: upsertError } = await supabase
-      .from('media_types')
-      .upsert(upsertObject, {
-        onConflict: 'mime_type',
-        ignoreDuplicates: true,
-      });
-
-    if (upsertError) {
-      console.error('Error upserting media type:', upsertError);
-      return null;
-    }
-
-    // Now fetch the id (either the one we just inserted, or the existing one)
-    const { data: foundType, error: selectError } = await supabase
-      .from('media_types')
-      .select('id')
-      .eq('mime_type', mimeType)
-      .limit(1)
-      .single();
-
-    if (selectError || !foundType) {
-      console.error('Error fetching media type after upsert:', selectError);
-      return null;
-    }
-
-    return foundType.id;
-  } catch (error) {
-    console.error('Error in getOrCreateMediaType:', error);
-    return null;
   }
 }

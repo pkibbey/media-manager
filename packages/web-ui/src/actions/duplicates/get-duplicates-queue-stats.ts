@@ -2,7 +2,7 @@
 
 import { type QueueStats, getQueueStats } from '../queue/get-queue-stats';
 
-export interface DuplicatesQueueStats extends QueueStats {
+interface DuplicatesQueueStats extends QueueStats {
   // Override activeJobs to be more specific for duplicates jobs
   activeJobs?: Array<{
     id: string;

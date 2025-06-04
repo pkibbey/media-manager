@@ -72,13 +72,6 @@ export async function addToThumbnailsQueue() {
         return false;
       }
 
-      console.log(
-        mediaItems.filter((item) =>
-          item.media_types.mime_type.startsWith('image/'),
-        ).length,
-        'image items found for thumbnail processing',
-      );
-
       // Calculate priorities and log distribution for monitoring
       const jobsWithPriorities = mediaItems.map((data) => {
         const priority = calculateThumbnailPriority(data);

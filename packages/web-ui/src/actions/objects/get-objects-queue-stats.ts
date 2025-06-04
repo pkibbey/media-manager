@@ -3,7 +3,7 @@
 import { getQueueStats } from '../queue/get-queue-stats';
 import type { QueueStats } from '../queue/get-queue-stats';
 
-export interface ObjectAnalysisQueueStats extends QueueStats {
+interface ObjectAnalysisQueueStats extends QueueStats {
   // Add any object analysis specific stats if needed
 }
 

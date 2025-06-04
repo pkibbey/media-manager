@@ -1,15 +1,11 @@
-import 'dotenv/config.js';
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '../../../.env.local' });
 
-import * as cocoSsd from '@tensorflow-models/coco-ssd';
-import tf from '@tensorflow/tfjs-node';
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
-import { createSupabase } from 'shared/supabase';
-import type { Json } from 'shared/types';
+import { processObjectDetection } from './process-object-detection';
 
 interface ObjectDetectionJobData {
   id: string;
@@ -26,44 +22,6 @@ const redisConnection = new IORedis(
 
 const QUEUE_NAME = 'objectAnalysisQueue';
 
-// Initialize Supabase client once
-const supabase = createSupabase();
-
-// Save COCO-SSD model variable in the global scope
-// to avoid reloading it for every job, which can be expensive.
-let model: cocoSsd.ObjectDetection | null = null;
-
-/**
- * Loads the COCO-SSD model if it hasn't been loaded yet.
- */
-async function initializeModel() {
-  if (!model) {
-    console.log('Loading COCO-SSD model...');
-    await tf.ready();
-    model = await cocoSsd.load();
-    console.log('COCO-SSD model loaded successfully.');
-  }
-}
-
-/**
- * Fetches an image from a URL and converts it to a TensorFlow tensor.
- * @param url The URL of the image.
- * @returns A Promise resolving to a tf.Tensor3D.
- */
-async function loadImage(url: string): Promise<tf.Tensor3D> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch image from ${url}: ${response.statusText}`,
-    );
-  }
-  const buffer = await response.arrayBuffer();
-
-  // Decode the image buffer into a tensor
-  const imageTensor = tf.node.decodeJpeg(new Uint8Array(buffer), 3);
-  return imageTensor;
-}
-
 /**
  * The main worker processor function.
  * This function is called for each job in the queue.
@@ -71,37 +29,11 @@ async function loadImage(url: string): Promise<tf.Tensor3D> {
 const workerProcessor = async (
   job: Job<ObjectDetectionJobData>,
 ): Promise<boolean> => {
-  await initializeModel();
-  if (!model) {
-    throw new Error('COCO-SSD model is not loaded.');
-  }
-
   const { id: mediaId, thumbnail_url: thumbnailUrl } = job.data;
 
-  let imageTensor: tf.Tensor3D | undefined;
   try {
-    // Load the image from the thumbnail URL
-    imageTensor = await loadImage(thumbnailUrl);
-
-    // Perform object detection
-    const predictions = await model.detect(imageTensor);
-
-    // Save detection results
-    const { error: upsertError } = await supabase.from('analysis_data').upsert(
-      {
-        media_id: mediaId,
-        objects: predictions as unknown as Json[],
-      },
-      { onConflict: 'media_id' },
-    );
-
-    if (upsertError) {
-      throw new Error(
-        `Failed to save analysis data for media ID ${mediaId}: ${upsertError.message}`,
-      );
-    }
-
-    return true;
+    // Process object detection using the extracted function
+    return await processObjectDetection({ mediaId, thumbnailUrl });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
@@ -110,10 +42,6 @@ const workerProcessor = async (
       errorMessage,
     );
     throw error; // Rethrow to allow BullMQ to handle retries/failures
-  } finally {
-    if (imageTensor) {
-      imageTensor.dispose(); // IMPORTANT: Clean up tensor memory
-    }
   }
 };
 

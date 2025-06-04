@@ -39,7 +39,7 @@ The Queue Reset Button has been integrated into the following admin pages:
 2. **Advanced Analysis** (`/admin/advanced`) - `advancedAnalysisQueue`
 3. **Duplicates** (`/admin/duplicates`) - `duplicatesQueue`
 4. **EXIF** (`/admin/exif`) - `exifQueue`
-5. **Content Warnings** (`/admin/content-warnings`) - `contentWarningsQueue`
+5. **Content Warnings** (`/admin/warnings`) - `contentWarningsQueue`
 6. **Objects** (`/admin/objects`) - `objectAnalysisQueue`
 
 ### Queue States Available

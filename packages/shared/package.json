@@ -14,6 +14,7 @@
     "./raw-processor": "./raw-processor.ts"
   },
   "dependencies": {
+    "uuid": "11.1.0",
     "@supabase/supabase-js": "2.49.9",
     "dotenv": "^16.5.0",
     "ioredis": "^5.6.1"

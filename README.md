@@ -25,8 +25,8 @@ This project uses multiple workers for media processing:
 - thumbnails: Generate thumbnails for media files
 - exif: Extract EXIF metadata from images and videos
 - duplicates: Detect duplicate media files
-- content-warnings: Detect potentially sensitive content
-- object-detection: Detect objects in media files
+- warnings: Detect potentially sensitive content
+- objects: Detect objects in media files
 - advanced: Process media using advanced AI analysis
 
 To run all workers:

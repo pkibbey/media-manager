@@ -3,7 +3,6 @@
  * This ensures consistent environment loading across all packages
  */
 
-import 'dotenv/config';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as dotenv from 'dotenv';

@@ -3,11 +3,11 @@ import type { QueueConfig, QueueName } from 'shared/types';
 
 // Import all queue functions
 import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
-import { addWarningsToQueue } from '@/actions/content-warnings/add-content-warnings-to-queue';
 import { addToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
 import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
 import { addObjectsToQueue } from '@/actions/objects/add-objects-to-queue';
 import { addToThumbnailsQueue } from '@/actions/thumbnails/add-thumbnails-to-queue';
+import { addWarningsToQueue } from '@/actions/warnings/add-warnings-to-queue';
 
 // Queue configuration mapping
 const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {

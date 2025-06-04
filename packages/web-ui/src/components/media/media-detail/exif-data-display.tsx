@@ -154,7 +154,7 @@ export function ExifDataDisplay({ exif }: ExifDataDisplayProps) {
  * @param longitude - Longitude in decimal format
  * @returns Formatted coordinates or null if invalid
  */
-export function formatGPSCoordinates(
+function formatGPSCoordinates(
   latitude: number | null | undefined,
   longitude: number | null | undefined,
 ): string | null {
