@@ -1,7 +1,4 @@
 'use client';
-
-import { MediaDetail } from '@/components/media/media-detail/media-detail';
-import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type React from 'react';
 import { useCallback, useEffect } from 'react';
@@ -75,15 +72,9 @@ export function MediaListContainer({ media }: MediaListContainerProps) {
   return (
     <MediaSelectionProvider media={media}>
       <MediaKeyboardHandler>
-        <Card className="grid grid-cols-[1fr_auto] h-full overflow-hidden bg-transparent">
-          <ScrollArea className="h-full">
-            <MediaGrid media={media} />
-          </ScrollArea>
-
-          <div className="w-[450px] border-l border-gray-200 dark:border-gray-800">
-            <MediaDetail />
-          </div>
-        </Card>
+        <ScrollArea className="h-full">
+          <MediaGrid media={media} />
+        </ScrollArea>
       </MediaKeyboardHandler>
     </MediaSelectionProvider>
   );

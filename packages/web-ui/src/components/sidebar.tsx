@@ -55,7 +55,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sticky top-8 h-screen overflow-y-auto">
       {navItemGroups.map((group) => (
         <div key={group.category}>
           <h3 className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">

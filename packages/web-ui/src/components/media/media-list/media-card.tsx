@@ -1,6 +1,7 @@
 'use client';
 import { Card, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useMediaLightbox } from '@/contexts/media-lightbox-context';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import type React from 'react';
@@ -15,9 +16,32 @@ interface MediaCardProps {
 
 export function MediaCard({ media, showFooter = false }: MediaCardProps) {
   const { toggleSelection, isSelected } = useMediaSelection();
+  const { openLightbox } = useMediaLightbox();
   const selected = isSelected(media.id);
 
   const handleClick = (e: React.MouseEvent) => {
+    // If clicking on the checkbox area, handle selection
+    if ((e.target as HTMLElement).closest('[data-selection-checkbox]')) {
+      const multiSelect = e.ctrlKey || e.metaKey;
+      const rangeSelect = e.shiftKey;
+      toggleSelection(media.id, multiSelect, rangeSelect);
+      return;
+    }
+
+    // If holding modifier keys, handle selection
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      const multiSelect = e.ctrlKey || e.metaKey;
+      const rangeSelect = e.shiftKey;
+      toggleSelection(media.id, multiSelect, rangeSelect);
+      return;
+    }
+
+    // Otherwise, open the lightbox
+    openLightbox(media.id);
+  };
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const multiSelect = e.ctrlKey || e.metaKey;
     const rangeSelect = e.shiftKey;
     toggleSelection(media.id, multiSelect, rangeSelect);
@@ -57,8 +81,15 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
         )}
 
         {/* Selection checkbox overlay */}
-        <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Checkbox checked={selected} className="bg-background/80" />
+        <div
+          className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          data-selection-checkbox
+        >
+          <Checkbox
+            checked={selected}
+            className="bg-background/80"
+            onClick={handleCheckboxClick}
+          />
         </div>
       </div>
 

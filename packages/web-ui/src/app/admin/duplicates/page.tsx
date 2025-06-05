@@ -2,6 +2,7 @@
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { DatabaseColumnAnalysis } from '@/components/admin/database-column-analysis';
 import { DuplicatesQueueStatus } from '@/components/admin/duplicates-queue-status';
+import { DuplicatesViewer } from '@/components/admin/duplicates-viewer';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 
 export default function DuplicatesAdminPage() {
@@ -27,6 +28,8 @@ export default function DuplicatesAdminPage() {
       </div>
 
       <DuplicatesQueueStatus />
+
+      <DuplicatesViewer />
 
       <DatabaseColumnAnalysis
         table="duplicates"

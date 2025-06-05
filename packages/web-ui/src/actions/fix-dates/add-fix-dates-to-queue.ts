@@ -11,7 +11,7 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const fixImageDatesQueue = new Queue('fixImageDatesQueue', { connection });
 
-export async function addFixImageDatesToQueue() {
+export async function addFixDatesToQueue() {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -30,8 +30,6 @@ export async function addFixImageDatesToQueue() {
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
-        .ilike('media_types.mime_type', 'image/%')
-        .is('exif_data.exif_timestamp', null)
         .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 
@@ -49,6 +47,7 @@ export async function addFixImageDatesToQueue() {
         data: {
           id: data.id,
           media_path: data.media_path,
+          exif_timestamp: data.exif_data.exif_timestamp,
         },
         opts: {
           jobId: data.id, // Use media ID as job ID for uniqueness

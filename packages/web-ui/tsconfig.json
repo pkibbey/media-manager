@@ -5,6 +5,7 @@
     "paths": {
       "@/actions/*": ["./src/actions/*"],
       "@/components/*": ["./src/components/*"],
+      "@/contexts/*": ["./src/contexts/*"],
       "@/hooks/*": ["./src/hooks/*"],
       "@/lib/*": ["./src/lib/*"]
     }

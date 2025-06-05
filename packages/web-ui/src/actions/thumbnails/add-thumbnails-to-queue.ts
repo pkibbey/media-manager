@@ -54,7 +54,7 @@ export async function addToThumbnailsQueue() {
     while (true) {
       const { data: mediaItems, error } = await supabase
         .from('media')
-        .select('id, media_path, size_bytes, media_types!inner(*)')
+        .select('id, media_path, size_bytes, media_types!inner(is_ignored)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)

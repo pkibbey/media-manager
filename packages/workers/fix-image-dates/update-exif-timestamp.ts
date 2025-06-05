@@ -9,7 +9,7 @@ import { createSupabase } from 'shared';
 export async function updateExifTimestamp(
   mediaId: string,
   timestamp: Date,
-  source: 'visual_similarity' | 'filename_parsing' | 'file_creation_date',
+  source: 'filename_parsing' | 'file_creation_date',
 ): Promise<boolean> {
   try {
     const supabase = createSupabase();

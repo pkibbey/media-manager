@@ -23,7 +23,7 @@ export async function addObjectsToQueue() {
     while (true) {
       const { data: mediaItems, error } = await supabase
         .from('media')
-        .select('id, thumbnail_url, media_types!inner(*)')
+        .select('id, thumbnail_url, media_types!inner(is_ignored)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)

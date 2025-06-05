@@ -229,7 +229,7 @@ export type Database = {
       }
       media: {
         Row: {
-          fix_date_process: string | null
+          exif_process: string | null
           id: string
           is_deleted: boolean
           is_hidden: boolean
@@ -241,7 +241,7 @@ export type Database = {
           visual_hash: string | null
         }
         Insert: {
-          fix_date_process?: string | null
+          exif_process?: string | null
           id?: string
           is_deleted?: boolean
           is_hidden?: boolean
@@ -253,7 +253,7 @@ export type Database = {
           visual_hash?: string | null
         }
         Update: {
-          fix_date_process?: string | null
+          exif_process?: string | null
           id?: string
           is_deleted?: boolean
           is_hidden?: boolean

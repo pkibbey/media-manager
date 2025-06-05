@@ -7,7 +7,11 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": [".next", "node_modules", ".turbo"]
+    "ignore": [
+      ".next",
+      "node_modules",
+      ".turbo"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -48,7 +52,8 @@
         "useSemanticElements": "off",
         "noNoninteractiveTabindex": "off",
         "useMediaCaption": "off",
-        "noSvgWithoutTitle": "off"
+        "noSvgWithoutTitle": "off",
+        "useKeyWithClickEvents": "off"
       },
       "correctness": {
         "noUnusedImports": "error",

@@ -103,7 +103,7 @@ export async function processDuplicates({
         potentialDuplicates.map((dup) => ({
           media_id: mediaId,
           duplicate_id: dup.mediaId,
-          similarity_score: 1 - dup.hammingDistance / (visualHash.length * 4), // Normalize to 0-1
+          similarity_score: 1 - dup.hammingDistance,
           hamming_distance: dup.hammingDistance,
         })),
         { onConflict: 'media_id,duplicate_id' },

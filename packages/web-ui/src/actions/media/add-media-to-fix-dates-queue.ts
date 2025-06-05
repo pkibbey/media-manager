@@ -1,0 +1,42 @@
+'use server';
+
+import { Queue } from 'bullmq';
+import IORedis from 'ioredis';
+import { appConfig, serverEnv } from 'shared/env';
+
+const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
+  maxRetriesPerRequest: null,
+});
+
+const fixImageDatesQueue = new Queue('fixImageDatesQueue', { connection });
+
+export async function addMediaToFixDatesQueue(
+  mediaId: string,
+  mediaPath: string,
+  exifTimestamp?: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await fixImageDatesQueue.add(
+      'fix-image-dates',
+      {
+        id: mediaId,
+        media_path: mediaPath,
+        exif_timestamp: exifTimestamp,
+      },
+      {
+        jobId: `${mediaId}-fix-dates`, // Use media ID as job ID for uniqueness
+        priority: 100, // High priority for individual processing
+      },
+    );
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    console.error(
+      `Error adding media ${mediaId} to fix dates queue:`,
+      errorMessage,
+    );
+    return { success: false, error: errorMessage };
+  }
+}

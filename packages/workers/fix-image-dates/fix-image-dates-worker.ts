@@ -10,6 +10,7 @@ import { processFixImageDates } from './process-fix-image-dates';
 interface FixImageDatesJobData {
   id: string;
   media_path: string;
+  exif_timestamp: string | null; // Optional, can be null if not available
 }
 
 const redisConnection = new IORedis(
@@ -29,7 +30,19 @@ const QUEUE_NAME = 'fixImageDatesQueue';
 const workerProcessor = async (
   job: Job<FixImageDatesJobData>,
 ): Promise<boolean> => {
-  const { id: mediaId, media_path: mediaPath } = job.data;
+  const {
+    id: mediaId,
+    media_path: mediaPath,
+    exif_timestamp: exifTimestamp,
+  } = job.data;
+
+  // Ignore jobs that have already been processed older than 48 hours
+  if (
+    exifTimestamp &&
+    new Date(exifTimestamp) < new Date(Date.now() - 48 * 60 * 60 * 1000)
+  ) {
+    return true;
+  }
 
   try {
     // Process the image date fixing using the extracted function

@@ -142,20 +142,21 @@ export async function parseDateFromFilename(
   // If no date found in filename, try using file creation date as fallback
   try {
     const stats = await fs.stat(filePath);
-    const fileCreationDate = new Date(stats.birthtime);
+    console.log('stats: ', stats);
+    // const fileCreationDate = new Date(stats.birthtime);
 
-    // Validate the file creation date
-    if (
-      fileCreationDate instanceof Date &&
-      !isNaN(fileCreationDate.getTime()) &&
-      fileCreationDate.getFullYear() >= 1990 &&
-      fileCreationDate.getFullYear() <= new Date().getFullYear() + 1
-    ) {
-      return {
-        date: fileCreationDate,
-        source: 'file_creation_date',
-      };
-    }
+    // // Validate the file creation date
+    // if (
+    //   fileCreationDate instanceof Date &&
+    //   !isNaN(fileCreationDate.getTime()) &&
+    //   fileCreationDate.getFullYear() >= 1990 &&
+    //   fileCreationDate.getFullYear() <= new Date().getFullYear() + 1
+    // ) {
+    //   return {
+    //     date: fileCreationDate,
+    //     source: 'file_creation_date',
+    //   };
+    // }
   } catch (_error) {
     // If file stats cannot be read, continue to return null
   }

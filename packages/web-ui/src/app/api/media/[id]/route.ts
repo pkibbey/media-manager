@@ -6,11 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { NextResponse } from 'next/server';
 import { createSupabase } from 'shared';
-import {
-  BACKGROUND_COLOR,
-  IMAGE_DETAIL_SIZE,
-  THUMBNAIL_QUALITY,
-} from 'shared/consts';
+import { IMAGE_DETAIL_SIZE, THUMBNAIL_QUALITY } from 'shared/consts';
 import sharp from 'sharp';
 import { v4 } from 'uuid';
 
@@ -99,10 +95,7 @@ export async function GET(
         .rotate() // Apply EXIF rotation
         .resize({
           width: IMAGE_DETAIL_SIZE,
-          height: IMAGE_DETAIL_SIZE,
           withoutEnlargement: true,
-          fit: 'contain',
-          background: BACKGROUND_COLOR,
         })
         .jpeg({ quality: THUMBNAIL_QUALITY })
         .toBuffer();

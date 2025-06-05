@@ -1,6 +1,6 @@
 'use client';
 
-import { getFixImageDatesQueueStats } from '@/actions/fix-image-dates/get-fix-image-dates-queue-stats';
+import { getFixImageDatesQueueStats } from '@/actions/fix-dates/get-fix-dates-queue-stats';
 import { Calendar } from 'lucide-react';
 import { QueueStatus } from './queue-status';
 

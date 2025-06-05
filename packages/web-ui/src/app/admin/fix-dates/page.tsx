@@ -11,7 +11,7 @@ export default function FixDatesAdminPage() {
         <h2 className="text-2xl font-bold">Fix Image Dates</h2>
         <p className="text-muted-foreground">
           Find images without EXIF date data and attempt to fix them using
-          visual similarity or filename parsing.
+          filename parsing.
         </p>
       </div>
 

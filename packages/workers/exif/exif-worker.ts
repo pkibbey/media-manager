@@ -6,7 +6,6 @@ import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
 import { processExifFast } from './process-exif-fast';
-// import { processExifSlow } from './process-exif-slow';
 
 interface ExifJobData {
   id: string;
