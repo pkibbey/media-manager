@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Loader2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import type { ProcessType, QueueName } from 'shared/types';
@@ -48,7 +49,7 @@ export function AddToQueueButton({
     <Button
       onClick={handleAddToQueue}
       disabled={isLoading}
-      className={className}
+      className={cn(className, 'cursor-pointer')}
     >
       {isLoading ? (
         <>

@@ -56,7 +56,7 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
         selected
           ? 'border-primary ring-1 ring-primary ring-opacity-25'
           : 'hover:border-accent-foreground/20',
-        media.is_hidden ? 'opacity-60' : '',
+        media?.is_hidden ? 'opacity-60' : '',
         media.is_deleted ? 'opacity-50 bg-destructive/5' : '',
       )}
       onClick={handleClick}

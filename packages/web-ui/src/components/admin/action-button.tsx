@@ -1,9 +1,10 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import type React from 'react';
 import { type ComponentProps, useState } from 'react';
-import { Button } from '@/components/ui/button';
 
 interface ActionButtonProps extends ComponentProps<'button'> {
   children: React.ReactNode;
@@ -33,7 +34,12 @@ export function ActionButton({
   };
 
   return (
-    <Button onClick={handleAction} disabled={isLoading} {...props}>
+    <Button
+      onClick={handleAction}
+      disabled={isLoading}
+      {...props}
+      className={cn(props.className, 'cursor-pointer')}
+    >
       {isLoading ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

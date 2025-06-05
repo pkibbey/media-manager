@@ -38,13 +38,18 @@ export default function ExifAdminPage() {
       <div>
         <h2 className="text-2xl font-bold">EXIF Analysis</h2>
         <p className="text-muted-foreground">
-          Manage extraction and updates of EXIF metadata
+          The fast method extracts basic EXIF data, while the slow method does
+          better on complex images.
         </p>
       </div>
 
       <div className="flex gap-4 flex-wrap">
         <AddToQueueButton queueName="exifQueue" method="fast" />
-        <AddToQueueButton queueName="exifQueue" method="slow" />
+        <AddToQueueButton
+          queueName="exifQueue"
+          method="slow"
+          className="opacity-50 hover:opacity-100 transition-opacity"
+        />
         <PauseQueueButton queueName="exifQueue" />
         <ActionButton
           action={deleteAllExifData}
