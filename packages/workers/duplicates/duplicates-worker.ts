@@ -1,17 +1,19 @@
 import { type Job, Worker } from 'bullmq';
 import { appConfig } from 'shared/env';
 import { createRedisConnection } from 'shared/redis';
+import { processDeleteIdentical } from './process-delete-identical';
 import { processDuplicates } from './process-duplicates';
 import { processVisualHash } from './process-visual-hash';
 
 export type DuplicatesProcessingMethod =
   | 'hash-only'
   | 'duplicates-only'
-  | 'full';
+  | 'full'
+  | 'delete-identical';
 
 interface DuplicatesJobData {
-  id: string;
-  media_path: string;
+  id?: string;
+  media_path?: string;
   visual_hash?: string;
   method: DuplicatesProcessingMethod;
 }
@@ -40,17 +42,31 @@ const workerProcessor = async (
 
     switch (method) {
       case 'hash-only':
+        if (!mediaId || !mediaPath) {
+          throw new Error(
+            'mediaId and mediaPath are required for hash-only method',
+          );
+        }
         result = await processVisualHash({ mediaId, mediaPath });
         break;
       case 'duplicates-only':
+        if (!mediaId) {
+          throw new Error('mediaId is required for duplicates-only method');
+        }
         result = await processDuplicates({ mediaId });
         break;
       case 'full':
+        if (!mediaId || !mediaPath) {
+          throw new Error('mediaId and mediaPath are required for full method');
+        }
         // Generate hash if missing, then process duplicates
         if (!visualHash) {
           await processVisualHash({ mediaId, mediaPath });
         }
         result = await processDuplicates({ mediaId });
+        break;
+      case 'delete-identical':
+        result = await processDeleteIdentical();
         break;
       default:
         throw new Error(`Unknown duplicates processing method: ${method}`);

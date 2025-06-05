@@ -5,10 +5,7 @@ import {
   addMediaToExifQueue,
 } from '@/actions/media/add-media-to-exif-queue';
 import { addMediaToFixDatesQueue } from '@/actions/media/add-media-to-fix-dates-queue';
-import {
-  type SpeedProcessingMethod,
-  addMediaToThumbnailQueue,
-} from '@/actions/media/add-media-to-thumbnail-queue';
+import { addMediaToThumbnailQueue } from '@/actions/media/add-media-to-thumbnail-queue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -19,6 +16,7 @@ import { Camera, ChevronDown, Clock, Eye, MapPin } from 'lucide-react';
 import type React from 'react';
 import { useRef, useState } from 'react';
 import { formatBytes } from 'shared/consts';
+import type { SpeedProcessingMethod } from 'shared/types';
 
 interface DropdownMenuProps {
   trigger: React.ReactNode;
@@ -252,6 +250,47 @@ export function DialogMediaLightbox() {
                           : 'Unknown'
                       }
                     />
+
+                    {/* Copy Full Path Button */}
+                    <div className="flex items-center gap-2 max-w8">
+                      <span
+                        className="text-xs text-gray-500 truncate"
+                        title={media.media_path}
+                      >
+                        {media.media_path}
+                      </span>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                        aria-label="Copy full path"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(
+                              media.media_path,
+                            );
+                          } catch {
+                            // Clipboard API may fail
+                          }
+                        }}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={1.5}
+                          stroke="currentColor"
+                          className="w-4 h-4"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M16.5 8.25V6.75A2.25 2.25 0 0014.25 4.5h-6A2.25 2.25 0 006 6.75v10.5A2.25 2.25 0 008.25 19.5h6A2.25 2.25 0 0016.5 17.25v-1.5M9.75 15.75h6A2.25 2.25 0 0018 13.5v-6A2.25 2.25 0 0015.75 5.25h-6A2.25 2.25 0 007.5 7.5v6a2.25 2.25 0 002.25 2.25z"
+                          />
+                        </svg>
+                      </Button>
+                    </div>
                   </div>
 
                   <Separator />

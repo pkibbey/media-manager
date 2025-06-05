@@ -6,3 +6,5 @@ Replace some of the more expensive tasks with cheaper tasks that run, and then b
 - We could let the cheaper ones fail, and then we have a button to retry with a different task level
 
 We probably don't need to show so many performance stats
+
+When deciding on duplicates, add the ability to save rules, and/or process this logic on all pictures.

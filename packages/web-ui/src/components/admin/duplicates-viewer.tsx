@@ -153,6 +153,22 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
 
   const analysis = analyzeOriginalCandidate(pair.media, pair.duplicate_media);
 
+  // Check if all attributes are identical
+  const areIdentical =
+    pair.media.media_path !== pair.duplicate_media.media_path &&
+    JSON.stringify({
+      ...pair.media,
+      media_path: undefined,
+      id: undefined,
+      thumbnail_url: undefined,
+    }) ===
+      JSON.stringify({
+        ...pair.duplicate_media,
+        media_path: undefined,
+        id: undefined,
+        thumbnail_url: undefined,
+      });
+
   const handleImageClick = async (mediaId: string) => {
     await openLightbox(mediaId);
   };
@@ -227,6 +243,14 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
             <Badge variant="outline">
               Hamming Distance: {pair.hamming_distance}
             </Badge>
+            {areIdentical && (
+              <Badge
+                className="bg-blue-600 text-white"
+                title="All attributes are identical"
+              >
+                Identical
+              </Badge>
+            )}
           </div>
         </div>
         <CardDescription>
@@ -267,7 +291,10 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
                   onClick={() => handleImageClick(pair.media.id)}
                 />
               ) : (
-                <div className="w-full h-48 bg-gray-200 rounded-lg border flex items-center justify-center">
+                <div
+                  className="w-full h-48 bg-gray-200 rounded-lg border flex items-center justify-center"
+                  onClick={() => handleImageClick(pair.media.id)}
+                >
                   <AlertTriangle className="h-8 w-8 text-gray-400" />
                   <span className="text-gray-500 ml-2">No thumbnail</span>
                 </div>
@@ -363,7 +390,10 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
                   onClick={() => handleImageClick(pair.duplicate_media.id)}
                 />
               ) : (
-                <div className="w-full h-48 bg-gray-200 rounded-lg border flex items-center justify-center">
+                <div
+                  className="w-full h-48 bg-gray-200 rounded-lg border flex items-center justify-center"
+                  onClick={() => handleImageClick(pair.duplicate_media.id)}
+                >
                   <AlertTriangle className="h-8 w-8 text-gray-400" />
                   <span className="text-gray-500 ml-2">No thumbnail</span>
                 </div>
@@ -550,6 +580,57 @@ export function DuplicatesViewer() {
     setPage(1);
   };
 
+  // Helper to check if any pairs have all attributes identical
+  const hasIdenticalPairs = () => {
+    return duplicates.some((pair) => {
+      return (
+        pair.media.media_path !== pair.duplicate_media.media_path &&
+        JSON.stringify({
+          ...pair.media,
+          media_path: undefined,
+          id: undefined,
+          thumbnail_url: undefined,
+        }) ===
+          JSON.stringify({
+            ...pair.duplicate_media,
+            media_path: undefined,
+            id: undefined,
+            thumbnail_url: undefined,
+          })
+      );
+    });
+  };
+
+  // Handler for delete identical duplicates
+  const handleDeleteIdentical = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        '/api/admin/add-to-queue?queueName=duplicatesQueue&method=delete-identical',
+        {
+          method: 'POST',
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log('Delete identical duplicates job added to queue');
+        // Refresh the duplicates list after a delay to allow processing
+        setTimeout(() => {
+          fetchDuplicates(1, false);
+          setPage(1);
+        }, 2000);
+      } else {
+        console.error('Error adding delete identical job:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to add delete identical job:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDuplicates(1, false);
   }, [fetchDuplicates]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -606,6 +687,25 @@ export function DuplicatesViewer() {
           <p className="text-muted-foreground">
             Found {total} duplicate {total === 1 ? 'pair' : 'pairs'}
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleDeleteIdentical}
+            disabled={loading || !hasIdenticalPairs()}
+            variant="destructive"
+            className="flex-shrink-0"
+            title="Automatically delete files that are identical in all attributes"
+          >
+            {loading ? 'Processing...' : 'Delete Identical'}
+          </Button>
+          <Button
+            onClick={() => fetchDuplicates(1, false)}
+            disabled={loading}
+            variant="outline"
+            className="flex-shrink-0"
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </Button>
         </div>
       </div>
 

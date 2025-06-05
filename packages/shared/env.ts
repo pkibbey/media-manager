@@ -32,13 +32,13 @@ export const appConfig = {
 
   // Worker concurrency settings - tuned for optimal performance
   // CPU/GPU intensive workers (lower concurrency to prevent resource contention)
-  OBJECT_DETECTION_WORKER_CONCURRENCY: 3,
-  CONTENT_WARNINGS_WORKER_CONCURRENCY: 3,
-  ADVANCED_ANALYSIS_WORKER_CONCURRENCY: 3,
+  OBJECT_DETECTION_WORKER_CONCURRENCY: 4,
+  CONTENT_WARNINGS_WORKER_CONCURRENCY: 4,
+  ADVANCED_ANALYSIS_WORKER_CONCURRENCY: 4,
 
   // Mixed workload workers (moderate concurrency)
-  DUPLICATES_WORKER_CONCURRENCY: 5,
-  FOLDER_SCAN_WORKER_CONCURRENCY: 5,
+  FOLDER_SCAN_WORKER_CONCURRENCY: 10,
+  DUPLICATES_WORKER_CONCURRENCY: 10,
 
   // IO intensive workers (higher concurrency for better throughput)
   FIX_IMAGE_DATES_WORKER_CONCURRENCY: 20,

@@ -14,6 +14,26 @@ const duplicatesQueue = new Queue('duplicatesQueue', { connection });
 
 export async function addToDuplicatesQueue(method: ProcessType = 'full') {
   const supabase = createSupabase();
+
+  // Handle delete-identical method differently
+  if (method === 'delete-identical') {
+    try {
+      // Add a single job to process all identical duplicates
+      const job = await duplicatesQueue.add('delete-identical', {
+        method,
+      });
+
+      console.log('Added delete-identical job to duplicates queue:', job.id);
+      return true;
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : 'Unknown error occurred';
+      console.error('Error adding delete-identical job:', errorMessage);
+      return false;
+    }
+  }
+
+  // Existing logic for other methods
   let offset = 0;
   const batchSize = 1000;
 

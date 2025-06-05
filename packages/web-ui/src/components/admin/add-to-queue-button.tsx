@@ -11,6 +11,7 @@ interface AddToQueueButtonProps {
   method: ProcessType;
   icon?: React.ComponentType<{ className?: string }>;
   className?: string;
+  variant?: 'default' | 'destructive';
 }
 
 export function AddToQueueButton({
@@ -18,6 +19,7 @@ export function AddToQueueButton({
   method,
   icon: Icon = Upload,
   className,
+  variant = 'default',
 }: AddToQueueButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -50,6 +52,7 @@ export function AddToQueueButton({
       onClick={handleAddToQueue}
       disabled={isLoading}
       className={cn(className, 'cursor-pointer')}
+      variant={variant}
     >
       {isLoading ? (
         <>
