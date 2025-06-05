@@ -13,8 +13,8 @@ export type DuplicatesProcessingMethod =
 
 interface DuplicatesJobData {
   id?: string;
-  media_path?: string;
   visual_hash?: string;
+  thumbnail_url?: string;
   method: DuplicatesProcessingMethod;
 }
 
@@ -31,7 +31,7 @@ const workerProcessor = async (
 ): Promise<boolean> => {
   const {
     id: mediaId,
-    media_path: mediaPath,
+    thumbnail_url: thumbnailUrl,
     visual_hash: visualHash,
     method,
   } = job.data;
@@ -42,12 +42,12 @@ const workerProcessor = async (
 
     switch (method) {
       case 'hash-only':
-        if (!mediaId || !mediaPath) {
+        if (!mediaId || !thumbnailUrl) {
           throw new Error(
-            'mediaId and mediaPath are required for hash-only method',
+            'mediaId and thumbnailUrl are required for hash-only method',
           );
         }
-        result = await processVisualHash({ mediaId, mediaPath });
+        result = await processVisualHash({ mediaId, thumbnailUrl });
         break;
       case 'duplicates-only':
         if (!mediaId) {
@@ -56,12 +56,14 @@ const workerProcessor = async (
         result = await processDuplicates({ mediaId });
         break;
       case 'full':
-        if (!mediaId || !mediaPath) {
-          throw new Error('mediaId and mediaPath are required for full method');
+        if (!mediaId || !thumbnailUrl) {
+          throw new Error(
+            'mediaId and thumbnailUrl are required for full method',
+          );
         }
         // Generate hash if missing, then process duplicates
         if (!visualHash) {
-          await processVisualHash({ mediaId, mediaPath });
+          await processVisualHash({ mediaId, thumbnailUrl });
         }
         result = await processDuplicates({ mediaId });
         break;

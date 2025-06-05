@@ -8,3 +8,6 @@ Replace some of the more expensive tasks with cheaper tasks that run, and then b
 We probably don't need to show so many performance stats
 
 When deciding on duplicates, add the ability to save rules, and/or process this logic on all pictures.
+
+Depending on the time left, generate an AI message from ollama that makes up something else you could do, with a great random factor, but being pretty prcise on the amount of time you need.
+- process once through a very small randomizer, and then once through a very small truth checker

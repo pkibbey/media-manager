@@ -1,8 +1,6 @@
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '../../../.env.local' });
-
-import fs from 'node:fs/promises';
 import sharp from 'sharp';
 
 import { createSupabase } from 'shared';
@@ -77,26 +75,23 @@ function convertBinaryToHex(binaryArray: number[]): string {
  * Process visual hash generation for a media item
  * @param params - Object containing processing parameters
  * @param params.mediaId - The ID of the media item to process
- * @param params.mediaPath - The file system path to the media file
+ * @param params.thumbnailUrl - The file system path to the media file
  * @returns Promise<boolean> - Success status
  */
 export async function processVisualHash({
   mediaId,
-  mediaPath,
+  thumbnailUrl,
 }: {
   mediaId: string;
-  mediaPath: string;
+  thumbnailUrl: string;
 }): Promise<boolean> {
   try {
-    if (!mediaPath) {
+    if (!thumbnailUrl) {
       throw new Error('No media_path available');
     }
 
-    // Read and process the image file
-    const fileBuffer = await fs.readFile(mediaPath);
-
-    // Generate image fingerprint
-    const imageFingerprint = await sharp(fileBuffer, { failOnError: false })
+    // Generate image fingerprint from thubmnail
+    const imageFingerprint = await sharp(thumbnailUrl)
       .greyscale()
       .resize(16, 16, { fit: 'fill' })
       .raw()
