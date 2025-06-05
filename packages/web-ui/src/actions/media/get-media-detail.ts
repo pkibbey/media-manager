@@ -10,7 +10,6 @@ export interface MediaDetail {
   is_hidden: boolean;
   thumbnail_url: string | null;
   thumbnail_process: string | null;
-  exif_process: string | null;
   media_types?: {
     mime_type: string | null;
     is_ignored: boolean;
@@ -20,6 +19,7 @@ export interface MediaDetail {
     height: number | null;
     exif_timestamp: string | null;
     fix_date_process: string | null;
+    exif_process: string | null;
     aperture: number | null;
     camera_make: string | null;
     camera_model: string | null;
@@ -66,7 +66,6 @@ export async function getMediaDetail(mediaId: string): Promise<{
         is_hidden,
         thumbnail_url,
         thumbnail_process,
-        exif_process,
         media_types (
           mime_type,
           is_ignored
@@ -76,6 +75,7 @@ export async function getMediaDetail(mediaId: string): Promise<{
           height,
           exif_timestamp,
           fix_date_process,
+          exif_process,
           aperture,
           camera_make,
           camera_model,

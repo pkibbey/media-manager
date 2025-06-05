@@ -311,10 +311,10 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
                 )}
 
                 {/* Processing Method Information */}
-                {pair.media.exif_process && (
+                {pair.media.exif_data?.exif_process && (
                   <div className="flex items-center gap-1">
                     <Cpu className="h-3 w-3" />
-                    EXIF: {pair.media.exif_process}
+                    EXIF: {pair.media.exif_data.exif_process}
                   </div>
                 )}
 
@@ -411,10 +411,10 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
                 )}
 
                 {/* Processing Method Information */}
-                {pair.duplicate_media.exif_process && (
+                {pair.duplicate_media.exif_data?.exif_process && (
                   <div className="flex items-center gap-1">
                     <Cpu className="h-3 w-3" />
-                    EXIF: {pair.duplicate_media.exif_process}
+                    EXIF: {pair.duplicate_media.exif_data.exif_process}
                   </div>
                 )}
 

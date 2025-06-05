@@ -1,7 +1,22 @@
 import type { PostgrestResponse } from '@supabase/supabase-js';
 import type { Database, Tables } from './supabase-types';
 
+export type SpeedProcessingMethod = 'ultra' | 'fast' | 'slow';
+
+export type StandardProcessingMethod = 'standard';
+export type OllamaProcessingMethod = 'ollama';
+export type DuplicatesProcessingMethod =
+  | 'hash-only'
+  | 'duplicates-only'
+  | 'full';
+
 export type TableName = Extract<keyof Database['public']['Tables'], string>;
+
+export type ProcessType =
+  | SpeedProcessingMethod
+  | StandardProcessingMethod
+  | OllamaProcessingMethod
+  | DuplicatesProcessingMethod;
 
 /**
  * Media filtering options for browsing and searching media
@@ -13,7 +28,7 @@ export interface MediaFiltersType {
   hasLocation: 'all' | 'yes' | 'no';
   hasThumbnail: 'all' | 'yes' | 'no';
   hasAnalysis: 'all' | 'yes' | 'no';
-  thumbnailProcess: 'all' | 'ultra' | 'fast' | 'slow';
+  thumbnailProcess: ProcessType | 'all';
   includeHidden: boolean;
   includeDeleted: boolean;
 }

@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
+import type { ProcessType } from 'shared/types';
 
 const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,
@@ -11,7 +12,7 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const exifQueue = new Queue('exifQueue', { connection });
 
-export async function addExifToQueue() {
+export async function addExifToQueue(method: ProcessType = 'fast') {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -40,7 +41,7 @@ export async function addExifToQueue() {
         name: 'exif-extraction',
         data: {
           ...data,
-          method: 'fast' as const, // Default to fast method
+          method,
         },
         opts: {
           jobId: data.id, // Use media ID as job ID for uniqueness

@@ -14,7 +14,7 @@ export default function BasicAnalysisAdminPage() {
       </div>
 
       <div className="flex gap-4 flex-wrap">
-        <AddToQueueButton queueName="objectAnalysisQueue" />
+        <AddToQueueButton queueName="objectAnalysisQueue" method="standard" />
         <PauseQueueButton queueName="objectAnalysisQueue" />
       </div>
 

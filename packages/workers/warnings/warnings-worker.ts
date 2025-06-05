@@ -32,8 +32,6 @@ const QUEUE_NAME = 'contentWarningsQueue';
 const workerProcessor = async (
   job: Job<ContentWarningsJobData>,
 ): Promise<boolean> => {
-  console.log('Processing content warnings job:', job.data);
-
   const { id: mediaId, thumbnail_url: thumbnailUrl, method } = job.data;
 
   try {

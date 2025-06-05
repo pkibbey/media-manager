@@ -14,7 +14,7 @@ export default function ContentWarningsAdminPage() {
       </div>
 
       <div className="flex gap-4 flex-wrap">
-        <AddToQueueButton queueName="contentWarningsQueue" />
+        <AddToQueueButton queueName="contentWarningsQueue" method="standard" />
         <PauseQueueButton queueName="contentWarningsQueue" />
       </div>
 

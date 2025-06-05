@@ -18,7 +18,9 @@ export default function ThumbnailAdminPage() {
       </div>
 
       <div className="flex gap-4 flex-wrap">
-        <AddToQueueButton queueName="thumbnailQueue" />
+        <AddToQueueButton queueName="thumbnailQueue" method="ultra" />
+        <AddToQueueButton queueName="thumbnailQueue" method="fast" />
+        <AddToQueueButton queueName="thumbnailQueue" method="slow" />
         <PauseQueueButton queueName="thumbnailQueue" />
         <ActionButton
           action={deleteAllThumbnails}

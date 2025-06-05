@@ -23,7 +23,12 @@ export default function DuplicatesAdminPage() {
       </div>
 
       <div className="flex gap-4 flex-wrap">
-        <AddToQueueButton queueName="duplicatesQueue" />
+        <AddToQueueButton queueName="duplicatesQueue" method="hash-only" />
+        <AddToQueueButton
+          queueName="duplicatesQueue"
+          method="duplicates-only"
+        />
+        <AddToQueueButton queueName="duplicatesQueue" method="full" />
         <PauseQueueButton queueName="duplicatesQueue" />
       </div>
 

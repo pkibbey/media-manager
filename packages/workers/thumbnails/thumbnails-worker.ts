@@ -1,7 +1,7 @@
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
-import type { ThumbnailProcessingMethod } from '../../web-ui/src/actions/media/add-media-to-thumbnail-queue';
+import type { SpeedProcessingMethod } from 'shared/types';
 import { processThumbnailFast } from './process-thumbnail-fast';
 import { processThumbnailSlow } from './process-thumbnail-slow';
 import { processThumbnailUltra } from './process-thumbnail-ultra';
@@ -9,7 +9,7 @@ import { processThumbnailUltra } from './process-thumbnail-ultra';
 interface ThumbnailJobData {
   id: string;
   media_path: string;
-  method: ThumbnailProcessingMethod;
+  method: SpeedProcessingMethod;
 }
 
 const redisConnection = new IORedis(

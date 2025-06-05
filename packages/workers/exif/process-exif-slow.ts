@@ -25,7 +25,7 @@ export async function processExifSlow(
     }
 
     // Parse EXIF data into standardized format with type safety
-    const exifData = standardizeExif(exif, mediaItem.id);
+    const exifData = standardizeExif(exif, mediaItem.id, method);
 
     // Save EXIF data to database
     const supabase = createSupabase();
@@ -39,20 +39,6 @@ export async function processExifSlow(
 
     if (insertError) {
       throw new Error(`Failed to save EXIF data: ${insertError.message}`);
-    }
-
-    // Update the media record with the processing method
-    const { error: updateError } = await supabase
-      .from('media')
-      .update({ exif_process: method })
-      .eq('id', mediaItem.id);
-
-    if (updateError) {
-      console.warn(
-        `Failed to update exif_process for media ${mediaItem.id}:`,
-        updateError.message,
-      );
-      // Don't throw error here as EXIF data was saved successfully
     }
 
     return true;

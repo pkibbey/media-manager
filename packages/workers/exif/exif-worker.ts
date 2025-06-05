@@ -34,7 +34,6 @@ const QUEUE_NAME = 'exifQueue';
  */
 const workerProcessor = async (job: Job<ExifJobData>): Promise<boolean> => {
   const { id, media_path, method } = job.data;
-  console.log('method: ', method);
 
   try {
     // Process the EXIF metadata based on the specified method

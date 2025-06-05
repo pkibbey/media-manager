@@ -3,16 +3,18 @@
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload } from 'lucide-react';
 import { useState } from 'react';
-import type { QueueName } from 'shared/types';
+import type { ProcessType, QueueName } from 'shared/types';
 
 interface AddToQueueButtonProps {
   queueName: QueueName;
+  method: ProcessType;
   icon?: React.ComponentType<{ className?: string }>;
   className?: string;
 }
 
 export function AddToQueueButton({
   queueName,
+  method,
   icon: Icon = Upload,
   className,
 }: AddToQueueButtonProps) {
@@ -22,7 +24,7 @@ export function AddToQueueButton({
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/admin/add-to-queue?queueName=${queueName}`,
+        `/api/admin/add-to-queue?queueName=${queueName}&method=${method}`,
         {
           method: 'POST',
         },
@@ -56,7 +58,7 @@ export function AddToQueueButton({
       ) : (
         <>
           <Icon className="mr-2 h-4 w-4" />
-          Populate Queue
+          Populate Queue ({method})
         </>
       )}
     </Button>

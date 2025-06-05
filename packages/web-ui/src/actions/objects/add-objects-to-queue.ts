@@ -3,6 +3,7 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { createSupabase } from 'shared';
+import type { ProcessType } from 'shared/types';
 
 const connection = new IORedis(
   process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
@@ -14,7 +15,7 @@ const connection = new IORedis(
 
 const objectAnalysisQueue = new Queue('objectAnalysisQueue', { connection });
 
-export async function addObjectsToQueue() {
+export async function addObjectsToQueue(method: ProcessType = 'standard') {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -45,7 +46,7 @@ export async function addObjectsToQueue() {
           name: 'object-detection',
           data: {
             ...data,
-            method: 'standard' as const, // Default to standard method
+            method,
           },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness

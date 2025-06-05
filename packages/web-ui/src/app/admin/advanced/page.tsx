@@ -14,7 +14,7 @@ export default function AdvancedAnalysisAdminPage() {
       </div>
 
       <div className="flex gap-4 flex-wrap">
-        <AddToQueueButton queueName="advancedAnalysisQueue" />
+        <AddToQueueButton queueName="advancedAnalysisQueue" method="ollama" />
         <PauseQueueButton queueName="advancedAnalysisQueue" />
       </div>
 

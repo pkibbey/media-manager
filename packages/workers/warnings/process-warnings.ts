@@ -42,8 +42,6 @@ export async function processContentWarnings({
     throw new Error('NSFWJS model is not loaded.');
   }
 
-  console.log('Processing content warnings for media ID:', mediaId);
-
   let tensor: tf.Tensor3D | undefined;
   try {
     // Fetch the image buffer (use thumbnail for speed)

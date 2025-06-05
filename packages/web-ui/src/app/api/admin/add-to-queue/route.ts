@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import type { QueueConfig, QueueName } from 'shared/types';
+import type { ProcessType, QueueConfig, QueueName } from 'shared/types';
 
 // Import all queue functions
 import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
@@ -45,6 +45,7 @@ const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
 export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const queueName = searchParams.get('queueName') as QueueName;
+  const method = searchParams.get('method') as ProcessType;
 
   if (!queueName) {
     return NextResponse.json(
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
     const { action, name } = QUEUE_ACTIONS[queueName];
 
     // Start the process asynchronously without waiting for it to complete
-    action().catch((error) => {
+    action(method).catch((error) => {
       console.error(`Background ${queueName} failed:`, error);
     });
 

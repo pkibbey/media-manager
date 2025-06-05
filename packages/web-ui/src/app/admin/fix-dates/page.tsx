@@ -18,7 +18,7 @@ export default function FixDatesAdminPage() {
       {/* Queue Management Section */}
       <div className="space-y-4">
         <div className="flex gap-4 flex-wrap">
-          <AddToQueueButton queueName="fixImageDatesQueue" />
+          <AddToQueueButton queueName="fixImageDatesQueue" method="standard" />
           <PauseQueueButton queueName="fixImageDatesQueue" />
         </div>
 

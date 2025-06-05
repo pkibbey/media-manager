@@ -12,7 +12,6 @@ export interface DuplicatePair {
     id: string;
     thumbnail_url: string | null;
     thumbnail_process: string | null;
-    exif_process: string | null;
     media_path: string;
     size_bytes: number;
     exif_data?: {
@@ -20,13 +19,13 @@ export interface DuplicatePair {
       height: number | null;
       exif_timestamp: string | null;
       fix_date_process: string | null;
+      exif_process: string | null;
     } | null;
   };
   duplicate_media: {
     id: string;
     thumbnail_url: string | null;
     thumbnail_process: string | null;
-    exif_process: string | null;
     media_path: string;
     size_bytes: number;
     exif_data?: {
@@ -34,6 +33,7 @@ export interface DuplicatePair {
       height: number | null;
       exif_timestamp: string | null;
       fix_date_process: string | null;
+      exif_process: string | null;
     } | null;
   };
 }

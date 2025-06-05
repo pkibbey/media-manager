@@ -6,7 +6,7 @@ import {
 } from '@/actions/media/add-media-to-exif-queue';
 import { addMediaToFixDatesQueue } from '@/actions/media/add-media-to-fix-dates-queue';
 import {
-  type ThumbnailProcessingMethod,
+  type SpeedProcessingMethod,
   addMediaToThumbnailQueue,
 } from '@/actions/media/add-media-to-thumbnail-queue';
 import { Badge } from '@/components/ui/badge';
@@ -109,7 +109,7 @@ export function DialogMediaLightbox() {
           result = await addMediaToThumbnailQueue(
             media.id,
             media.media_path,
-            method as ThumbnailProcessingMethod,
+            method as SpeedProcessingMethod,
           );
           break;
         case 'exif':
@@ -487,7 +487,7 @@ export function DialogMediaLightbox() {
 
                   {/* Processing Status */}
                   {(media.thumbnail_process ||
-                    media.exif_process ||
+                    media.exif_data?.exif_process ||
                     media.exif_data?.fix_date_process) && (
                     <>
                       <Separator />
@@ -496,12 +496,12 @@ export function DialogMediaLightbox() {
                           Processing Status
                         </h3>
 
-                        {media.exif_process && (
+                        {media.exif_data?.exif_process && (
                           <DetailField
                             label="Exif Process"
                             value={
                               <Badge variant="outline" className="text-xs">
-                                {media.exif_process}
+                                {media.exif_data.exif_process}
                               </Badge>
                             }
                           />

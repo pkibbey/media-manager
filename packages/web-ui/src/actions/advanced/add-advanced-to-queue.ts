@@ -3,6 +3,7 @@
 import { Queue } from 'bullmq';
 import { createSupabase } from 'shared';
 import { createRedisConnection } from 'shared/redis';
+import type { ProcessType } from 'shared/types';
 
 const connection = createRedisConnection();
 
@@ -10,7 +11,7 @@ const advancedAnalysisQueue = new Queue('advancedAnalysisQueue', {
   connection,
 });
 
-export async function addAdvancedToQueue() {
+export async function addAdvancedToQueue(method: ProcessType = 'ollama') {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -40,7 +41,7 @@ export async function addAdvancedToQueue() {
           name: 'advanced-analysis',
           data: {
             ...data,
-            method: 'ollama' as const, // Default to ollama method
+            method,
           },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness

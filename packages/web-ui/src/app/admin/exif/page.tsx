@@ -1,7 +1,12 @@
+'use client';
+
+import { deleteAllExifData } from '@/actions/exif/delete-all-exif-data';
+import { ActionButton } from '@/components/admin/action-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { DatabaseColumnAnalysis } from '@/components/admin/database-column-analysis';
 import { ExifQueueStatus } from '@/components/admin/exif-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
+import { Trash2 } from 'lucide-react';
 
 export default function ExifAdminPage() {
   const exifColumns = [
@@ -10,6 +15,7 @@ export default function ExifAdminPage() {
     'camera_model',
     'depth_of_field',
     'digital_zoom_ratio',
+    'exif_process',
     'exif_timestamp',
     'exposure_time',
     'field_of_view',
@@ -37,8 +43,17 @@ export default function ExifAdminPage() {
       </div>
 
       <div className="flex gap-4 flex-wrap">
-        <AddToQueueButton queueName="exifQueue" />
+        <AddToQueueButton queueName="exifQueue" method="fast" />
+        <AddToQueueButton queueName="exifQueue" method="slow" />
         <PauseQueueButton queueName="exifQueue" />
+        <ActionButton
+          action={deleteAllExifData}
+          variant="destructive"
+          loadingMessage="Deleting all EXIF data..."
+        >
+          <Trash2 className="h-4 w-4 mr-1" />
+          Delete All EXIF Data
+        </ActionButton>
       </div>
 
       <ExifQueueStatus />

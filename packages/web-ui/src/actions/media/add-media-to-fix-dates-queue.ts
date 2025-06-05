@@ -3,6 +3,7 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
+import type { StandardProcessingMethod } from 'shared/types';
 
 const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,
@@ -10,13 +11,11 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const fixImageDatesQueue = new Queue('fixImageDatesQueue', { connection });
 
-export type FixImageDatesMethod = 'standard';
-
 export async function addMediaToFixDatesQueue(
   mediaId: string,
   mediaPath: string,
   exifTimestamp?: string | null,
-  method: FixImageDatesMethod = 'standard',
+  method: StandardProcessingMethod = 'standard',
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await fixImageDatesQueue.add(

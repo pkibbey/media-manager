@@ -3,6 +3,7 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
+import type { SpeedProcessingMethod } from 'shared/types';
 
 const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,
@@ -10,12 +11,10 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const thumbnailQueue = new Queue('thumbnailQueue', { connection });
 
-export type ThumbnailProcessingMethod = 'ultra' | 'fast' | 'slow';
-
 export async function addMediaToThumbnailQueue(
   mediaId: string,
   mediaPath: string,
-  method: ThumbnailProcessingMethod = 'ultra',
+  method: SpeedProcessingMethod = 'ultra',
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await thumbnailQueue.add(

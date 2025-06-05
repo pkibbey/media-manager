@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
+import type { ProcessType } from 'shared/types';
 
 const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,
@@ -11,7 +12,7 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const duplicatesQueue = new Queue('duplicatesQueue', { connection });
 
-export async function addToDuplicatesQueue() {
+export async function addToDuplicatesQueue(method: ProcessType = 'full') {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -42,7 +43,7 @@ export async function addToDuplicatesQueue() {
           name: 'duplicate-detection',
           data: {
             ...data,
-            method: 'full' as const, // Default to full processing
+            method,
           },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness

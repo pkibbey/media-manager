@@ -5,6 +5,7 @@ import IORedis from 'ioredis';
 
 import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
+import type { ProcessType } from 'shared/types';
 
 const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,
@@ -45,7 +46,9 @@ function calculateThumbnailPriority(mediaItem: any): number {
   return Math.round(priority);
 }
 
-export async function addToThumbnailsQueue() {
+export async function addToThumbnailsQueue(
+  method: ProcessType = 'ultra',
+): Promise<boolean> {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -79,7 +82,7 @@ export async function addToThumbnailsQueue() {
           name: 'thumbnail-generation',
           data: {
             ...data,
-            method: 'ultra' as const, // Default to ultra method
+            method,
           },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness

@@ -7,11 +7,13 @@ import type { ExifData, ExifrOutput, TablesInsert } from 'shared/types';
  *
  * @param exif - Raw EXIF data from exifr or exiftool-vendored
  * @param mediaId - The media item ID to associate with the EXIF data
+ * @param method - The processing method used for tracking
  * @returns Standardized EXIF data object that matches the database schema
  */
 export function standardizeExif(
   exif: ExifData,
   mediaId: string,
+  method: string,
 ): TablesInsert<'exif_data'> {
   // Handle date/time extraction from various sources with priority order
   const exif_timestamp = extractDate(
@@ -103,6 +105,7 @@ export function standardizeExif(
     camera_make: safeString(exif.Make),
     camera_model: safeString(exif.Model),
     digital_zoom_ratio: safeNumber(exif.DigitalZoomRatio),
+    exif_process: method,
     exif_timestamp: exif_timestamp ? exif_timestamp.toISOString() : null,
     exposure_time: safeString(exif.ExposureTime),
     focal_length_35mm: safeNumber(exif.FocalLengthIn35mmFormat),

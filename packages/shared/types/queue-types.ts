@@ -1,3 +1,5 @@
+import type { ProcessType } from './media-types';
+
 /**
  * Union type of all valid queue names in the media manager system.
  * This ensures type safety when working with queue operations.
@@ -29,7 +31,7 @@ export type QueueState =
  * Queue configuration object for mapping queue names to their actions and display names.
  */
 export interface QueueConfig {
-  action: () => Promise<boolean>;
+  action: (method: ProcessType) => Promise<boolean>;
   name: string;
 }
 

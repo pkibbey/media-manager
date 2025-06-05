@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
+import type { ProcessType } from 'shared/types';
 
 const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
   maxRetriesPerRequest: null,
@@ -11,7 +12,9 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const fixImageDatesQueue = new Queue('fixImageDatesQueue', { connection });
 
-export async function addFixDatesToQueue() {
+export async function addFixDatesToQueue(
+  method: ProcessType = 'standard',
+): Promise<boolean> {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;
@@ -48,7 +51,7 @@ export async function addFixDatesToQueue() {
           id: data.id,
           media_path: data.media_path,
           exif_timestamp: data.exif_data.exif_timestamp,
-          method: 'standard' as const, // Default to standard method
+          method,
         },
         opts: {
           jobId: data.id, // Use media ID as job ID for uniqueness

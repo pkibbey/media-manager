@@ -142,7 +142,7 @@ export async function parseDateFromFilename(
   // If no date found in filename, try using file creation date as fallback
   try {
     const stats = await fs.stat(filePath);
-    console.log('stats: ', stats);
+    console.log('TODO: check stats: ', stats);
     // const fileCreationDate = new Date(stats.birthtime);
 
     // // Validate the file creation date

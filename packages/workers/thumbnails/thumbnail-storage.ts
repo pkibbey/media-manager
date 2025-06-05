@@ -1,5 +1,5 @@
 import { createSupabase } from 'shared';
-import type { TablesUpdate } from 'shared/types';
+import type { SpeedProcessingMethod, TablesUpdate } from 'shared/types';
 import { v4 } from 'uuid';
 
 interface StorageResult {
@@ -18,7 +18,7 @@ export async function storeThumbnail({
 }: {
   mediaId: string;
   thumbnailBuffer: Buffer;
-  processType: 'ultra' | 'fast' | 'slow';
+  processType: SpeedProcessingMethod;
 }): Promise<StorageResult> {
   const supabase = createSupabase();
   const thumbnailFilename = `${v4()}.jpg`;
