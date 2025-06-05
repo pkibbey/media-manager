@@ -1,6 +1,7 @@
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
+import type { ThumbnailProcessingMethod } from '../../web-ui/src/actions/media/add-media-to-thumbnail-queue';
 import { processThumbnailFast } from './process-thumbnail-fast';
 import { processThumbnailSlow } from './process-thumbnail-slow';
 import { processThumbnailUltra } from './process-thumbnail-ultra';
@@ -8,6 +9,7 @@ import { processThumbnailUltra } from './process-thumbnail-ultra';
 interface ThumbnailJobData {
   id: string;
   media_path: string;
+  method: ThumbnailProcessingMethod;
 }
 
 const redisConnection = new IORedis(
@@ -27,50 +29,47 @@ const QUEUE_NAME = 'thumbnailQueue';
 const workerProcessor = async (
   job: Job<ThumbnailJobData>,
 ): Promise<boolean> => {
-  const { id: mediaId, media_path: mediaPath } = job.data;
+  const { id: mediaId, media_path: mediaPath, method } = job.data;
 
   try {
     if (!mediaPath) {
       throw new Error('No media path provided for thumbnail generation');
     }
 
-    // Generate the thumbnail
-    const ultraResult = await processThumbnailUltra({
-      mediaId,
-      mediaPath,
-    });
+    // Generate the thumbnail based on the specified method
+    let result: boolean;
 
-    if (ultraResult) {
+    switch (method) {
+      case 'ultra':
+        result = await processThumbnailUltra({
+          mediaId,
+          mediaPath,
+        });
+        break;
+      case 'fast':
+        result = await processThumbnailFast({
+          mediaId,
+          mediaPath,
+        });
+        break;
+      case 'slow':
+        result = await processThumbnailSlow({
+          mediaId,
+          mediaPath,
+        });
+        break;
+      default:
+        throw new Error(`Unknown thumbnail processing method: ${method}`);
+    }
+
+    if (result) {
       console.log(
-        `[Worker] Successfully generated ultra thumbnail for media ID: ${mediaId}`,
+        `[Worker] Successfully generated ${method} thumbnail for media ID: ${mediaId}`,
       );
       return true;
     }
 
-    const fastResult = await processThumbnailFast({
-      mediaId,
-      mediaPath,
-    });
-
-    if (fastResult) {
-      console.log(
-        `[Worker] Successfully generated fast thumbnail for media ID: ${mediaId}`,
-      );
-      return true;
-    }
-
-    const slowResult = await processThumbnailSlow({
-      mediaId,
-      mediaPath,
-    });
-    if (slowResult) {
-      console.log(
-        `[Worker] Successfully generated slow thumbnail for media ID: ${mediaId}`,
-      );
-      return true;
-    }
-
-    throw new Error('Failed to generate thumbnail');
+    throw new Error(`Failed to generate ${method} thumbnail`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

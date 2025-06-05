@@ -10,10 +10,12 @@ import { standardizeExif } from './exif-utils';
  * Extract EXIF data from a media item and save it to the database
  *
  * @param mediaItem - The media item to process
+ * @param method - The processing method used for tracking
  * @returns Object with extracted EXIF data and success status
  */
 export async function processExifSlow(
   mediaItem: Pick<MediaWithExif, 'id' | 'media_path'>,
+  method: string,
 ): Promise<boolean> {
   try {
     const exif = (await exiftool.read(mediaItem.media_path)) as ExiftoolTags;
@@ -37,6 +39,20 @@ export async function processExifSlow(
 
     if (insertError) {
       throw new Error(`Failed to save EXIF data: ${insertError.message}`);
+    }
+
+    // Update the media record with the processing method
+    const { error: updateError } = await supabase
+      .from('media')
+      .update({ exif_process: method })
+      .eq('id', mediaItem.id);
+
+    if (updateError) {
+      console.warn(
+        `Failed to update exif_process for media ${mediaItem.id}:`,
+        updateError.message,
+      );
+      // Don't throw error here as EXIF data was saved successfully
     }
 
     return true;

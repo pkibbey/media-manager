@@ -4,10 +4,16 @@ import { createRedisConnection } from 'shared/redis';
 import { processDuplicates } from './process-duplicates';
 import { processVisualHash } from './process-visual-hash';
 
+export type DuplicatesProcessingMethod =
+  | 'hash-only'
+  | 'duplicates-only'
+  | 'full';
+
 interface DuplicatesJobData {
   id: string;
   media_path: string;
   visual_hash?: string;
+  method: DuplicatesProcessingMethod;
 }
 
 const redisConnection = createRedisConnection();
@@ -25,15 +31,39 @@ const workerProcessor = async (
     id: mediaId,
     media_path: mediaPath,
     visual_hash: visualHash,
+    method,
   } = job.data;
 
   try {
-    if (!visualHash) {
-      await processVisualHash({ mediaId, mediaPath });
+    // Process based on the specified method
+    let result: boolean;
+
+    switch (method) {
+      case 'hash-only':
+        result = await processVisualHash({ mediaId, mediaPath });
+        break;
+      case 'duplicates-only':
+        result = await processDuplicates({ mediaId });
+        break;
+      case 'full':
+        // Generate hash if missing, then process duplicates
+        if (!visualHash) {
+          await processVisualHash({ mediaId, mediaPath });
+        }
+        result = await processDuplicates({ mediaId });
+        break;
+      default:
+        throw new Error(`Unknown duplicates processing method: ${method}`);
     }
 
-    // Process duplicates using the extracted function
-    return await processDuplicates({ mediaId });
+    if (result) {
+      console.log(
+        `[Worker] Successfully processed ${method} duplicates for media ID: ${mediaId}`,
+      );
+      return true;
+    }
+
+    throw new Error(`Failed to process ${method} duplicates`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

@@ -40,7 +40,10 @@ export async function addToDuplicatesQueue() {
       const jobs = await duplicatesQueue.addBulk(
         mediaItems.map((data) => ({
           name: 'duplicate-detection',
-          data,
+          data: {
+            ...data,
+            method: 'full' as const, // Default to full processing
+          },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness
           },

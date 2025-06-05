@@ -8,9 +8,12 @@ import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
 import { processWithOllama } from './process-with-ollama';
 
+export type AdvancedAnalysisMethod = 'ollama';
+
 interface AdvancedAnalysisJobData {
   id: string;
   thumbnail_url: string;
+  method: AdvancedAnalysisMethod;
 }
 
 const redisConnection = new IORedis(
@@ -33,17 +36,25 @@ const supabase = createSupabase();
 const workerProcessor = async (
   job: Job<AdvancedAnalysisJobData>,
 ): Promise<boolean> => {
-  const { id: mediaId, thumbnail_url: thumbnailUrl } = job.data;
+  const { id: mediaId, thumbnail_url: thumbnailUrl, method } = job.data;
 
   try {
-    // Process the media item with Ollama
-    const result = await processWithOllama({
-      mediaId,
-      thumbnailUrl,
-    });
+    // Process based on the specified method
+    let result: any;
+
+    switch (method) {
+      case 'ollama':
+        result = await processWithOllama({
+          mediaId,
+          thumbnailUrl,
+        });
+        break;
+      default:
+        throw new Error(`Unknown advanced analysis method: ${method}`);
+    }
 
     if (!result.success || !result.analysisData) {
-      throw new Error(result.error || 'Failed to process with Ollama');
+      throw new Error(result.error || `Failed to process with ${method}`);
     }
 
     // Save analysis data
@@ -53,10 +64,13 @@ const workerProcessor = async (
 
     if (upsertError) {
       throw new Error(
-        `Failed to save analysis data for media ID ${job.id}}: ${upsertError.message}`,
+        `Failed to save analysis data for media ID ${mediaId}: ${upsertError.message}`,
       );
     }
 
+    console.log(
+      `[Worker] Successfully processed ${method} advanced analysis for media ID: ${mediaId}`,
+    );
     return true;
   } catch (error) {
     const errorMessage =

@@ -77,7 +77,10 @@ export async function addToThumbnailsQueue() {
         const priority = calculateThumbnailPriority(data);
         return {
           name: 'thumbnail-generation',
-          data,
+          data: {
+            ...data,
+            method: 'ultra' as const, // Default to ultra method
+          },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness
             priority,

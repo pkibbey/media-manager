@@ -7,9 +7,12 @@ import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
 import { processObjectDetection } from './process-object-detection';
 
+export type ObjectDetectionMethod = 'standard';
+
 interface ObjectDetectionJobData {
   id: string;
   thumbnail_url: string;
+  method: ObjectDetectionMethod;
 }
 
 const redisConnection = new IORedis(
@@ -29,11 +32,28 @@ const QUEUE_NAME = 'objectAnalysisQueue';
 const workerProcessor = async (
   job: Job<ObjectDetectionJobData>,
 ): Promise<boolean> => {
-  const { id: mediaId, thumbnail_url: thumbnailUrl } = job.data;
+  const { id: mediaId, thumbnail_url: thumbnailUrl, method } = job.data;
 
   try {
-    // Process object detection using the extracted function
-    return await processObjectDetection({ mediaId, thumbnailUrl });
+    // Process based on the specified method
+    let result: boolean;
+
+    switch (method) {
+      case 'standard':
+        result = await processObjectDetection({ mediaId, thumbnailUrl });
+        break;
+      default:
+        throw new Error(`Unknown object detection method: ${method}`);
+    }
+
+    if (result) {
+      console.log(
+        `[Worker] Successfully processed ${method} object detection for media ID: ${mediaId}`,
+      );
+      return true;
+    }
+
+    throw new Error(`Failed to process ${method} object detection`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

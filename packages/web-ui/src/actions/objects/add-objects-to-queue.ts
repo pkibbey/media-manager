@@ -43,7 +43,10 @@ export async function addObjectsToQueue() {
       const jobs = await objectAnalysisQueue.addBulk(
         mediaItems.map((data) => ({
           name: 'object-detection',
-          data,
+          data: {
+            ...data,
+            method: 'standard' as const, // Default to standard method
+          },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness
           },

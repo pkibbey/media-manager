@@ -48,6 +48,7 @@ export async function addFixDatesToQueue() {
           id: data.id,
           media_path: data.media_path,
           exif_timestamp: data.exif_data.exif_timestamp,
+          method: 'standard' as const, // Default to standard method
         },
         opts: {
           jobId: data.id, // Use media ID as job ID for uniqueness

@@ -38,7 +38,10 @@ export async function addAdvancedToQueue() {
       const jobs = await advancedAnalysisQueue.addBulk(
         mediaItems.map((data) => ({
           name: 'advanced-analysis',
-          data,
+          data: {
+            ...data,
+            method: 'ollama' as const, // Default to ollama method
+          },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness
           },

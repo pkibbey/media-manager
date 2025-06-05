@@ -42,7 +42,10 @@ export async function addWarningsToQueue() {
       const jobs = await contentWarningsQueue.addBulk(
         mediaItems.map((data) => ({
           name: 'content-warning-detection',
-          data,
+          data: {
+            ...data,
+            method: 'standard' as const, // Default to standard method
+          },
           opts: {
             jobId: data.id, // Use media ID as job ID for uniqueness
           },

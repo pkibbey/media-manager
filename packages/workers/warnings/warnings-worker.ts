@@ -7,9 +7,12 @@ import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
 import { processContentWarnings } from './process-warnings';
 
+export type ContentWarningsMethod = 'standard';
+
 interface ContentWarningsJobData {
   id: string;
   thumbnail_url: string;
+  method: ContentWarningsMethod;
 }
 
 const redisConnection = new IORedis(
@@ -31,11 +34,28 @@ const workerProcessor = async (
 ): Promise<boolean> => {
   console.log('Processing content warnings job:', job.data);
 
-  const { id: mediaId, thumbnail_url: thumbnailUrl } = job.data;
+  const { id: mediaId, thumbnail_url: thumbnailUrl, method } = job.data;
 
   try {
-    // Process content warnings using the extracted function
-    return await processContentWarnings({ mediaId, thumbnailUrl });
+    // Process based on the specified method
+    let result: boolean;
+
+    switch (method) {
+      case 'standard':
+        result = await processContentWarnings({ mediaId, thumbnailUrl });
+        break;
+      default:
+        throw new Error(`Unknown content warnings method: ${method}`);
+    }
+
+    if (result) {
+      console.log(
+        `[Worker] Successfully processed ${method} content warnings for media ID: ${mediaId}`,
+      );
+      return true;
+    }
+
+    throw new Error(`Failed to process ${method} content warnings`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

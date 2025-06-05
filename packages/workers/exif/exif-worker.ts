@@ -5,11 +5,14 @@ dotenv.config({ path: '../../../.env.local' });
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
+import type { ExifProcessingMethod } from '../../web-ui/src/actions/media/add-media-to-exif-queue';
 import { processExifFast } from './process-exif-fast';
+import { processExifSlow } from './process-exif-slow';
 
 interface ExifJobData {
   id: string;
   media_path: string;
+  method: ExifProcessingMethod;
   media_types?: {
     is_ignored: boolean;
   };
@@ -30,26 +33,33 @@ const QUEUE_NAME = 'exifQueue';
  * This function is called for each job in the queue.
  */
 const workerProcessor = async (job: Job<ExifJobData>): Promise<boolean> => {
-  const { id, media_path } = job.data;
+  const { id, media_path, method } = job.data;
+  console.log('method: ', method);
 
   try {
-    // Process the EXIF metadata using the selected processor
-    const fastResult = await processExifFast({ id, media_path });
+    // Process the EXIF metadata based on the specified method
+    let result: boolean;
 
-    if (fastResult) {
+    switch (method) {
+      case 'fast':
+        result = await processExifFast({ id, media_path }, method);
+        break;
+      case 'slow':
+        result = await processExifSlow({ id, media_path }, method);
+        break;
+      default:
+        throw new Error(`Unknown EXIF processing method: ${method}`);
+    }
+
+    if (result) {
+      console.log(
+        `[Worker] Successfully processed ${method} EXIF for media ID: ${id}`,
+      );
       return true;
     }
 
-    // No need to process with slow method if fast method succeeded
-    // Uncomment the following lines if you want to fall back to the slow method
-    // const slowResult = await processExifSlow({ id, media_path });
-
-    // if (slowResult) {
-    //   return true;
-    // }
-
     console.warn(
-      `No EXIF data found for media ID ${id}. Skipping EXIF processing.`,
+      `No EXIF data found for media ID ${id} using ${method} method. Skipping EXIF processing.`,
     );
     return false;
   } catch (error) {

@@ -7,10 +7,13 @@ import IORedis from 'ioredis';
 import { appConfig, serverEnv } from 'shared/env';
 import { processFixImageDates } from './process-fix-image-dates';
 
+export type FixImageDatesMethod = 'standard';
+
 interface FixImageDatesJobData {
   id: string;
   media_path: string;
-  exif_timestamp: string | null; // Optional, can be null if not available
+  exif_timestamp?: string | null;
+  method: FixImageDatesMethod;
 }
 
 const redisConnection = new IORedis(
@@ -30,32 +33,31 @@ const QUEUE_NAME = 'fixImageDatesQueue';
 const workerProcessor = async (
   job: Job<FixImageDatesJobData>,
 ): Promise<boolean> => {
-  const {
-    id: mediaId,
-    media_path: mediaPath,
-    exif_timestamp: exifTimestamp,
-  } = job.data;
-
-  // Ignore jobs that have already been processed older than 48 hours
-  if (
-    exifTimestamp &&
-    new Date(exifTimestamp) < new Date(Date.now() - 48 * 60 * 60 * 1000)
-  ) {
-    return true;
-  }
+  const { id: mediaId, media_path: mediaPath, method } = job.data;
 
   try {
-    // Process the image date fixing using the extracted function
-    const result = await processFixImageDates({ mediaId, mediaPath });
+    // Process based on the specified method
+    let result: boolean;
 
-    // If no date could be found or processing failed, mark the job as failed
-    if (!result) {
-      throw new Error(
-        `Failed to fix image date for media ${mediaId}: No date found in filename or processing failed`,
-      );
+    switch (method) {
+      case 'standard':
+        result = await processFixImageDates({
+          mediaId,
+          mediaPath,
+        });
+        break;
+      default:
+        throw new Error(`Unknown fix image dates method: ${method}`);
     }
 
-    return result;
+    if (result) {
+      console.log(
+        `[Worker] Successfully processed ${method} fix image dates for media ID: ${mediaId}`,
+      );
+      return true;
+    }
+
+    throw new Error(`Failed to process ${method} fix image dates`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

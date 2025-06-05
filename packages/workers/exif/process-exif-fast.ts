@@ -9,11 +9,12 @@ import { exifOptions, standardizeExif } from './exif-utils';
  * Extract EXIF data from a media item using the fast exifr library
  *
  * @param mediaItem - The media item to process
- * @param enableDebug - Optional flag to enable detailed EXIF field debugging
+ * @param method - The processing method used for tracking
  * @returns Object with extracted EXIF data and success status
  */
 export async function processExifFast(
   mediaItem: Pick<MediaWithExif, 'id' | 'media_path'>,
+  method: string,
 ): Promise<boolean> {
   try {
     // Use exifr to parse EXIF data - much faster than exiftool-vendored
@@ -41,6 +42,20 @@ export async function processExifFast(
 
     if (insertError) {
       throw new Error(`Failed to save EXIF data: ${insertError.message}`);
+    }
+
+    // Update the media record with the processing method
+    const { error: updateError } = await supabase
+      .from('media')
+      .update({ exif_process: method })
+      .eq('id', mediaItem.id);
+
+    if (updateError) {
+      console.warn(
+        `Failed to update exif_process for media ${mediaItem.id}:`,
+        updateError.message,
+      );
+      // Don't throw error here as EXIF data was saved successfully
     }
 
     return true;

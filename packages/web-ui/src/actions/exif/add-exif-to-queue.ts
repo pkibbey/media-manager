@@ -38,7 +38,10 @@ export async function addExifToQueue() {
 
       const jobs = mediaItems.map((data) => ({
         name: 'exif-extraction',
-        data,
+        data: {
+          ...data,
+          method: 'fast' as const, // Default to fast method
+        },
         opts: {
           jobId: data.id, // Use media ID as job ID for uniqueness
         },
