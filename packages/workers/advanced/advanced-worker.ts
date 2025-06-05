@@ -68,9 +68,6 @@ const workerProcessor = async (
       );
     }
 
-    console.log(
-      `[Worker] Successfully processed ${method} advanced analysis for media ID: ${mediaId}`,
-    );
     return true;
   } catch (error) {
     const errorMessage =

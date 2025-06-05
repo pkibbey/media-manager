@@ -8,7 +8,6 @@ import { processVisualHash } from './process-visual-hash';
 export type DuplicatesProcessingMethod =
   | 'hash-only'
   | 'duplicates-only'
-  | 'full'
   | 'delete-identical';
 
 interface DuplicatesJobData {
@@ -29,12 +28,7 @@ const QUEUE_NAME = 'duplicatesQueue';
 const workerProcessor = async (
   job: Job<DuplicatesJobData>,
 ): Promise<boolean> => {
-  const {
-    id: mediaId,
-    thumbnail_url: thumbnailUrl,
-    visual_hash: visualHash,
-    method,
-  } = job.data;
+  const { id: mediaId, thumbnail_url: thumbnailUrl, method } = job.data;
 
   try {
     // Process based on the specified method
@@ -55,18 +49,6 @@ const workerProcessor = async (
         }
         result = await processDuplicates({ mediaId });
         break;
-      case 'full':
-        if (!mediaId || !thumbnailUrl) {
-          throw new Error(
-            'mediaId and thumbnailUrl are required for full method',
-          );
-        }
-        // Generate hash if missing, then process duplicates
-        if (!visualHash) {
-          await processVisualHash({ mediaId, thumbnailUrl });
-        }
-        result = await processDuplicates({ mediaId });
-        break;
       case 'delete-identical':
         result = await processDeleteIdentical();
         break;
@@ -75,9 +57,6 @@ const workerProcessor = async (
     }
 
     if (result) {
-      console.log(
-        `[Worker] Successfully processed ${method} duplicates for media ID: ${mediaId}`,
-      );
       return true;
     }
 

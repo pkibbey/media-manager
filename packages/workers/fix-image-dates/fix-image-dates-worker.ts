@@ -51,9 +51,6 @@ const workerProcessor = async (
     }
 
     if (result) {
-      console.log(
-        `[Worker] Successfully processed ${method} fix image dates for media ID: ${mediaId}`,
-      );
       return true;
     }
 

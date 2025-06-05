@@ -63,9 +63,6 @@ const workerProcessor = async (
     }
 
     if (result) {
-      console.log(
-        `[Worker] Successfully generated ${method} thumbnail for media ID: ${mediaId}`,
-      );
       return true;
     }
 

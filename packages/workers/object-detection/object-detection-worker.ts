@@ -47,9 +47,6 @@ const workerProcessor = async (
     }
 
     if (result) {
-      console.log(
-        `[Worker] Successfully processed ${method} object detection for media ID: ${mediaId}`,
-      );
       return true;
     }
 

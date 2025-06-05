@@ -90,8 +90,26 @@ export async function processVisualHash({
       throw new Error('No media_path available');
     }
 
-    // Generate image fingerprint from thubmnail
-    const imageFingerprint = await sharp(thumbnailUrl)
+    // Fetch image data from URL if it's a HTTP URL, otherwise treat as file path
+    let imageBuffer: Buffer;
+    if (
+      thumbnailUrl.startsWith('http://') ||
+      thumbnailUrl.startsWith('https://')
+    ) {
+      const response = await fetch(thumbnailUrl);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch thumbnail: ${response.status} ${response.statusText}`,
+        );
+      }
+      imageBuffer = Buffer.from(await response.arrayBuffer());
+    } else {
+      // If it's a file path, read it directly
+      imageBuffer = await sharp(thumbnailUrl).toBuffer();
+    }
+
+    // Generate image fingerprint from thumbnail
+    const imageFingerprint = await sharp(imageBuffer)
       .greyscale()
       .resize(16, 16, { fit: 'fill' })
       .raw()

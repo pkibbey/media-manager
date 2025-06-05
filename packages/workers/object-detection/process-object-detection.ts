@@ -1,7 +1,7 @@
 'use server';
 
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
-import tf from '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs-node';
 import { createSupabase } from 'shared';
 import type { Json } from 'shared/types';
 

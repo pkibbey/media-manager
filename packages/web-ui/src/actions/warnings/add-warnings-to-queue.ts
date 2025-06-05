@@ -28,6 +28,7 @@ export async function addWarningsToQueue(method: ProcessType = 'standard') {
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
+        .not('thumbnail_url', 'is', null) // Must have a thumbnail_url in order to generate a visual hash
         .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 
@@ -40,7 +41,7 @@ export async function addWarningsToQueue(method: ProcessType = 'standard') {
         return false;
       }
 
-      const jobs = await contentWarningsQueue.addBulk(
+      await contentWarningsQueue.addBulk(
         mediaItems.map((data) => ({
           name: 'content-warning-detection',
           data: {
@@ -51,12 +52,6 @@ export async function addWarningsToQueue(method: ProcessType = 'standard') {
             jobId: data.id, // Use media ID as job ID for uniqueness
           },
         })),
-      );
-
-      console.log(
-        'Added',
-        jobs.length,
-        'to the content warnings queue for processing',
       );
 
       offset += mediaItems.length;

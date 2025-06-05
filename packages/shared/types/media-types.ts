@@ -8,7 +8,6 @@ export type OllamaProcessingMethod = 'ollama';
 export type DuplicatesProcessingMethod =
   | 'hash-only'
   | 'duplicates-only'
-  | 'full'
   | 'delete-identical';
 
 export type TableName = Extract<keyof Database['public']['Tables'], string>;

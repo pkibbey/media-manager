@@ -1,6 +1,6 @@
 'use server';
 
-import tf from '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs-node';
 import { load } from 'nsfwjs';
 import { createSupabase } from 'shared';
 import type { Json } from 'shared/types';

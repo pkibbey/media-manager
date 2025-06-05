@@ -12,7 +12,9 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const duplicatesQueue = new Queue('duplicatesQueue', { connection });
 
-export async function addToDuplicatesQueue(method: ProcessType = 'full') {
+export async function addToDuplicatesQueue(
+  method: ProcessType = 'duplicates-only',
+) {
   const supabase = createSupabase();
 
   // Handle delete-identical method differently

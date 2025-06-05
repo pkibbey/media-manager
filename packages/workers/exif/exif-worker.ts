@@ -51,9 +51,6 @@ const workerProcessor = async (job: Job<ExifJobData>): Promise<boolean> => {
     }
 
     if (result) {
-      console.log(
-        `[Worker] Successfully processed ${method} EXIF for media ID: ${id}`,
-      );
       return true;
     }
 

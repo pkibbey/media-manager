@@ -47,9 +47,6 @@ const workerProcessor = async (
     }
 
     if (result) {
-      console.log(
-        `[Worker] Successfully processed ${method} content warnings for media ID: ${mediaId}`,
-      );
       return true;
     }
 

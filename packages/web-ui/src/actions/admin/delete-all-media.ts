@@ -10,7 +10,6 @@ import { createSupabase } from 'shared';
 export async function deleteAllMediaItems(): Promise<boolean> {
   try {
     const supabase = createSupabase();
-    let totalDeleted = 0;
 
     // Delete media items in batches until no more items are left
     while (true) {
@@ -25,11 +24,6 @@ export async function deleteAllMediaItems(): Promise<boolean> {
       }
 
       const affectedRows = count || 0;
-      totalDeleted += affectedRows;
-
-      console.log(
-        `Successfully deleted ${affectedRows} media items. Total deleted: ${totalDeleted}`,
-      );
 
       if (affectedRows === 0) {
         // Empty the storage bucket for thumbnails

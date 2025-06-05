@@ -28,6 +28,7 @@ export async function addObjectsToQueue(method: ProcessType = 'standard') {
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
+        .not('thumbnail_url', 'is', null) // Must have a thumbnail_url in order to detect objects
         .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 

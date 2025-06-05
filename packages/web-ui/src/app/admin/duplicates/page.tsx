@@ -28,7 +28,6 @@ export default function DuplicatesAdminPage() {
           queueName="duplicatesQueue"
           method="duplicates-only"
         />
-        <AddToQueueButton queueName="duplicatesQueue" method="full" />
         <PauseQueueButton queueName="duplicatesQueue" />
       </div>
 

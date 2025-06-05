@@ -32,18 +32,18 @@ export const appConfig = {
 
   // Worker concurrency settings - tuned for optimal performance
   // CPU/GPU intensive workers (lower concurrency to prevent resource contention)
-  OBJECT_DETECTION_WORKER_CONCURRENCY: 4,
-  CONTENT_WARNINGS_WORKER_CONCURRENCY: 4,
-  ADVANCED_ANALYSIS_WORKER_CONCURRENCY: 4,
+  OBJECT_DETECTION_WORKER_CONCURRENCY: 3,
+  CONTENT_WARNINGS_WORKER_CONCURRENCY: 3,
+  ADVANCED_ANALYSIS_WORKER_CONCURRENCY: 3,
 
   // Mixed workload workers (moderate concurrency)
-  FOLDER_SCAN_WORKER_CONCURRENCY: 10,
-  DUPLICATES_WORKER_CONCURRENCY: 10,
+  FOLDER_SCAN_WORKER_CONCURRENCY: 5,
+  DUPLICATES_WORKER_CONCURRENCY: 5,
 
   // IO intensive workers (higher concurrency for better throughput)
-  FIX_IMAGE_DATES_WORKER_CONCURRENCY: 20,
-  THUMBNAIL_WORKER_CONCURRENCY: 20,
-  EXIF_WORKER_CONCURRENCY: 20,
+  FIX_IMAGE_DATES_WORKER_CONCURRENCY: 10,
+  THUMBNAIL_WORKER_CONCURRENCY: 10,
+  EXIF_WORKER_CONCURRENCY: 10,
 } as const;
 
 // Validate required environment variables
