@@ -66,32 +66,32 @@ export async function getDuplicatePairs(
         duplicate_id,
         similarity_score,
         hamming_distance,
-        media:media_id (
+        media: media!media_id (
           id,
           thumbnail_url,
           thumbnail_process,
-          exif_process,
           media_path,
           size_bytes,
           exif_data (
             width,
             height,
             exif_timestamp,
+            exif_process,
             fix_date_process
           )
         ),
-        duplicate_media:duplicate_id (
+        duplicate_media: media!duplicate_id (
           id,
           thumbnail_url,
           thumbnail_process,
-          exif_process,
           media_path,
           size_bytes,
           exif_data (
             width,
             height,
             exif_timestamp,
-            fix_date_process
+            fix_date_process,
+            exif_process
           )
         )
       `,
