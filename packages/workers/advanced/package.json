@@ -16,12 +16,12 @@
     "ioredis": "^5.6.1",
     "ollama": "^0.5.16",
     "shared": "*",
-    "zod": "^3.25.50",
+    "zod": "^3.25.53",
     "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "@types/node": "^22.15.29"
+    "@types/node": "^22.15.30"
   }
 }

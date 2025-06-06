@@ -28,107 +28,19 @@ interface DuplicateAction {
 
 type DuplicateRule = (pair: DuplicatePair) => DuplicateAction;
 
-/**
- * Rule: Check if two media objects are identical in all attributes
- * Returns action to delete the less preferred file based on naming and timestamps
- */
-function ruleStrictIdentical(pair: DuplicatePair): DuplicateAction {
-  const { media, duplicate_media } = pair;
+function isRawFile(fileName: string): boolean {
+  const rawExtensions =
+    /\.(sr2|nef|arw|cr2|dng|raf|rw2|orf|pef|3fr|fff|iiq|rwl|srw|x3f)$/i;
+  return rawExtensions.test(fileName);
+}
 
-  // Compare all attributes except id and path
-  const mediaToCompare = {
-    ...media,
-    id: undefined,
-    media_path: media.media_path.split('/').pop(),
-    size_bytes: media.size_bytes,
-    thumbnail_url: undefined,
-  };
+function isJpegFile(fileName: string): boolean {
+  const jpegExtensions = /\.(jpg|jpeg)$/i;
+  return jpegExtensions.test(fileName);
+}
 
-  const duplicateToCompare = {
-    ...duplicate_media,
-    id: undefined,
-    media_path: duplicate_media.media_path.split('/').pop(),
-    size_bytes: duplicate_media.size_bytes,
-    thumbnail_url: undefined,
-  };
-
-  const areIdentical =
-    JSON.stringify(mediaToCompare) === JSON.stringify(duplicateToCompare);
-
-  if (!areIdentical) {
-    return {
-      action: 'skip',
-      reason: 'Files are not strictly identical',
-      confidence: 0,
-    };
-  }
-
-  // Determine which to keep using existing logic
-  const mediaFileName = media.media_path.split('/').pop() || '';
-  const duplicateFileName = duplicate_media.media_path.split('/').pop() || '';
-
-  const renamedPattern =
-    /^f\d+\.(sr2|nef|arw|cr2|dng|raf|rw2|orf|pef|3fr|fff|iiq|rwl|srw|x3f|jpg|jpeg|png|tiff?|bmp|gif|webp)$/i;
-
-  const mediaRenamed = renamedPattern.test(mediaFileName.toLowerCase());
-  const duplicateRenamed = renamedPattern.test(duplicateFileName.toLowerCase());
-
-  // Prefer non-renamed files
-  if (mediaRenamed && !duplicateRenamed) {
-    return {
-      action: 'delete_a',
-      reason: 'Media A is a renamed file, keeping original',
-      confidence: 0.9,
-    };
-  }
-  if (!mediaRenamed && duplicateRenamed) {
-    return {
-      action: 'delete_b',
-      reason: 'Media B is a renamed file, keeping original',
-      confidence: 0.9,
-    };
-  }
-
-  // Check timestamps - prefer earlier
-  if (
-    media.exif_data?.exif_timestamp &&
-    duplicate_media.exif_data?.exif_timestamp
-  ) {
-    const mediaTime = new Date(media.exif_data.exif_timestamp).getTime();
-    const duplicateTime = new Date(
-      duplicate_media.exif_data.exif_timestamp,
-    ).getTime();
-
-    if (mediaTime < duplicateTime) {
-      return {
-        action: 'delete_b',
-        reason: 'Media A has earlier timestamp',
-        confidence: 0.8,
-      };
-    }
-    if (duplicateTime < mediaTime) {
-      return {
-        action: 'delete_a',
-        reason: 'Media B has earlier timestamp',
-        confidence: 0.8,
-      };
-    }
-  }
-
-  // Prefer larger file size as tiebreaker
-  if (media.size_bytes > duplicate_media.size_bytes) {
-    return {
-      action: 'delete_b',
-      reason: 'Media A is larger',
-      confidence: 0.7,
-    };
-  }
-
-  return {
-    action: 'delete_a',
-    reason: 'Media B is larger or same size (tiebreaker)',
-    confidence: 0.7,
-  };
+function getFileName(filePath: string): string {
+  return filePath.split('/').pop() || '';
 }
 
 /**
@@ -138,9 +50,8 @@ function ruleStrictIdentical(pair: DuplicatePair): DuplicateAction {
 function ruleEmbeddedVersion(pair: DuplicatePair): DuplicateAction {
   const { media, duplicate_media } = pair;
 
-  const mediaFileName = media.media_path.split('/').pop()?.toLowerCase() || '';
-  const duplicateFileName =
-    duplicate_media.media_path.split('/').pop()?.toLowerCase() || '';
+  const mediaFileName = getFileName(media.media_path);
+  const duplicateFileName = getFileName(duplicate_media.media_path);
 
   const mediaIsJpg = /\.(jpg|jpeg)$/i.test(mediaFileName);
   const duplicateIsJpg = /\.(jpg|jpeg)$/i.test(duplicateFileName);
@@ -148,10 +59,8 @@ function ruleEmbeddedVersion(pair: DuplicatePair): DuplicateAction {
   const mediaHasEmbedded = mediaFileName.includes('embedded');
   const duplicateHasEmbedded = duplicateFileName.includes('embedded');
 
-  const rawExtensions =
-    /\.(sr2|nef|arw|cr2|dng|raf|rw2|orf|pef|3fr|fff|iiq|rwl|srw|x3f)$/i;
-  const mediaIsRaw = rawExtensions.test(mediaFileName);
-  const duplicateIsRaw = rawExtensions.test(duplicateFileName);
+  const mediaIsRaw = isRawFile(mediaFileName);
+  const duplicateIsRaw = isRawFile(duplicateFileName);
 
   // Case 1: Media A is embedded JPG, Media B is RAW or much larger
   if (
@@ -186,6 +95,312 @@ function ruleEmbeddedVersion(pair: DuplicatePair): DuplicateAction {
   };
 }
 
+// Rule: Detect JPEG previews
+// If the larger file is a Raw file, and the smaller file is a JPEG
+// Then we should delete the JPEG preview
+function ruleJpegPreview(pair: DuplicatePair): DuplicateAction {
+  const { media, duplicate_media } = pair;
+  const mediaFileName = getFileName(media.media_path);
+  const duplicateFileName = getFileName(duplicate_media.media_path);
+
+  const mediaIsRaw = isRawFile(mediaFileName);
+  const duplicateIsRaw = isRawFile(duplicateFileName);
+
+  const mediaIsJpeg = isJpegFile(mediaFileName);
+  const duplicateIsJpeg = isJpegFile(duplicateFileName);
+
+  // Case 1: Media A is a JPEG preview, Media B is a larger RAW file
+  if (
+    mediaIsJpeg &&
+    duplicateIsRaw &&
+    media.size_bytes < duplicate_media.size_bytes
+  ) {
+    return {
+      action: 'delete_a',
+      reason: 'Media A is a JPEG preview of the larger RAW file',
+      confidence: 0.95,
+    };
+  }
+  // Case 2: Media B is a JPEG preview, Media A is a larger RAW file
+  if (
+    duplicateIsJpeg &&
+    mediaIsRaw &&
+    duplicate_media.size_bytes < media.size_bytes
+  ) {
+    return {
+      action: 'delete_b',
+      reason: 'Media B is a JPEG preview of the larger RAW file',
+      confidence: 0.95,
+    };
+  }
+  return {
+    action: 'skip',
+    reason: 'No JPEG preview pattern detected',
+    confidence: 0,
+  };
+}
+
+function ruleTinyFile(pair: DuplicatePair): DuplicateAction {
+  const { media, duplicate_media } = pair;
+  const mediaIsTiny = media.size_bytes < 1024; // Less than 1KB
+  const duplicateIsTiny = duplicate_media.size_bytes < 1024; // Less than 1KB
+
+  // Case 1: Media A is tiny, Media B is larger
+  if (mediaIsTiny && !duplicateIsTiny) {
+    return {
+      action: 'delete_a',
+      reason: 'Media A is a tiny file compared to Media B',
+      confidence: 0.9,
+    };
+  }
+  // Case 2: Media B is tiny, Media A is larger
+  if (duplicateIsTiny && !mediaIsTiny) {
+    return {
+      action: 'delete_b',
+      reason: 'Media B is a tiny file compared to Media A',
+      confidence: 0.9,
+    };
+  }
+  return {
+    action: 'skip',
+    reason: 'No tiny file pattern detected',
+    confidence: 0,
+  };
+}
+
+/**
+ * Rule: Delete exact duplicates (same extension, size, date, and dimensions)
+ */
+function ruleExactDuplicate(pair: DuplicatePair): DuplicateAction {
+  const { media, duplicate_media } = pair;
+
+  // Extract file extensions (case sensitive)
+  const getExtension = (filePath: string) => {
+    const parts = filePath.split('.');
+    return parts.length > 1 ? parts[parts.length - 1] : '';
+  };
+
+  const mediaExt = getExtension(media.media_path);
+  const duplicateExt = getExtension(duplicate_media.media_path);
+
+  // Extract date (try exif_data.DateTimeOriginal, fallback to exif_data.CreateDate, fallback to undefined)
+  const getDate = (exif: any) =>
+    exif?.DateTimeOriginal || exif?.CreateDate || undefined;
+
+  const mediaDate = getDate(media.exif_data);
+  const duplicateDate = getDate(duplicate_media.exif_data);
+
+  // Extract dimensions (width/height)
+  const getDims = (exif: any) => {
+    if (!exif) return { width: undefined, height: undefined };
+    return {
+      width: exif.ImageWidth || exif.PixelXDimension,
+      height: exif.ImageHeight || exif.PixelYDimension,
+    };
+  };
+
+  const mediaDims = getDims(media.exif_data);
+  const duplicateDims = getDims(duplicate_media.exif_data);
+
+  // Check all conditions
+  if (
+    mediaExt === duplicateExt &&
+    media.size_bytes === duplicate_media.size_bytes &&
+    mediaDate === duplicateDate &&
+    mediaDims.width === duplicateDims.width &&
+    mediaDims.height === duplicateDims.height
+  ) {
+    return {
+      action: 'delete_a',
+      reason: 'Exact duplicate: extension, size, date, and dimensions match',
+      confidence: 1,
+    };
+  }
+
+  return {
+    action: 'skip',
+    reason: 'Not an exact duplicate',
+    confidence: 0,
+  };
+}
+
+/**
+ * Rule: Delete if the first media item is exactly 500x500 pixels
+ */
+function ruleDelete500x500(pair: DuplicatePair): DuplicateAction {
+  const { media, duplicate_media } = pair;
+
+  if (media.exif_data.width === 500 && media.exif_data.height === 500) {
+    return {
+      action: 'delete_a',
+      reason: 'Media A is exactly 500x500 pixels',
+      confidence: 1,
+    };
+  }
+
+  if (
+    duplicate_media.exif_data.width === 500 &&
+    duplicate_media.exif_data.height === 500
+  ) {
+    return {
+      action: 'delete_b',
+      reason: 'Media B is exactly 500x500 pixels',
+      confidence: 1,
+    };
+  }
+
+  return {
+    action: 'skip',
+    reason: 'Neither Media A, nor Media B are 500x500 pixels',
+    confidence: 0,
+  };
+}
+
+/**
+ * Rule: If both are raw files, sizes, dimensions, and dates are identical,
+ * keep the one whose filename is all caps.
+ */
+function ruleKeepAllCapsRaw(pair: DuplicatePair): DuplicateAction {
+  const { media, duplicate_media } = pair;
+
+  // Check both are raw files
+  if (!isRawFile(media.media_path) || !isRawFile(duplicate_media.media_path)) {
+    return {
+      action: 'skip',
+      reason: `Both files are not raw${media.media_path} ${duplicate_media.media_path}`,
+      confidence: 0,
+    };
+  }
+
+  // Check date
+  const getDate = (exif: any) =>
+    exif?.DateTimeOriginal || exif?.CreateDate || undefined;
+  const mediaDate = getDate(media.exif_data);
+  const duplicateDate = getDate(duplicate_media.exif_data);
+  if (mediaDate !== duplicateDate) {
+    return {
+      action: 'skip',
+      reason: 'Dates do not match',
+      confidence: 0,
+    };
+  }
+
+  // Check filenames
+  const mediaFileName = getFileName(media.media_path);
+  const duplicateFileName = getFileName(duplicate_media.media_path);
+
+  const mediaAllCaps = mediaFileName === mediaFileName.toUpperCase();
+  console.log('mediaAllCaps: ', mediaAllCaps, mediaFileName);
+  const duplicateAllCaps =
+    duplicateFileName === duplicateFileName.toUpperCase();
+  console.log('duplicateAllCaps: ', duplicateAllCaps, duplicateFileName);
+
+  if (mediaAllCaps && !duplicateAllCaps) {
+    return {
+      action: 'delete_b',
+      reason: 'Both raw, identical, keep all-caps filename (A)',
+      confidence: 1,
+    };
+  }
+  if (!mediaAllCaps && duplicateAllCaps) {
+    return {
+      action: 'delete_a',
+      reason: 'Both raw, identical, keep all-caps filename (B)',
+      confidence: 1,
+    };
+  }
+
+  return {
+    action: 'skip',
+    reason: 'No all-caps filename to prefer',
+    confidence: 0,
+  };
+}
+
+/**
+ * Rule: If images have same dimensions, same date, and both have the same lowercase extension,
+ * delete the one with the smallest file size.
+ */
+function ruleDeleteSmallestLowercaseExt(pair: DuplicatePair): DuplicateAction {
+  const { media, duplicate_media } = pair;
+
+  // Get extensions (lowercase, no dot)
+  const getExt = (filePath: string) => {
+    const parts = filePath.split('.');
+    return parts.length > 1 ? parts[parts.length - 1] : '';
+  };
+  const mediaExt = getExt(media.media_path);
+  const duplicateExt = getExt(duplicate_media.media_path);
+
+  // Only proceed if both extensions are lowercase and match
+  if (
+    mediaExt !== duplicateExt ||
+    mediaExt !== mediaExt.toLowerCase() ||
+    duplicateExt !== duplicateExt.toLowerCase()
+  ) {
+    return {
+      action: 'skip',
+      reason: 'Extensions are not both lowercase and matching',
+      confidence: 0,
+    };
+  }
+
+  // Compare dimensions
+  const getDims = (exif: any) => ({
+    width: exif?.ImageWidth || exif?.PixelXDimension,
+    height: exif?.ImageHeight || exif?.PixelYDimension,
+  });
+  const mediaDims = getDims(media.exif_data);
+  const duplicateDims = getDims(duplicate_media.exif_data);
+
+  if (
+    mediaDims.width !== duplicateDims.width ||
+    mediaDims.height !== duplicateDims.height
+  ) {
+    return {
+      action: 'skip',
+      reason: 'Dimensions do not match',
+      confidence: 0,
+    };
+  }
+
+  // Compare date
+  const getDate = (exif: any) =>
+    exif?.DateTimeOriginal || exif?.CreateDate || undefined;
+  const mediaDate = getDate(media.exif_data);
+  const duplicateDate = getDate(duplicate_media.exif_data);
+
+  if (mediaDate !== duplicateDate) {
+    return {
+      action: 'skip',
+      reason: 'Dates do not match',
+      confidence: 0,
+    };
+  }
+
+  // Delete the one with the smallest file size
+  if (media.size_bytes < duplicate_media.size_bytes) {
+    return {
+      action: 'delete_a',
+      reason: 'Same dims/date/lowercase ext, media A is smaller',
+      confidence: 1,
+    };
+  }
+  if (duplicate_media.size_bytes < media.size_bytes) {
+    return {
+      action: 'delete_b',
+      reason: 'Same dims/date/lowercase ext, media B is smaller',
+      confidence: 1,
+    };
+  }
+
+  return {
+    action: 'skip',
+    reason: 'Sizes are identical, nothing to delete',
+    confidence: 0,
+  };
+}
+
 /**
  * Process and delete duplicates automatically using a set of rules.
  * Each rule takes a duplicate pair and returns an action to take.
@@ -195,8 +410,13 @@ export async function processDeleteAutomatically(): Promise<boolean> {
 
   // Define the rules to apply in order of preference
   const deletionRules: DuplicateRule[] = [
-    ruleStrictIdentical,
+    ruleDelete500x500,
+    ruleTinyFile,
+    ruleJpegPreview,
     ruleEmbeddedVersion,
+    ruleExactDuplicate,
+    ruleKeepAllCapsRaw,
+    ruleDeleteSmallestLowercaseExt,
   ];
 
   try {
@@ -253,9 +473,6 @@ export async function processDeleteAutomatically(): Promise<boolean> {
       }
 
       if (!actionTaken || actionTaken.action === 'skip') {
-        console.log(
-          `No action taken for pair ${pair.media_id} <-> ${pair.duplicate_id}`,
-        );
         continue;
       }
 
@@ -269,34 +486,34 @@ export async function processDeleteAutomatically(): Promise<boolean> {
         `Deleting duplicate: ${mediaToDelete}, keeping: ${mediaToKeep} (${actionTaken.reason}, confidence: ${actionTaken.confidence})`,
       );
 
-      // // Mark the selected media as deleted
-      // const { error: deleteError } = await supabase
-      //   .from('media')
-      //   .update({ is_deleted: true })
-      //   .eq('id', mediaToDelete);
+      // Mark the selected media as deleted
+      const { error: deleteError } = await supabase
+        .from('media')
+        .update({ is_deleted: true })
+        .eq('id', mediaToDelete);
 
-      // if (deleteError) {
-      //   console.error(
-      //     `Error marking media ${mediaToDelete} as deleted:`,
-      //     deleteError,
-      //   );
-      //   continue;
-      // }
+      if (deleteError) {
+        console.error(
+          `Error marking media ${mediaToDelete} as deleted:`,
+          deleteError,
+        );
+        continue;
+      }
 
-      // // Delete the duplicate pair
-      // const { error: dismissError } = await supabase
-      //   .from('duplicates')
-      //   .delete()
-      //   .eq('media_id', pair.media_id)
-      //   .eq('duplicate_id', pair.duplicate_id);
+      // Delete the duplicate pair
+      const { error: dismissError } = await supabase
+        .from('duplicates')
+        .delete()
+        .eq('media_id', pair.media_id)
+        .eq('duplicate_id', pair.duplicate_id);
 
-      // if (dismissError) {
-      //   console.error(
-      //     `Error dismissing duplicate pair ${pair.id}:`,
-      //     dismissError,
-      //   );
-      //   continue;
-      // }
+      if (dismissError) {
+        console.error(
+          `Error dismissing duplicate pair ${pair.id}:`,
+          dismissError,
+        );
+        continue;
+      }
 
       deletedCount++;
       processedCount++;

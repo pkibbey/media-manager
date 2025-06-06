@@ -3,6 +3,7 @@ import type { ProcessType, QueueConfig, QueueName } from 'shared/types';
 
 // Import all queue functions
 import { addAdvancedToQueue } from '@/actions/advanced/add-advanced-to-queue';
+import { addBlurryPhotosToQueue } from '@/actions/blurry-photos/add-blurry-photos-to-queue';
 import { addToDuplicatesQueue } from '@/actions/duplicates/add-duplicates-to-queue';
 import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
 import { addFixDatesToQueue } from '@/actions/fix-dates/add-fix-dates-to-queue';
@@ -39,6 +40,10 @@ const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
   fixImageDatesQueue: {
     action: addFixDatesToQueue,
     name: 'Fix Image Dates',
+  },
+  blurryPhotosQueue: {
+    action: addBlurryPhotosToQueue,
+    name: 'Blurry Photos',
   },
 } as const;
 

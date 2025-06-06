@@ -114,7 +114,7 @@ export function QueueStatus({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Queue Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           <StatCard
             icon={Loader2}
             iconColor="text-blue-500"
@@ -123,6 +123,7 @@ export function QueueStatus({
             onReset={() => resetQueueState('active')}
             resetTitle="Reset active jobs"
           />
+
           <StatCard
             icon={Clock}
             iconColor="text-yellow-500"
@@ -138,7 +139,7 @@ export function QueueStatus({
           <StatCard
             icon={CheckCircle2}
             iconColor="text-green-500"
-            label="Completed"
+            label="Complete"
             value={stats.completed}
             onReset={() => resetQueueState('completed')}
             resetTitle="Reset completed jobs"
@@ -159,7 +160,8 @@ export function QueueStatus({
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Overall Progress</span>
               <span className="font-medium">
-                {effectiveCompleted} / {totalJobs} items processed
+                {Math.floor((effectiveCompleted / totalJobs) * 10000) / 100}%
+                processed
               </span>
             </div>
             <Progress

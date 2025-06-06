@@ -580,8 +580,8 @@ export function DuplicatesViewer() {
     setPage(1);
   };
 
-  // Handler for delete identical duplicates
-  const handleDeleteIdentical = async () => {
+  // Handler to automatically delete duplicates
+  const handleDeleteAutomatically = async () => {
     setLoading(true);
     try {
       const response = await fetch(
@@ -669,13 +669,13 @@ export function DuplicatesViewer() {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={handleDeleteIdentical}
+            onClick={handleDeleteAutomatically}
             disabled={loading}
             variant="destructive"
             className="flex-shrink-0"
             title="Automatically delete files that are identical in all attributes"
           >
-            {loading ? 'Processing...' : 'Delete Identical'}
+            Delete Automatically
           </Button>
           <Button
             onClick={() => fetchDuplicates(1, false)}

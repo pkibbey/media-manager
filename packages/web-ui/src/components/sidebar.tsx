@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   Image,
+  ImageOff,
   Search,
   Zap,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ const navItemGroups = [
     items: [
       { href: '/admin/duplicates', label: 'Duplicates', icon: Copy },
       { href: '/admin/fix-dates', label: 'Fix Image Dates', icon: Calendar },
+      { href: '/admin/blurry-photos', label: 'Blurry Photos', icon: ImageOff },
     ],
   },
   {

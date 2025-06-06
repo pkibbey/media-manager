@@ -12,7 +12,8 @@ export type QueueName =
   | 'thumbnailQueue'
   | 'exifQueue'
   | 'objectAnalysisQueue'
-  | 'fixImageDatesQueue';
+  | 'fixImageDatesQueue'
+  | 'blurryPhotosQueue';
 
 /**
  * Valid BullMQ job states that can be used for queue operations.

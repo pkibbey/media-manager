@@ -1,6 +1,51 @@
 'use server';
 
 import { createSupabase } from 'shared';
+import type { QueueName } from 'shared/types';
+import { resetQueueState } from '../queue/reset-queue-state';
+
+/**
+ * Reset all queues by clearing all states
+ *
+ * @returns Boolean indicating success
+ */
+async function resetAllQueues(): Promise<boolean> {
+  const queueNames: QueueName[] = [
+    'folderScanQueue',
+    'advancedAnalysisQueue',
+    'duplicatesQueue',
+    'contentWarningsQueue',
+    'thumbnailQueue',
+    'exifQueue',
+    'objectAnalysisQueue',
+    'fixImageDatesQueue',
+    'blurryPhotosQueue',
+  ];
+
+  const statesToReset = [
+    'waiting',
+    'completed',
+    'failed',
+    'delayed',
+    'paused',
+  ] as const;
+
+  try {
+    console.log('Starting to reset all queues...');
+
+    for (const queueName of queueNames) {
+      for (const state of statesToReset) {
+        await resetQueueState(queueName, state);
+      }
+    }
+
+    console.log('Successfully reset all queues.');
+    return true;
+  } catch (error) {
+    console.error('Error resetting queues:', error);
+    return false;
+  }
+}
 
 /**
  * Delete all media data
@@ -9,6 +54,15 @@ import { createSupabase } from 'shared';
  */
 export async function deleteAllMediaItems(): Promise<boolean> {
   try {
+    console.log('Starting deletion process: resetting all queues first...');
+
+    // Reset all queues before deleting media items
+    const queueResetSuccess = await resetAllQueues();
+    if (!queueResetSuccess) {
+      console.error('Failed to reset queues, aborting media deletion');
+      return false;
+    }
+
     const supabase = createSupabase();
 
     // Delete media items in batches until no more items are left

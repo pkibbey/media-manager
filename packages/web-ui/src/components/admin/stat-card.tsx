@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { formatShortNumber } from '@/lib/format-short-number';
 import { type LucideIcon, RotateCcw } from 'lucide-react';
 
 interface StatCardProps {
@@ -26,7 +27,7 @@ export function StatCard({
       <div className="flex items-center gap-2">
         <Icon className={`h-4 w-4 ${iconColor}`} />
         <span className="text-muted-foreground">{label}:</span>
-        <span className="font-medium">{value}</span>
+        <span className="font-medium">{formatShortNumber(value)}</span>
       </div>
       {value > 0 && onReset && (
         <Button
