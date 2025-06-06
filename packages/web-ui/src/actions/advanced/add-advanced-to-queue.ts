@@ -45,7 +45,7 @@ export async function addAdvancedToQueue(method: ProcessType = 'ollama') {
             method,
           },
           opts: {
-            jobId: data.id, // Use media ID as job ID for uniqueness
+            jobId: `${data.id}-${method}`, // Use media ID + method as job ID for uniqueness
           },
         })),
       );

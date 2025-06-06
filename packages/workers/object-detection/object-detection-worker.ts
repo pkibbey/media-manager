@@ -68,9 +68,9 @@ const worker = new Worker<ObjectDetectionJobData>(QUEUE_NAME, workerProcessor, {
   concurrency: appConfig.OBJECT_DETECTION_WORKER_CONCURRENCY,
 });
 
-worker.on('completed', (job: Job<ObjectDetectionJobData>) => {
-  console.log(`[Worker] Job ${job.id} completed object detection processing.`);
-});
+// worker.on('completed', (job: Job<ObjectDetectionJobData>) => {
+//   console.log(`[Worker] Job ${job.id} completed object detection processing.`);
+// });
 
 worker.on(
   'failed',

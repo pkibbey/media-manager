@@ -33,28 +33,46 @@ export default function ExifAdminPage() {
     'subject_distance',
   ];
 
+  const handleDeleteAllExifData = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete ALL EXIF data? This action cannot be undone and will remove all EXIF metadata from the database.',
+    );
+
+    if (confirmed) {
+      return await deleteAllExifData();
+    }
+
+    return false;
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">EXIF Analysis</h2>
-        <p className="text-muted-foreground">
-          The fast method extracts basic EXIF data, while the slow method does
-          better on complex images.
-        </p>
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <h2 className="text-2xl font-bold">EXIF Analysis</h2>
+          <p className="text-muted-foreground">
+            Extract exif data from images to analyze camera settings, GPS
+            coordinates, and other metadata.
+          </p>
+        </div>
+        <PauseQueueButton queueName="exifQueue" />
       </div>
 
-      <div className="flex gap-4 flex-wrap">
-        <AddToQueueButton queueName="exifQueue" method="fast" />
-        <AddToQueueButton
-          queueName="exifQueue"
-          method="slow"
-          className="opacity-50 hover:opacity-100 transition-opacity"
-        />
-        <PauseQueueButton queueName="exifQueue" />
-        <ActionButton action={deleteAllExifData} variant="destructive">
-          <Trash2 className="h-4 w-4 mr-1" />
-          Delete All EXIF Data
-        </ActionButton>
+      <div className="grid grid-cols-2 gap-6">
+        <div className="flex flex-col gap-2 items-start">
+          <h3 className="text-xl font-semibold">Fast Processing</h3>
+          <AddToQueueButton queueName="exifQueue" method="fast" />
+          <p className="text-muted-foreground">
+            The fastest method to extract basic EXIF data.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 items-start opacity-30 hover:opacity-100 transition-opacity">
+          <h3 className="text-xl font-semibold">Slow Processing</h3>
+          <AddToQueueButton queueName="exifQueue" method="slow" />
+          <p className="text-muted-foreground">
+            The slowest method to extract basic EXIF data.
+          </p>
+        </div>
       </div>
 
       <ExifQueueStatus />
@@ -65,6 +83,18 @@ export default function ExifAdminPage() {
         title="EXIF Data Table Column Analysis"
         description="Analysis of nullable columns in the exif_data table to identify unused or fully null columns"
       />
+
+      <div className="flex flex-col gap-2 items-start">
+        <h3 className="text-xl font-semibold">Danger</h3>
+        <ActionButton action={handleDeleteAllExifData} variant="destructive">
+          <Trash2 className="h-4 w-4 mr-1" />
+          Delete All EXIF Data
+        </ActionButton>
+        <p className="text-muted-foreground">
+          This will delete all EXIF data from the database. This action cannot
+          be undone.
+        </p>
+      </div>
     </div>
   );
 }

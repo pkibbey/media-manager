@@ -68,9 +68,9 @@ const worker = new Worker<ContentWarningsJobData>(QUEUE_NAME, workerProcessor, {
   concurrency: appConfig.CONTENT_WARNINGS_WORKER_CONCURRENCY,
 });
 
-worker.on('completed', (job: Job<ContentWarningsJobData>) => {
-  console.log(`[Worker] Job ${job.id} completed content warnings processing.`);
-});
+// worker.on('completed', (job: Job<ContentWarningsJobData>) => {
+//   console.log(`[Worker] Job ${job.id} completed content warnings processing.`);
+// });
 
 worker.on(
   'failed',

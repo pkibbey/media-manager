@@ -8,7 +8,7 @@ export function ExifQueueStatus() {
   return (
     <QueueStatus
       queueName="exifQueue"
-      title="EXIF Processing Queue Status"
+      title="EXIF Processing Queue"
       icon={Camera}
       fetchStats={getExifQueueStats}
       renderActiveJob={(job) => (

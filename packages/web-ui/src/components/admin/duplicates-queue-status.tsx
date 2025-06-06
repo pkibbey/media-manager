@@ -8,7 +8,7 @@ export function DuplicatesQueueStatus() {
   return (
     <QueueStatus
       queueName="duplicatesQueue"
-      title="Duplicate Detection Queue Status"
+      title="Duplicate Detection Queue"
       icon={Copy}
       fetchStats={getDuplicatesQueueStats}
       renderActiveJob={(job) => (

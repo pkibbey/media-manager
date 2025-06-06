@@ -55,7 +55,7 @@ export function PauseQueueButton({ queueName }: PauseQueueButtonProps) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative mb-1">
       {/* Sleeping Z animation when paused */}
       {isPaused && (
         <div className="absolute -top-5 right-5 -translate-x-1/2 pointer-events-none">

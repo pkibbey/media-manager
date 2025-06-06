@@ -8,7 +8,7 @@ export function FixImageDatesQueueStatus() {
   return (
     <QueueStatus
       queueName="fixImageDatesQueue"
-      title="Fix Image Dates Queue Status"
+      title="Fix Image Dates Queue"
       icon={Calendar}
       fetchStats={getFixImageDatesQueueStats}
       renderActiveJob={(job) => (

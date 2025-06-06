@@ -8,7 +8,7 @@ export function FolderScanQueueStatus() {
   return (
     <QueueStatus
       queueName="folderScanQueue"
-      title="Folder Scan Queue Status"
+      title="Folder Scan Queue"
       icon={FolderOpen}
       fetchStats={getFolderScanQueueStats}
       renderActiveJob={(job) => (

@@ -61,8 +61,7 @@ export async function addToThumbnailsQueue(
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
-        // Only select image mime types for thumbnail processing
-        .ilike('media_types.mime_type', 'image/%')
+        .ilike('media_types.mime_type', 'image/%') // Only process image types
         .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 
@@ -85,7 +84,7 @@ export async function addToThumbnailsQueue(
             method,
           },
           opts: {
-            jobId: data.id, // Use media ID as job ID for uniqueness
+            jobId: `${data.id}-${method}`, // Use media ID + method as job ID for uniqueness
             priority,
           },
         };

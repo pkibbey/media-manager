@@ -8,7 +8,7 @@ export function BlurryPhotosQueueStatus() {
   return (
     <QueueStatus
       queueName="blurryPhotosQueue"
-      title="Blurry Photos Queue Status"
+      title="Blurry Photos Queue"
       icon={ImageOff}
       fetchStats={getBlurryPhotosQueueStats}
       renderActiveJob={(job) => (

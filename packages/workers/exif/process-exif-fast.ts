@@ -27,6 +27,13 @@ export async function processExifFast(
       return false;
     }
 
+    // Check image width and return false if less than 500px
+    // This is a common indicator that the exif data was not extracted properly
+    const width = exif.ImageWidth || exif.ExifImageWidth || 0;
+    if (width <= 240) {
+      return false;
+    }
+
     // Parse EXIF data into standardized format with type safety
     const exifData = standardizeExif(exif, mediaItem.id, method);
 
@@ -47,7 +54,7 @@ export async function processExifFast(
     return true;
   } catch (processingError) {
     console.error(
-      `Error extracting EXIF for media ${mediaItem.id}:`,
+      `Error extracting EXIF for media fast ${mediaItem.id}:${mediaItem.media_path.split('/').pop()}`,
       processingError,
     );
     return false;

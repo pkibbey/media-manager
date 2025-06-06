@@ -73,9 +73,9 @@ const worker = new Worker<BlurryPhotosJobData>(QUEUE_NAME, workerProcessor, {
   concurrency: appConfig.BLURRY_PHOTOS_WORKER_CONCURRENCY,
 });
 
-worker.on('completed', (job: Job<BlurryPhotosJobData>) => {
-  console.log(`[Worker] Job ${job.id} completed blurry photos processing.`);
-});
+// worker.on('completed', (job: Job<BlurryPhotosJobData>) => {
+//   console.log(`[Worker] Job ${job.id} completed blurry photos processing.`);
+// });
 
 worker.on('failed', (job: Job<BlurryPhotosJobData> | undefined, err: Error) => {
   console.error(

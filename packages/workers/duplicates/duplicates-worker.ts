@@ -79,9 +79,9 @@ const worker = new Worker<DuplicatesJobData>(QUEUE_NAME, workerProcessor, {
   concurrency: appConfig.DUPLICATES_WORKER_CONCURRENCY,
 });
 
-worker.on('completed', (job: Job<DuplicatesJobData>) => {
-  console.log(`[Worker] Job ${job.id} completed duplicates processing.`);
-});
+// worker.on('completed', (job: Job<DuplicatesJobData>) => {
+//   console.log(`[Worker] Job ${job.id} completed duplicates processing.`);
+// });
 
 worker.on('failed', (job: Job<DuplicatesJobData> | undefined, err: Error) => {
   console.error(

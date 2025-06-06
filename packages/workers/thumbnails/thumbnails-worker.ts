@@ -84,9 +84,9 @@ const worker = new Worker<ThumbnailJobData>(QUEUE_NAME, workerProcessor, {
   concurrency: appConfig.THUMBNAIL_WORKER_CONCURRENCY,
 });
 
-worker.on('completed', (job: Job<ThumbnailJobData>) => {
-  console.log(`[Worker] Job ${job.id} completed thumbnail generation.`);
-});
+// worker.on('completed', (job: Job<ThumbnailJobData>) => {
+//   console.log(`[Worker] Job ${job.id} completed thumbnail generation.`);
+// });
 
 worker.on('failed', (job: Job<ThumbnailJobData> | undefined, err: Error) => {
   console.error(

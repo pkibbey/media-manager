@@ -44,7 +44,7 @@ export async function processExifSlow(
     return true;
   } catch (processingError) {
     console.error(
-      `Error extracting EXIF for media ${mediaItem.id}:`,
+      `Error extracting EXIF for media slow ${mediaItem.id}:${mediaItem.media_path.split('/').pop()}`,
       processingError,
     );
     return false;

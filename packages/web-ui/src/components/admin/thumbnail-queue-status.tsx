@@ -8,7 +8,7 @@ export function ThumbnailQueueStatus() {
   return (
     <QueueStatus
       queueName="thumbnailQueue"
-      title="Thumbnail Generation Queue Status"
+      title="Thumbnail Generation Queue"
       icon={ImageIcon}
       fetchStats={getThumbnailQueueStats}
       renderActiveJob={(job) => (

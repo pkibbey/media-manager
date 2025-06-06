@@ -43,6 +43,8 @@ export type Database = {
           created_at: string | null
           faces: Json | null
           id: string
+          image_description: string | null
+          keywords: string[]
           media_id: string
           medical_content: boolean | null
           objects: Json | null
@@ -61,6 +63,8 @@ export type Database = {
           created_at?: string | null
           faces?: Json | null
           id?: string
+          image_description?: string | null
+          keywords?: string[]
           media_id: string
           medical_content?: boolean | null
           objects?: Json | null
@@ -79,6 +83,8 @@ export type Database = {
           created_at?: string | null
           faces?: Json | null
           id?: string
+          image_description?: string | null
+          keywords?: string[]
           media_id?: string
           medical_content?: boolean | null
           objects?: Json | null
@@ -148,19 +154,24 @@ export type Database = {
           camera_model: string | null
           color_space: string | null
           created_at: string | null
+          depth_of_field: string | null
+          digital_zoom_ratio: string | null
           exif_process: string | null
           exif_timestamp: string | null
           exposure_bias: number | null
           exposure_mode: string | null
           exposure_program: string | null
+          exposure_time: string | null
+          field_of_view: string | null
           fix_date_process: string | null
           flash: string | null
-          focal_length: number | null
+          focal_length_35mm: number | null
           gps_latitude: number | null
           gps_longitude: number | null
           height: number | null
           id: string
           iso: number | null
+          lens_id: string | null
           lens_model: string | null
           light_source: string | null
           media_id: string
@@ -179,19 +190,24 @@ export type Database = {
           camera_model?: string | null
           color_space?: string | null
           created_at?: string | null
+          depth_of_field?: string | null
+          digital_zoom_ratio?: string | null
           exif_process?: string | null
           exif_timestamp?: string | null
           exposure_bias?: number | null
           exposure_mode?: string | null
           exposure_program?: string | null
+          exposure_time?: string | null
+          field_of_view?: string | null
           fix_date_process?: string | null
           flash?: string | null
-          focal_length?: number | null
+          focal_length_35mm?: number | null
           gps_latitude?: number | null
           gps_longitude?: number | null
           height?: number | null
           id?: string
           iso?: number | null
+          lens_id?: string | null
           lens_model?: string | null
           light_source?: string | null
           media_id: string
@@ -210,19 +226,24 @@ export type Database = {
           camera_model?: string | null
           color_space?: string | null
           created_at?: string | null
+          depth_of_field?: string | null
+          digital_zoom_ratio?: string | null
           exif_process?: string | null
           exif_timestamp?: string | null
           exposure_bias?: number | null
           exposure_mode?: string | null
           exposure_program?: string | null
+          exposure_time?: string | null
+          field_of_view?: string | null
           fix_date_process?: string | null
           flash?: string | null
-          focal_length?: number | null
+          focal_length_35mm?: number | null
           gps_latitude?: number | null
           gps_longitude?: number | null
           height?: number | null
           id?: string
           iso?: number | null
+          lens_id?: string | null
           lens_model?: string | null
           light_source?: string | null
           media_id?: string

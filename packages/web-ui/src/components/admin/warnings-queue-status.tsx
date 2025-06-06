@@ -8,7 +8,7 @@ export function ContentWarningsQueueStatus() {
   return (
     <QueueStatus
       queueName="contentWarningsQueue"
-      title="Content Warnings Queue Status"
+      title="Content Warnings Queue"
       icon={Shield}
       fetchStats={getContentWarningsQueueStats}
       renderActiveJob={(job) => (

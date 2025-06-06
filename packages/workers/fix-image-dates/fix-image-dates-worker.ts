@@ -72,9 +72,9 @@ const worker = new Worker<FixImageDatesJobData>(QUEUE_NAME, workerProcessor, {
   concurrency: appConfig.FIX_IMAGE_DATES_WORKER_CONCURRENCY,
 });
 
-worker.on('completed', (job: Job<FixImageDatesJobData>) => {
-  console.log(`[Worker] Job ${job.id} completed fix image dates processing.`);
-});
+// worker.on('completed', (job: Job<FixImageDatesJobData>) => {
+//   console.log(`[Worker] Job ${job.id} completed fix image dates processing.`);
+// });
 
 worker.on(
   'failed',
