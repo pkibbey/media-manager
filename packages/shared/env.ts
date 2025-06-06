@@ -39,6 +39,7 @@ export const appConfig = {
   // Mixed workload workers (moderate concurrency)
   FOLDER_SCAN_WORKER_CONCURRENCY: 5,
   DUPLICATES_WORKER_CONCURRENCY: 5,
+  VISUAL_HASH_WORKER_CONCURRENCY: 5, // Image processing for hash generation
   BLURRY_PHOTOS_WORKER_CONCURRENCY: 3, // Canvas-based image analysis
 
   // IO intensive workers (higher concurrency for better throughput)

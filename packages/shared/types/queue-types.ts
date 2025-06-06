@@ -8,6 +8,7 @@ export type QueueName =
   | 'folderScanQueue'
   | 'advancedAnalysisQueue'
   | 'duplicatesQueue'
+  | 'visualHashQueue'
   | 'contentWarningsQueue'
   | 'thumbnailQueue'
   | 'exifQueue'

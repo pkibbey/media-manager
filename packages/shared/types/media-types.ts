@@ -6,9 +6,10 @@ export type SpeedProcessingMethod = 'ultra' | 'fast' | 'slow';
 export type StandardProcessingMethod = 'standard';
 export type OllamaProcessingMethod = 'ollama';
 export type DuplicatesProcessingMethod =
-  | 'hash-only'
   | 'duplicates-only'
   | 'delete-automatically';
+
+export type VisualHashProcessingMethod = 'hash-only';
 
 export type TableName = Extract<keyof Database['public']['Tables'], string>;
 
@@ -16,7 +17,8 @@ export type ProcessType =
   | SpeedProcessingMethod
   | StandardProcessingMethod
   | OllamaProcessingMethod
-  | DuplicatesProcessingMethod;
+  | DuplicatesProcessingMethod
+  | VisualHashProcessingMethod;
 
 /**
  * Media filtering options for browsing and searching media

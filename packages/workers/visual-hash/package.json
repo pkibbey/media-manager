@@ -1,0 +1,20 @@
+{
+  "name": "visual-hash-worker",
+  "version": "1.0.0",
+  "description": "Worker for generating visual hashes of media files",
+  "main": "visual-hash-worker.ts",
+  "scripts": {
+    "start": "tsx visual-hash-worker.ts",
+    "dev": "tsx watch visual-hash-worker.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5.53.2",
+    "shared": "*",
+    "sharp": "^0.34.2",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "@types/node": "^22.15.30"
+  }
+}

@@ -4,17 +4,13 @@ import { createRedisConnection } from 'shared/redis';
 
 import { processDeleteAutomatically } from './process-delete-automatically';
 import { processDuplicates } from './process-duplicates';
-import { processVisualHash } from './process-visual-hash';
 
 export type DuplicatesProcessingMethod =
-  | 'hash-only'
   | 'duplicates-only'
   | 'delete-automatically';
 
 interface DuplicatesJobData {
   id?: string;
-  visual_hash?: string;
-  thumbnail_url?: string;
   method: DuplicatesProcessingMethod;
 }
 
@@ -29,21 +25,13 @@ const QUEUE_NAME = 'duplicatesQueue';
 const workerProcessor = async (
   job: Job<DuplicatesJobData>,
 ): Promise<boolean> => {
-  const { id: mediaId, thumbnail_url: thumbnailUrl, method } = job.data;
+  const { id: mediaId, method } = job.data;
 
   try {
     // Process based on the specified method
     let result: boolean;
 
     switch (method) {
-      case 'hash-only':
-        if (!mediaId || !thumbnailUrl) {
-          throw new Error(
-            'mediaId and thumbnailUrl are required for hash-only method',
-          );
-        }
-        result = await processVisualHash({ mediaId, thumbnailUrl });
-        break;
       case 'duplicates-only':
         if (!mediaId) {
           throw new Error('mediaId is required for duplicates-only method');
@@ -66,7 +54,7 @@ const workerProcessor = async (
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     console.error(
-      `[Worker] Error processing job ${job.id} for media ID ${mediaId}:`,
+      `[Duplicates Worker] Error processing job ${job.id} for media ID ${mediaId}:`,
       errorMessage,
     );
     throw error; // Rethrow to allow BullMQ to handle retries/failures
@@ -85,12 +73,12 @@ const worker = new Worker<DuplicatesJobData>(QUEUE_NAME, workerProcessor, {
 
 worker.on('failed', (job: Job<DuplicatesJobData> | undefined, err: Error) => {
   console.error(
-    `[Worker] Job ${job?.id} (Media ID: ${job?.data.id}) failed with error: ${err.message}`,
+    `[Duplicates Worker] Job ${job?.id} (Media ID: ${job?.data.id}) failed with error: ${err.message}`,
   );
 });
 
 worker.on('error', (err) => {
-  console.error('[Worker] Worker encountered an error:', err);
+  console.error('[Duplicates Worker] Worker encountered an error:', err);
 });
 
 console.log(

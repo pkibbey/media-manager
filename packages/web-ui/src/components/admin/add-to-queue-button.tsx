@@ -51,7 +51,10 @@ export function AddToQueueButton({
     <Button
       onClick={handleAddToQueue}
       disabled={isLoading}
-      className={cn(className, 'cursor-pointer')}
+      className={cn(
+        className,
+        'bg-green-700 hover:bg-green-800 cursor-pointer',
+      )}
       variant={variant}
     >
       {isLoading ? (
@@ -62,7 +65,7 @@ export function AddToQueueButton({
       ) : (
         <>
           <Icon className="mr-2 h-4 w-4" />
-          Add to Queue : {method}
+          Add all to Queue with "{method}" method
         </>
       )}
     </Button>

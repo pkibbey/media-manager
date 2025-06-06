@@ -9,11 +9,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Worker for detecting duplicate media files based on visual hashes",
   "dependencies": {
     "dotenv": "16.5.0",
     "bullmq": "^5.53.2",
-    "sharp": "^0.34.2",
     "shared": "*"
   },
   "devDependencies": {

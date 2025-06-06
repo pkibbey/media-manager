@@ -33,21 +33,6 @@ export default function ExifAdminPage() {
         <PauseQueueButton queueName="exifQueue" />
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <div className="flex flex-col gap-2 items-start">
-          <h3 className="text-xl font-semibold">Fast Processing</h3>
-          <AddToQueueButton queueName="exifQueue" method="fast" />
-          <p className="text-muted-foreground">
-            Approx. 2000 images per second
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 items-start opacity-30 hover:opacity-100 transition-opacity">
-          <h3 className="text-xl font-semibold">Slow Processing</h3>
-          <AddToQueueButton queueName="exifQueue" method="slow" />
-          <p className="text-muted-foreground">Approx. 100 images per second</p>
-        </div>
-      </div>
-
       <ExifQueueStatus />
 
       <div className="flex flex-col gap-2 items-start">
@@ -60,6 +45,12 @@ export default function ExifAdminPage() {
           This will delete all EXIF data from the database. This action cannot
           be undone.
         </p>
+        <div className="flex flex-col gap-2 items-start">
+          <AddToQueueButton queueName="exifQueue" method="fast" />
+          <p className="text-muted-foreground">
+            This will add all media items to the EXIF queue for analysis.
+          </p>
+        </div>
       </div>
     </div>
   );
