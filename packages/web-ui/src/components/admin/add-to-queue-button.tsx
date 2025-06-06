@@ -62,7 +62,7 @@ export function AddToQueueButton({
       ) : (
         <>
           <Icon className="mr-2 h-4 w-4" />
-          Populate Queue ({method})
+          Queue {method}
         </>
       )}
     </Button>

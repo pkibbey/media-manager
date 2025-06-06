@@ -32,11 +32,7 @@ export default async function ThumbnailAdminPage() {
           className="opacity-50 hover:opacity-100 transition-opacity"
         />
         <PauseQueueButton queueName="thumbnailQueue" />
-        <ActionButton
-          action={deleteAllThumbnails}
-          variant="destructive"
-          loadingMessage="Deleting all thumbnails..."
-        >
+        <ActionButton action={deleteAllThumbnails} variant="destructive">
           <Trash2 className="h-4 w-4 mr-1" />
           Delete All Thumbnails
         </ActionButton>

@@ -17,20 +17,23 @@ export async function addToDuplicatesQueue(
 ) {
   const supabase = createSupabase();
 
-  // Handle delete-identical method differently
-  if (method === 'delete-identical') {
+  // Handle delete-automatically method differently
+  if (method === 'delete-automatically') {
     try {
       // Add a single job to process all identical duplicates
-      const job = await duplicatesQueue.add('delete-identical', {
+      const job = await duplicatesQueue.add('delete-automatically', {
         method,
       });
 
-      console.log('Added delete-identical job to duplicates queue:', job.id);
+      console.log(
+        'Added delete-automatically job to duplicates queue:',
+        job.id,
+      );
       return true;
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : 'Unknown error occurred';
-      console.error('Error adding delete-identical job:', errorMessage);
+      console.error('Error adding delete-automatically job:', errorMessage);
       return false;
     }
   }

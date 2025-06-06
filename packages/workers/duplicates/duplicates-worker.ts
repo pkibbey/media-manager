@@ -1,14 +1,15 @@
 import { type Job, Worker } from 'bullmq';
 import { appConfig } from 'shared/env';
 import { createRedisConnection } from 'shared/redis';
-import { processDeleteIdentical } from './process-delete-identical';
+
+import { processDeleteAutomatically } from './process-delete-automatically';
 import { processDuplicates } from './process-duplicates';
 import { processVisualHash } from './process-visual-hash';
 
 export type DuplicatesProcessingMethod =
   | 'hash-only'
   | 'duplicates-only'
-  | 'delete-identical';
+  | 'delete-automatically';
 
 interface DuplicatesJobData {
   id?: string;
@@ -49,8 +50,8 @@ const workerProcessor = async (
         }
         result = await processDuplicates({ mediaId });
         break;
-      case 'delete-identical':
-        result = await processDeleteIdentical();
+      case 'delete-automatically':
+        result = await processDeleteAutomatically();
         break;
       default:
         throw new Error(`Unknown duplicates processing method: ${method}`);

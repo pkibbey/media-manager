@@ -15,7 +15,6 @@ import {
   Clock,
   Loader2,
   type LucideIcon,
-  Pause,
   Timer,
   TrendingUp,
   XCircle,
@@ -91,14 +90,13 @@ export function QueueStatus({
     );
   }
 
-  // Combine waiting and prioritized jobs for display (prioritized are just waiting jobs with higher priority)
-  const effectiveWaiting = stats.waiting + stats.prioritized;
+  // Combine waiting, prioritized, and paused jobs for display
+  const effectiveWaiting = stats.waiting + stats.prioritized + stats.paused;
   const effectiveCompleted = stats.completed + stats.failed;
   const totalJobs =
     stats.active +
     effectiveWaiting +
     stats.delayed +
-    stats.paused +
     stats['waiting-children'] +
     effectiveCompleted;
   const hasActivity = totalJobs > 0;
@@ -130,16 +128,12 @@ export function QueueStatus({
             iconColor="text-yellow-500"
             label="Waiting"
             value={effectiveWaiting}
-            onReset={() => resetQueueState('waiting')}
+            onReset={async () => {
+              await resetQueueState('waiting');
+              await resetQueueState('prioritized');
+              await resetQueueState('paused');
+            }}
             resetTitle="Reset waiting jobs"
-          />
-          <StatCard
-            icon={Pause}
-            iconColor="text-purple-500"
-            label="Paused"
-            value={stats.paused}
-            onReset={() => resetQueueState('paused')}
-            resetTitle="Reset paused jobs"
           />
           <StatCard
             icon={CheckCircle2}
@@ -184,30 +178,30 @@ export function QueueStatus({
             </h4>
 
             {/* Processing Rate and Time Estimates */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
               <MetricCard
                 icon={TrendingUp}
                 iconColor="text-green-500"
-                label="Processing Rate"
+                label="Processing"
                 value={formatRate(stats.metrics.processingRate)}
               />
               <MetricCard
                 icon={Timer}
                 iconColor="text-blue-500"
-                label="Est. Time Remaining"
+                label="Remaining"
                 value={formatDuration(stats.metrics.estimatedTimeRemaining)}
               />
               <MetricCard
                 icon={Clock}
                 iconColor="text-purple-500"
-                label="Avg. Processing Time"
+                label="Average"
                 value={formatDuration(stats.metrics.averageProcessingTime)}
               />
               {stats.metrics.errorRate > 0 && (
                 <MetricCard
                   icon={AlertCircle}
                   iconColor="text-red-500"
-                  label="Error Rate"
+                  label="Errors"
                   value={formatPercentage(stats.metrics.errorRate)}
                   className="text-red-600"
                 />

@@ -580,33 +580,12 @@ export function DuplicatesViewer() {
     setPage(1);
   };
 
-  // Helper to check if any pairs have all attributes identical
-  const hasIdenticalPairs = () => {
-    return duplicates.some((pair) => {
-      return (
-        pair.media.media_path !== pair.duplicate_media.media_path &&
-        JSON.stringify({
-          ...pair.media,
-          media_path: undefined,
-          id: undefined,
-          thumbnail_url: undefined,
-        }) ===
-          JSON.stringify({
-            ...pair.duplicate_media,
-            media_path: undefined,
-            id: undefined,
-            thumbnail_url: undefined,
-          })
-      );
-    });
-  };
-
   // Handler for delete identical duplicates
   const handleDeleteIdentical = async () => {
     setLoading(true);
     try {
       const response = await fetch(
-        '/api/admin/add-to-queue?queueName=duplicatesQueue&method=delete-identical',
+        '/api/admin/add-to-queue?queueName=duplicatesQueue&method=delete-automatically',
         {
           method: 'POST',
         },
@@ -691,7 +670,7 @@ export function DuplicatesViewer() {
         <div className="flex gap-2">
           <Button
             onClick={handleDeleteIdentical}
-            disabled={loading || !hasIdenticalPairs()}
+            disabled={loading}
             variant="destructive"
             className="flex-shrink-0"
             title="Automatically delete files that are identical in all attributes"

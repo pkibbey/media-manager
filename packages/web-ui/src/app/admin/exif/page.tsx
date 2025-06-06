@@ -51,11 +51,7 @@ export default function ExifAdminPage() {
           className="opacity-50 hover:opacity-100 transition-opacity"
         />
         <PauseQueueButton queueName="exifQueue" />
-        <ActionButton
-          action={deleteAllExifData}
-          variant="destructive"
-          loadingMessage="Deleting all EXIF data..."
-        >
+        <ActionButton action={deleteAllExifData} variant="destructive">
           <Trash2 className="h-4 w-4 mr-1" />
           Delete All EXIF Data
         </ActionButton>

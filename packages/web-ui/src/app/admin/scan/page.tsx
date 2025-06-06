@@ -143,19 +143,12 @@ export default function MediaScanPage() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2">
-          <ActionButton
-            action={scanFolders}
-            loadingMessage="Adding folders to scan queue..."
-          >
+          <ActionButton action={scanFolders}>
             <Scan className="h-4 w-4 mr-1" />
             Add to Scan Queue
           </ActionButton>
           <PauseQueueButton queueName="folderScanQueue" />
-          <ActionButton
-            action={deleteAllMediaItems}
-            variant="destructive"
-            loadingMessage="Deleting all media items..."
-          >
+          <ActionButton action={deleteAllMediaItems} variant="destructive">
             <Trash2 className="h-4 w-4 mr-1" />
             Delete All Media
           </ActionButton>
