@@ -44,11 +44,11 @@ const worker = new Worker<FolderScanJobData>(QUEUE_NAME, workerProcessor, {
   concurrency: appConfig.FOLDER_SCAN_WORKER_CONCURRENCY,
 });
 
-// worker.on('completed', (job: Job<FolderScanJobData>) => {
-//   console.log(
-//     `[Worker] Job ${job.id} (Folder: ${job.data.folderPath}) completed folder scan.`,
-//   );
-// });
+worker.on('completed', (job: Job<FolderScanJobData>) => {
+  console.log(
+    `[Worker] Job ${job.id} (Folder: ${job.data.folderPath}) completed folder scan.`,
+  );
+});
 
 worker.on('failed', (job: Job<FolderScanJobData> | undefined, err: Error) => {
   console.error(

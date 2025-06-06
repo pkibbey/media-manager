@@ -52,6 +52,12 @@ const worker = new Worker<VisualHashJobData>(QUEUE_NAME, workerProcessor, {
   concurrency: appConfig.VISUAL_HASH_WORKER_CONCURRENCY,
 });
 
+worker.on('completed', (job: Job<VisualHashJobData>) => {
+  console.log(
+    `[Visual Hash Worker] Job ${job.id} (Media ID: ${job.data.id}) completed successfully.`,
+  );
+});
+
 worker.on('failed', (job: Job<VisualHashJobData> | undefined, err: Error) => {
   console.error(
     `[Visual Hash Worker] Job ${job?.id} (Media ID: ${job?.data.id}) failed with error: ${err.message}`,

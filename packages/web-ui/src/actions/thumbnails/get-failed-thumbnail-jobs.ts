@@ -32,7 +32,7 @@ export async function getFailedThumbnailJobs(): Promise<MediaWithRelations[]> {
     const failedJobs = (await queue.getJobs(
       ['failed'],
       0,
-      100,
+      10000,
       false,
     )) as FailedThumbnailJob[];
 
@@ -67,7 +67,13 @@ export async function getFailedThumbnailJobs(): Promise<MediaWithRelations[]> {
       return [];
     }
 
-    return mediaItems || [];
+    // Transform analysis_data from array to single object to match MediaWithRelations type
+    const transformedMedia = mediaItems?.map((media) => ({
+      ...media,
+      analysis_data: media.analysis_data?.[0] || null,
+    })) as MediaWithRelations[];
+
+    return transformedMedia || [];
   } catch (error) {
     console.error('Error getting failed thumbnail jobs:', error);
     return [];

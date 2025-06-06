@@ -87,9 +87,9 @@ const worker = new Worker<AdvancedAnalysisJobData>(
   },
 );
 
-// worker.on('completed', (job: Job<AdvancedAnalysisJobData>) => {
-//   console.log(`[Worker] Job ${job.id} completed advanced analysis processing.`);
-// });
+worker.on('completed', (job: Job<AdvancedAnalysisJobData>) => {
+  console.log(`[Worker] Job ${job.id} completed advanced analysis processing.`);
+});
 
 worker.on(
   'failed',
