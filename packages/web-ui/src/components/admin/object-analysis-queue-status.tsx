@@ -22,6 +22,7 @@ export function ObjectAnalysisQueueStatus() {
           )}
         </div>
       )}
+      supportedMethods={['standard']}
     />
   );
 }

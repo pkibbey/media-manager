@@ -17,6 +17,7 @@ export function ExifQueueStatus() {
         </span>
       )}
       emptyStateDescription="No media items in EXIF processing queue."
+      supportedMethods={['fast', 'slow']}
     />
   );
 }

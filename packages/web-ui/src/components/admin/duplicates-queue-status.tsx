@@ -17,6 +17,11 @@ export function DuplicatesQueueStatus() {
         </span>
       )}
       emptyStateDescription="No media items in duplicate detection queue."
+      supportedMethods={[
+        'hash-only',
+        'duplicates-only',
+        'delete-automatically',
+      ]}
     />
   );
 }

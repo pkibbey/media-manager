@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { QueueName, QueueState, QueueStats } from 'shared/types';
+import type { QueueName, QueueStats } from 'shared/types';
 
 interface UseQueueOptions {
   queueName: QueueName;
@@ -34,32 +34,6 @@ export function useQueue({
     setStats(queueStats);
   }, [fetchStats]);
 
-  const resetQueueState = useCallback(
-    async (state: QueueState) => {
-      try {
-        const response = await fetch(
-          `/api/admin/queue-reset?queueName=${queueName}&state=${state}`,
-          {
-            method: 'POST',
-          },
-        );
-
-        const result = await response.json();
-
-        if (response.ok) {
-          console.log(result.message);
-          // Refresh stats after successful operation
-          await refreshStats();
-        } else {
-          console.error('Error resetting queue state:', result.error);
-        }
-      } catch (error) {
-        console.error('Failed to reset queue state:', error);
-      }
-    },
-    [queueName, refreshStats],
-  );
-
   useEffect(() => {
     // Initial fetch
     fetchStatsData();
@@ -74,6 +48,5 @@ export function useQueue({
     stats,
     isLoading,
     refreshStats,
-    resetQueueState,
   };
 }

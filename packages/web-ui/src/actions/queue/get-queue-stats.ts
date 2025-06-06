@@ -103,22 +103,9 @@ async function calculateQueueMetrics(
             Math.floor(processingTimesLastMinute.length * 0.5)
           ]
         : 0;
-    const p95ProcessingTime =
-      processingTimesLastMinute.length >= 10
-        ? processingTimesLastMinute[
-            Math.floor(processingTimesLastMinute.length * 0.95)
-          ]
-        : 0;
-    const p99ProcessingTime =
-      processingTimesLastMinute.length >= 10
-        ? processingTimesLastMinute[
-            Math.floor(processingTimesLastMinute.length * 0.99)
-          ]
-        : 0;
 
     // Basic concurrency metrics - only what we can observe now
     const currentConcurrency = counts.active || 0;
-    const maxConcurrency = actualMaxConcurrency;
 
     // --- FIX: Processing Rate Calculation ---
     // Use a new variable for the fixed logic to avoid redeclaration
@@ -128,12 +115,6 @@ async function calculateQueueMetrics(
     } else {
       processingRate = completedLastMinute.length / 60;
     }
-
-    // Calculate idle time since last completion
-    const lastCompletedJob = completedLastMinute[0];
-    const idleTime = lastCompletedJob?.finishedOn
-      ? now - lastCompletedJob.finishedOn
-      : 0;
 
     // Calculate estimated time remaining - only if we have reliable recent data
     const totalPendingJobs =
@@ -154,10 +135,6 @@ async function calculateQueueMetrics(
         (totalPendingJobs / concurrencyAdjustedRate) * 1000;
     }
 
-    // Simple throughput - just count from the last minute
-    const throughputLast5Min = completedLastMinute.length; // Using same data as 1-minute
-    const throughputLast1Hour = completedLastMinute.length; // Conservative: only recent data
-
     // Basic error rate from current counts (not time-based since we only trust recent data)
     const totalJobs = (counts.completed || 0) + (counts.failed || 0);
     const errorRate =
@@ -177,17 +154,8 @@ async function calculateQueueMetrics(
       processingRate,
       averageProcessingTime,
       estimatedTimeRemaining,
-      throughputLast5Min,
-      throughputLast1Hour,
       errorRate,
       queueLatency,
-      // Enhanced metrics - only what we can calculate confidently
-      medianProcessingTime,
-      p95ProcessingTime,
-      p99ProcessingTime,
-      maxConcurrency,
-      currentConcurrency,
-      idleTime,
     };
   } catch (error) {
     console.error('Error calculating queue metrics:', error);
@@ -196,16 +164,8 @@ async function calculateQueueMetrics(
       processingRate: 0,
       averageProcessingTime: 0,
       estimatedTimeRemaining: 0,
-      throughputLast5Min: 0,
-      throughputLast1Hour: 0,
       errorRate: 0,
       queueLatency: 0,
-      medianProcessingTime: 0,
-      p95ProcessingTime: 0,
-      p99ProcessingTime: 0,
-      maxConcurrency: 0,
-      currentConcurrency: 0,
-      idleTime: 0,
     };
   }
 }

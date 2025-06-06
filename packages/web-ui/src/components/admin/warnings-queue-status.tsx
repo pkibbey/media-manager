@@ -11,6 +11,7 @@ export function ContentWarningsQueueStatus() {
       title="Content Warnings Queue"
       icon={Shield}
       fetchStats={getContentWarningsQueueStats}
+      supportedMethods={['standard']}
       renderActiveJob={(job) => (
         <span className="truncate font-mono text-xs">
           Media ID: {job.data.id}

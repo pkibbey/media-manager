@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { QueueName, QueueStats } from 'shared/types';
 import { MetricCard } from './metric-card';
+import { RequeueWithMethodButton } from './requeue-with-method-button';
 import { StatCard } from './stat-card';
 
 interface QueueStatusProps {
@@ -36,6 +37,7 @@ interface QueueStatusProps {
   emptyStateDescription?: string;
   dynamicGrowthMessage?: string;
   showDynamicGrowth?: boolean;
+  supportedMethods?: string[];
 }
 
 export function QueueStatus({
@@ -47,8 +49,9 @@ export function QueueStatus({
   emptyStateDescription = 'No items in queue.',
   dynamicGrowthMessage,
   showDynamicGrowth = false,
+  supportedMethods,
 }: QueueStatusProps) {
-  const { stats, isLoading, resetQueueState } = useQueue({
+  const { stats, isLoading } = useQueue({
     queueName,
     fetchStats,
   });
@@ -120,39 +123,44 @@ export function QueueStatus({
             iconColor="text-blue-500"
             label="Active"
             value={stats.active}
-            onReset={() => resetQueueState('active')}
-            resetTitle="Reset active jobs"
           />
-
           <StatCard
             icon={Clock}
             iconColor="text-yellow-500"
             label="Waiting"
             value={effectiveWaiting}
-            onReset={async () => {
-              await resetQueueState('waiting');
-              await resetQueueState('prioritized');
-              await resetQueueState('paused');
-            }}
-            resetTitle="Reset waiting jobs"
           />
           <StatCard
             icon={CheckCircle2}
             iconColor="text-green-500"
             label="Complete"
             value={stats.completed}
-            onReset={() => resetQueueState('completed')}
-            resetTitle="Reset completed jobs"
           />
           <StatCard
             icon={XCircle}
             iconColor="text-red-500"
             label="Failed"
             value={stats.failed}
-            onReset={() => resetQueueState('failed')}
-            resetTitle="Reset failed jobs"
           />
         </div>
+
+        {/* Requeue Functionality */}
+        {supportedMethods &&
+          supportedMethods.length > 0 &&
+          (stats.failed > 0 || stats.completed > 0) && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <RequeueWithMethodButton
+                  queueName={queueName}
+                  supportedMethods={supportedMethods}
+                  onRequeue={() => {
+                    // Refresh the queue stats after successful requeue
+                    window.location.reload();
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
         {/* Progress Bar */}
         {hasActivity && effectiveCompleted > 0 && (
@@ -209,64 +217,6 @@ export function QueueStatus({
                 />
               )}
             </div>
-
-            {/* Advanced Performance Metrics */}
-            {(stats.metrics.medianProcessingTime > 0 ||
-              stats.metrics.p95ProcessingTime > 0) && (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                  <div className="text-center p-2 bg-muted/10 rounded">
-                    <div className="text-muted-foreground">Median</div>
-                    <div className="font-medium">
-                      {formatDuration(stats.metrics.medianProcessingTime)}
-                    </div>
-                  </div>
-                  <div className="text-center p-2 bg-muted/10 rounded">
-                    <div className="text-muted-foreground">95th %ile</div>
-                    <div className="font-medium">
-                      {formatDuration(stats.metrics.p95ProcessingTime)}
-                    </div>
-                  </div>
-                  <div className="text-center p-2 bg-muted/10 rounded">
-                    <div className="text-muted-foreground">99th %ile</div>
-                    <div className="font-medium">
-                      {formatDuration(stats.metrics.p99ProcessingTime)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Concurrency and Efficiency Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              {stats.metrics.currentConcurrency > 0 && (
-                <MetricCard
-                  icon={Activity}
-                  iconColor="text-orange-500"
-                  label="Concurrency"
-                  value={`${stats.metrics.currentConcurrency} / ${stats.metrics.maxConcurrency}`}
-                />
-              )}
-            </div>
-
-            {/* Detailed Statistics */}
-            {(stats.metrics.throughputLast5Min > 0 ||
-              stats.metrics.throughputLast1Hour > 0) && (
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div>
-                  Throughput: {stats.metrics.throughputLast5Min} jobs (last 5m),{' '}
-                  {stats.metrics.throughputLast1Hour} jobs (last 1h)
-                </div>
-                {stats.metrics.queueLatency > 0 && (
-                  <div>
-                    Queue latency: {formatDuration(stats.metrics.queueLatency)}
-                  </div>
-                )}
-                {stats.metrics.idleTime > 0 && (
-                  <div>Idle time: {formatDuration(stats.metrics.idleTime)}</div>
-                )}
-              </div>
-            )}
           </div>
         )}
 

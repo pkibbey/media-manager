@@ -45,23 +45,9 @@ export interface QueueMetrics {
   averageProcessingTime: number; // in milliseconds
   estimatedTimeRemaining: number; // in milliseconds
 
-  // Throughput metrics
-  throughputLast5Min: number;
-  throughputLast1Hour: number;
-
   // Queue health metrics
   errorRate: number; // percentage of failed jobs
   queueLatency: number; // average wait time before processing
-
-  // Advanced timing metrics
-  medianProcessingTime: number; // milliseconds
-  p95ProcessingTime: number; // 95th percentile processing time
-  p99ProcessingTime: number; // 99th percentile processing time
-  idleTime: number; // milliseconds queue was idle
-
-  // Concurrency metrics
-  maxConcurrency: number; // maximum concurrent jobs
-  currentConcurrency: number; // current active jobs;
 }
 
 /**

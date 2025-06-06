@@ -55,28 +55,6 @@ export default function ThumbnailAdminPage() {
         <PauseQueueButton queueName="thumbnailQueue" />
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="flex flex-col gap-2 items-start">
-          <h3 className="text-xl font-semibold">Ultra Processing</h3>
-          <AddToQueueButton queueName="thumbnailQueue" method="ultra" />
-          <p className="text-muted-foreground">Approx. 300 images per second</p>
-        </div>
-        <div className="flex flex-col gap-2 items-start">
-          <h3 className="text-xl font-semibold">Fast Processing</h3>
-          <AddToQueueButton queueName="thumbnailQueue" method="fast" />
-          <p className="text-muted-foreground">
-            Quick resize generation with good quality.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 items-start">
-          <h3 className="text-xl font-semibold">Slow Processing</h3>
-          <AddToQueueButton queueName="thumbnailQueue" method="slow" />
-          <p className="text-muted-foreground">
-            High quality generation for best results.
-          </p>
-        </div>
-      </div>
-
       <ThumbnailQueueStatus />
 
       {!loading && failedMediaItems.length > 0 && (
@@ -105,14 +83,25 @@ export default function ThumbnailAdminPage() {
 
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Destructive Actions</h3>
-        <ActionButton variant="destructive" action={handleDeleteAllThumbnails}>
-          <Trash2 className="h-4 w-4 mr-1" />
-          Delete All Thumbnails
-        </ActionButton>
-        <p className="text-muted-foreground">
-          This will delete all thumbnail references from the database. This
-          action cannot be undone.
-        </p>
+        <div className="flex flex-col gap-2 items-start">
+          <ActionButton
+            variant="destructive"
+            action={handleDeleteAllThumbnails}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete All Thumbnails
+          </ActionButton>
+          <p className="text-muted-foreground">
+            This will delete all thumbnail references from the database. This
+            action cannot be undone.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 items-start">
+          <AddToQueueButton queueName="thumbnailQueue" method="ultra" />
+          <p className="text-muted-foreground">
+            This will add all the thumbnails to be processed
+          </p>
+        </div>
       </div>
     </div>
   );

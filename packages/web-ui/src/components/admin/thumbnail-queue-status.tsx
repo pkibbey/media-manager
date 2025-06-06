@@ -17,6 +17,7 @@ export function ThumbnailQueueStatus() {
         </span>
       )}
       emptyStateDescription="No media items in thumbnail generation queue."
+      supportedMethods={['ultra', 'fast', 'slow']}
     />
   );
 }

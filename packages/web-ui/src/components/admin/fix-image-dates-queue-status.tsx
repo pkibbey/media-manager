@@ -11,6 +11,7 @@ export function FixImageDatesQueueStatus() {
       title="Fix Image Dates Queue"
       icon={Calendar}
       fetchStats={getFixImageDatesQueueStats}
+      supportedMethods={['standard']}
       renderActiveJob={(job) => (
         <span className="truncate font-mono text-xs">
           {job.data.media_path || `Media ID: ${job.data.id}`}

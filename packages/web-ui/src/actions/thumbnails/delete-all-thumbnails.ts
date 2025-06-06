@@ -1,6 +1,15 @@
 'use server';
 
 import { createSupabase } from 'shared';
+import { resetQueueState } from '../queue/reset-queue-state';
+
+const statesToReset = [
+  'waiting',
+  'completed',
+  'failed',
+  'delayed',
+  'paused',
+] as const;
 
 /**
  * Delete all media data
@@ -37,6 +46,11 @@ export async function deleteAllThumbnails(): Promise<boolean> {
           await supabase.storage.emptyBucket('thumbnails');
         } catch (e) {
           console.error('Exception while emptying thumbnails bucket:', e);
+        }
+
+        // Reset the thumbnail queue states
+        for (const state of statesToReset) {
+          await resetQueueState('thumbnailQueue', state);
         }
 
         break;

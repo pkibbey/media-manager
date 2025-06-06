@@ -22,6 +22,7 @@ export function AdvancedAnalysisQueueStatus() {
           )}
         </div>
       )}
+      supportedMethods={['ollama']}
     />
   );
 }
