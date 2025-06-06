@@ -1,7 +1,6 @@
 import { type Job, Worker } from 'bullmq';
 import { appConfig } from 'shared/env';
 import { createRedisConnection } from 'shared/redis';
-
 import { processVisualHash } from './process-visual-hash';
 
 interface VisualHashJobData {

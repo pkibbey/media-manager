@@ -153,10 +153,6 @@ export function QueueStatus({
                 <RequeueWithMethodButton
                   queueName={queueName}
                   supportedMethods={supportedMethods}
-                  onRequeue={() => {
-                    // Refresh the queue stats after successful requeue
-                    window.location.reload();
-                  }}
                 />
               </div>
             </div>

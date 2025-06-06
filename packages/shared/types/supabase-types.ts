@@ -44,7 +44,7 @@ export type Database = {
           faces: Json | null
           id: string
           image_description: string | null
-          keywords: string[]
+          keywords: string[] | null
           media_id: string
           medical_content: boolean | null
           objects: Json | null
@@ -64,7 +64,7 @@ export type Database = {
           faces?: Json | null
           id?: string
           image_description?: string | null
-          keywords?: string[]
+          keywords?: string[] | null
           media_id: string
           medical_content?: boolean | null
           objects?: Json | null
@@ -84,7 +84,7 @@ export type Database = {
           faces?: Json | null
           id?: string
           image_description?: string | null
-          keywords?: string[]
+          keywords?: string[] | null
           media_id?: string
           medical_content?: boolean | null
           objects?: Json | null

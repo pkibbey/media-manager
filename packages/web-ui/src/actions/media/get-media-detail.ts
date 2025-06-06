@@ -96,7 +96,7 @@ export async function getMediaDetail(mediaId: string): Promise<{
           field_of_view,
           flash
         ),
-        analysis_data (
+        analysis_data!inner(
           image_description,
           keywords
         )

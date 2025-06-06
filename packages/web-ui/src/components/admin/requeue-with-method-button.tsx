@@ -17,7 +17,6 @@ interface RequeueWithMethodButtonProps {
   queueName: QueueName;
   supportedMethods: string[];
   className?: string;
-  onRequeue?: () => void;
 }
 
 /**
@@ -27,7 +26,6 @@ export function RequeueWithMethodButton({
   queueName,
   supportedMethods,
   className,
-  onRequeue,
 }: RequeueWithMethodButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedState, setSelectedState] = useState<QueueState | ''>('');
@@ -63,8 +61,6 @@ export function RequeueWithMethodButton({
       if (response.ok) {
         console.log(result.message);
         console.log(`Requeued ${result.requeuedCount} items`);
-        // Call the callback to refresh queue stats
-        onRequeue?.();
       } else {
         console.error('Error requeuing items:', result.error);
       }

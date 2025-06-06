@@ -9,6 +9,7 @@ import { addExifToQueue } from '@/actions/exif/add-exif-to-queue';
 import { addFixDatesToQueue } from '@/actions/fix-dates/add-fix-dates-to-queue';
 import { addObjectsToQueue } from '@/actions/objects/add-objects-to-queue';
 import { addToThumbnailsQueue } from '@/actions/thumbnails/add-thumbnails-to-queue';
+import { addToVisualHashQueue } from '@/actions/visual-hash/add-visual-hash-to-queue';
 import { addWarningsToQueue } from '@/actions/warnings/add-warnings-to-queue';
 
 // Queue configuration mapping
@@ -36,6 +37,10 @@ const QUEUE_ACTIONS: Partial<Record<QueueName, QueueConfig>> = {
   thumbnailQueue: {
     action: addToThumbnailsQueue,
     name: 'Thumbnail Generation',
+  },
+  visualHashQueue: {
+    action: addToVisualHashQueue,
+    name: 'Visual Hash Generation',
   },
   fixImageDatesQueue: {
     action: addFixDatesToQueue,

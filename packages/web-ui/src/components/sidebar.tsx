@@ -8,6 +8,7 @@ import {
   Copy,
   Eye,
   FileText,
+  Hash,
   Image,
   ImageOff,
   Search,
@@ -28,6 +29,7 @@ const navItemGroups = [
     items: [
       { href: '/admin/exif', label: 'EXIF Data', icon: FileText },
       { href: '/admin/thumbnails', label: 'Thumbnails', icon: Zap },
+      { href: '/admin/visual-hash', label: 'Visual Hashes', icon: Hash },
     ],
   },
   {

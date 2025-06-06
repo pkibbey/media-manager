@@ -51,26 +51,6 @@ export default function DuplicatesAdminPage() {
         <PauseQueueButton queueName="duplicatesQueue" />
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <div className="flex flex-col gap-2 items-start">
-          <h3 className="text-xl font-semibold">Hash Only Processing</h3>
-          <AddToQueueButton queueName="duplicatesQueue" method="hash-only" />
-          <p className="text-muted-foreground">
-            Generate visual hashes for duplicate detection.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 items-start">
-          <h3 className="text-xl font-semibold">Duplicates Only Processing</h3>
-          <AddToQueueButton
-            queueName="duplicatesQueue"
-            method="duplicates-only"
-          />
-          <p className="text-muted-foreground">
-            Find and process duplicate images.
-          </p>
-        </div>
-      </div>
-
       <DuplicatesQueueStatus />
 
       <DuplicatesViewer />
@@ -85,6 +65,17 @@ export default function DuplicatesAdminPage() {
           This will automatically delete duplicate files based on predefined
           rules. This action cannot be undone.
         </p>
+        <div className="flex flex-col gap-2 items-start">
+          <AddToQueueButton
+            queueName="duplicatesQueue"
+            method="duplicates-only"
+          />
+          <p className="text-muted-foreground">
+            This will add all media items to the duplicates queue for
+            processing. It will only check for duplicates without deleting any
+            files. Useful for initial scans or manual review.
+          </p>
+        </div>
       </div>
     </div>
   );
