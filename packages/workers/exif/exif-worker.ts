@@ -54,10 +54,7 @@ const workerProcessor = async (job: Job<ExifJobData>): Promise<boolean> => {
       return true;
     }
 
-    console.warn(
-      `No EXIF data found for media ID ${id} using ${method} method. Skipping EXIF processing.`,
-    );
-    return false;
+    throw new Error(`Failed to extract EXIF data using ${method} method`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

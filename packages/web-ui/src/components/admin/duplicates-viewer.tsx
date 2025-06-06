@@ -580,36 +580,6 @@ export function DuplicatesViewer() {
     setPage(1);
   };
 
-  // Handler to automatically delete duplicates
-  const handleDeleteAutomatically = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        '/api/admin/add-to-queue?queueName=duplicatesQueue&method=delete-automatically',
-        {
-          method: 'POST',
-        },
-      );
-
-      const result = await response.json();
-
-      if (response.ok) {
-        console.log('Delete identical duplicates job added to queue');
-        // Refresh the duplicates list after a delay to allow processing
-        setTimeout(() => {
-          fetchDuplicates(1, false);
-          setPage(1);
-        }, 2000);
-      } else {
-        console.error('Error adding delete identical job:', result.error);
-      }
-    } catch (error) {
-      console.error('Failed to add delete identical job:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchDuplicates(1, false);
   }, [fetchDuplicates]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -668,15 +638,6 @@ export function DuplicatesViewer() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            onClick={handleDeleteAutomatically}
-            disabled={loading}
-            variant="destructive"
-            className="flex-shrink-0"
-            title="Automatically delete files that are identical in all attributes"
-          >
-            Delete Automatically
-          </Button>
           <Button
             onClick={() => fetchDuplicates(1, false)}
             disabled={loading}
