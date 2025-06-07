@@ -27,6 +27,10 @@ export async function requeueItemsWithMethod(
   try {
     const queue = new Queue(queueName, { connection });
 
+    // Pause the queue to prevent new jobs from being processed during requeuing
+    await queue.pause();
+    console.log(`Paused queue "${queueName}" for requeuing operation`);
+
     // Map UI state names to BullMQ state names
     let bullMQState: string;
     switch (state) {
@@ -105,9 +109,23 @@ export async function requeueItemsWithMethod(
       `Successfully requeued ${requeuedCount} out of ${jobs.length} jobs from state "${state}" in queue "${queueName}" with method "${method}"`,
     );
 
+    // Resume the queue after requeuing is complete
+    await queue.resume();
+    console.log(`Resumed queue "${queueName}" after requeuing operation`);
+
     return requeuedCount;
   } catch (error) {
     console.error('Error requeuing items with method:', error);
+
+    // Ensure the queue is resumed even if an error occurs
+    try {
+      const queue = new Queue(queueName, { connection });
+      await queue.resume();
+      console.log(`Resumed queue "${queueName}" after error during requeuing`);
+    } catch (resumeError) {
+      console.error('Failed to resume queue after error:', resumeError);
+    }
+
     return -1;
   }
 }

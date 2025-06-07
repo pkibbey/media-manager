@@ -15,6 +15,7 @@ export function PauseQueueButton({ queueName }: PauseQueueButtonProps) {
   // Fetch pause state from API
   useEffect(() => {
     let isMounted = true;
+
     async function fetchPauseState() {
       try {
         const res = await fetch(
@@ -30,9 +31,16 @@ export function PauseQueueButton({ queueName }: PauseQueueButtonProps) {
         if (isMounted) setIsPaused(true);
       }
     }
+
+    // Initial fetch
     fetchPauseState();
+
+    // Set up polling every 3 seconds
+    const interval = setInterval(fetchPauseState, 3000);
+
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
   }, [queueName]);
 

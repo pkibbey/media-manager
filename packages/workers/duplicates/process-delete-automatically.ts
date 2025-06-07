@@ -28,6 +28,16 @@ interface DuplicateAction {
 
 type DuplicateRule = (pair: DuplicatePair) => DuplicateAction;
 
+// File type utilities
+function getFileName(filePath: string): string {
+  return filePath.split('/').pop() || '';
+}
+
+function getFileExtension(filePath: string): string {
+  const parts = filePath.split('.');
+  return parts.length > 1 ? parts[parts.length - 1] : '';
+}
+
 function isRawFile(fileName: string): boolean {
   const rawExtensions =
     /\.(sr2|nef|arw|cr2|dng|raf|rw2|orf|pef|3fr|fff|iiq|rwl|srw|x3f)$/i;
@@ -39,8 +49,55 @@ function isJpegFile(fileName: string): boolean {
   return jpegExtensions.test(fileName);
 }
 
-function getFileName(filePath: string): string {
-  return filePath.split('/').pop() || '';
+// EXIF data utilities
+function getExifDate(exif: any): string | undefined {
+  return exif?.DateTimeOriginal || exif?.CreateDate || undefined;
+}
+
+function getExifDimensions(exif: any): { width?: number; height?: number } {
+  if (!exif) return { width: undefined, height: undefined };
+  return {
+    width: exif.ImageWidth || exif.PixelXDimension || exif.width,
+    height: exif.ImageHeight || exif.PixelYDimension || exif.height,
+  };
+}
+
+// Comparison utilities
+function haveSameDimensions(media1: any, media2: any): boolean {
+  const dims1 = getExifDimensions(media1.exif_data);
+  const dims2 = getExifDimensions(media2.exif_data);
+  return dims1.width === dims2.width && dims1.height === dims2.height;
+}
+
+function haveSameDate(media1: any, media2: any): boolean {
+  const date1 = getExifDate(media1.exif_data);
+  const date2 = getExifDate(media2.exif_data);
+  return date1 === date2;
+}
+
+function haveSameExtension(media1: any, media2: any): boolean {
+  const ext1 = getFileExtension(media1.media_path);
+  const ext2 = getFileExtension(media2.media_path);
+  return ext1 === ext2;
+}
+
+function areBothExtensionsLowercase(media1: any, media2: any): boolean {
+  const ext1 = getFileExtension(media1.media_path);
+  const ext2 = getFileExtension(media2.media_path);
+  return ext1 === ext1.toLowerCase() && ext2 === ext2.toLowerCase();
+}
+
+// Action creation utilities
+function createDeleteAction(
+  target: 'delete_a' | 'delete_b',
+  reason: string,
+  confidence: number,
+): DuplicateAction {
+  return { action: target, reason, confidence };
+}
+
+function createSkipAction(reason: string): DuplicateAction {
+  return { action: 'skip', reason, confidence: 0 };
 }
 
 /**
@@ -53,12 +110,10 @@ function ruleEmbeddedVersion(pair: DuplicatePair): DuplicateAction {
   const mediaFileName = getFileName(media.media_path);
   const duplicateFileName = getFileName(duplicate_media.media_path);
 
-  const mediaIsJpg = /\.(jpg|jpeg)$/i.test(mediaFileName);
-  const duplicateIsJpg = /\.(jpg|jpeg)$/i.test(duplicateFileName);
-
+  const mediaIsJpg = isJpegFile(mediaFileName);
+  const duplicateIsJpg = isJpegFile(duplicateFileName);
   const mediaHasEmbedded = mediaFileName.includes('embedded');
   const duplicateHasEmbedded = duplicateFileName.includes('embedded');
-
   const mediaIsRaw = isRawFile(mediaFileName);
   const duplicateIsRaw = isRawFile(duplicateFileName);
 
@@ -68,11 +123,11 @@ function ruleEmbeddedVersion(pair: DuplicatePair): DuplicateAction {
     mediaHasEmbedded &&
     (duplicateIsRaw || duplicate_media.size_bytes > media.size_bytes * 2)
   ) {
-    return {
-      action: 'delete_a',
-      reason: 'Media A is an embedded JPG version of the larger file',
-      confidence: 0.95,
-    };
+    return createDeleteAction(
+      'delete_a',
+      'Media A is an embedded JPG version of the larger file',
+      0.95,
+    );
   }
 
   // Case 2: Media B is embedded JPG, Media A is RAW or much larger
@@ -81,23 +136,21 @@ function ruleEmbeddedVersion(pair: DuplicatePair): DuplicateAction {
     duplicateHasEmbedded &&
     (mediaIsRaw || media.size_bytes > duplicate_media.size_bytes * 2)
   ) {
-    return {
-      action: 'delete_b',
-      reason: 'Media B is an embedded JPG version of the larger file',
-      confidence: 0.95,
-    };
+    return createDeleteAction(
+      'delete_b',
+      'Media B is an embedded JPG version of the larger file',
+      0.95,
+    );
   }
 
-  return {
-    action: 'skip',
-    reason: 'No embedded version pattern detected',
-    confidence: 0,
-  };
+  return createSkipAction('No embedded version pattern detected');
 }
 
-// Rule: Detect JPEG previews
-// If the larger file is a Raw file, and the smaller file is a JPEG
-// Then we should delete the JPEG preview
+/**
+ * Rule: Detect JPEG previews
+ * If the larger file is a Raw file, and the smaller file is a JPEG
+ * Then we should delete the JPEG preview
+ */
 function ruleJpegPreview(pair: DuplicatePair): DuplicateAction {
   const { media, duplicate_media } = pair;
   const mediaFileName = getFileName(media.media_path);
@@ -105,7 +158,6 @@ function ruleJpegPreview(pair: DuplicatePair): DuplicateAction {
 
   const mediaIsRaw = isRawFile(mediaFileName);
   const duplicateIsRaw = isRawFile(duplicateFileName);
-
   const mediaIsJpeg = isJpegFile(mediaFileName);
   const duplicateIsJpeg = isJpegFile(duplicateFileName);
 
@@ -115,31 +167,32 @@ function ruleJpegPreview(pair: DuplicatePair): DuplicateAction {
     duplicateIsRaw &&
     media.size_bytes < duplicate_media.size_bytes
   ) {
-    return {
-      action: 'delete_a',
-      reason: 'Media A is a JPEG preview of the larger RAW file',
-      confidence: 0.95,
-    };
+    return createDeleteAction(
+      'delete_a',
+      'Media A is a JPEG preview of the larger RAW file',
+      0.95,
+    );
   }
+
   // Case 2: Media B is a JPEG preview, Media A is a larger RAW file
   if (
     duplicateIsJpeg &&
     mediaIsRaw &&
     duplicate_media.size_bytes < media.size_bytes
   ) {
-    return {
-      action: 'delete_b',
-      reason: 'Media B is a JPEG preview of the larger RAW file',
-      confidence: 0.95,
-    };
+    return createDeleteAction(
+      'delete_b',
+      'Media B is a JPEG preview of the larger RAW file',
+      0.95,
+    );
   }
-  return {
-    action: 'skip',
-    reason: 'No JPEG preview pattern detected',
-    confidence: 0,
-  };
+
+  return createSkipAction('No JPEG preview pattern detected');
 }
 
+/**
+ * Rule: Delete tiny files when compared to larger versions
+ */
 function ruleTinyFile(pair: DuplicatePair): DuplicateAction {
   const { media, duplicate_media } = pair;
   const mediaIsTiny = media.size_bytes < 1024; // Less than 1KB
@@ -147,25 +200,23 @@ function ruleTinyFile(pair: DuplicatePair): DuplicateAction {
 
   // Case 1: Media A is tiny, Media B is larger
   if (mediaIsTiny && !duplicateIsTiny) {
-    return {
-      action: 'delete_a',
-      reason: 'Media A is a tiny file compared to Media B',
-      confidence: 0.9,
-    };
+    return createDeleteAction(
+      'delete_a',
+      'Media A is a tiny file compared to Media B',
+      0.9,
+    );
   }
+
   // Case 2: Media B is tiny, Media A is larger
   if (duplicateIsTiny && !mediaIsTiny) {
-    return {
-      action: 'delete_b',
-      reason: 'Media B is a tiny file compared to Media A',
-      confidence: 0.9,
-    };
+    return createDeleteAction(
+      'delete_b',
+      'Media B is a tiny file compared to Media A',
+      0.9,
+    );
   }
-  return {
-    action: 'skip',
-    reason: 'No tiny file pattern detected',
-    confidence: 0,
-  };
+
+  return createSkipAction('No tiny file pattern detected');
 }
 
 /**
@@ -174,54 +225,21 @@ function ruleTinyFile(pair: DuplicatePair): DuplicateAction {
 function ruleExactDuplicate(pair: DuplicatePair): DuplicateAction {
   const { media, duplicate_media } = pair;
 
-  // Extract file extensions (case sensitive)
-  const getExtension = (filePath: string) => {
-    const parts = filePath.split('.');
-    return parts.length > 1 ? parts[parts.length - 1] : '';
-  };
+  // Check all conditions for exact duplicate
+  const sameExtension = haveSameExtension(media, duplicate_media);
+  const sameSize = media.size_bytes === duplicate_media.size_bytes;
+  const sameDate = haveSameDate(media, duplicate_media);
+  const sameDimensions = haveSameDimensions(media, duplicate_media);
 
-  const mediaExt = getExtension(media.media_path);
-  const duplicateExt = getExtension(duplicate_media.media_path);
-
-  // Extract date (try exif_data.DateTimeOriginal, fallback to exif_data.CreateDate, fallback to undefined)
-  const getDate = (exif: any) =>
-    exif?.DateTimeOriginal || exif?.CreateDate || undefined;
-
-  const mediaDate = getDate(media.exif_data);
-  const duplicateDate = getDate(duplicate_media.exif_data);
-
-  // Extract dimensions (width/height)
-  const getDims = (exif: any) => {
-    if (!exif) return { width: undefined, height: undefined };
-    return {
-      width: exif.ImageWidth || exif.PixelXDimension,
-      height: exif.ImageHeight || exif.PixelYDimension,
-    };
-  };
-
-  const mediaDims = getDims(media.exif_data);
-  const duplicateDims = getDims(duplicate_media.exif_data);
-
-  // Check all conditions
-  if (
-    mediaExt === duplicateExt &&
-    media.size_bytes === duplicate_media.size_bytes &&
-    mediaDate === duplicateDate &&
-    mediaDims.width === duplicateDims.width &&
-    mediaDims.height === duplicateDims.height
-  ) {
-    return {
-      action: 'delete_a',
-      reason: 'Exact duplicate: extension, size, date, and dimensions match',
-      confidence: 1,
-    };
+  if (sameExtension && sameSize && sameDate && sameDimensions) {
+    return createDeleteAction(
+      'delete_a',
+      'Exact duplicate: extension, size, date, and dimensions match',
+      1,
+    );
   }
 
-  return {
-    action: 'skip',
-    reason: 'Not an exact duplicate',
-    confidence: 0,
-  };
+  return createSkipAction('Not an exact duplicate');
 }
 
 /**
@@ -230,30 +248,26 @@ function ruleExactDuplicate(pair: DuplicatePair): DuplicateAction {
 function ruleDelete500x500(pair: DuplicatePair): DuplicateAction {
   const { media, duplicate_media } = pair;
 
-  if (media.exif_data.width === 500 && media.exif_data.height === 500) {
-    return {
-      action: 'delete_a',
-      reason: 'Media A is exactly 500x500 pixels',
-      confidence: 1,
-    };
+  const mediaDims = getExifDimensions(media.exif_data);
+  const duplicateDims = getExifDimensions(duplicate_media.exif_data);
+
+  if (mediaDims.width === 500 && mediaDims.height === 500) {
+    return createDeleteAction(
+      'delete_a',
+      'Media A is exactly 500x500 pixels',
+      1,
+    );
   }
 
-  if (
-    duplicate_media.exif_data.width === 500 &&
-    duplicate_media.exif_data.height === 500
-  ) {
-    return {
-      action: 'delete_b',
-      reason: 'Media B is exactly 500x500 pixels',
-      confidence: 1,
-    };
+  if (duplicateDims.width === 500 && duplicateDims.height === 500) {
+    return createDeleteAction(
+      'delete_b',
+      'Media B is exactly 500x500 pixels',
+      1,
+    );
   }
 
-  return {
-    action: 'skip',
-    reason: 'Neither Media A, nor Media B are 500x500 pixels',
-    confidence: 0,
-  };
+  return createSkipAction('Neither Media A, nor Media B are 500x500 pixels');
 }
 
 /**
@@ -265,56 +279,43 @@ function ruleKeepAllCapsRaw(pair: DuplicatePair): DuplicateAction {
 
   // Check both are raw files
   if (!isRawFile(media.media_path) || !isRawFile(duplicate_media.media_path)) {
-    return {
-      action: 'skip',
-      reason: `Both files are not raw${media.media_path} ${duplicate_media.media_path}`,
-      confidence: 0,
-    };
+    return createSkipAction(
+      `Both files are not raw${media.media_path} ${duplicate_media.media_path}`,
+    );
   }
 
   // Check date
-  const getDate = (exif: any) =>
-    exif?.DateTimeOriginal || exif?.CreateDate || undefined;
-  const mediaDate = getDate(media.exif_data);
-  const duplicateDate = getDate(duplicate_media.exif_data);
-  if (mediaDate !== duplicateDate) {
-    return {
-      action: 'skip',
-      reason: 'Dates do not match',
-      confidence: 0,
-    };
+  if (!haveSameDate(media, duplicate_media)) {
+    return createSkipAction('Dates do not match');
   }
 
-  // Check filenames
+  // Check filenames for all caps
   const mediaFileName = getFileName(media.media_path);
   const duplicateFileName = getFileName(duplicate_media.media_path);
 
   const mediaAllCaps = mediaFileName === mediaFileName.toUpperCase();
-  console.log('mediaAllCaps: ', mediaAllCaps, mediaFileName);
   const duplicateAllCaps =
     duplicateFileName === duplicateFileName.toUpperCase();
+
+  console.log('mediaAllCaps: ', mediaAllCaps, mediaFileName);
   console.log('duplicateAllCaps: ', duplicateAllCaps, duplicateFileName);
 
   if (mediaAllCaps && !duplicateAllCaps) {
-    return {
-      action: 'delete_b',
-      reason: 'Both raw, identical, keep all-caps filename (A)',
-      confidence: 1,
-    };
+    return createDeleteAction(
+      'delete_b',
+      'Both raw, identical, keep all-caps filename (A)',
+      1,
+    );
   }
   if (!mediaAllCaps && duplicateAllCaps) {
-    return {
-      action: 'delete_a',
-      reason: 'Both raw, identical, keep all-caps filename (B)',
-      confidence: 1,
-    };
+    return createDeleteAction(
+      'delete_a',
+      'Both raw, identical, keep all-caps filename (B)',
+      1,
+    );
   }
 
-  return {
-    action: 'skip',
-    reason: 'No all-caps filename to prefer',
-    confidence: 0,
-  };
+  return createSkipAction('No all-caps filename to prefer');
 }
 
 /**
@@ -324,81 +325,40 @@ function ruleKeepAllCapsRaw(pair: DuplicatePair): DuplicateAction {
 function ruleDeleteSmallestLowercaseExt(pair: DuplicatePair): DuplicateAction {
   const { media, duplicate_media } = pair;
 
-  // Get extensions (lowercase, no dot)
-  const getExt = (filePath: string) => {
-    const parts = filePath.split('.');
-    return parts.length > 1 ? parts[parts.length - 1] : '';
-  };
-  const mediaExt = getExt(media.media_path);
-  const duplicateExt = getExt(duplicate_media.media_path);
-
   // Only proceed if both extensions are lowercase and match
   if (
-    mediaExt !== duplicateExt ||
-    mediaExt !== mediaExt.toLowerCase() ||
-    duplicateExt !== duplicateExt.toLowerCase()
+    !haveSameExtension(media, duplicate_media) ||
+    !areBothExtensionsLowercase(media, duplicate_media)
   ) {
-    return {
-      action: 'skip',
-      reason: 'Extensions are not both lowercase and matching',
-      confidence: 0,
-    };
+    return createSkipAction('Extensions are not both lowercase and matching');
   }
 
-  // Compare dimensions
-  const getDims = (exif: any) => ({
-    width: exif?.ImageWidth || exif?.PixelXDimension,
-    height: exif?.ImageHeight || exif?.PixelYDimension,
-  });
-  const mediaDims = getDims(media.exif_data);
-  const duplicateDims = getDims(duplicate_media.exif_data);
-
-  if (
-    mediaDims.width !== duplicateDims.width ||
-    mediaDims.height !== duplicateDims.height
-  ) {
-    return {
-      action: 'skip',
-      reason: 'Dimensions do not match',
-      confidence: 0,
-    };
+  // Compare dimensions and dates
+  if (!haveSameDimensions(media, duplicate_media)) {
+    return createSkipAction('Dimensions do not match');
   }
 
-  // Compare date
-  const getDate = (exif: any) =>
-    exif?.DateTimeOriginal || exif?.CreateDate || undefined;
-  const mediaDate = getDate(media.exif_data);
-  const duplicateDate = getDate(duplicate_media.exif_data);
-
-  if (mediaDate !== duplicateDate) {
-    return {
-      action: 'skip',
-      reason: 'Dates do not match',
-      confidence: 0,
-    };
+  if (!haveSameDate(media, duplicate_media)) {
+    return createSkipAction('Dates do not match');
   }
 
   // Delete the one with the smallest file size
   if (media.size_bytes < duplicate_media.size_bytes) {
-    return {
-      action: 'delete_a',
-      reason: 'Same dims/date/lowercase ext, media A is smaller',
-      confidence: 1,
-    };
+    return createDeleteAction(
+      'delete_a',
+      'Same dims/date/lowercase ext, media A is smaller',
+      1,
+    );
   }
   if (duplicate_media.size_bytes < media.size_bytes) {
-    return {
-      action: 'delete_b',
-      reason: 'Same dims/date/lowercase ext, media B is smaller',
-      confidence: 1,
-    };
+    return createDeleteAction(
+      'delete_b',
+      'Same dims/date/lowercase ext, media B is smaller',
+      1,
+    );
   }
 
-  return {
-    action: 'skip',
-    reason: 'Sizes are identical, nothing to delete',
-    confidence: 0,
-  };
+  return createSkipAction('Sizes are identical, nothing to delete');
 }
 
 /**
