@@ -46,6 +46,7 @@ export default function Home() {
     setLoading(true);
     try {
       const result = await getMedia(filters, currentPage, PAGE_SIZE);
+      console.log('result: ', result);
       if (result.error) {
         throw new Error(result.error.message);
       }
@@ -104,7 +105,7 @@ export default function Home() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <MediaListContainer media={media} totalCount={totalCount} />
+              <MediaListContainer media={media} />
             )}
           </CardContent>
 

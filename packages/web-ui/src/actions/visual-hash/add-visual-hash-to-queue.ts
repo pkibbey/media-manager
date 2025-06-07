@@ -79,8 +79,7 @@ export async function addToVisualHashQueue(
         return {
           name: 'visual-hash-generation',
           data: {
-            id: data.id,
-            thumbnail_url: data.thumbnail_url,
+            ...data,
             method,
           },
           opts: {

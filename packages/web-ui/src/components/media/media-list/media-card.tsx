@@ -1,7 +1,6 @@
 'use client';
 import { Card, CardFooter } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useMediaLightbox } from '@/contexts/media-lightbox-context';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import type React from 'react';
@@ -16,7 +15,6 @@ interface MediaCardProps {
 
 export function MediaCard({ media, showFooter = false }: MediaCardProps) {
   const { toggleSelection, isSelected } = useMediaSelection();
-  const { openLightbox } = useMediaLightbox();
   const selected = isSelected(media.id);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -28,16 +26,10 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
       return;
     }
 
-    // If holding modifier keys, handle selection
-    if (e.ctrlKey || e.metaKey || e.shiftKey) {
-      const multiSelect = e.ctrlKey || e.metaKey;
-      const rangeSelect = e.shiftKey;
-      toggleSelection(media.id, multiSelect, rangeSelect);
-      return;
-    }
-
-    // Otherwise, open the lightbox
-    openLightbox(media.id);
+    // Always handle selection on click
+    const multiSelect = e.ctrlKey || e.metaKey;
+    const rangeSelect = e.shiftKey;
+    toggleSelection(media.id, multiSelect, rangeSelect);
   };
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
@@ -52,14 +44,21 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
   return (
     <Card
       className={cn(
-        'group overflow-hidden relative cursor-pointer transition-all p-0 bg-transparent rounded-sm',
+        'group overflow-hidden relative cursor-pointer transition-all p-0 bg-transparent rounded-sm focus-visible:outline-none',
         selected
-          ? 'border-primary ring-1 ring-primary ring-opacity-25'
+          ? 'border-primary ring-2 ring-primary ring-opacity-50'
           : 'hover:border-accent-foreground/20',
         media?.is_hidden ? 'opacity-60' : '',
         media.is_deleted ? 'opacity-50 bg-destructive/5' : '',
       )}
       onClick={handleClick}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick(e as any);
+        }
+      }}
     >
       {/* Thumbnail image */}
       <div className="aspect-square overflow-hidden bg-muted relative">
@@ -70,8 +69,8 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
               alt={fileName}
               className="w-full h-full object-cover"
               loading="lazy"
-              width={media.exif_data.width}
-              height={media.exif_data.height}
+              width={media.exif_data.width || 400}
+              height={media.exif_data.height || 400}
             />
           </div>
         ) : (
@@ -82,7 +81,10 @@ export function MediaCard({ media, showFooter = false }: MediaCardProps) {
 
         {/* Selection checkbox overlay */}
         <div
-          className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          className={cn(
+            'absolute top-2 left-2 transition-opacity z-10',
+            selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+          )}
           data-selection-checkbox
         >
           <Checkbox

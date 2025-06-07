@@ -22,7 +22,7 @@ export async function addFixDatesToQueue(
   try {
     while (true) {
       // Find images without EXIF timestamps
-      const { data: mediaItems, error } = await supabase
+      const { data: media, error } = await supabase
         .from('media')
         .select(`
           id,
@@ -41,16 +41,14 @@ export async function addFixDatesToQueue(
         return false;
       }
 
-      if (!mediaItems || mediaItems.length === 0) {
+      if (!media || media.length === 0) {
         return false;
       }
 
-      const jobs = mediaItems.map((data) => ({
+      const jobs = media.map((data) => ({
         name: 'fix-image-dates',
         data: {
-          id: data.id,
-          media_path: data.media_path,
-          exif_timestamp: data.exif_data.exif_timestamp,
+          ...data,
           method,
         },
         opts: {
@@ -66,8 +64,8 @@ export async function addFixDatesToQueue(
         'images without dates to the fix image dates queue for processing',
       );
 
-      offset += mediaItems.length;
-      if (mediaItems.length < batchSize) {
+      offset += media.length;
+      if (media.length < batchSize) {
         return false;
       }
     }

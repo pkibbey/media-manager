@@ -67,13 +67,9 @@ export async function getFailedThumbnailJobs(): Promise<MediaWithRelations[]> {
       return [];
     }
 
-    // Transform analysis_data from array to single object to match MediaWithRelations type
-    const transformedMedia = mediaItems?.map((media) => ({
-      ...media,
-      analysis_data: media.analysis_data?.[0] || null,
-    })) as MediaWithRelations[];
-
-    return transformedMedia || [];
+    // analysis_data is now directly an object or null from Supabase
+    // due to the 1:1 database mapping. No transformation is needed.
+    return (mediaItems as MediaWithRelations[]) || [];
   } catch (error) {
     console.error('Error getting failed thumbnail jobs:', error);
     return [];

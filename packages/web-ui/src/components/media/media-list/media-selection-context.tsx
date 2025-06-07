@@ -1,6 +1,10 @@
 'use client';
 
 import {
+  toggleMediaDeleted,
+  toggleMediaHidden,
+} from '@/actions/media/toggle-media-status';
+import {
   type ReactNode,
   createContext,
   useContext,
@@ -27,6 +31,10 @@ interface MediaSelectionContextProps {
   toggleHideSelected: () => void;
   toggleDeleteSelected: () => void;
   selectedMedia: MediaWithRelations[];
+  navigateSelection: (
+    direction: 'up' | 'down' | 'left' | 'right',
+    columns: number,
+  ) => void;
 }
 
 const MediaSelectionContext = createContext<
@@ -78,14 +86,9 @@ export function MediaSelectionProvider({
         }
       } else {
         // Handle single selection (regular click)
-        if (newSelectedIds.size === 1 && newSelectedIds.has(id)) {
-          // Clicking the only selected item deselects it
-          newSelectedIds.clear();
-        } else {
-          // Select only this item
-          newSelectedIds.clear();
-          newSelectedIds.add(id);
-        }
+        // Always select the clicked item, don't toggle it
+        newSelectedIds.clear();
+        newSelectedIds.add(id);
       }
 
       return {
@@ -114,20 +117,77 @@ export function MediaSelectionProvider({
   };
 
   const toggleHideSelected = async () => {
-    // This would be implemented to call a server action
-    // to toggle the is_hidden flag on selected files
-    console.log('Toggle hide for files:', Array.from(selection.selectedIds));
+    if (selection.selectedIds.size === 0) return;
+
+    const mediaIds = Array.from(selection.selectedIds);
+    const result = await toggleMediaHidden(mediaIds);
+
+    if (result.success) {
+      console.log('Successfully toggled hide status for files:', mediaIds);
+      // Clear selection after successful action
+      clearSelection();
+    } else {
+      console.error('Failed to toggle hide status:', result.error);
+    }
   };
 
   const toggleDeleteSelected = async () => {
-    // This would be implemented to call a server action
-    // to toggle the is_deleted flag on selected files
-    console.log('Toggle delete for files:', Array.from(selection.selectedIds));
+    if (selection.selectedIds.size === 0) return;
+
+    const mediaIds = Array.from(selection.selectedIds);
+    const result = await toggleMediaDeleted(mediaIds);
+
+    if (result.success) {
+      console.log('Successfully toggled delete status for files:', mediaIds);
+      // Clear selection after successful action
+      clearSelection();
+    } else {
+      console.error('Failed to toggle delete status:', result.error);
+    }
   };
 
   const selectedMedia = useMemo(() => {
     return media.filter((file) => selection.selectedIds.has(file.id));
   }, [media, selection.selectedIds]);
+
+  const navigateSelection = (
+    direction: 'up' | 'down' | 'left' | 'right',
+    columns: number,
+  ) => {
+    if (media.length === 0) return;
+
+    let targetIndex = 0;
+
+    if (selection.lastSelectedId) {
+      const currentIndex = media.findIndex(
+        (file) => file.id === selection.lastSelectedId,
+      );
+      if (currentIndex === -1) return;
+
+      switch (direction) {
+        case 'left':
+          targetIndex = Math.max(0, currentIndex - 1);
+          break;
+        case 'right':
+          targetIndex = Math.min(media.length - 1, currentIndex + 1);
+          break;
+        case 'up':
+          targetIndex = Math.max(0, currentIndex - columns);
+          break;
+        case 'down':
+          targetIndex = Math.min(media.length - 1, currentIndex + columns);
+          break;
+      }
+    } else if (selection.selectedIds.size === 0) {
+      // If no selection, start with the first item
+      targetIndex = 0;
+    }
+
+    if (targetIndex >= 0 && targetIndex < media.length) {
+      const targetId = media[targetIndex].id;
+      toggleSelection(targetId, false, false);
+    }
+  };
 
   const value = {
     selection,
@@ -139,6 +199,7 @@ export function MediaSelectionProvider({
     toggleHideSelected,
     toggleDeleteSelected,
     selectedMedia,
+    navigateSelection,
   };
 
   return (

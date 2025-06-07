@@ -32,15 +32,15 @@ export const appConfig = {
 
   // Worker concurrency settings - tuned for optimal performance
   // CPU/GPU intensive workers (lower concurrency to prevent resource contention)
-  OBJECT_DETECTION_WORKER_CONCURRENCY: 3,
-  CONTENT_WARNINGS_WORKER_CONCURRENCY: 3,
-  ADVANCED_ANALYSIS_WORKER_CONCURRENCY: 3,
+  OBJECT_DETECTION_WORKER_CONCURRENCY: 2,
+  CONTENT_WARNINGS_WORKER_CONCURRENCY: 2,
+  ADVANCED_ANALYSIS_WORKER_CONCURRENCY: 2,
 
   // Mixed workload workers (moderate concurrency)
-  FOLDER_SCAN_WORKER_CONCURRENCY: 5,
-  DUPLICATES_WORKER_CONCURRENCY: 5,
-  VISUAL_HASH_WORKER_CONCURRENCY: 5, // Image processing for hash generation
-  BLURRY_PHOTOS_WORKER_CONCURRENCY: 3, // Canvas-based image analysis
+  FOLDER_SCAN_WORKER_CONCURRENCY: 6,
+  DUPLICATES_WORKER_CONCURRENCY: 6,
+  VISUAL_HASH_WORKER_CONCURRENCY: 6, // Image processing for hash generation
+  BLURRY_PHOTOS_WORKER_CONCURRENCY: 6, // Canvas-based image analysis
 
   // IO intensive workers (higher concurrency for better throughput)
   FIX_IMAGE_DATES_WORKER_CONCURRENCY: 10,

@@ -1,56 +1,13 @@
 'use server';
 
 import { createSupabase } from 'shared';
-
-export interface MediaDetail {
-  id: string;
-  media_path: string;
-  size_bytes: number;
-  is_deleted: boolean;
-  is_hidden: boolean;
-  thumbnail_url: string | null;
-  thumbnail_process: string | null;
-  media_types?: {
-    mime_type: string | null;
-    is_ignored: boolean;
-  } | null;
-  exif_data?: {
-    width: number | null;
-    height: number | null;
-    exif_timestamp: string | null;
-    fix_date_process: string | null;
-    exif_process: string | null;
-    aperture: number | null;
-    camera_make: string | null;
-    camera_model: string | null;
-    digital_zoom_ratio: number | null;
-    exposure_time: string | null;
-    focal_length_35mm: number | null;
-    gps_latitude: number | null;
-    gps_longitude: number | null;
-    iso: number | null;
-    lens_id: string | null;
-    lens_model: string | null;
-    light_source: string | null;
-    metering_mode: string | null;
-    orientation: number | null;
-    scene_capture_type: string | null;
-    subject_distance: number | null;
-    depth_of_field: string | null;
-    field_of_view: string | null;
-    flash: string | null;
-  } | null;
-  analysis_data?: {
-    image_description: string | null;
-    keywords: string[] | null;
-  } | null;
-}
+import type { MediaWithRelations } from 'shared/types';
 
 /**
  * Fetch detailed information for a single media item
  */
 export async function getMediaDetail(mediaId: string): Promise<{
-  media: MediaDetail | null;
+  media: MediaWithRelations | null;
   error: string | null;
 }> {
   try {
@@ -96,7 +53,7 @@ export async function getMediaDetail(mediaId: string): Promise<{
           field_of_view,
           flash
         ),
-        analysis_data!inner(
+        analysis_data(
           image_description,
           keywords
         )
@@ -109,7 +66,7 @@ export async function getMediaDetail(mediaId: string): Promise<{
     }
 
     return {
-      media: media as MediaDetail,
+      media: media as MediaWithRelations | null,
       error: null,
     };
   } catch (error) {

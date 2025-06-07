@@ -16,16 +16,21 @@ export default function ContentWarningsAdminPage() {
         <PauseQueueButton queueName="contentWarningsQueue" />
       </div>
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Processing</h3>
-        <p className="text-muted-foreground">
-          Analyze media files to detect and categorize potentially sensitive
-          content. This helps ensure appropriate content warnings are applied.
-        </p>
-        <AddToQueueButton queueName="contentWarningsQueue" method="standard" />
-      </div>
-
       <ContentWarningsQueueStatus />
+
+      <div className="mt-8 pt-6 border-t border-border space-y-4">
+        <h3 className="text-lg font-semibold">Actions</h3>
+        <div className="flex flex-col gap-2 items-start">
+          <AddToQueueButton
+            queueName="contentWarningsQueue"
+            method="standard"
+          />
+          <p className="text-muted-foreground">
+            Analyze media files to detect and categorize potentially sensitive
+            content. This helps ensure appropriate content warnings are applied.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -237,6 +237,7 @@ export async function processFolderScan({
         name: 'folder-scan',
         data: {
           folderPath: path.join(folderPath, dirName),
+          method: 'standard',
         },
         opts: {
           // Random priority for discovered subdirectories (lower than initial folders)

@@ -16,15 +16,17 @@ export default function BasicAnalysisAdminPage() {
         <PauseQueueButton queueName="objectAnalysisQueue" />
       </div>
 
-      <div className="flex flex-col gap-2 items-start">
-        <h3 className="text-xl font-semibold">Standard Processing</h3>
-        <AddToQueueButton queueName="objectAnalysisQueue" method="standard" />
-        <p className="text-muted-foreground">
-          Analyze images to detect and identify objects, people, and scenes.
-        </p>
-      </div>
-
       <ObjectAnalysisQueueStatus />
+
+      <div className="mt-8 pt-6 border-t border-border space-y-4">
+        <h3 className="text-lg font-semibold">Actions</h3>
+        <div className="flex flex-col gap-2 items-start">
+          <AddToQueueButton queueName="objectAnalysisQueue" method="standard" />
+          <p className="text-muted-foreground">
+            Analyze images to detect and identify objects, people, and scenes.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

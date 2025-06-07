@@ -110,8 +110,8 @@ export async function getDuplicatePairs(
         id: `${dup.media_id}-${dup.duplicate_id}`,
         media_id: dup.media_id,
         duplicate_id: dup.duplicate_id,
-        similarity_score: dup.similarity_score,
-        hamming_distance: dup.hamming_distance,
+        similarity_score: dup.similarity_score || 0,
+        hamming_distance: dup.hamming_distance || 0,
         media: Array.isArray(dup.media) ? dup.media[0] : dup.media,
         duplicate_media: Array.isArray(dup.duplicate_media)
           ? dup.duplicate_media[0]

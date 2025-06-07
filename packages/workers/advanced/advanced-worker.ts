@@ -8,12 +8,10 @@ import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
 import { processWithOllama } from './process-with-ollama';
 
-export type AdvancedAnalysisMethod = 'ollama';
-
 interface AdvancedAnalysisJobData {
   id: string;
   thumbnail_url: string;
-  method: AdvancedAnalysisMethod;
+  method: 'standard';
 }
 
 const redisConnection = new IORedis(
@@ -43,7 +41,7 @@ const workerProcessor = async (
     let result: any;
 
     switch (method) {
-      case 'ollama':
+      case 'standard':
         result = await processWithOllama({
           mediaId,
           thumbnailUrl,

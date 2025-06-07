@@ -3,22 +3,11 @@ import type { Database, Tables } from './supabase-types';
 
 export type SpeedProcessingMethod = 'ultra' | 'fast' | 'slow';
 
-export type StandardProcessingMethod = 'standard';
-export type OllamaProcessingMethod = 'ollama';
-export type DuplicatesProcessingMethod =
-  | 'duplicates-only'
-  | 'delete-automatically';
-
-export type VisualHashProcessingMethod = 'hash-only';
+export type StandardProcessingMethod = 'standard' | 'auto-delete';
 
 export type TableName = Extract<keyof Database['public']['Tables'], string>;
 
-export type ProcessType =
-  | SpeedProcessingMethod
-  | StandardProcessingMethod
-  | OllamaProcessingMethod
-  | DuplicatesProcessingMethod
-  | VisualHashProcessingMethod;
+export type ProcessType = SpeedProcessingMethod | StandardProcessingMethod;
 
 /**
  * Media filtering options for browsing and searching media

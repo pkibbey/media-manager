@@ -2,6 +2,7 @@
 
 import { getThumbnailQueueStats } from '@/actions/thumbnails/get-thumbnail-queue-stats';
 import { ImageIcon } from 'lucide-react';
+import { ActiveJobDisplay } from './active-job-display';
 import { QueueStatus } from './queue-status';
 
 export function ThumbnailQueueStatus() {
@@ -11,11 +12,7 @@ export function ThumbnailQueueStatus() {
       title="Thumbnail Generation Queue"
       icon={ImageIcon}
       fetchStats={getThumbnailQueueStats}
-      renderActiveJob={(job) => (
-        <span className="truncate font-mono text-xs">
-          {job.data.media_path || `Media ID: ${job.data.id}`}
-        </span>
-      )}
+      renderActiveJob={(job) => <ActiveJobDisplay jobData={job.data} />}
       emptyStateDescription="No media items in thumbnail generation queue."
       supportedMethods={['ultra', 'fast', 'slow']}
     />

@@ -11,7 +11,7 @@ const advancedAnalysisQueue = new Queue('advancedAnalysisQueue', {
   connection,
 });
 
-export async function addAdvancedToQueue(method: ProcessType = 'ollama') {
+export async function addAdvancedToQueue(method: ProcessType = 'standard') {
   const supabase = createSupabase();
   let offset = 0;
   const batchSize = 1000;

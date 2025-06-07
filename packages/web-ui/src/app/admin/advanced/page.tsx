@@ -16,15 +16,18 @@ export default function AdvancedAnalysisAdminPage() {
         <PauseQueueButton queueName="advancedAnalysisQueue" />
       </div>
 
-      <div className="flex flex-col gap-2 items-start">
-        <h3 className="text-xl font-semibold">Analysis Processing</h3>
-        <AddToQueueButton queueName="advancedAnalysisQueue" method="ollama" />
-        <p className="text-muted-foreground">
-          Deep AI analysis using Ollama for comprehensive content understanding.
-        </p>
-      </div>
-
       <AdvancedAnalysisQueueStatus />
+
+      <div className="mt-8 pt-6 border-t border-border space-y-4">
+        <h3 className="text-lg font-semibold">Actions</h3>
+        <div className="flex flex-col gap-2 items-start">
+          <AddToQueueButton queueName="advancedAnalysisQueue" method="ollama" />
+          <p className="text-muted-foreground">
+            Deep AI analysis using Ollama for comprehensive content
+            understanding.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

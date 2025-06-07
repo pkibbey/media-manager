@@ -5,13 +5,9 @@ import { createRedisConnection } from 'shared/redis';
 import { processDeleteAutomatically } from './process-delete-automatically';
 import { processDuplicates } from './process-duplicates';
 
-export type DuplicatesProcessingMethod =
-  | 'duplicates-only'
-  | 'delete-automatically';
-
 interface DuplicatesJobData {
   id?: string;
-  method: DuplicatesProcessingMethod;
+  method: 'standard' | 'auto-delete';
 }
 
 const redisConnection = createRedisConnection();
@@ -32,13 +28,13 @@ const workerProcessor = async (
     let result: boolean;
 
     switch (method) {
-      case 'duplicates-only':
+      case 'standard':
         if (!mediaId) {
-          throw new Error('mediaId is required for duplicates-only method');
+          throw new Error('mediaId is required for standard method');
         }
         result = await processDuplicates({ mediaId });
         break;
-      case 'delete-automatically':
+      case 'auto-delete':
         result = await processDeleteAutomatically();
         break;
       default:

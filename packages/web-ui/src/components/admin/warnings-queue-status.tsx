@@ -2,6 +2,7 @@
 
 import { getContentWarningsQueueStats } from '@/actions/warnings/get-warnings-queue-stats';
 import { Shield } from 'lucide-react';
+import { ActiveJobDisplay } from './active-job-display';
 import { QueueStatus } from './queue-status';
 
 export function ContentWarningsQueueStatus() {
@@ -11,13 +12,9 @@ export function ContentWarningsQueueStatus() {
       title="Content Warnings Queue"
       icon={Shield}
       fetchStats={getContentWarningsQueueStats}
-      supportedMethods={['standard']}
-      renderActiveJob={(job) => (
-        <span className="truncate font-mono text-xs">
-          Media ID: {job.data.id}
-        </span>
-      )}
+      renderActiveJob={(job) => <ActiveJobDisplay jobData={job.data} />}
       emptyStateDescription="No media items in content warnings queue."
+      supportedMethods={['standard']}
     />
   );
 }

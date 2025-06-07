@@ -68,39 +68,36 @@ export default function ThumbnailAdminPage() {
               {failedMediaItems.length} items)
             </p>
           </div>
-          <MediaListContainer
-            media={failedMediaItems}
-            totalCount={failedMediaItems.length}
-          />
-        </div>
-      )}
-
-      {!loading && failedMediaItems.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <p>No failed thumbnail generation jobs found.</p>
+          <MediaListContainer media={failedMediaItems} />
         </div>
       )}
 
       <div className="mt-8 pt-6 border-t border-border space-y-4">
-        <h3 className="text-lg font-semibold">Destructive Actions</h3>
-        <div className="flex flex-col gap-2 items-start">
-          <ActionButton
-            variant="destructive"
-            action={handleDeleteAllThumbnails}
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            Delete All Thumbnails
-          </ActionButton>
-          <p className="text-muted-foreground">
-            This will delete all thumbnail references from the database. This
-            action cannot be undone.
-          </p>
-        </div>
+        <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
           <AddToQueueButton queueName="thumbnailQueue" method="ultra" />
           <p className="text-muted-foreground">
             This will add all the thumbnails to be processed
           </p>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-border">
+          <h4 className="text-md font-semibold text-destructive mb-2">
+            Destructive Actions
+          </h4>
+          <div className="flex flex-col gap-2 items-start">
+            <ActionButton
+              variant="destructive"
+              action={handleDeleteAllThumbnails}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete All Thumbnails
+            </ActionButton>
+            <p className="text-muted-foreground">
+              This will delete all thumbnail references from the database. This
+              action cannot be undone.
+            </p>
+          </div>
         </div>
       </div>
     </div>

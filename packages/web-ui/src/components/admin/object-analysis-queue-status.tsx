@@ -1,27 +1,19 @@
 'use client';
 
 import { getObjectAnalysisQueueStats } from '@/actions/objects/get-objects-queue-stats';
-import { Brain } from 'lucide-react';
+import { ScanSearch } from 'lucide-react';
+import { ActiveJobDisplay } from './active-job-display';
 import { QueueStatus } from './queue-status';
 
 export function ObjectAnalysisQueueStatus() {
   return (
     <QueueStatus
       queueName="objectAnalysisQueue"
-      title="Objects Queue"
-      icon={Brain}
+      title="Object Detection Queue"
+      icon={ScanSearch}
       fetchStats={getObjectAnalysisQueueStats}
-      emptyStateDescription="No objects jobs in queue"
-      renderActiveJob={(job) => (
-        <div className="text-xs text-muted-foreground space-y-1">
-          <div>Media ID: {job.data.id}</div>
-          {job.data.thumbnail_url && (
-            <div className="truncate">
-              Thumbnail: ...{job.data.thumbnail_url.slice(-30)}
-            </div>
-          )}
-        </div>
-      )}
+      renderActiveJob={(job) => <ActiveJobDisplay jobData={job.data} />}
+      emptyStateDescription="No items in object detection queue."
       supportedMethods={['standard']}
     />
   );

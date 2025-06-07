@@ -12,28 +12,23 @@ const connection = new IORedis(appConfig.REDIS_PORT, serverEnv.REDIS_HOST, {
 
 const duplicatesQueue = new Queue('duplicatesQueue', { connection });
 
-export async function addToDuplicatesQueue(
-  method: ProcessType = 'duplicates-only',
-) {
+export async function addToDuplicatesQueue(method: ProcessType = 'standard') {
   const supabase = createSupabase();
 
-  // Handle delete-automatically method differently
-  if (method === 'delete-automatically') {
+  // Handle auto-delete method differently
+  if (method === 'auto-delete') {
     try {
       // Add a single job to process all identical duplicates
-      const job = await duplicatesQueue.add('delete-automatically', {
+      const job = await duplicatesQueue.add('auto-delete', {
         method,
       });
 
-      console.log(
-        'Added delete-automatically job to duplicates queue:',
-        job.id,
-      );
+      console.log('Added auto-delete job to duplicates queue:', job.id);
       return true;
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : 'Unknown error occurred';
-      console.error('Error adding delete-automatically job:', errorMessage);
+      console.error('Error adding auto-delete job:', errorMessage);
       return false;
     }
   }

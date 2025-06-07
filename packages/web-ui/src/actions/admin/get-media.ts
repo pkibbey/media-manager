@@ -27,25 +27,7 @@ export async function getMedia(
       *,
       media_types(*),
       exif_data(*),
-      analysis_data(
-        adult_content,
-        analysis_process,
-        analysis_type,
-        confidence_score,
-        created_at,
-        faces,
-        id,
-        image_description,
-        keywords,
-        medical_content,
-        objects,
-        racy_content,
-        spoofed,
-        tags,
-        text,
-        updated_at,
-        violence
-      )
+      analysis_data(*)
     `,
       { count: 'exact' },
     )
@@ -119,13 +101,6 @@ export async function getMedia(
 
   // Execute the query and transform the result
   return query.then((result) => {
-    // Transform analysis_data from array to single object to match MediaWithRelations type
-    if (result.data) {
-      result.data = result.data.map((media) => ({
-        ...media,
-        analysis_data: media.analysis_data?.[0] || null,
-      })) as any;
-    }
     return result as any;
   });
 }

@@ -35,21 +35,32 @@ export default function ExifAdminPage() {
 
       <ExifQueueStatus />
 
-      <div className="flex flex-col gap-2 items-start">
-        <h3 className="text-xl font-semibold">Danger</h3>
-        <ActionButton action={handleDeleteAllExifData} variant="destructive">
-          <Trash2 className="h-4 w-4 mr-1" />
-          Delete All EXIF Data
-        </ActionButton>
-        <p className="text-muted-foreground">
-          This will delete all EXIF data from the database. This action cannot
-          be undone.
-        </p>
+      <div className="mt-8 pt-6 border-t border-border space-y-4">
+        <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
           <AddToQueueButton queueName="exifQueue" method="fast" />
           <p className="text-muted-foreground">
             This will add all media items to the EXIF queue for analysis.
           </p>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-border">
+          <h4 className="text-md font-semibold text-destructive mb-2">
+            Destructive Actions
+          </h4>
+          <div className="flex flex-col gap-2 items-start">
+            <ActionButton
+              action={handleDeleteAllExifData}
+              variant="destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete All EXIF Data
+            </ActionButton>
+            <p className="text-muted-foreground">
+              This will delete all EXIF data from the database. This action
+              cannot be undone.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ export default function DuplicatesAdminPage() {
     if (confirmed) {
       try {
         const response = await fetch(
-          '/api/admin/add-to-queue?queueName=duplicatesQueue&method=delete-automatically',
+          '/api/admin/add-to-queue?queueName=duplicatesQueue&method=auto-delete',
           {
             method: 'POST',
           },
@@ -56,25 +56,33 @@ export default function DuplicatesAdminPage() {
       <DuplicatesViewer />
 
       <div className="mt-8 pt-6 border-t border-border space-y-4">
-        <h3 className="text-lg font-semibold">Destructive Actions</h3>
-        <ActionButton variant="destructive" action={handleDeleteAutomatically}>
-          <Trash2 className="h-4 w-4 mr-1" />
-          Delete Duplicates Automatically
-        </ActionButton>
-        <p className="text-muted-foreground">
-          This will automatically delete duplicate files based on predefined
-          rules. This action cannot be undone.
-        </p>
+        <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
-          <AddToQueueButton
-            queueName="duplicatesQueue"
-            method="duplicates-only"
-          />
+          <AddToQueueButton queueName="duplicatesQueue" method="standard" />
           <p className="text-muted-foreground">
             This will add all media items to the duplicates queue for
             processing. It will only check for duplicates without deleting any
             files. Useful for initial scans or manual review.
           </p>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-border">
+          <h4 className="text-md font-semibold text-destructive mb-2">
+            Destructive Actions
+          </h4>
+          <div className="flex flex-col gap-2 items-start">
+            <ActionButton
+              variant="destructive"
+              action={handleDeleteAutomatically}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete Duplicates Automatically
+            </ActionButton>
+            <p className="text-muted-foreground">
+              This will automatically delete duplicate files based on predefined
+              rules. This action cannot be undone.
+            </p>
+          </div>
         </div>
       </div>
     </div>

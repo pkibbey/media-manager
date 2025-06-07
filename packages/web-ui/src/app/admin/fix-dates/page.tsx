@@ -18,16 +18,18 @@ export default function FixDatesAdminPage() {
         <PauseQueueButton queueName="fixImageDatesQueue" />
       </div>
 
-      <div className="flex flex-col gap-2 items-start">
-        <h3 className="text-xl font-semibold">Standard Processing</h3>
-        <AddToQueueButton queueName="fixImageDatesQueue" method="standard" />
-        <p className="text-muted-foreground">
-          Parse dates from filenames and update EXIF timestamps for images
-          missing date metadata.
-        </p>
-      </div>
-
       <FixImageDatesQueueStatus />
+
+      <div className="mt-8 pt-6 border-t border-border space-y-4">
+        <h3 className="text-lg font-semibold">Actions</h3>
+        <div className="flex flex-col gap-2 items-start">
+          <AddToQueueButton queueName="fixImageDatesQueue" method="standard" />
+          <p className="text-muted-foreground">
+            Parse dates from filenames and update EXIF timestamps for images
+            missing date metadata.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

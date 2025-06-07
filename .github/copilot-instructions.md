@@ -15,3 +15,7 @@
 
 ## Code Style
 - Comments should be clear and concise.
+
+## Development Practices
+- Assume that there will always be a development server running in the background, which will automatically reload when changes are made.
+- Supabase is used for database management, and only ever run locally.

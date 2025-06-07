@@ -176,7 +176,7 @@ export function QueueStatus({
         )}
 
         {/* Enhanced Metrics */}
-        {stats.metrics && hasActivity && (
+        {stats.metrics && effectiveWaiting > 0 && hasActivity && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium flex items-center gap-2">
               <Activity className="h-4 w-4" />
@@ -242,12 +242,15 @@ export function QueueStatus({
 
         {/* Empty State */}
         {!hasActivity && (
-          <div className="text-center py-4">
-            <Icon className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              {emptyStateDescription}
-            </p>
-          </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <Icon className="h-8 w-8 opacity-50 mx-auto mb-4" />
+                <p className="text-lg font-medium">No results</p>
+                <p className="text-muted-foreground">{emptyStateDescription}</p>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Dynamic Growth Indicator */}

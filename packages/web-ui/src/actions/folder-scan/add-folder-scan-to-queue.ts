@@ -31,6 +31,7 @@ export async function addFoldersToScanQueue(folderPaths: string[]) {
       name: 'folder-scan',
       data: {
         folderPath,
+        method: 'standard',
       },
       opts: {
         jobId: `folder-scan-${folderPath}`,

@@ -16,7 +16,9 @@
     "lint": "biome lint .",
     "format": "biome format . --write",
     "knip": "knip",
-    "types": "npx supabase gen types typescript --local > packages/shared/types/supabase-types.ts"
+    "types": "npx supabase gen types typescript --local > packages/shared/types/supabase-types.ts",
+    "save-db-schema": "npx supabase db dump --file supabase/schema.sql --local",
+    "save-db-data": "npx supabase db dump --data-only --file supabase/data.sql --local"
   },
   "dependencies": {},
   "devDependencies": {

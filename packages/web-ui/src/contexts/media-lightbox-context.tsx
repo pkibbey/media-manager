@@ -1,16 +1,13 @@
 'use client';
 
-import {
-  type MediaDetail,
-  getMediaDetail,
-} from '@/actions/media/get-media-detail';
+import { getMediaDetail } from '@/actions/media/get-media-detail';
 import type React from 'react';
 import { createContext, useContext, useState } from 'react';
+import type { MediaWithRelations } from 'shared/types';
 
 interface MediaLightboxContextType {
   isOpen: boolean;
-  media: MediaDetail | null;
-  isLoading: boolean;
+  media: MediaWithRelations | null;
   openLightbox: (mediaId: string) => Promise<void>;
   closeLightbox: () => void;
 }
@@ -23,15 +20,14 @@ export function MediaLightboxProvider({
   children,
 }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [media, setMedia] = useState<MediaDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [media, setMedia] = useState<MediaWithRelations | null>(null);
 
   const openLightbox = async (mediaId: string) => {
-    setIsLoading(true);
     setIsOpen(true);
 
     try {
       const result = await getMediaDetail(mediaId);
+      console.log('result: ', result);
       if (result.media && !result.error) {
         setMedia(result.media);
       } else {
@@ -41,15 +37,12 @@ export function MediaLightboxProvider({
     } catch (error) {
       console.error('Failed to fetch media detail:', error);
       setIsOpen(false);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const closeLightbox = () => {
     setIsOpen(false);
     setMedia(null);
-    setIsLoading(false);
   };
 
   return (
@@ -57,7 +50,6 @@ export function MediaLightboxProvider({
       value={{
         isOpen,
         media,
-        isLoading,
         openLightbox,
         closeLightbox,
       }}

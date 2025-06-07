@@ -12,7 +12,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -89,13 +88,28 @@ export default function MediaScanPage() {
     }
   };
 
+  const handleDeleteAllMedia = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete ALL media items? This action cannot be undone and will remove all media files and their associated data from the database.',
+    );
+
+    if (confirmed) {
+      return await deleteAllMediaItems();
+    }
+
+    return false;
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Media Scanner</h2>
-        <p className="text-muted-foreground">
-          Scan directories and import new media files
-        </p>
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <h2 className="text-2xl font-bold">Media Scanner</h2>
+          <p className="text-muted-foreground">
+            Scan directories and import new media files
+          </p>
+        </div>
+        <PauseQueueButton queueName="folderScanQueue" />
       </div>
 
       <StatsCard
@@ -106,11 +120,13 @@ export default function MediaScanPage() {
         className="w-full"
       />
 
+      <FolderScanQueueStatus />
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Scan Media Directory</CardTitle>
+          <CardTitle className="text-lg">Scan Configuration</CardTitle>
           <CardDescription>
-            Add directories to the scan queue for automatic media file import
+            Configure directories to scan for media files
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -142,21 +158,37 @@ export default function MediaScanPage() {
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-wrap gap-2">
+      </Card>
+
+      <div className="mt-8 pt-6 border-t border-border space-y-4">
+        <h3 className="text-lg font-semibold">Actions</h3>
+        <div className="flex flex-col gap-2 items-start">
           <ActionButton action={scanFolders}>
             <Scan className="h-4 w-4 mr-1" />
             Add to Scan Queue
           </ActionButton>
-          <PauseQueueButton queueName="folderScanQueue" />
-          <ActionButton action={deleteAllMediaItems} variant="destructive">
-            <Trash2 className="h-4 w-4 mr-1" />
-            Delete All Media
-          </ActionButton>
-        </CardFooter>
-      </Card>
+          <p className="text-muted-foreground">
+            Add the configured directories to the scan queue for media file
+            import.
+          </p>
+        </div>
 
-      {/* Real-time Queue Status - This shows the dynamic updates! */}
-      <FolderScanQueueStatus />
+        <div className="mt-6 pt-4 border-t border-border">
+          <h4 className="text-md font-semibold text-destructive mb-2">
+            Destructive Actions
+          </h4>
+          <div className="flex flex-col gap-2 items-start">
+            <ActionButton action={handleDeleteAllMedia} variant="destructive">
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete All Media
+            </ActionButton>
+            <p className="text-muted-foreground">
+              This will delete all media items and their associated data from
+              the database. This action cannot be undone.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

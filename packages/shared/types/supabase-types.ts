@@ -38,7 +38,6 @@ export type Database = {
         Row: {
           adult_content: boolean | null
           analysis_process: string | null
-          analysis_type: string
           confidence_score: number | null
           created_at: string | null
           faces: Json | null
@@ -58,7 +57,6 @@ export type Database = {
         Insert: {
           adult_content?: boolean | null
           analysis_process?: string | null
-          analysis_type: string
           confidence_score?: number | null
           created_at?: string | null
           faces?: Json | null
@@ -78,7 +76,6 @@ export type Database = {
         Update: {
           adult_content?: boolean | null
           analysis_process?: string | null
-          analysis_type?: string
           confidence_score?: number | null
           created_at?: string | null
           faces?: Json | null
@@ -99,7 +96,7 @@ export type Database = {
           {
             foreignKeyName: "analysis_data_media_id_fkey"
             columns: ["media_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "media"
             referencedColumns: ["id"]
           },
@@ -269,7 +266,7 @@ export type Database = {
       media: {
         Row: {
           blurry_photo_process: string | null
-          created_at: string | null
+          created_at: string
           id: string
           is_deleted: boolean
           is_hidden: boolean
@@ -283,7 +280,7 @@ export type Database = {
         }
         Insert: {
           blurry_photo_process?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
           is_deleted?: boolean
           is_hidden?: boolean
@@ -297,7 +294,7 @@ export type Database = {
         }
         Update: {
           blurry_photo_process?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
           is_deleted?: boolean
           is_hidden?: boolean
@@ -322,20 +319,20 @@ export type Database = {
       media_types: {
         Row: {
           id: string
-          is_ignored: boolean
-          is_native: boolean
+          is_ignored: boolean | null
+          is_native: boolean | null
           mime_type: string
         }
         Insert: {
           id?: string
-          is_ignored?: boolean
-          is_native?: boolean
+          is_ignored?: boolean | null
+          is_native?: boolean | null
           mime_type: string
         }
         Update: {
           id?: string
-          is_ignored?: boolean
-          is_native?: boolean
+          is_ignored?: boolean | null
+          is_native?: boolean | null
           mime_type?: string
         }
         Relationships: []

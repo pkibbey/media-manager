@@ -420,7 +420,7 @@ export async function processDeleteAutomatically(): Promise<boolean> {
   ];
 
   try {
-    console.log('Starting delete-automatically process...');
+    console.log('Starting auto-delete process...');
 
     // Get all duplicate pairs with media details
     const { data: duplicatePairs, error } = await supabase
