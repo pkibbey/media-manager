@@ -1,9 +1,10 @@
 'use client';
-import { deleteAllThumbnails } from '@/actions/thumbnails/delete-all-thumbnails';
 import { getFailedThumbnailJobs } from '@/actions/thumbnails/get-failed-thumbnail-jobs';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
+import { ThumbnailProcessingCountsDisplay } from '@/components/admin/thumbnail-processing-counts-display';
 import { ThumbnailQueueStatus } from '@/components/admin/thumbnail-queue-status';
 import { MediaListContainer } from '@/components/media/media-list/media-list-container';
 import { Trash2 } from 'lucide-react';
@@ -36,11 +37,34 @@ export default function ThumbnailAdminPage() {
       'Are you sure you want to delete ALL thumbnails? This action cannot be undone and will remove all thumbnail references from the database.',
     );
 
-    if (confirmed) {
-      return await deleteAllThumbnails();
+    if (!confirmed) {
+      return false;
     }
 
-    return false;
+    try {
+      console.log('🔥 Initiating thumbnail deletion request...');
+
+      const response = await fetch('/api/admin/delete-all-thumbnails', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log('✅ Thumbnail deletion process started successfully');
+        console.log(
+          '📋 Note: The deletion is running in the background. Check server logs for progress.',
+        );
+        // You could add a toast notification here if you have a toast system
+        return true;
+      }
+
+      console.error('❌ Failed to start thumbnail deletion:', data.error);
+      return false;
+    } catch (error) {
+      console.error('💥 Error calling delete API:', error);
+      return false;
+    }
   };
 
   return (
@@ -56,6 +80,8 @@ export default function ThumbnailAdminPage() {
       </div>
 
       <ThumbnailQueueStatus />
+
+      <ThumbnailProcessingCountsDisplay />
 
       {!loading && failedMediaItems.length > 0 && (
         <div className="space-y-4">
@@ -75,7 +101,10 @@ export default function ThumbnailAdminPage() {
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
-          <AddToQueueButton queueName="thumbnailQueue" method="ultra" />
+          <div className="flex gap-2">
+            <AddToQueueButton queueName="thumbnailQueue" method="ultra" />
+            <AddOneToQueueButton queueName="thumbnailQueue" method="ultra" />
+          </div>
           <p className="text-muted-foreground">
             This will add all the thumbnails to be processed
           </p>

@@ -39,13 +39,13 @@ export const appConfig = {
   // Mixed workload workers (moderate concurrency)
   FOLDER_SCAN_WORKER_CONCURRENCY: 6,
   DUPLICATES_WORKER_CONCURRENCY: 6,
-  VISUAL_HASH_WORKER_CONCURRENCY: 6, // Image processing for hash generation
-  BLURRY_PHOTOS_WORKER_CONCURRENCY: 6, // Canvas-based image analysis
+  VISUAL_HASH_WORKER_CONCURRENCY: 6,
+  BLURRY_PHOTOS_WORKER_CONCURRENCY: 6,
+  THUMBNAIL_WORKER_CONCURRENCY: 6,
 
   // IO intensive workers (higher concurrency for better throughput)
-  FIX_IMAGE_DATES_WORKER_CONCURRENCY: 10,
-  THUMBNAIL_WORKER_CONCURRENCY: 10,
-  EXIF_WORKER_CONCURRENCY: 10,
+  FIX_IMAGE_DATES_WORKER_CONCURRENCY: 16,
+  EXIF_WORKER_CONCURRENCY: 16,
 } as const;
 
 // Validate required environment variables

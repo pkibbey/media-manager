@@ -1,6 +1,7 @@
 'use client';
 
 import { getBlurryPhotos } from '@/actions/blurry-photos/get-blurry-photos';
+import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { BlurryPhotosQueueStatus } from '@/components/admin/blurry-photos-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
@@ -66,7 +67,13 @@ export default function BlurryPhotosAdminPage() {
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
-          <AddToQueueButton queueName="blurryPhotosQueue" method="standard" />
+          <div className="flex gap-2">
+            <AddToQueueButton queueName="blurryPhotosQueue" method="standard" />
+            <AddOneToQueueButton
+              queueName="blurryPhotosQueue"
+              method="standard"
+            />
+          </div>
           <p className="text-muted-foreground">
             Analyze images to detect blurry or corrupted content.
           </p>

@@ -1,5 +1,6 @@
 'use client';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { DuplicatesQueueStatus } from '@/components/admin/duplicates-queue-status';
 import { DuplicatesViewer } from '@/components/admin/duplicates-viewer';
@@ -58,7 +59,13 @@ export default function DuplicatesAdminPage() {
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
-          <AddToQueueButton queueName="duplicatesQueue" method="standard" />
+          <div className="flex gap-2">
+            <AddToQueueButton queueName="duplicatesQueue" method="standard" />
+            <AddOneToQueueButton
+              queueName="duplicatesQueue"
+              method="standard"
+            />
+          </div>
           <p className="text-muted-foreground">
             This will add all media items to the duplicates queue for
             processing. It will only check for duplicates without deleting any

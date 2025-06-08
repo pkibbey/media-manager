@@ -1,5 +1,6 @@
 'use client';
 
+import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { FixImageDatesQueueStatus } from '@/components/admin/fix-image-dates-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
@@ -23,7 +24,16 @@ export default function FixDatesAdminPage() {
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
-          <AddToQueueButton queueName="fixImageDatesQueue" method="standard" />
+          <div className="flex gap-2">
+            <AddToQueueButton
+              queueName="fixImageDatesQueue"
+              method="standard"
+            />
+            <AddOneToQueueButton
+              queueName="fixImageDatesQueue"
+              method="standard"
+            />
+          </div>
           <p className="text-muted-foreground">
             Parse dates from filenames and update EXIF timestamps for images
             missing date metadata.

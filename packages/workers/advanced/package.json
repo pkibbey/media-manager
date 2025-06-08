@@ -16,7 +16,7 @@
     "ioredis": "^5.6.1",
     "ollama": "^0.5.16",
     "shared": "*",
-    "zod": "^3.25.53",
+    "zod": "^3.25.56",
     "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {

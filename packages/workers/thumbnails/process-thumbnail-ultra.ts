@@ -3,7 +3,6 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '../../../.env.local' });
 
 import exifr from 'exifr';
-import { createSupabase } from 'shared';
 import { storeThumbnail } from './thumbnail-storage';
 
 /**
@@ -44,12 +43,6 @@ export async function processThumbnailUltra({
     });
 
     if (storageResult.success && storageResult.thumbnailUrl) {
-      // Optionally update DB with just the thumbnail URL
-      const supabase = createSupabase();
-      await supabase
-        .from('media')
-        .update({ thumbnail_url: storageResult.thumbnailUrl })
-        .eq('id', mediaId);
       return true;
     }
     return false;

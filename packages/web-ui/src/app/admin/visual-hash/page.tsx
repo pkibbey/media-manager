@@ -1,6 +1,7 @@
 'use client';
 import { deleteAllVisualHashes } from '@/actions/visual-hash/delete-all-visual-hashes';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { VisualHashQueueStatus } from '@/components/admin/visual-hash-queue-status';
@@ -36,11 +37,18 @@ export default function VisualHashAdminPage() {
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
-          <AddToQueueButton
-            queueName="visualHashQueue"
-            method="standard"
-            icon={Hash}
-          />
+          <div className="flex gap-2">
+            <AddToQueueButton
+              queueName="visualHashQueue"
+              method="standard"
+              icon={Hash}
+            />
+            <AddOneToQueueButton
+              queueName="visualHashQueue"
+              method="standard"
+              icon={Hash}
+            />
+          </div>
           <p className="text-muted-foreground">
             Generate visual hashes for all images that have thumbnails but no
             visual hash

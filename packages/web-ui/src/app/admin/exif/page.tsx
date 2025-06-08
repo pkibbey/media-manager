@@ -2,6 +2,7 @@
 
 import { deleteAllExifData } from '@/actions/exif/delete-all-exif-data';
 import { ActionButton } from '@/components/admin/action-button';
+import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { ExifQueueStatus } from '@/components/admin/exif-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
@@ -38,7 +39,10 @@ export default function ExifAdminPage() {
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
-          <AddToQueueButton queueName="exifQueue" method="fast" />
+          <div className="flex gap-2">
+            <AddToQueueButton queueName="exifQueue" method="fast" />
+            <AddOneToQueueButton queueName="exifQueue" method="fast" />
+          </div>
           <p className="text-muted-foreground">
             This will add all media items to the EXIF queue for analysis.
           </p>

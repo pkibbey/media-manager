@@ -74,16 +74,16 @@ export async function addToVisualHashQueue(
       }
 
       // Calculate priorities and create jobs
-      const jobsWithPriorities = mediaItems.map((data) => {
-        const priority = calculateVisualHashPriority(data);
+      const jobsWithPriorities = mediaItems.map((mediaItem) => {
+        const priority = calculateVisualHashPriority(mediaItem);
         return {
           name: 'visual-hash-generation',
           data: {
-            ...data,
+            ...mediaItem,
             method,
           },
           opts: {
-            jobId: `${data.id}-visual-hash`, // Use media ID as job ID for uniqueness
+            jobId: `${mediaItem.id}-${method}`, // Use media ID as job ID for uniqueness
             priority,
           },
         };

@@ -2,7 +2,6 @@ import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '../../../.env.local' });
 
-import { createSupabase } from 'shared';
 import { THUMBNAIL_QUALITY, THUMBNAIL_SIZE } from 'shared/consts';
 import sharp from 'sharp';
 import { storeThumbnail } from './thumbnail-storage';
@@ -49,12 +48,6 @@ export async function processThumbnailFast({
     });
 
     if (storageResult.success && storageResult.thumbnailUrl) {
-      // Optionally update DB with just the thumbnail URL
-      const supabase = createSupabase();
-      await supabase
-        .from('media')
-        .update({ thumbnail_url: storageResult.thumbnailUrl })
-        .eq('id', mediaId);
       return true;
     }
     return false;

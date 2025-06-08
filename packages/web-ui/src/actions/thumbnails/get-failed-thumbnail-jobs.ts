@@ -32,7 +32,7 @@ export async function getFailedThumbnailJobs(): Promise<MediaWithRelations[]> {
     const failedJobs = (await queue.getJobs(
       ['failed'],
       0,
-      10000,
+      100, // Limit to 200 jobs for performance
       false,
     )) as FailedThumbnailJob[];
 

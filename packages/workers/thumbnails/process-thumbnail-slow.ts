@@ -3,7 +3,6 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '../../../.env.local' });
 
 import fs from 'node:fs/promises';
-import { createSupabase } from 'shared';
 import { THUMBNAIL_QUALITY, THUMBNAIL_SIZE } from 'shared/consts';
 import sharp from 'sharp';
 import { storeThumbnail } from './thumbnail-storage';
@@ -69,13 +68,6 @@ export async function processThumbnailSlow({
     });
 
     if (storageResult.success && storageResult.thumbnailUrl) {
-      // Update database with thumbnail URL
-      const supabase = createSupabase();
-      await supabase
-        .from('media')
-        .update({ thumbnail_url: storageResult.thumbnailUrl })
-        .eq('id', mediaId);
-
       return true;
     }
 

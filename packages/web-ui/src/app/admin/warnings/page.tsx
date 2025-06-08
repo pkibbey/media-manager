@@ -1,4 +1,5 @@
 'use client';
+import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { ContentWarningsQueueStatus } from '@/components/admin/warnings-queue-status';
@@ -21,10 +22,16 @@ export default function ContentWarningsAdminPage() {
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>
         <div className="flex flex-col gap-2 items-start">
-          <AddToQueueButton
-            queueName="contentWarningsQueue"
-            method="standard"
-          />
+          <div className="flex gap-2">
+            <AddToQueueButton
+              queueName="contentWarningsQueue"
+              method="standard"
+            />
+            <AddOneToQueueButton
+              queueName="contentWarningsQueue"
+              method="standard"
+            />
+          </div>
           <p className="text-muted-foreground">
             Analyze media files to detect and categorize potentially sensitive
             content. This helps ensure appropriate content warnings are applied.
