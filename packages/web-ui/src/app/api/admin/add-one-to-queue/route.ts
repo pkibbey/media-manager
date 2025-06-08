@@ -13,7 +13,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'advancedAnalysisQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select('id, thumbnail_url, media_types!inner(is_ignored)')
+        .select('*, media_types!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
@@ -28,7 +28,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'objectAnalysisQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select('id, thumbnail_url, media_types!inner(is_ignored)')
+        .select('*, media_types!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
@@ -43,7 +43,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'blurryPhotosQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select('id, media_path, thumbnail_url')
+        .select('*')
         .not('thumbnail_url', 'is', null)
         .is('blurry_photo_process', null)
         .is('is_deleted', false)
@@ -58,9 +58,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'duplicatesQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select(
-          'id, media_path, thumbnail_url, visual_hash, media_types!inner(is_ignored)',
-        )
+        .select('*, media_types!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
@@ -75,7 +73,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'exifQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select('*, media_types!inner(is_ignored)')
+        .select('*, media_types!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
@@ -90,7 +88,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'thumbnailQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select('id, media_path, size_bytes, media_types!inner(is_ignored)')
+        .select('*, media_types!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
@@ -105,7 +103,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'visualHashQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select('id, thumbnail_url, size_bytes, media_types!inner(is_ignored)')
+        .select('*, media_types!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
@@ -122,12 +120,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'fixImageDatesQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select(`
-          id,
-          media_path,
-          media_types!inner(is_ignored, mime_type),
-          exif_data!inner(exif_timestamp)
-        `)
+        .select('*, media_types!inner(*), exif_data!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)
@@ -141,7 +134,7 @@ async function getEligibleMediaItem(queueName: QueueName): Promise<any | null> {
     case 'contentWarningsQueue': {
       const { data, error } = await supabase
         .from('media')
-        .select('id, thumbnail_url, media_types!inner(is_ignored)')
+        .select('*, media_types!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)

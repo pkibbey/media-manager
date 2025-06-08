@@ -392,13 +392,13 @@ export async function processDeleteAutomatically(): Promise<boolean> {
           media_path,
           size_bytes,
           thumbnail_process,
-          exif_data ( * )
+          exif_data(*)
         ),
         duplicate_media: media!duplicate_id (
           media_path,
           size_bytes,
           thumbnail_process,
-          exif_data ( * )
+          exif_data(*)
         )
       `);
 

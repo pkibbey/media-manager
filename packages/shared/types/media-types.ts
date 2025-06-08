@@ -1,7 +1,7 @@
 import type { PostgrestResponse } from '@supabase/supabase-js';
 import type { Database, Tables } from './supabase-types';
 
-export type SpeedProcessingMethod = 'ultra' | 'fast' | 'slow';
+export type SpeedProcessingMethod = 'ultra' | 'fast' | 'slow' | 'delete';
 
 export type StandardProcessingMethod = 'standard' | 'auto-delete';
 

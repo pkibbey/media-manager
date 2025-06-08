@@ -12,12 +12,7 @@ export async function getBlurryPhotos(): Promise<MediaWithRelations[]> {
 
     const { data: mediaItems, error } = await supabase
       .from('media')
-      .select(`
-        *,
-        media_types(*),
-        exif_data(*),
-        analysis_data(*)
-      `)
+      .select('*, media_types(*), exif_data(*), analysis_data(*)')
       .eq('blurry_photo_process', 'solid_color')
       .is('is_deleted', false)
       .is('is_hidden', false)

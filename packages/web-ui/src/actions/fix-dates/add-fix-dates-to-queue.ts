@@ -24,12 +24,7 @@ export async function addFixDatesToQueue(
       // Find images without EXIF timestamps
       const { data: media, error } = await supabase
         .from('media')
-        .select(`
-          id,
-          media_path,
-          media_types!inner(is_ignored, mime_type),
-          exif_data!inner(exif_timestamp)
-        `)
+        .select(' *, media_types!inner(*), exif_data!inner(*)')
         .is('media_types.is_ignored', false)
         .is('is_deleted', false)
         .is('is_hidden', false)

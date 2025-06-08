@@ -51,12 +51,7 @@ export async function getFailedThumbnailJobs(): Promise<MediaWithRelations[]> {
     const supabase = createSupabase();
     const { data: mediaItems, error } = await supabase
       .from('media')
-      .select(`
-        *,
-        media_types(*),
-        exif_data(*),
-        analysis_data(*)
-      `)
+      .select('*, media_types(*), exif_data(*), analysis_data(*)')
       .in('id', mediaIds)
       .is('is_deleted', false)
       .is('is_hidden', false)
