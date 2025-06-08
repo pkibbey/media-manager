@@ -20,9 +20,7 @@ export function MediaSelectionActions() {
   }
 
   const selectedCount = selection.selectedIds.size;
-  const hasHiddenItems = selectedMedia.some((item) => item.is_hidden);
   const hasVisibleItems = selectedMedia.some((item) => !item.is_hidden);
-  const hasDeletedItems = selectedMedia.some((item) => item.is_deleted);
   const hasUndeleted = selectedMedia.some((item) => !item.is_deleted);
 
   return (

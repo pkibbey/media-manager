@@ -4,7 +4,6 @@ import { ActionButton } from '@/components/admin/action-button';
 import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
-import { ThumbnailProcessingCountsDisplay } from '@/components/admin/thumbnail-processing-counts-display';
 import { ThumbnailQueueStatus } from '@/components/admin/thumbnail-queue-status';
 import { MediaListContainer } from '@/components/media/media-list/media-list-container';
 import { Trash2 } from 'lucide-react';
@@ -80,8 +79,6 @@ export default function ThumbnailAdminPage() {
       </div>
 
       <ThumbnailQueueStatus />
-
-      <ThumbnailProcessingCountsDisplay />
 
       {!loading && failedMediaItems.length > 0 && (
         <div className="space-y-4">
