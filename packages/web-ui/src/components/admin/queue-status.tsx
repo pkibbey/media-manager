@@ -121,25 +121,29 @@ export function QueueStatus({
           <StatCard
             icon={Loader2}
             iconColor="text-blue-500"
-            label="Active"
+            state="active"
+            queueName={queueName}
             value={stats.active}
           />
           <StatCard
             icon={Clock}
             iconColor="text-yellow-500"
-            label="Waiting"
+            state="waiting"
+            queueName={queueName}
             value={effectiveWaiting}
           />
           <StatCard
             icon={CheckCircle2}
             iconColor="text-green-500"
-            label="Complete"
+            state="completed"
+            queueName={queueName}
             value={stats.completed}
           />
           <StatCard
             icon={XCircle}
             iconColor="text-red-500"
-            label="Failed"
+            state="failed"
+            queueName={queueName}
             value={stats.failed}
           />
         </div>

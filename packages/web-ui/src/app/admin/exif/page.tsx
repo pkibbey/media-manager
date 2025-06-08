@@ -4,8 +4,10 @@ import { deleteAllExifData } from '@/actions/exif/delete-all-exif-data';
 import { ActionButton } from '@/components/admin/action-button';
 import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
+import { DatabaseColumnAnalysis } from '@/components/admin/database-column-analysis';
 import { ExifQueueStatus } from '@/components/admin/exif-queue-status';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
+import { getTableColumns } from '@/lib/database-columns';
 import { Trash2 } from 'lucide-react';
 
 export default function ExifAdminPage() {
@@ -35,6 +37,13 @@ export default function ExifAdminPage() {
       </div>
 
       <ExifQueueStatus />
+
+      <DatabaseColumnAnalysis
+        table="exif_data"
+        columns={getTableColumns.exif_data()}
+        title="Exif Coverage"
+        description="Analysis of EXIF data in media table"
+      />
 
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>

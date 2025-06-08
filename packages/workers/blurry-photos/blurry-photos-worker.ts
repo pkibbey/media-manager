@@ -42,16 +42,25 @@ const workerProcessor = async (
 
   try {
     // Process based on the specified method
-    const result = await processBlurryPhoto({
-      id: mediaId,
-      media_path: mediaPath,
-      thumbnail_url: thumbnailUrl,
-      method,
-    });
+    let result: any;
+
+    switch (method) {
+      case 'standard':
+      case 'auto-delete':
+        result = await processBlurryPhoto({
+          id: mediaId,
+          media_path: mediaPath,
+          thumbnail_url: thumbnailUrl,
+          method,
+        });
+        break;
+      default:
+        throw new Error(`Unknown blurry photos processing method: ${method}`);
+    }
 
     if (!result.success) {
       throw new Error(
-        result.error || `Failed to process blurry photo with ${method}`,
+        result.error || `Failed to process blurry photo with ${method} method`,
       );
     }
 

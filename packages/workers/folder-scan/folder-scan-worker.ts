@@ -3,15 +3,22 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '../../../.env.local' });
 
 import { type Job, Worker } from 'bullmq';
-import { appConfig } from 'shared/env';
-import { createRedisConnection } from 'shared/redis';
+import IORedis from 'ioredis';
+import { appConfig, serverEnv } from 'shared/env';
 import { processFolderScan } from './process-folder-scan';
 
 interface FolderScanJobData {
   folderPath: string;
+  method: 'standard';
 }
 
-const redisConnection = createRedisConnection();
+const redisConnection = new IORedis(
+  appConfig.REDIS_PORT,
+  serverEnv.REDIS_HOST,
+  {
+    maxRetriesPerRequest: null, // Disable retries to avoid hanging jobs
+  },
+);
 
 const QUEUE_NAME = 'folderScanQueue';
 
@@ -22,11 +29,25 @@ const QUEUE_NAME = 'folderScanQueue';
 const workerProcessor = async (
   job: Job<FolderScanJobData>,
 ): Promise<boolean> => {
-  const { folderPath } = job.data;
+  const { folderPath, method } = job.data;
 
   try {
-    // Process folder scan using the extracted function
-    return await processFolderScan({ folderPath });
+    // Process folder scan based on the specified method
+    let result: boolean;
+
+    switch (method) {
+      case 'standard':
+        result = await processFolderScan({ folderPath });
+        break;
+      default:
+        throw new Error(`Unknown folder scan processing method: ${method}`);
+    }
+
+    if (result) {
+      return true;
+    }
+
+    throw new Error(`Failed to process folder scan using ${method} method`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';

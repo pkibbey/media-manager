@@ -173,7 +173,7 @@ export type Database = {
           light_source: string | null
           media_id: string
           metering_mode: string | null
-          orientation: number | null
+          orientation: string | null
           scene_capture_type: string | null
           shutter_speed: string | null
           subject_distance: number | null
@@ -209,7 +209,7 @@ export type Database = {
           light_source?: string | null
           media_id: string
           metering_mode?: string | null
-          orientation?: number | null
+          orientation?: string | null
           scene_capture_type?: string | null
           shutter_speed?: string | null
           subject_distance?: number | null
@@ -245,7 +245,7 @@ export type Database = {
           light_source?: string | null
           media_id?: string
           metering_mode?: string | null
-          orientation?: number | null
+          orientation?: string | null
           scene_capture_type?: string | null
           shutter_speed?: string | null
           subject_distance?: number | null

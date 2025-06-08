@@ -1,6 +1,7 @@
 'use server';
 
 import { Ollama } from 'ollama'; // Changed import
+import { createSupabase } from 'shared';
 import type { TablesInsert } from 'shared/types';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -167,6 +168,47 @@ const _advancedUserPrompt = `
 
 // Create an Ollama client instance - By default, it connects to the local Ollama server
 const ollamaClient = new Ollama();
+
+// Initialize Supabase client once
+const supabase = createSupabase();
+
+/**
+ * Process advanced analysis with standard boolean return pattern
+ */
+export async function processAdvancedAnalysis({
+  mediaId,
+  thumbnailUrl,
+}: {
+  mediaId: string;
+  thumbnailUrl: string;
+}): Promise<boolean> {
+  try {
+    const result = await processWithOllama({ mediaId, thumbnailUrl });
+
+    if (!result.success || !result.analysisData) {
+      throw new Error(result.error || 'Failed to generate analysis data');
+    }
+
+    // Save analysis data
+    const { error: upsertError } = await supabase
+      .from('analysis_data')
+      .upsert(result.analysisData, { onConflict: 'media_id' });
+
+    if (upsertError) {
+      throw new Error(
+        `Failed to save analysis data for media ID ${mediaId}: ${upsertError.message}`,
+      );
+    }
+
+    return true;
+  } catch (error) {
+    console.error(
+      `Error in advanced analysis processing for media ${mediaId}:`,
+      error,
+    );
+    return false;
+  }
+}
 
 /**
  * Process a single media item with Ollama for advanced analysis (batch-optimized version)

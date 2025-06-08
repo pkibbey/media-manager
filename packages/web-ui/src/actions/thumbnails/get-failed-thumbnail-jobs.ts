@@ -55,6 +55,7 @@ export async function getFailedThumbnailJobs(): Promise<MediaWithRelations[]> {
       .in('id', mediaIds)
       .is('is_deleted', false)
       .is('is_hidden', false)
+      .not('thumbnail_process', 'is', null)
       .order('id', { ascending: false });
 
     if (error) {

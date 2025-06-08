@@ -60,7 +60,6 @@ export async function addToVisualHashQueue(
         .is('is_hidden', false)
         .ilike('media_types.mime_type', 'image/%') // Only process image types
         .not('thumbnail_url', 'is', null) // Only items with thumbnails
-        .is('visual_hash', null) // Only items without visual hash
         .order('id', { ascending: true })
         .range(offset, offset + batchSize - 1);
 
@@ -70,7 +69,7 @@ export async function addToVisualHashQueue(
       }
 
       if (!mediaItems || mediaItems.length === 0) {
-        return false;
+        break; // No more items to process
       }
 
       // Calculate priorities and create jobs
@@ -79,7 +78,8 @@ export async function addToVisualHashQueue(
         return {
           name: 'visual-hash-generation',
           data: {
-            ...mediaItem,
+            id: mediaItem.id,
+            thumbnail_url: mediaItem.thumbnail_url,
             method,
           },
           opts: {
@@ -93,9 +93,11 @@ export async function addToVisualHashQueue(
 
       offset += mediaItems.length;
       if (mediaItems.length < batchSize) {
-        return false;
+        break; // Processed all items
       }
     }
+
+    return true;
   } catch (e) {
     const errorMessage =
       e instanceof Error ? e.message : 'Unknown error occurred';

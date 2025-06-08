@@ -2,9 +2,11 @@
 import { ActionButton } from '@/components/admin/action-button';
 import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
+import { DatabaseColumnAnalysis } from '@/components/admin/database-column-analysis';
 import { DuplicatesQueueStatus } from '@/components/admin/duplicates-queue-status';
 import { DuplicatesViewer } from '@/components/admin/duplicates-viewer';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
+import { getTableColumns } from '@/lib/database-columns';
 import { Trash2 } from 'lucide-react';
 
 export default function DuplicatesAdminPage() {
@@ -53,6 +55,13 @@ export default function DuplicatesAdminPage() {
       </div>
 
       <DuplicatesQueueStatus />
+
+      <DatabaseColumnAnalysis
+        table="duplicates"
+        columns={getTableColumns.duplicates()}
+        title="Duplicates Analysis"
+        description="Analysis of duplicate detection data"
+      />
 
       <DuplicatesViewer />
 

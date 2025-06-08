@@ -1,6 +1,10 @@
+import * as dotenv from 'dotenv';
+
+dotenv.config({ path: '../../../.env.local' });
+
 import { type Job, Worker } from 'bullmq';
-import { appConfig } from 'shared/env';
-import { createRedisConnection } from 'shared/redis';
+import IORedis from 'ioredis';
+import { appConfig, serverEnv } from 'shared/env';
 
 import { processDeleteAutomatically } from './process-delete-automatically';
 import { processDuplicates } from './process-duplicates';
@@ -10,7 +14,13 @@ interface DuplicatesJobData {
   method: 'standard' | 'auto-delete';
 }
 
-const redisConnection = createRedisConnection();
+const redisConnection = new IORedis(
+  appConfig.REDIS_PORT,
+  serverEnv.REDIS_HOST,
+  {
+    maxRetriesPerRequest: null, // Disable retries to avoid hanging jobs
+  },
+);
 
 const QUEUE_NAME = 'duplicatesQueue';
 
@@ -45,12 +55,12 @@ const workerProcessor = async (
       return true;
     }
 
-    throw new Error(`Failed to process ${method} duplicates`);
+    throw new Error(`Failed to process duplicates using ${method} method`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     console.error(
-      `[Duplicates Worker] Error processing job ${job.id} for media ID ${mediaId}:`,
+      `[Worker] Error processing job ${job.id} for media ID ${mediaId}:`,
       errorMessage,
     );
     throw error; // Rethrow to allow BullMQ to handle retries/failures
@@ -69,14 +79,14 @@ worker.on('completed', (job: Job<DuplicatesJobData>) => {
 
 worker.on('failed', (job: Job<DuplicatesJobData> | undefined, err: Error) => {
   console.error(
-    `[Duplicates Worker] Job ${job?.id} (Media ID: ${job?.data.id}) failed with error: ${err.message}`,
+    `[Worker] Job ${job?.id} (Media ID: ${job?.data.id}) failed with error: ${err.message}`,
   );
 });
 
 worker.on('error', (err) => {
-  console.error('[Duplicates Worker] Worker encountered an error:', err);
+  console.error('[Worker] Worker encountered an error:', err);
 });
 
 console.log(
-  `Duplicates detection worker started. Listening to queue: ${QUEUE_NAME}`,
+  `Duplicates processing worker started. Listening to queue: ${QUEUE_NAME}`,
 );

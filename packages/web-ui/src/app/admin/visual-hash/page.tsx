@@ -3,8 +3,10 @@ import { deleteAllVisualHashes } from '@/actions/visual-hash/delete-all-visual-h
 import { ActionButton } from '@/components/admin/action-button';
 import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
+import { DatabaseColumnAnalysis } from '@/components/admin/database-column-analysis';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { VisualHashQueueStatus } from '@/components/admin/visual-hash-queue-status';
+import { getTableColumns } from '@/lib/database-columns';
 import { Hash, Trash2 } from 'lucide-react';
 
 export default function VisualHashAdminPage() {
@@ -33,6 +35,13 @@ export default function VisualHashAdminPage() {
       </div>
 
       <VisualHashQueueStatus />
+
+      <DatabaseColumnAnalysis
+        table="media"
+        columns={getTableColumns.media()}
+        title="Visual Hash Coverage"
+        description="Analysis of visual hash data in media table"
+      />
 
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>

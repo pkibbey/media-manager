@@ -4,9 +4,8 @@ dotenv.config({ path: '../../../.env.local' });
 
 import { type Job, Worker } from 'bullmq';
 import IORedis from 'ioredis';
-import { createSupabase } from 'shared';
 import { appConfig, serverEnv } from 'shared/env';
-import { processWithOllama } from './process-with-ollama';
+import { processAdvancedAnalysis } from './process-with-ollama';
 
 interface AdvancedAnalysisJobData {
   id: string;
@@ -24,9 +23,6 @@ const redisConnection = new IORedis(
 
 const QUEUE_NAME = 'advancedAnalysisQueue';
 
-// Initialize Supabase client once
-const supabase = createSupabase();
-
 /**
  * The main worker processor function.
  * This function is called for each job in the queue.
@@ -38,11 +34,11 @@ const workerProcessor = async (
 
   try {
     // Process based on the specified method
-    let result: any;
+    let result: boolean;
 
     switch (method) {
       case 'standard':
-        result = await processWithOllama({
+        result = await processAdvancedAnalysis({
           mediaId,
           thumbnailUrl,
         });
@@ -51,26 +47,20 @@ const workerProcessor = async (
         throw new Error(`Unknown advanced analysis method: ${method}`);
     }
 
-    if (!result.success || !result.analysisData) {
-      throw new Error(result.error || `Failed to process with ${method}`);
+    if (result) {
+      return true;
     }
 
-    // Save analysis data
-    const { error: upsertError } = await supabase
-      .from('analysis_data')
-      .upsert(result.analysisData, { onConflict: 'media_id' });
-
-    if (upsertError) {
-      throw new Error(
-        `Failed to save analysis data for media ID ${mediaId}: ${upsertError.message}`,
-      );
-    }
-
-    return true;
+    throw new Error(
+      `Failed to process advanced analysis using ${method} method`,
+    );
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[Worker] Error processing job ${job.id}:`, errorMessage);
+    console.error(
+      `[Worker] Error processing job ${job.id} for media ID ${mediaId}:`,
+      errorMessage,
+    );
     throw error; // Rethrow to allow BullMQ to handle retries/failures
   }
 };

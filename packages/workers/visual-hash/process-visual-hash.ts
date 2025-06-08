@@ -120,8 +120,9 @@ export async function processVisualHash({
       await generateVisualHashFromFingerprint(imageFingerprint);
 
     if (!visualHash) {
-      console.warn(`Failed to generate visual hash for media ${mediaId}`);
-      return false;
+      throw new Error(
+        `Failed to generate visual hash for media ${mediaId} - hash generation returned null`,
+      );
     }
 
     // Update database
@@ -132,12 +133,18 @@ export async function processVisualHash({
       .eq('id', mediaId);
 
     if (updateError) {
-      throw new Error(updateError.message);
+      throw new Error(
+        `Database update failed for media ${mediaId}: ${updateError.message}`,
+      );
     }
 
     return true;
   } catch (error) {
-    console.error(`Error processing visual hash for media ${mediaId}:`, error);
-    return false;
+    // Re-throw the error with context instead of swallowing it
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(
+      `Error processing visual hash for media ${mediaId}: ${errorMessage}`,
+    );
   }
 }

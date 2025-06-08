@@ -11,3 +11,5 @@ When deciding on duplicates, add the ability to save rules, and/or process this 
 
 Depending on the time left, generate an AI message from ollama that makes up something else you could do, with a great random factor, but being pretty prcise on the amount of time you need.
 - process once through a very small randomizer, and then once through a very small truth checker
+
+Revist the exif data, the process of converting could mean that we are losing valuable information, when we might actually be able to get this all from the exifr package instead.

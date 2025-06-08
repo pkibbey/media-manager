@@ -11,8 +11,7 @@ export function formatShortNumber(value: number): string {
     return `${Math.round(value / 1_000_000)}m`;
   }
   if (value >= 1_000) {
-    // Round to nearest 10 for thousands
-    return `${Math.round(value / 100) / 10}k`.replace(/\.0k$/, 'k');
+    return `${Math.round(value / 1000)}k`.replace(/\.0k$/, 'k');
   }
   return value.toString();
 }

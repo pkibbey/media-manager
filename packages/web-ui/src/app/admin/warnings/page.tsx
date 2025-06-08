@@ -1,8 +1,10 @@
 'use client';
 import { AddOneToQueueButton } from '@/components/admin/add-one-to-queue-button';
 import { AddToQueueButton } from '@/components/admin/add-to-queue-button';
+import { DatabaseColumnAnalysis } from '@/components/admin/database-column-analysis';
 import { PauseQueueButton } from '@/components/admin/pause-queue-button';
 import { ContentWarningsQueueStatus } from '@/components/admin/warnings-queue-status';
+import { getTableColumns } from '@/lib/database-columns';
 
 export default function ContentWarningsAdminPage() {
   return (
@@ -18,6 +20,13 @@ export default function ContentWarningsAdminPage() {
       </div>
 
       <ContentWarningsQueueStatus />
+
+      <DatabaseColumnAnalysis
+        table="analysis_data"
+        columns={getTableColumns.analysis_data()}
+        title="Content Warnings Analysis"
+        description="Analysis of content warning related columns in analysis_data table"
+      />
 
       <div className="mt-8 pt-6 border-t border-border space-y-4">
         <h3 className="text-lg font-semibold">Actions</h3>

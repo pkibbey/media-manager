@@ -3,6 +3,7 @@
 import { deleteAllAnalysisData } from '@/actions/analysis/delete-all-analysis-data';
 import { ActionButton } from '@/components/admin/action-button';
 import { DatabaseColumnAnalysis } from '@/components/admin/database-column-analysis';
+import { getTableColumns } from '@/lib/database-columns';
 import { Trash2 } from 'lucide-react';
 
 export default function AnalysisAdminPage() {
@@ -29,21 +30,7 @@ export default function AnalysisAdminPage() {
 
       <DatabaseColumnAnalysis
         table="analysis_data"
-        columns={[
-          'adult_content',
-          'analysis_process',
-          'confidence_score',
-          'faces',
-          'image_description',
-          'keywords',
-          'medical_content',
-          'objects',
-          'racy_content',
-          'spoofed',
-          'tags',
-          'text',
-          'violence',
-        ]}
+        columns={getTableColumns.analysis_data()}
         title="Analysis Data Column Analysis"
         description="Analysis of analysis_data table columns to identify unused or fully null fields"
       />

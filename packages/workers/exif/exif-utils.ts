@@ -35,7 +35,7 @@ export function standardizeExif(
   // Handle library-specific field mappings with expanded alternatives
   let lensInfo: string | null = null;
   let flash: string | null = null;
-  let orientation: number | null = null;
+  let orientation: string | null = null;
   let subjectDistance: number | null = null;
   let depthOfField: string | null = null;
   let fieldOfView: string | null = null;
@@ -53,7 +53,7 @@ export function standardizeExif(
     flash = safeString((exif as any).Flash || (exif as any).FlashMode);
 
     // Alternative orientation fields
-    orientation = safeInteger(
+    orientation = safeString(
       (exif as any).Orientation ||
         (exif as any).Rotation ||
         (exif as any).CameraOrientation,
@@ -88,7 +88,7 @@ export function standardizeExif(
     flash = safeString(exif.Flash || (exif as any).FlashMode);
 
     // Alternative orientation fields for exifr
-    orientation = safeInteger(exif.Orientation || (exif as any).Rotation);
+    orientation = safeString(exif.Orientation || (exif as any).Rotation);
 
     // Alternative subject distance fields for exifr
     subjectDistance = safeNumber(
@@ -116,7 +116,7 @@ export function standardizeExif(
     light_source: safeString(exif.LightSource),
     media_id: mediaId,
     metering_mode: safeString(exif.MeteringMode),
-    orientation: orientation || safeInteger(exif.Orientation),
+    orientation: orientation || safeString(exif.Orientation),
     scene_capture_type: safeString(exif.SceneCaptureType),
     subject_distance: subjectDistance || safeNumber(exif.SubjectDistance),
     width,
@@ -462,56 +462,4 @@ export const exifOptions = {
   silentErrors: true, // Don't throw on parsing errors
   // Chunked reader for performance
   chunked: true,
-  // Pick only the tags we actually use to improve performance
-  // pick: [
-  //   // Camera information
-  //   'Make',
-  //   'Model',
-  //   'LensID',
-  //   'LensModel',
-  //   'LensSpec',
-  //   'LensSerialNumber',
-  //   'LensMake',
-  //   'Lens',
-  //   // Image dimensions
-  //   'ImageWidth',
-  //   'ImageHeight',
-  //   'ExifImageWidth',
-  //   'ExifImageHeight',
-  //   'Orientation',
-  //   'Rotation',
-  //   'CameraOrientation',
-  //   // Capture settings
-  //   'ISO',
-  //   'FNumber',
-  //   'ExposureTime',
-  //   'FocalLengthIn35mmFormat',
-  //   'DigitalZoomRatio',
-  //   'LightSource',
-  //   'MeteringMode',
-  //   'SceneCaptureType',
-  //   'SubjectDistance',
-  //   'FocusDistance',
-  //   'SubjectDistanceRange',
-  //   'FocusRange',
-  //   'Flash',
-  //   'FlashMode',
-  //   // Date/time
-  //   'DateTimeOriginal',
-  //   'CreateDate',
-  //   'DateTime',
-  //   // GPS
-  //   'GPSLatitude',
-  //   'GPSLongitude',
-  //   'GPSLatitudeRef',
-  //   'GPSLongitudeRef',
-  //   'GPSPosition',
-  //   // Additional metadata
-  //   'DOF',
-  //   'DepthOfField',
-  //   'HyperfocalDistance',
-  //   'FOV',
-  //   'FieldOfView',
-  //   'AngleOfView',
-  // ],
 };
