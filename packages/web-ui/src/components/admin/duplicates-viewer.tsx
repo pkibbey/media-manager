@@ -5,6 +5,7 @@ import {
   getDuplicatePairs,
 } from '@/actions/duplicates/get-duplicate-pairs';
 import {
+  deleteAllIdentical,
   dismissDuplicate,
   markMediaAsDeleted,
 } from '@/actions/duplicates/manage-duplicates';
@@ -234,15 +235,19 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Duplicate Images Detected</CardTitle>
           <div className="flex items-center gap-2">
-            <Badge
-              className={`text-white ${getConfidenceColor(pair.similarity_score)}`}
-            >
-              {getConfidenceText(pair.similarity_score)} (
-              {(pair.similarity_score * 100).toFixed(1)}%)
-            </Badge>
-            <Badge variant="outline">
-              Hamming Distance: {pair.hamming_distance}
-            </Badge>
+            {pair.similarity_score && (
+              <Badge
+                className={`text-white ${getConfidenceColor(pair.similarity_score)}`}
+              >
+                {getConfidenceText(pair.similarity_score)} (
+                {(pair.similarity_score * 100).toFixed(1)}%)
+              </Badge>
+            )}
+            {pair.hamming_distance && (
+              <Badge variant="outline">
+                Hamming Distance: {pair.hamming_distance}
+              </Badge>
+            )}
             {areIdentical && (
               <Badge
                 className="bg-blue-600 text-white"
@@ -580,6 +585,35 @@ export function DuplicatesViewer() {
     setPage(1);
   };
 
+  const handleDeleteAllIdentical = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete all identical duplicate images? This action cannot be undone.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await deleteAllIdentical();
+      if (result.success) {
+        console.log(
+          `Successfully processed ${result.processed} pairs and deleted ${result.deleted} identical duplicates`,
+        );
+        // Refresh the view to show updated results
+        handleUpdate();
+      } else {
+        setError(result.error || 'Failed to delete identical duplicates');
+      }
+    } catch (error) {
+      console.error('Error deleting identical duplicates:', error);
+      setError('Failed to delete identical duplicates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDuplicates(1, false);
   }, [fetchDuplicates]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -638,6 +672,14 @@ export function DuplicatesViewer() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={handleDeleteAllIdentical}
+            disabled={loading}
+            variant="outline"
+            className="flex-shrink-0"
+          >
+            {loading ? 'Loading...' : 'Delete Identical'}
+          </Button>
           <Button
             onClick={() => fetchDuplicates(1, false)}
             disabled={loading}

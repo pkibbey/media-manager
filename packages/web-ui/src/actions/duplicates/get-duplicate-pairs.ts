@@ -6,8 +6,8 @@ export interface DuplicatePair {
   id: string;
   media_id: string;
   duplicate_id: string;
-  similarity_score: number;
-  hamming_distance: number;
+  similarity_score: number | null;
+  hamming_distance: number | null;
   media: {
     id: string;
     thumbnail_url: string | null;

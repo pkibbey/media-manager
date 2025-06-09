@@ -6,9 +6,9 @@ import { MediaListContainer } from '@/components/media/media-list/media-list-con
 import { getTableColumns } from '@/lib/database-columns';
 import ThumbnailActions from './thumbnail-actions';
 
-export default async function ThumbnailAdminPage() {
-  const failedMediaItems = await getFailedThumbnailJobs();
+const failedMediaItems = await getFailedThumbnailJobs();
 
+export default async function ThumbnailAdminPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-2">
