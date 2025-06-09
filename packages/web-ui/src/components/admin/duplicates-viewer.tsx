@@ -6,6 +6,11 @@ import {
 } from '@/actions/duplicates/get-duplicate-pairs';
 import {
   deleteAllIdentical,
+  deleteEmbeddedDuplicates,
+  deleteIdenticalWithLowercaseExtension,
+  deleteJpgWithRawDuplicates,
+  deleteLargerIdenticalDuplicates,
+  deleteOddlySpecificDimensions,
   dismissDuplicate,
   markMediaAsDeleted,
 } from '@/actions/duplicates/manage-duplicates';
@@ -372,7 +377,7 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
                 size="sm"
                 className="w-full"
               >
-                <Trash2 className="h-4 w-4 mr-1" />
+                <Trash2 className="text-red-500 h-4 w-4 mr-1" />
                 Delete This Image
               </Button>
             </div>
@@ -475,7 +480,7 @@ function DuplicateCard({ pair, onUpdate }: DuplicateCardProps) {
                 size="sm"
                 className="w-full"
               >
-                <Trash2 className="h-4 w-4 mr-1" />
+                <Trash2 className="text-red-500 h-4 w-4 mr-1" />
                 Delete This Image
               </Button>
             </div>
@@ -614,6 +619,161 @@ export function DuplicatesViewer() {
     }
   };
 
+  const handleDeleteIdenticalWithLowercaseExtension = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete files with lowercase extensions when they have identical properties except extension case? This action cannot be undone.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await deleteIdenticalWithLowercaseExtension();
+      if (result.success) {
+        console.log(
+          `Successfully processed ${result.processed} pairs and deleted ${result.deleted} lowercase extension files`,
+        );
+        // Refresh the view to show updated results
+        handleUpdate();
+      } else {
+        setError(result.error || 'Failed to delete lowercase extension files');
+      }
+    } catch (error) {
+      console.error('Error deleting lowercase extension files:', error);
+      setError('Failed to delete lowercase extension files');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteJpgWithRawDuplicates = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete all JPG images that have RAW duplicates? This action cannot be undone.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await deleteJpgWithRawDuplicates();
+      if (result.success) {
+        console.log(
+          `Successfully processed ${result.processed} pairs and deleted ${result.deleted} JPG files with RAW duplicates`,
+        );
+        // Refresh the view to show updated results
+        handleUpdate();
+      } else {
+        setError(
+          result.error || 'Failed to delete JPG files with RAW duplicates',
+        );
+      }
+    } catch (error) {
+      console.error('Error deleting JPG files with RAW duplicates:', error);
+      setError('Failed to delete JPG files with RAW duplicates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteLargerIdenticalDuplicates = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete larger files when duplicates have identical extensions, dimensions, and timestamps? This action cannot be undone.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await deleteLargerIdenticalDuplicates();
+      if (result.success) {
+        console.log(
+          `Successfully processed ${result.processed} pairs and deleted ${result.deleted} larger identical duplicates`,
+        );
+        // Refresh the view to show updated results
+        handleUpdate();
+      } else {
+        setError(
+          result.error || 'Failed to delete larger identical duplicates',
+        );
+      }
+    } catch (error) {
+      console.error('Error deleting larger identical duplicates:', error);
+      setError('Failed to delete larger identical duplicates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteOddlySpecificDimensions = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete files with oddly specific dimensions (500x500, 1000x1000, 9x9) that are likely thumbnails or generated images? This action cannot be undone.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await deleteOddlySpecificDimensions();
+      if (result.success) {
+        console.log(
+          `Successfully processed ${result.processed} pairs and deleted ${result.deleted} files with oddly specific dimensions`,
+        );
+        // Refresh the view to show updated results
+        handleUpdate();
+      } else {
+        setError(
+          result.error ||
+            'Failed to delete files with oddly specific dimensions',
+        );
+      }
+    } catch (error) {
+      console.error(
+        'Error deleting files with oddly specific dimensions:',
+        error,
+      );
+      setError('Failed to delete files with oddly specific dimensions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEmbeddedDuplicates = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete files with "embedded" in the filename when they have identical extensions, dimensions, and are smaller than their duplicates? This action cannot be undone.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await deleteEmbeddedDuplicates();
+      if (result.success) {
+        console.log(
+          `Successfully processed ${result.processed} pairs and deleted ${result.deleted} embedded files`,
+        );
+        // Refresh the view to show updated results
+        handleUpdate();
+      } else {
+        setError(result.error || 'Failed to delete embedded files');
+      }
+    } catch (error) {
+      console.error('Error deleting embedded files:', error);
+      setError('Failed to delete embedded files');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDuplicates(1, false);
   }, [fetchDuplicates]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -673,20 +833,58 @@ export function DuplicatesViewer() {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={handleDeleteAllIdentical}
+            onClick={handleDeleteIdenticalWithLowercaseExtension}
             disabled={loading}
-            variant="outline"
-            className="flex-shrink-0"
+            variant="secondary"
+            className="flex-shrink-0 cursor-pointer"
           >
-            {loading ? 'Loading...' : 'Delete Identical'}
+            <Trash2 className="text-red-300 h-4 w-4 mr-1" />
+            {loading ? 'Loading...' : 'Lowercase Ext'}
           </Button>
           <Button
-            onClick={() => fetchDuplicates(1, false)}
+            onClick={handleDeleteLargerIdenticalDuplicates}
             disabled={loading}
-            variant="outline"
-            className="flex-shrink-0"
+            variant="secondary"
+            className="flex-shrink-0 cursor-pointer"
           >
-            {loading ? 'Loading...' : 'Refresh'}
+            <Trash2 className="text-red-300 h-4 w-4 mr-1" />
+            {loading ? 'Loading...' : 'Larger Identical'}
+          </Button>
+          <Button
+            onClick={handleDeleteJpgWithRawDuplicates}
+            disabled={loading}
+            variant="secondary"
+            className="flex-shrink-0 cursor-pointer"
+          >
+            <Trash2 className="text-red-300 h-4 w-4 mr-1" />
+            {loading ? 'Loading...' : 'JPG w/ RAW'}
+          </Button>
+          <Button
+            onClick={handleDeleteOddlySpecificDimensions}
+            disabled={loading}
+            variant="secondary"
+            className="flex-shrink-0 cursor-pointer"
+          >
+            <Trash2 className="text-red-300 h-4 w-4 mr-1" />
+            {loading ? 'Loading...' : 'Odd Dimensions'}
+          </Button>
+          <Button
+            onClick={handleDeleteEmbeddedDuplicates}
+            disabled={loading}
+            variant="secondary"
+            className="flex-shrink-0 cursor-pointer"
+          >
+            <Trash2 className="text-red-300 h-4 w-4 mr-1" />
+            {loading ? 'Loading...' : 'Embedded'}
+          </Button>
+          <Button
+            onClick={handleDeleteAllIdentical}
+            disabled={loading}
+            variant="secondary"
+            className="flex-shrink-0 cursor-pointer"
+          >
+            <Trash2 className="text-red-300 h-4 w-4 mr-1" />
+            {loading ? 'Loading...' : 'Identical'}
           </Button>
         </div>
       </div>

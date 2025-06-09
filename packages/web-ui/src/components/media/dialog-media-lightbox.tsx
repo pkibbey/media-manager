@@ -185,7 +185,7 @@ export function DialogMediaLightbox() {
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b">
                 <h2
-                  className="text-lg font-semibold text-gray-900 truncate"
+                  className="text-lg font-semibold text-neutral-100 truncate"
                   title={fileName}
                 >
                   {fileName}
@@ -195,7 +195,7 @@ export function DialogMediaLightbox() {
               <div className="space-y-6 p-4">
                 {/* Basic Info */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-gray-900">
+                  <h3 className="text-sm font-semibold text-neutral-100">
                     File Information
                   </h3>
 
@@ -289,7 +289,7 @@ export function DialogMediaLightbox() {
                 {media.exif_data && (
                   <>
                     <div className="space-y-4">
-                      <h3 className="text-sm font-semibold text-gray-900">
+                      <h3 className="text-sm font-semibold text-neutral-100">
                         Camera Information
                       </h3>
 
@@ -380,7 +380,7 @@ export function DialogMediaLightbox() {
                 {media.analysis_data && (
                   <>
                     <div className="space-y-4">
-                      <h3 className="text-sm font-semibold text-gray-900">
+                      <h3 className="text-sm font-semibold text-neutral-100">
                         Analysis
                       </h3>
 
@@ -421,7 +421,7 @@ export function DialogMediaLightbox() {
 
                 {/* Processing Actions */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-gray-900">
+                  <h3 className="text-sm font-semibold text-neutral-100">
                     Reprocess
                   </h3>
 
@@ -520,7 +520,7 @@ export function DialogMediaLightbox() {
                   <>
                     <Separator />
                     <div className="space-y-4">
-                      <h3 className="text-sm font-semibold text-gray-900">
+                      <h3 className="text-sm font-semibold text-neutral-100">
                         Processing Status
                       </h3>
 
