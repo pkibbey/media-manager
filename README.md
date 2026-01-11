@@ -1,4 +1,8 @@
-# Media Manager
+<p align="center">
+  <img src="./logo-2.png" alt="Media Manager" width="400" />
+</p>
+
+<h1 align="center">Media Manager</h1>
 
 A comprehensive media management system that automatically processes, analyzes, and organizes large photo collections. Runs distributed workers to extract metadata, detect duplicates, identify problematic images, and generate AI-powered descriptions—all through an intuitive web interface.
 
